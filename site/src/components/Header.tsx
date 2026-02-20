@@ -101,7 +101,7 @@ const Header: Component = () => {
               ?
             </button>
             <Show 
-              when={session()?.user}
+              when={session()?.data?.user}
               fallback={
                 <A href="/login" class="btn-secondary px-4 py-2 text-sm">
                   Sign In
@@ -116,9 +116,9 @@ const Header: Component = () => {
                   aria-expanded={userMenuOpen()}
                 >
                   <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400">
-                    {session()?.user?.email?.[0].toUpperCase()}
+                    {session()?.data?.user?.email?.[0].toUpperCase()}
                   </div>
-                  <span class="max-w-[150px] truncate">{session()?.user?.email}</span>
+                  <span class="max-w-[150px] truncate">{session()?.data?.user?.email}</span>
                   <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                   </svg>
@@ -187,7 +187,7 @@ const Header: Component = () => {
                 GitHub
               </a>
               <Show 
-                when={session()?.user}
+                when={session()?.data?.user}
                 fallback={
                   <A href="/login" class="text-slate-400 hover:text-white">
                     Sign In

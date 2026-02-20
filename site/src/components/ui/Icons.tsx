@@ -116,6 +116,7 @@ import {
   Power,
   Lightbulb,
   Crown,
+  Repeat,
   type LucideProps,
 } from 'lucide-solid';
 
@@ -241,6 +242,7 @@ export {
   Power,
   Lightbulb,
   Crown,
+  Repeat,
 };
 
 export const iconSize = {

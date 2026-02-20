@@ -62,10 +62,10 @@ const HomePage: Component = () => {
       const res = await fetch(
         `https://api.pyro1121.com/api/get-license?email=${encodeURIComponent(userEmail)}`
       );
-      const data = await res.json();
+      const data = (await res.json()) as { found: boolean; license_key?: string; tier?: string };
       if (data.found) {
-        setLicenseKey(data.license_key);
-        setTier(data.tier);
+        setLicenseKey(data.license_key ?? '');
+        setTier(data.tier ?? '');
         spawnConfetti();
       } else {
         setNotFound(true);

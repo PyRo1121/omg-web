@@ -21,14 +21,13 @@ export function SearchDialog(props: SearchDialogProps) {
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const navigate = useNavigate();
 
-  let pagefind: any = null;
+  let pagefind: { search?: (query: string) => Promise<{ results: Array<{ data: () => Promise<{ url: string; meta?: { title?: string }; excerpt?: string }> }> }> } | null = null;
   let inputRef: HTMLInputElement | undefined;
 
   onMount(async () => {
     try {
-      pagefind = await import(
-        /* @vite-ignore */ "/pagefind/pagefind.js"
-      );
+      // Pagefind is generated at build time and served as a static asset
+      pagefind = await (globalThis as Record<string, unknown>).__pagefind ?? await import(/* @vite-ignore */ "/pagefind/pagefind.js" as string);
     } catch {
       console.warn("Pagefind not available - search disabled");
     }
@@ -55,6 +54,7 @@ export function SearchDialog(props: SearchDialogProps) {
     setLoading(true);
 
     try {
+      if (!pagefind?.search) return;
       const search = await pagefind.search(term);
       const data = await Promise.all(
         search.results.slice(0, 8).map(async (r: any) => {
