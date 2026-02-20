@@ -44,6 +44,12 @@ const Header: Component = () => {
 
   return (
     <>
+      <a
+        href="#main-content"
+        class="sr-only fixed top-4 left-4 z-[70] rounded-md border border-indigo-500/50 bg-slate-950 px-3 py-2 text-sm text-indigo-200 focus:not-sr-only focus:outline-none"
+      >
+        Skip to main content
+      </a>
       <header class="pointer-events-auto fixed top-0 right-0 left-0 z-50 border-b border-white/5 bg-[#0f0f23]/80 backdrop-blur-lg">
         <nav class="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <A href="/" class="flex items-center gap-3" aria-label="OMG Package Manager - Home">
@@ -60,13 +66,12 @@ const Header: Component = () => {
           </A>
 
           <div class="hidden items-center gap-8 md:flex">
-            <A
+            <a
               href="/docs"
               class="text-slate-400 transition-colors hover:text-white"
-              activeClass="text-white"
             >
               Docs
-            </A>
+            </a>
             <a href="/#features" class="text-slate-400 transition-colors hover:text-white">
               Features
             </a>
@@ -91,6 +96,7 @@ const Header: Component = () => {
               onClick={() => setShowShortcuts(true)}
               class="rounded border border-slate-700 px-2 py-1 text-xs text-slate-500 transition-colors hover:text-white"
               title="Keyboard shortcuts (?)"
+              aria-label="Show keyboard shortcuts"
             >
               ?
             </button>
@@ -106,6 +112,8 @@ const Header: Component = () => {
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen())}
                   class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 transition-colors hover:bg-slate-800/50 hover:text-white"
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen()}
                 >
                   <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400">
                     {session()?.user?.email?.[0].toUpperCase()}
@@ -146,6 +154,8 @@ const Header: Component = () => {
           <button
             class="text-slate-400 hover:text-white md:hidden"
             onClick={() => setMenuOpen(!menuOpen())}
+            aria-label={menuOpen() ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={menuOpen()}
           >
             <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -161,9 +171,9 @@ const Header: Component = () => {
         {menuOpen() && (
           <div class="border-t border-white/5 bg-[#1a1a2e] px-6 py-4 md:hidden">
             <div class="flex flex-col gap-4">
-              <A href="/docs" class="text-slate-400 hover:text-white">
+              <a href="/docs" class="text-slate-400 hover:text-white" onClick={() => setMenuOpen(false)}>
                 Docs
-              </A>
+              </a>
               <a href="/#features" class="text-slate-400 hover:text-white" onClick={() => setMenuOpen(false)}>
                 Features
               </a>
@@ -219,6 +229,7 @@ const Header: Component = () => {
               <button
                 onClick={() => setShowShortcuts(false)}
                 class="p-1 text-slate-400 hover:text-white"
+                aria-label="Close keyboard shortcuts"
               >
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path

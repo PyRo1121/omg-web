@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+site/dist/
+site/.vinxi/
+site/.output/
+omg-docs/dist/
+omg-docs/.astro/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AI / Local-only
+.opencode/
+.claude/
+AGENTS.md
+tasks/
+
+# Logs
+*.log
+npm-debug.log*

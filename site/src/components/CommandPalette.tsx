@@ -53,7 +53,7 @@ const CommandPalette: Component = () => {
       icon: FileText,
       shortcut: ["G", "D"],
       action: () => {
-        navigate("/docs");
+        window.location.href = "/docs";
         setOpen(false);
       },
       group: "Navigation",

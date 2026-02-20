@@ -101,7 +101,7 @@ const HomePage: Component = () => {
         </Suspense>
       </Show>
       <Header />
-      <main>
+      <main id="main-content">
         <Hero />
         <div class="relative z-10">
           <FeatureGrid />

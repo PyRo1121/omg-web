@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
 /* OMG Documentation - Matching pyro1121.com Theme
  * Design: Deep void darkness with bioluminescent accents
  * Colors: Indigo primary, Cyan/Purple gradients
@@ -8,6 +10,10 @@
    ========================================================================== */
 
 :root {
+	--omg-font-display: 'Space Grotesk', 'Segoe UI', sans-serif;
+	--omg-font-body: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+	--omg-font-mono: 'JetBrains Mono', 'SFMono-Regular', monospace;
+
 	/* Void Blacks - The canvas (matching main site) */
 	--omg-void-950: #030304;
 	--omg-void-900: #07070a;
@@ -103,11 +109,34 @@
 
 html {
 	scroll-behavior: smooth;
+	color-scheme: dark;
 }
 
 body {
+	font-family: var(--omg-font-body);
+	background:
+		radial-gradient(1200px 550px at 12% -10%, rgba(99, 102, 241, 0.16), transparent 60%),
+		radial-gradient(900px 450px at 90% 0%, rgba(34, 211, 238, 0.11), transparent 65%),
+		var(--omg-void-950);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.site-title {
+	font-family: var(--omg-font-display);
+}
+
+code,
+pre,
+kbd,
+samp {
+	font-family: var(--omg-font-mono);
 }
 
 /* ==========================================================================
@@ -115,10 +144,21 @@ body {
    ========================================================================== */
 
 header.header {
+	position: relative;
 	background: rgba(7, 7, 10, 0.85) !important;
 	backdrop-filter: blur(12px);
 	-webkit-backdrop-filter: blur(12px);
 	border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+header.header::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -1px;
+	height: 1px;
+	background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.6) 50%, transparent 100%);
 }
 
 .site-title {
@@ -167,6 +207,7 @@ main {
 /* Article content */
 .sl-markdown-content {
 	line-height: 1.7;
+	text-wrap: pretty;
 }
 
 /* Headings */
@@ -176,6 +217,13 @@ main {
 .sl-markdown-content h4 {
 	font-weight: 700;
 	letter-spacing: -0.02em;
+	text-wrap: balance;
+	scroll-margin-top: 6rem;
+}
+
+.sl-markdown-content p,
+.sl-markdown-content li {
+	color: var(--omg-nebula-300);
 }
 
 /* Hero gradient text (for h1 on intro pages) */
@@ -200,6 +248,32 @@ h1.hero-title,
 .sl-markdown-content a:not(.sl-badge):hover {
 	color: var(--omg-indigo-300);
 	text-decoration-color: var(--omg-indigo-400);
+}
+
+.hero .sl-link-button,
+a.sl-link-button {
+	border-radius: 0.75rem;
+	font-weight: 600;
+	transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.hero .sl-link-button.primary,
+a.sl-link-button.primary {
+	background: linear-gradient(135deg, var(--omg-indigo-500) 0%, var(--omg-indigo-600) 100%);
+	border: 1px solid rgba(129, 140, 248, 0.5);
+	box-shadow: 0 10px 24px rgba(99, 102, 241, 0.3);
+}
+
+.hero .sl-link-button.primary:hover,
+a.sl-link-button.primary:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 14px 32px rgba(99, 102, 241, 0.38);
+}
+
+.hero .sl-link-button.secondary,
+a.sl-link-button.secondary {
+	background: rgba(15, 23, 42, 0.65);
+	border: 1px solid rgba(99, 102, 241, 0.3);
 }
 
 /* ==========================================================================
