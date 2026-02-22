@@ -5,7 +5,7 @@ Website, documentation site, and web workers for OMG.
 ## Structure
 
 - `site/` - marketing site and web app surface
-- `omg-docs/` - documentation site source
+- `workers/router/` - routes docs traffic to Docusaurus (omg-docs.pages.dev)
 - `workers/` - standalone Cloudflare workers
 
 ## Related Repository

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vinxi dev",
-    "dev:docs": "cd ../omg-docs && bun run dev",
+    "dev:docs": "echo 'Docs served by Docusaurus at omg-docs.pages.dev'",
     "build": "bun run build:site",
     "build:site": "vinxi build",
     "preview": "vinxi start",
@@ -43,7 +43,6 @@
     "shiki": "^3.22.0",
     "solid-apexcharts": "^0.6.0",
     "solid-js": "^1.9.11",
-    "solid-markdown": "^2.1.1",
     "tailwind-merge": "^3.5.0",
     "three": "^0.182.0",
     "vinxi": "^0.5.11"

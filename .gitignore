@@ -5,9 +5,6 @@ node_modules/
 site/dist/
 site/.vinxi/
 site/.output/
-omg-docs/dist/
-omg-docs/.astro/
-
 # Environment
 .env
 .env.*
