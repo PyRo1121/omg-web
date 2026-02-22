@@ -67,7 +67,8 @@ const Header: Component = () => {
 
           <div class="hidden items-center gap-8 md:flex">
             <a
-              href="/docs"
+              href="/docs/"
+              rel="external"
               class="text-slate-400 transition-colors hover:text-white"
             >
               Docs
@@ -171,7 +172,7 @@ const Header: Component = () => {
         {menuOpen() && (
           <div class="border-t border-white/5 bg-[#1a1a2e] px-6 py-4 md:hidden">
             <div class="flex flex-col gap-4">
-              <a href="/docs" class="text-slate-400 hover:text-white" onClick={() => setMenuOpen(false)}>
+              <a href="/docs/" rel="external" class="text-slate-400 hover:text-white" onClick={() => setMenuOpen(false)}>
                 Docs
               </a>
               <a href="/#features" class="text-slate-400 hover:text-white" onClick={() => setMenuOpen(false)}>

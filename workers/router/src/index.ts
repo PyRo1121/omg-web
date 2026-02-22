@@ -53,11 +53,18 @@ async function handleDocsProxy(request: Request, env: Env, ctx: ExecutionContext
       const cachedResponse = await cache.match(cacheKey);
 
       if (cachedResponse) {
-        // Clone and add cache hit header
-        const response = new Response(cachedResponse.body, cachedResponse);
-        response.headers.set('X-Cache', 'HIT');
-        response.headers.set('X-Proxy', 'Cloudflare-Worker-Router');
-        return response;
+        // Self-healing: if a stale error response was cached (from before our fix),
+        // delete it from cache and re-fetch from origin instead of serving the error
+        if (cachedResponse.status >= 200 && cachedResponse.status < 300) {
+          const response = new Response(cachedResponse.body, cachedResponse);
+          response.headers.set('X-Cache', 'HIT');
+          response.headers.set('X-Proxy', 'Cloudflare-Worker-Router');
+          return response;
+        } else {
+          // Stale error in cache — evict it and fall through to origin fetch
+          ctx.waitUntil(cache.delete(cacheKey));
+          console.log(`Evicted stale ${cachedResponse.status} from cache: ${targetUrl}`);
+        }
       }
     }
 
@@ -128,12 +135,14 @@ async function handleDocsProxy(request: Request, env: Env, ctx: ExecutionContext
     headers.set('X-Frame-Options', 'SAMEORIGIN');
     headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-    // Cache static assets aggressively
-    if (request.method === 'GET' && shouldCache(url.pathname, contentType)) {
+    // Cache static assets aggressively — only for successful responses
+    const isSuccess = response.status >= 200 && response.status < 300;
+    if (isSuccess && request.method === 'GET' && shouldCache(url.pathname, contentType)) {
       const cacheTtl = getCacheTtl(url.pathname, contentType);
-      console.log(`Setting cache TTL for ${url.pathname}: ${cacheTtl}s`);
       headers.set('Cache-Control', `public, max-age=${cacheTtl}, s-maxage=${cacheTtl}, immutable`);
-
+    } else if (!isSuccess) {
+      // Never cache error responses — prevent stale 503s from persisting
+      headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
     // Create final response with custom headers
@@ -143,8 +152,8 @@ async function handleDocsProxy(request: Request, env: Env, ctx: ExecutionContext
       headers
     });
 
-    // Store in cache if applicable
-    if (request.method === 'GET' && shouldCache(url.pathname, contentType)) {
+    // Store in cache only for successful responses
+    if (isSuccess && request.method === 'GET' && shouldCache(url.pathname, contentType)) {
       const cache = caches.default;
       const cacheKey = new Request(targetUrl, request);
       ctx.waitUntil(cache.put(cacheKey, finalResponse.clone()));

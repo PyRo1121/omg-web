@@ -6,9 +6,8 @@
   "scripts": {
     "dev": "vinxi dev",
     "dev:docs": "cd ../omg-docs && bun run dev",
-    "build": "bun run build:docs && bun run build:site",
+    "build": "bun run build:site",
     "build:site": "vinxi build",
-    "build:docs": "cd ../omg-docs && bun run build && mkdir -p ../site/public/docs && cp -r dist/* ../site/public/docs/",
     "preview": "vinxi start",
     "lint": "eslint src --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",

@@ -7,7 +7,7 @@ export default defineConfig({
       external: ["node:async_hooks"],
     },
     prerender: {
-      routes: ["/", "/docs", "/login", "/signup"],
+      routes: ["/", "/login", "/signup"],
       crawlLinks: true,
       ignore: ["/dashboard", "/api/*"],
     },
