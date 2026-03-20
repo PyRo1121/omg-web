@@ -34,7 +34,7 @@
     "clsx": "^2.1.1",
     "cmdk-solid": "^1.1.2",
     "drizzle-orm": "^0.45.1",
-    "kysely": "^0.28.11",
+    "kysely": "^0.28.14",
     "kysely-d1": "^0.4.0",
     "lucide-solid": "^0.562.0",
     "motion": "^12.34.2",
