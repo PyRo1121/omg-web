@@ -36,7 +36,10 @@ export const Card: Component<CardProps> = props => {
   return (
     <div
       class={`rounded-2xl border p-6 transition-all duration-300 ${gradientClasses[props.gradient || 'none']} ${
-        props.hover ? 'cursor-pointer hover:scale-[1.02] hover:border-opacity-50 hover:shadow-xl ' + glowClasses[props.gradient || 'none'] : ''
+        props.hover
+          ? 'hover:border-opacity-50 cursor-pointer hover:scale-[1.02] hover:shadow-xl ' +
+            glowClasses[props.gradient || 'none']
+          : ''
       } ${props.onClick ? 'cursor-pointer' : ''} ${props.class || ''}`}
       onClick={props.onClick}
     >
@@ -78,19 +81,17 @@ export const StatCard: Component<StatCardProps> = props => {
           <div class="mb-1 flex items-center gap-2">
             <span class="text-sm font-medium text-slate-400">{props.label}</span>
             <Show when={props.trend}>
-              <TrendIndicator 
-                value={props.trend!.positive ? 100 + props.trend!.value : 100 - props.trend!.value} 
-                previousValue={100} 
+              <TrendIndicator
+                value={props.trend!.positive ? 100 + props.trend!.value : 100 - props.trend!.value}
+                previousValue={100}
                 size="sm"
               />
             </Show>
           </div>
-          <div class={`text-3xl font-bold text-white transition-all ${props.loading ? 'animate-pulse' : ''}`}>
-            {props.loading ? (
-              <div class="h-9 w-24 rounded-lg bg-slate-700/50" />
-            ) : (
-              props.value
-            )}
+          <div
+            class={`text-3xl font-bold text-white transition-all ${props.loading ? 'animate-pulse' : ''}`}
+          >
+            {props.loading ? <div class="h-9 w-24 rounded-lg bg-slate-700/50" /> : props.value}
           </div>
           {props.subValue && <div class="mt-1 text-sm text-slate-500">{props.subValue}</div>}
         </div>
@@ -99,10 +100,10 @@ export const StatCard: Component<StatCardProps> = props => {
             {props.icon}
           </div>
           <Show when={props.sparklineData && props.sparklineData.length > 0}>
-            <Sparkline 
-              data={props.sparklineData!} 
-              width={80} 
-              height={24} 
+            <Sparkline
+              data={props.sparklineData!}
+              width={80}
+              height={24}
               color={sparklineColor()}
               showDots
             />
@@ -136,53 +137,65 @@ export const MetricCard: Component<MetricCardProps> = props => {
   };
 
   return (
-    <div 
-      class={`group relative overflow-hidden rounded-[2rem] border border-white/5 bg-[#0d0d0e] p-6 shadow-2xl transition-all duration-500 hover:border-white/10 hover:scale-[1.02] ${
+    <div
+      class={`group relative overflow-hidden rounded-[2rem] border border-white/5 bg-[#0d0d0e] p-6 shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:border-white/10 ${
         props.onClick ? 'cursor-pointer' : ''
       }`}
       onClick={props.onClick}
     >
       <div class="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-      
+
       <div class="relative flex items-start justify-between">
         <div class="flex-1">
           <div class="flex items-center gap-3">
-            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-400 transition-colors">{props.title}</span>
+            <span class="text-[10px] font-black tracking-widest text-slate-500 uppercase transition-colors group-hover:text-slate-400">
+              {props.title}
+            </span>
             <Show when={props.badge}>
-              <span class={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter ${badgeColors[props.badge!.color]}`}>
+              <span
+                class={`rounded-full border px-2 py-0.5 text-[9px] font-black tracking-tighter uppercase ${badgeColors[props.badge!.color]}`}
+              >
                 {props.badge!.text}
               </span>
             </Show>
           </div>
-          
+
           <div class="mt-4 flex items-baseline gap-3">
             <span class="text-4xl font-black tracking-tight text-white">{props.value}</span>
             <Show when={props.previousValue !== undefined && props.currentValue !== undefined}>
-              <TrendIndicator 
-                value={props.currentValue!} 
+              <TrendIndicator
+                value={props.currentValue!}
                 previousValue={props.previousValue!}
                 size="sm"
               />
             </Show>
           </div>
-          
+
           <Show when={props.subtitle}>
-            <p class="mt-2 text-xs font-bold text-slate-600 group-hover:text-slate-500 transition-colors uppercase tracking-tight">{props.subtitle}</p>
+            <p class="mt-2 text-xs font-bold tracking-tight text-slate-600 uppercase transition-colors group-hover:text-slate-500">
+              {props.subtitle}
+            </p>
           </Show>
         </div>
 
         <div class="flex flex-col items-end gap-4">
           <Show when={props.icon}>
-            <div class={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-inner transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 ${props.iconBg || 'bg-white/[0.03]'}`}>
-              {typeof props.icon === 'string' ? <span class="text-2xl">{props.icon}</span> : props.icon}
+            <div
+              class={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-inner transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 ${props.iconBg || 'bg-white/[0.03]'}`}
+            >
+              {typeof props.icon === 'string' ? (
+                <span class="text-2xl">{props.icon}</span>
+              ) : (
+                props.icon
+              )}
             </div>
           </Show>
-          
+
           <Show when={props.sparklineData && props.sparklineData.length > 0}>
-            <div class="opacity-50 group-hover:opacity-100 transition-opacity duration-500">
-              <Sparkline 
-                data={props.sparklineData!} 
-                width={80} 
+            <div class="opacity-50 transition-opacity duration-500 group-hover:opacity-100">
+              <Sparkline
+                data={props.sparklineData!}
+                width={80}
                 height={32}
                 color={props.sparklineColor || '#6366f1'}
                 showDots
@@ -210,7 +223,9 @@ export const GlassCard: Component<GlassCardProps> = props => {
   };
 
   return (
-    <div class={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl ${paddingClasses[props.padding || 'md']} ${props.class || ''}`}>
+    <div
+      class={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl ${paddingClasses[props.padding || 'md']} ${props.class || ''}`}
+    >
       {props.children}
     </div>
   );

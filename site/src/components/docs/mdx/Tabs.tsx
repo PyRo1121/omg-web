@@ -1,12 +1,4 @@
-import {
-  createSignal,
-  For,
-  ParentProps,
-  createContext,
-  useContext,
-  Show,
-  JSX,
-} from "solid-js";
+import { createSignal, For, ParentProps, createContext, useContext, Show, JSX } from 'solid-js';
 
 interface TabsContextValue {
   activeTab: () => string;
@@ -20,7 +12,7 @@ interface TabsProps extends ParentProps {
 }
 
 export function Tabs(props: TabsProps) {
-  const [activeTab, setActiveTab] = createSignal(props.defaultValue || "");
+  const [activeTab, setActiveTab] = createSignal(props.defaultValue || '');
 
   return (
     <TabsContext.Provider value={{ activeTab, setActiveTab }}>
@@ -32,11 +24,7 @@ export function Tabs(props: TabsProps) {
 interface TabListProps extends ParentProps {}
 
 export function TabList(props: TabListProps) {
-  return (
-    <div class="flex gap-1 border-b border-slate-700 pb-px">
-      {props.children}
-    </div>
-  );
+  return <div class="flex gap-1 border-b border-slate-700 pb-px">{props.children}</div>;
 }
 
 interface TabProps extends ParentProps {
@@ -45,7 +33,7 @@ interface TabProps extends ParentProps {
 
 export function Tab(props: TabProps) {
   const ctx = useContext(TabsContext);
-  if (!ctx) throw new Error("Tab must be used within Tabs");
+  if (!ctx) throw new Error('Tab must be used within Tabs');
 
   const isActive = () => ctx.activeTab() === props.value;
 
@@ -53,8 +41,8 @@ export function Tab(props: TabProps) {
     <button
       class="relative px-4 py-2 text-sm font-medium transition-colors"
       classList={{
-        "text-indigo-400": isActive(),
-        "text-slate-400 hover:text-white": !isActive(),
+        'text-indigo-400': isActive(),
+        'text-slate-400 hover:text-white': !isActive(),
       }}
       onClick={() => ctx.setActiveTab(props.value)}
     >
@@ -72,7 +60,7 @@ interface TabPanelProps extends ParentProps {
 
 export function TabPanel(props: TabPanelProps) {
   const ctx = useContext(TabsContext);
-  if (!ctx) throw new Error("TabPanel must be used within Tabs");
+  if (!ctx) throw new Error('TabPanel must be used within Tabs');
 
   return (
     <Show when={ctx.activeTab() === props.value}>

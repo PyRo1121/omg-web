@@ -32,7 +32,7 @@ const NOTE_TYPES = [
   { value: 'success', label: 'Success', color: 'text-pink-400' },
 ];
 
-export const NotesSection: Component<NotesSectionProps> = (props) => {
+export const NotesSection: Component<NotesSectionProps> = props => {
   const [newNote, setNewNote] = createSignal('');
   const [noteType, setNoteType] = createSignal('general');
   const [isAdding, setIsAdding] = createSignal(false);
@@ -57,7 +57,7 @@ export const NotesSection: Component<NotesSectionProps> = (props) => {
     });
 
   const getNoteTypeColor = (type: string) => {
-    return NOTE_TYPES.find((t) => t.value === type)?.color || 'text-slate-400';
+    return NOTE_TYPES.find(t => t.value === type)?.color || 'text-slate-400';
   };
 
   return (
@@ -88,12 +88,12 @@ export const NotesSection: Component<NotesSectionProps> = (props) => {
       <Show when={isAdding()}>
         <div class="mb-4 rounded-lg border border-white/10 bg-white/5 p-4">
           <div class="mb-3">
-            <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+            <label class="mb-2 block text-xs font-bold tracking-wider text-slate-400 uppercase">
               Note Type
             </label>
             <div class="flex flex-wrap gap-2">
               <For each={NOTE_TYPES}>
-                {(type) => (
+                {type => (
                   <button
                     onClick={() => setNoteType(type.value)}
                     class={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
@@ -111,9 +111,9 @@ export const NotesSection: Component<NotesSectionProps> = (props) => {
 
           <textarea
             value={newNote()}
-            onInput={(e) => setNewNote(e.currentTarget.value)}
+            onInput={e => setNewNote(e.currentTarget.value)}
             placeholder="Add a note about this customer..."
-            class="w-full rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white placeholder-slate-500 focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            class="w-full rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white placeholder-slate-500 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
             rows={4}
           />
 
@@ -157,7 +157,7 @@ export const NotesSection: Component<NotesSectionProps> = (props) => {
           </Show>
 
           <For each={sortedNotes()}>
-            {(note) => (
+            {note => (
               <div class="group rounded-lg border border-white/5 bg-white/5 p-4 transition-all hover:border-white/10 hover:bg-white/10">
                 <div class="mb-3 flex items-start justify-between">
                   <div class="flex items-center gap-2">
@@ -165,7 +165,7 @@ export const NotesSection: Component<NotesSectionProps> = (props) => {
                       <Pin size={12} class="text-amber-400" fill="currentColor" />
                     </Show>
                     <span class={`text-xs font-bold uppercase ${getNoteTypeColor(note.note_type)}`}>
-                      {NOTE_TYPES.find((t) => t.value === note.note_type)?.label || note.note_type}
+                      {NOTE_TYPES.find(t => t.value === note.note_type)?.label || note.note_type}
                     </span>
                     <span class="text-xs text-slate-500">•</span>
                     <span class="text-xs text-slate-400">
@@ -181,7 +181,7 @@ export const NotesSection: Component<NotesSectionProps> = (props) => {
                     <Trash2 size={14} class="text-rose-400 transition-colors hover:text-rose-300" />
                   </button>
                 </div>
-                <p class="whitespace-pre-wrap text-sm leading-relaxed text-white">{note.content}</p>
+                <p class="text-sm leading-relaxed whitespace-pre-wrap text-white">{note.content}</p>
               </div>
             )}
           </For>

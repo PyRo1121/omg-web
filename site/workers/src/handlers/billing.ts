@@ -1,4 +1,46 @@
-import { Env, jsonResponse, errorResponse, validateSession, getAuthToken, logAudit } from '../api';
+import {
+  type Env,
+  jsonResponse,
+  errorResponse,
+  validateSession,
+  getAuthToken,
+  logAudit,
+} from '../api';
+
+type StripeValue =
+  string | number | boolean | null | undefined | StripeValue[] | { [key: string]: StripeValue };
+
+interface StripeEventObject {
+  [key: string]: StripeValue;
+  id?: string;
+  customer?: string;
+  status?: string;
+  current_period_end?: number;
+  amount_paid?: number;
+  amount_due?: number;
+  currency?: string;
+  hosted_invoice_url?: string | null;
+  invoice_pdf?: string | null;
+  period_start?: number;
+  period_end?: number;
+  created?: number;
+  name?: string | null;
+  email?: string;
+  metadata?: { company?: string };
+  items?: {
+    data: Array<{
+      price: {
+        unit_amount?: number;
+        recurring?: { interval?: string; interval_count?: number };
+      };
+    }>;
+  };
+}
+
+interface StripeEvent {
+  type: string;
+  data: { object: StripeEventObject };
+}
 
 /**
  * Verify Stripe webhook signature using HMAC-SHA256
@@ -13,17 +55,14 @@ async function verifyStripeSignature(
     const encoder = new TextEncoder();
 
     // Parse the Stripe signature header (format: t=timestamp,v1=signature)
-    const parts = signature.split(',').reduce(
-      (acc, part) => {
-        const [key, value] = part.split('=');
-        if (key && value) acc[key] = value;
-        return acc;
-      },
-      {} as Record<string, string>
-    );
+    const parts = new Map<string, string>();
+    for (const part of signature.split(',')) {
+      const [key, value] = part.split('=');
+      if (key && value) parts.set(key, value);
+    }
 
-    const timestamp = parts['t'];
-    const expectedSig = parts['v1'];
+    const timestamp = parts.get('t');
+    const expectedSig = parts.get('v1');
 
     if (!timestamp || !expectedSig) {
       console.error('Stripe signature missing timestamp or v1 signature');
@@ -79,6 +118,7 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
+  // SAFETY: The request boundary is restricted to the documented checkout fields.
   const body = (await request.json()) as { email?: string; priceId?: string };
   const { email, priceId } = body;
 
@@ -102,6 +142,7 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     }),
   });
 
+  // SAFETY: Stripe checkout responses expose these documented optional fields.
   const session = (await stripeResponse.json()) as {
     id?: string;
     url?: string;
@@ -136,6 +177,7 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
+  // SAFETY: The request boundary is restricted to the documented billing email field.
   const body = (await request.json()) as { email?: string };
   const email = body.email || auth.user.email;
 
@@ -154,11 +196,13 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
+      // SAFETY: The customer row was checked for a non-null Stripe customer id above.
       customer: customer.stripe_customer_id as string,
       return_url: 'https://pyro1121.com/dashboard?portal=closed',
     }),
   });
 
+  // SAFETY: Stripe portal responses expose these documented optional fields.
   const session = (await portalResponse.json()) as { url?: string; error?: { message: string } };
 
   if (session.error || !session.url) {
@@ -184,9 +228,10 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
     return new Response('Invalid signature', { status: 401 });
   }
 
-  let event;
+  let event: StripeEvent;
   try {
-    event = JSON.parse(body);
+    // SAFETY: Stripe webhook signatures are verified before parsing the documented event envelope.
+    event = JSON.parse(body) as StripeEvent;
   } catch {
     return new Response('Invalid JSON', { status: 400 });
   }
@@ -203,6 +248,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
         .first();
 
       if (!customer) {
+        // SAFETY: Stripe customer lookup returns the documented email field.
         const stripeCustomer = (await fetch(`https://api.stripe.com/v1/customers/${customerId}`, {
           headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
         }).then(r => r.json())) as { email: string };
@@ -237,7 +283,15 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
           .bind(customer.id)
           .first();
 
-        if (!existingLicense) {
+        if (existingLicense) {
+          await env.DB.prepare(
+            `
+            UPDATE licenses SET expires_at = datetime(?, 'unixepoch'), status = 'active' WHERE customer_id = ?
+          `
+          )
+            .bind(subscription.current_period_end, customer.id)
+            .run();
+        } else {
           const licenseKey = crypto.randomUUID();
           await env.DB.prepare(
             `
@@ -246,14 +300,6 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
           `
           )
             .bind(crypto.randomUUID(), customer.id, licenseKey, subscription.current_period_end)
-            .run();
-        } else {
-          await env.DB.prepare(
-            `
-            UPDATE licenses SET expires_at = datetime(?, 'unixepoch'), status = 'active' WHERE customer_id = ?
-          `
-          )
-            .bind(subscription.current_period_end, customer.id)
             .run();
         }
       }
@@ -330,7 +376,11 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
           `INSERT INTO audit_log (id, customer_id, action, metadata, created_at)
            VALUES (?, ?, 'billing.payment_failed', ?, CURRENT_TIMESTAMP)`
         )
-          .bind(crypto.randomUUID(), customer.id, JSON.stringify({ invoice_id: invoice.id, amount: invoice.amount_due }))
+          .bind(
+            crypto.randomUUID(),
+            customer.id,
+            JSON.stringify({ invoice_id: invoice.id, amount: invoice.amount_due })
+          )
           .run();
       }
       break;
@@ -338,9 +388,11 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
 
     case 'customer.created': {
       const stripeCustomer = event.data.object;
-      
+
       // Check if customer already exists
-      const existing = await env.DB.prepare('SELECT * FROM customers WHERE stripe_customer_id = ? OR email = ?')
+      const existing = await env.DB.prepare(
+        'SELECT * FROM customers WHERE stripe_customer_id = ? OR email = ?'
+      )
         .bind(stripeCustomer.id, stripeCustomer.email)
         .first();
 
@@ -390,11 +442,12 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
     return errorResponse('Unauthorized', 403);
   }
 
+  const errors: string[] = [];
   const results = {
     customers_synced: 0,
     subscriptions_synced: 0,
     invoices_synced: 0,
-    errors: [] as string[],
+    errors,
   };
 
   try {
@@ -407,9 +460,10 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       url.searchParams.set('limit', '100');
       if (startingAfter) url.searchParams.set('starting_after', startingAfter);
 
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
       });
+      // SAFETY: Stripe customer list responses contain a data array and pagination flag.
       const data = (await response.json()) as { data: any[]; has_more: boolean };
 
       for (const customer of data.data) {
@@ -419,8 +473,13 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
              VALUES (COALESCE((SELECT id FROM customers WHERE stripe_customer_id = ? OR email = ?), ?), ?, ?, ?, ?, CURRENT_TIMESTAMP)`
           )
             .bind(
-              customer.id, customer.email, crypto.randomUUID(),
-              customer.id, customer.email, customer.name, customer.metadata?.company
+              customer.id,
+              customer.email,
+              crypto.randomUUID(),
+              customer.id,
+              customer.email,
+              customer.name,
+              customer.metadata?.company
             )
             .run();
           results.customers_synced++;
@@ -445,14 +504,17 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       url.searchParams.set('status', 'all');
       if (startingAfter) url.searchParams.set('starting_after', startingAfter);
 
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
       });
+      // SAFETY: Stripe subscription list responses contain a data array and pagination flag.
       const data = (await response.json()) as { data: any[]; has_more: boolean };
 
       for (const sub of data.data) {
         try {
-          const customer = await env.DB.prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
+          const customer = await env.DB.prepare(
+            'SELECT id FROM customers WHERE stripe_customer_id = ?'
+          )
             .bind(sub.customer)
             .first();
 
@@ -461,7 +523,14 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
               `INSERT OR REPLACE INTO subscriptions (id, customer_id, stripe_subscription_id, status, current_period_end, created_at)
                VALUES (COALESCE((SELECT id FROM subscriptions WHERE stripe_subscription_id = ?), ?), ?, ?, ?, datetime(?, 'unixepoch'), CURRENT_TIMESTAMP)`
             )
-              .bind(sub.id, crypto.randomUUID(), customer.id, sub.id, sub.status, sub.current_period_end)
+              .bind(
+                sub.id,
+                crypto.randomUUID(),
+                customer.id,
+                sub.id,
+                sub.status,
+                sub.current_period_end
+              )
               .run();
             results.subscriptions_synced++;
           }
@@ -479,7 +548,7 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
     // Sync invoices (last 12 months)
     hasMore = true;
     startingAfter = undefined;
-    const twelveMonthsAgo = Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60);
+    const twelveMonthsAgo = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
 
     while (hasMore) {
       const url = new URL('https://api.stripe.com/v1/invoices');
@@ -487,16 +556,19 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       url.searchParams.set('created[gte]', twelveMonthsAgo.toString());
       if (startingAfter) url.searchParams.set('starting_after', startingAfter);
 
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
       });
+      // SAFETY: Stripe invoice list responses contain a data array and pagination flag.
       const data = (await response.json()) as { data: any[]; has_more: boolean };
 
       for (const invoice of data.data) {
         if (invoice.status !== 'paid') continue;
 
         try {
-          const customer = await env.DB.prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
+          const customer = await env.DB.prepare(
+            'SELECT id FROM customers WHERE stripe_customer_id = ?'
+          )
             .bind(invoice.customer)
             .first();
 
@@ -506,9 +578,18 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
                VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), datetime(?, 'unixepoch'))`
             )
               .bind(
-                invoice.id, crypto.randomUUID(),
-                customer.id, invoice.id, invoice.amount_paid, invoice.currency, invoice.status,
-                invoice.hosted_invoice_url, invoice.invoice_pdf, invoice.period_start, invoice.period_end, invoice.created
+                invoice.id,
+                crypto.randomUUID(),
+                customer.id,
+                invoice.id,
+                invoice.amount_paid,
+                invoice.currency,
+                invoice.status,
+                invoice.hosted_invoice_url,
+                invoice.invoice_pdf,
+                invoice.period_start,
+                invoice.period_end,
+                invoice.created
               )
               .run();
             results.invoices_synced++;
@@ -523,7 +604,6 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
         startingAfter = data.data[data.data.length - 1].id;
       }
     }
-
   } catch (error) {
     results.errors.push(`Sync error: ${error}`);
   }
@@ -553,13 +633,17 @@ export async function handleAdminStripeMetrics(request: Request, env: Env): Prom
   }
 
   // Fetch active subscriptions from Stripe for accurate MRR
-  const subsResponse = await fetch('https://api.stripe.com/v1/subscriptions?status=active&limit=100', {
-    headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
-  });
+  const subsResponse = await fetch(
+    'https://api.stripe.com/v1/subscriptions?status=active&limit=100',
+    {
+      headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+    }
+  );
+  // SAFETY: Stripe subscriptions responses contain a data array of subscription records.
   const subsData = (await subsResponse.json()) as { data: any[] };
 
   let mrr = 0;
-  const tierCounts: Record<string, number> = { pro: 0, team: 0, enterprise: 0 };
+  const tierCounts = { pro: 0, team: 0, enterprise: 0 } satisfies Record<string, number>;
 
   for (const sub of subsData.data) {
     for (const item of sub.items.data) {
@@ -592,9 +676,12 @@ export async function handleAdminStripeMetrics(request: Request, env: Env): Prom
   const balanceResponse = await fetch('https://api.stripe.com/v1/balance', {
     headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
   });
+  // SAFETY: Stripe balance responses contain available and pending balance arrays.
   const balance = (await balanceResponse.json()) as { available: any[]; pending: any[] };
 
+  // SAFETY: Stripe balance entries expose numeric amount values.
   const availableBalance = balance.available.reduce((sum: number, b: any) => sum + b.amount, 0);
+  // SAFETY: Stripe balance entries expose numeric amount values.
   const pendingBalance = balance.pending.reduce((sum: number, b: any) => sum + b.amount, 0);
 
   return jsonResponse({

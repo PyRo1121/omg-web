@@ -1,14 +1,7 @@
 import { Component, Show, For, createMemo, Switch, Match } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { 
-  AlertTriangle, 
-  AlertCircle, 
-  Info, 
-  CheckCircle,
-  TrendingDown,
-  Shield
-} from 'lucide-solid';
+import { AlertTriangle, AlertCircle, Info, CheckCircle, TrendingDown, Shield } from 'lucide-solid';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -26,16 +19,19 @@ interface RiskIndicatorProps {
   class?: string;
 }
 
-const riskConfig: Record<RiskLevel, {
-  label: string;
-  icon: typeof AlertTriangle;
-  color: string;
-  bg: string;
-  border: string;
-  gradient: string;
-  glow: string;
-  barColor: string;
-}> = {
+const riskConfig: Record<
+  RiskLevel,
+  {
+    label: string;
+    icon: typeof AlertTriangle;
+    color: string;
+    bg: string;
+    border: string;
+    gradient: string;
+    glow: string;
+    barColor: string;
+  }
+> = {
   critical: {
     label: 'Critical Risk',
     icon: AlertTriangle,
@@ -109,7 +105,7 @@ const sizeConfig = {
   },
 };
 
-export const RiskIndicator: Component<RiskIndicatorProps> = (props) => {
+export const RiskIndicator: Component<RiskIndicatorProps> = props => {
   const config = createMemo(() => riskConfig[props.level]);
   const size = createMemo(() => sizeConfig[props.size || 'md']);
   const showLabel = () => props.showLabel !== false;
@@ -118,19 +114,26 @@ export const RiskIndicator: Component<RiskIndicatorProps> = (props) => {
   const IconComponent = config().icon;
 
   if (variant() === 'bar') {
-    const probabilityWidth = () => props.probability !== undefined ? props.probability : 
-      props.level === 'critical' ? 90 :
-      props.level === 'high' ? 70 :
-      props.level === 'medium' ? 50 :
-      props.level === 'low' ? 30 : 10;
+    const probabilityWidth = () =>
+      props.probability !== undefined
+        ? props.probability
+        : props.level === 'critical'
+          ? 90
+          : props.level === 'high'
+            ? 70
+            : props.level === 'medium'
+              ? 50
+              : props.level === 'low'
+                ? 30
+                : 10;
 
     return (
       <div class={cn('w-full', props.class)}>
         <Show when={showLabel()}>
-          <div class="flex items-center justify-between mb-2">
+          <div class="mb-2 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <IconComponent size={size().icon} class={config().color} />
-              <span class={cn('font-bold uppercase tracking-wider', config().color)}>
+              <span class={cn('font-bold tracking-wider uppercase', config().color)}>
                 {config().label}
               </span>
             </div>
@@ -141,10 +144,10 @@ export const RiskIndicator: Component<RiskIndicatorProps> = (props) => {
             </Show>
           </div>
         </Show>
-        <div class={cn('w-full rounded-full bg-void-700 overflow-hidden', size().bar)}>
+        <div class={cn('bg-void-700 w-full overflow-hidden rounded-full', size().bar)}>
           <div
             class={cn(
-              'h-full rounded-full bg-gradient-to-r transition-all duration-700 ease-smooth',
+              'ease-smooth h-full rounded-full bg-gradient-to-r transition-all duration-700',
               config().gradient,
               props.animated && config().glow
             )}
@@ -185,7 +188,10 @@ export const RiskIndicator: Component<RiskIndicatorProps> = (props) => {
             stroke-linecap="round"
             stroke-dasharray={`${circumference}`}
             stroke-dashoffset={props.animated ? circumference : offset}
-            class={cn('transition-all duration-1000 ease-smooth', props.animated && 'animate-gauge-fill')}
+            class={cn(
+              'ease-smooth transition-all duration-1000',
+              props.animated && 'animate-gauge-fill'
+            )}
             style={{
               '--gauge-circumference': `${circumference}`,
               '--gauge-offset': `${offset}`,
@@ -196,7 +202,7 @@ export const RiskIndicator: Component<RiskIndicatorProps> = (props) => {
         <div class="absolute inset-0 flex flex-col items-center justify-center">
           <IconComponent size={size().icon} class={config().color} />
           <Show when={showLabel()}>
-            <span class="text-2xs font-bold text-nebula-500 mt-1">{probability()}%</span>
+            <span class="text-2xs text-nebula-500 mt-1 font-bold">{probability()}%</span>
           </Show>
         </div>
       </div>
@@ -215,15 +221,13 @@ export const RiskIndicator: Component<RiskIndicatorProps> = (props) => {
         )}
       >
         <div class="flex items-center gap-3">
-          <div class={cn('p-2 rounded-xl', config().bg)}>
+          <div class={cn('rounded-xl p-2', config().bg)}>
             <IconComponent size={size().icon + 4} class={config().color} />
           </div>
-          <div class="flex-1 min-w-0">
+          <div class="min-w-0 flex-1">
             <p class={cn('font-bold', config().color)}>{config().label}</p>
             <Show when={props.probability !== undefined}>
-              <p class="text-xs text-nebula-500">
-                {props.probability}% churn probability
-              </p>
+              <p class="text-nebula-500 text-xs">{props.probability}% churn probability</p>
             </Show>
           </div>
         </div>
@@ -251,7 +255,7 @@ export const RiskIndicator: Component<RiskIndicatorProps> = (props) => {
   return (
     <div
       class={cn(
-        'inline-flex items-center rounded-full border font-bold uppercase tracking-wider transition-all',
+        'inline-flex items-center rounded-full border font-bold tracking-wider uppercase transition-all',
         config().bg,
         config().border,
         config().color,
@@ -282,24 +286,20 @@ interface RiskSegmentsProps {
   class?: string;
 }
 
-export const RiskSegments: Component<RiskSegmentsProps> = (props) => {
+export const RiskSegments: Component<RiskSegmentsProps> = props => {
   const totalAtRisk = createMemo(() =>
-    props.segments
-      .filter(s => s.level !== 'healthy')
-      .reduce((sum, s) => sum + s.count, 0)
+    props.segments.filter(s => s.level !== 'healthy').reduce((sum, s) => sum + s.count, 0)
   );
 
   return (
     <div class={cn('space-y-3', props.class)}>
-      <div class="flex items-center justify-between mb-4">
+      <div class="mb-4 flex items-center justify-between">
         <h4 class="text-lg font-bold text-white">Risk Analysis</h4>
-        <span class="text-sm text-nebula-500">
-          {totalAtRisk()} customers at risk
-        </span>
+        <span class="text-nebula-500 text-sm">{totalAtRisk()} customers at risk</span>
       </div>
-      
+
       <For each={props.segments}>
-        {(segment) => {
+        {segment => {
           const config = riskConfig[segment.level];
           const IconComponent = config.icon;
 
@@ -321,14 +321,14 @@ export const RiskSegments: Component<RiskSegmentsProps> = (props) => {
                       {config.label.replace(' Risk', '')}
                     </p>
                     <Show when={segment.tier}>
-                      <p class="text-xs text-nebula-500 capitalize">{segment.tier} tier</p>
+                      <p class="text-nebula-500 text-xs capitalize">{segment.tier} tier</p>
                     </Show>
                   </div>
                 </div>
                 <div class="text-right">
                   <p class="text-2xl font-black text-white tabular-nums">{segment.count}</p>
                   <Show when={segment.avgCommands !== undefined}>
-                    <p class="text-xs text-nebula-500">
+                    <p class="text-nebula-500 text-xs">
                       {Math.round(segment.avgCommands!)} avg cmds/mo
                     </p>
                   </Show>
@@ -340,8 +340,8 @@ export const RiskSegments: Component<RiskSegmentsProps> = (props) => {
       </For>
 
       <Show when={totalAtRisk() > 0}>
-        <div class="mt-4 rounded-xl border border-flare-500/30 bg-flare-500/5 p-4">
-          <p class="text-sm font-medium text-flare-400 flex items-center gap-2">
+        <div class="border-flare-500/30 bg-flare-500/5 mt-4 rounded-xl border p-4">
+          <p class="text-flare-400 flex items-center gap-2 text-sm font-medium">
             <TrendingDown size={16} />
             Action Required: Reach out to high-risk customers before they churn
           </p>

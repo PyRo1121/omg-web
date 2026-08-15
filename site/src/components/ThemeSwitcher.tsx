@@ -1,4 +1,4 @@
-import { Component, createSignal, createEffect, onMount, onCleanup } from 'solid-js';
+import { type Component, createSignal, createEffect, onMount, onCleanup } from 'solid-js';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -9,8 +9,8 @@ const ThemeSwitcher: Component = () => {
   const [resolvedTheme, setResolvedTheme] = createSignal<'light' | 'dark'>('dark');
 
   const getSystemTheme = (): 'light' | 'dark' => {
-    if (typeof window === 'undefined') return 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    if (!('window' in globalThis)) return 'dark';
+    return globalThis.window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
 
   const applyTheme = (resolved: 'light' | 'dark') => {
@@ -28,14 +28,16 @@ const ThemeSwitcher: Component = () => {
 
   const cycleTheme = () => {
     const current = theme();
-    const next: Theme = current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system';
+    let next: Theme = 'system';
+    if (current === 'system') next = 'light';
+    else if (current === 'light') next = 'dark';
     setTheme(next);
     localStorage.setItem(STORAGE_KEY, next);
   };
 
   onMount(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    if (stored && ['light', 'dark', 'system'].includes(stored)) {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark' || stored === 'system') {
       setTheme(stored);
     }
 

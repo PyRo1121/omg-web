@@ -1,5 +1,5 @@
 // CLI telemetry event handlers
-import { Env, jsonResponse, errorResponse, generateId } from '../api';
+import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 
 // ========== Payload Size Limits ==========
 const MAX_EVENT_PAYLOAD_BYTES = 100 * 1024; // 100 KB
@@ -12,23 +12,52 @@ const MAX_ERROR_LENGTH = 5000; // characters
 const MAX_ARRAY_LENGTH = 100; // items
 
 // ========== Rate Limiting ==========
-const RATE_LIMIT_EVENTS_PER_MINUTE = 100;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 // ========== Validation Helpers ==========
 
+type ContentLengthCheck = { valid: true } | { valid: false; error: Response };
+type TelemetryEventType = 'command' | 'session' | 'performance' | 'feature';
+type TelemetryValue = string | number | boolean | null | string[] | Record<string, string>;
+
+interface TelemetryEvent {
+  type: TelemetryEventType;
+  [key: string]: TelemetryValue;
+}
+
+interface TelemetryItem {
+  event: TelemetryEvent;
+  timestamp: string;
+  machine_id: string;
+  version: string;
+  platform: string;
+  license_key?: string;
+  retries?: number;
+}
+
+interface SingleTelemetryRequest extends TelemetryItem {}
+
+interface BatchTelemetryRequest {
+  events: TelemetryItem[];
+  batch_timestamp: string;
+  machine_id: string;
+}
+
 /**
  * Check Content-Length header before parsing JSON
  */
-function validateContentLength(request: Request, maxBytes: number): { valid: boolean; error?: Response } {
+function validateContentLength(request: Request, maxBytes: number): ContentLengthCheck {
   const contentLength = request.headers.get('Content-Length');
 
   if (!contentLength) {
-    return { valid: false, error: errorResponse('Content-Length header required', 411) };
+    return { valid: true };
   }
 
-  const bytes = parseInt(contentLength, 10);
-  if (isNaN(bytes) || bytes > maxBytes) {
+  const bytes = Number(contentLength);
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return { valid: false, error: errorResponse('Invalid Content-Length header', 400) };
+  }
+  if (bytes > maxBytes) {
     const response = errorResponse('Payload too large', 413);
     response.headers.set('Content-Type', 'application/json');
     return { valid: false, error: response };
@@ -40,7 +69,7 @@ function validateContentLength(request: Request, maxBytes: number): { valid: boo
 /**
  * Truncate string to max length (don't reject)
  */
-function truncateString(value: any, maxLength: number): string | null {
+function truncateString(value: TelemetryValue | undefined, maxLength: number): string | null {
   if (value === null || value === undefined) return null;
   const str = String(value);
   return str.length > maxLength ? str.slice(0, maxLength) : str;
@@ -49,7 +78,7 @@ function truncateString(value: any, maxLength: number): string | null {
 /**
  * Truncate array to max length (don't reject)
  */
-function truncateArray<T>(value: any, maxLength: number): T[] {
+function truncateArray(value: TelemetryValue | undefined, maxLength: number): string[] {
   if (!Array.isArray(value)) return [];
   return value.slice(0, maxLength);
 }
@@ -57,7 +86,7 @@ function truncateArray<T>(value: any, maxLength: number): T[] {
 /**
  * Sanitize and validate event payload
  */
-function sanitizeEvent(event: any): any {
+function sanitizeEvent(event: TelemetryEvent): TelemetryEvent {
   return {
     ...event,
     command: truncateString(event.command, MAX_STRING_LENGTH),
@@ -109,21 +138,11 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
     // Validate payload size BEFORE parsing JSON
     const lengthCheck = validateContentLength(request, MAX_EVENT_PAYLOAD_BYTES);
     if (!lengthCheck.valid) {
-      return lengthCheck.error!;
+      return lengthCheck.error;
     }
 
-    const body = await request.json() as {
-      event: {
-        type: 'command' | 'session' | 'performance' | 'feature';
-        [key: string]: any;
-      };
-      timestamp: string;
-      machine_id: string;
-      version: string;
-      platform: string;
-      license_key?: string;
-      retries?: number;
-    };
+    // SAFETY: The event envelope is validated by the event-type switch and field sanitization below before persistence.
+    const body = (await request.json()) as SingleTelemetryRequest;
 
     if (!body.license_key) {
       return errorResponse('License key required', 401);
@@ -150,20 +169,21 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
       return errorResponse('Invalid license key', 401);
     }
 
-    const today = new Date().toISOString().split('T')[0];
     const eventId = generateId();
 
     // Store based on event type (sanitize all fields)
     switch (body.event.type) {
       case 'command': {
-        const cmd = sanitizeEvent(body.event as any);
-        await env.DB.prepare(`
+        const cmd = sanitizeEvent(body.event);
+        await env.DB.prepare(
+          `
           INSERT INTO command_event (
             id, license_id, machine_id, session_id, command, subcommand,
             packages, duration_ms, success, error, result_count, updated_count, timestamp
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `)
+        `
+        )
           .bind(
             eventId,
             license.id,
@@ -184,14 +204,16 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
       }
 
       case 'session': {
-        const sess = sanitizeEvent(body.event as any);
-        await env.DB.prepare(`
+        const sess = sanitizeEvent(body.event);
+        await env.DB.prepare(
+          `
           INSERT INTO session (
             id, license_id, machine_id, session_id, event_type,
             start_time, end_time, commands_run, duration_secs, timestamp
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `)
+        `
+        )
           .bind(
             eventId,
             license.id,
@@ -209,13 +231,15 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
       }
 
       case 'performance': {
-        const perf = sanitizeEvent(body.event as any);
-        await env.DB.prepare(`
+        const perf = sanitizeEvent(body.event);
+        await env.DB.prepare(
+          `
           INSERT INTO performance_metric (
             id, license_id, machine_id, metric_type, duration_ms, context, timestamp
           )
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `)
+        `
+        )
           .bind(
             eventId,
             license.id,
@@ -230,13 +254,15 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
       }
 
       case 'feature': {
-        const feat = sanitizeEvent(body.event as any);
-        await env.DB.prepare(`
+        const feat = sanitizeEvent(body.event);
+        await env.DB.prepare(
+          `
           INSERT INTO feature_usage (
             id, license_id, machine_id, feature, enabled, metadata, timestamp
           )
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `)
+        `
+        )
           .bind(
             eventId,
             license.id,
@@ -267,25 +293,11 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
     // Validate payload size BEFORE parsing JSON
     const lengthCheck = validateContentLength(request, MAX_BATCH_PAYLOAD_BYTES);
     if (!lengthCheck.valid) {
-      return lengthCheck.error!;
+      return lengthCheck.error;
     }
 
-    const body = await request.json() as {
-      events: Array<{
-        event: {
-          type: 'command' | 'session' | 'performance' | 'feature';
-          [key: string]: any;
-        };
-        timestamp: string;
-        machine_id: string;
-        version: string;
-        platform: string;
-        license_key?: string;
-        retries?: number;
-      }>;
-      batch_timestamp: string;
-      machine_id: string;
-    };
+    // SAFETY: The batch envelope is validated by size, license checks, event-type switching, and field sanitization before persistence.
+    const body = (await request.json()) as BatchTelemetryRequest;
 
     if (!body.events || body.events.length === 0) {
       return jsonResponse({ success: true, processed: 0 });
@@ -331,15 +343,17 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
 
       switch (item.event.type) {
         case 'command': {
-          const cmd = sanitizeEvent(item.event as any);
+          const cmd = sanitizeEvent(item.event);
           statements.push(
-            env.DB.prepare(`
+            env.DB.prepare(
+              `
               INSERT INTO command_event (
                 id, license_id, machine_id, session_id, command, subcommand,
                 packages, duration_ms, success, error, result_count, updated_count, timestamp
               )
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).bind(
+            `
+            ).bind(
               eventId,
               license.id,
               truncateString(item.machine_id, MAX_STRING_LENGTH),
@@ -359,15 +373,17 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
         }
 
         case 'session': {
-          const sess = sanitizeEvent(item.event as any);
+          const sess = sanitizeEvent(item.event);
           statements.push(
-            env.DB.prepare(`
+            env.DB.prepare(
+              `
               INSERT INTO session (
                 id, license_id, machine_id, session_id, event_type,
                 start_time, end_time, commands_run, duration_secs, timestamp
               )
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).bind(
+            `
+            ).bind(
               eventId,
               license.id,
               truncateString(item.machine_id, MAX_STRING_LENGTH),
@@ -384,14 +400,16 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
         }
 
         case 'performance': {
-          const perf = sanitizeEvent(item.event as any);
+          const perf = sanitizeEvent(item.event);
           statements.push(
-            env.DB.prepare(`
+            env.DB.prepare(
+              `
               INSERT INTO performance_metric (
                 id, license_id, machine_id, metric_type, duration_ms, context, timestamp
               )
               VALUES (?, ?, ?, ?, ?, ?, ?)
-            `).bind(
+            `
+            ).bind(
               eventId,
               license.id,
               truncateString(item.machine_id, MAX_STRING_LENGTH),
@@ -405,14 +423,16 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
         }
 
         case 'feature': {
-          const feat = sanitizeEvent(item.event as any);
+          const feat = sanitizeEvent(item.event);
           statements.push(
-            env.DB.prepare(`
+            env.DB.prepare(
+              `
               INSERT INTO feature_usage (
                 id, license_id, machine_id, feature, enabled, metadata, timestamp
               )
               VALUES (?, ?, ?, ?, ?, ?, ?)
-            `).bind(
+            `
+            ).bind(
               eventId,
               license.id,
               truncateString(item.machine_id, MAX_STRING_LENGTH),

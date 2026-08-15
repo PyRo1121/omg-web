@@ -28,14 +28,16 @@ const columnClasses = {
   12: 'grid-cols-4 md:grid-cols-6 lg:grid-cols-12',
 };
 
-export const DashboardGrid: ParentComponent<DashboardGridProps> = (props) => {
+export const DashboardGrid: ParentComponent<DashboardGridProps> = props => {
   return (
-    <div class={cn(
-      'grid',
-      columnClasses[props.columns || 4],
-      gapClasses[props.gap || 'lg'],
-      props.class
-    )}>
+    <div
+      class={cn(
+        'grid',
+        columnClasses[props.columns || 4],
+        gapClasses[props.gap || 'lg'],
+        props.class
+      )}
+    >
       {props.children}
     </div>
   );
@@ -63,13 +65,15 @@ const rowSpanClasses = {
   3: 'row-span-3',
 };
 
-export const GridItem: ParentComponent<GridItemProps> = (props) => {
+export const GridItem: ParentComponent<GridItemProps> = props => {
   return (
-    <div class={cn(
-      spanClasses[props.span || 1],
-      props.rowSpan && rowSpanClasses[props.rowSpan],
-      props.class
-    )}>
+    <div
+      class={cn(
+        spanClasses[props.span || 1],
+        props.rowSpan && rowSpanClasses[props.rowSpan],
+        props.class
+      )}
+    >
       {props.children}
     </div>
   );
@@ -85,7 +89,7 @@ interface SectionProps {
   class?: string;
 }
 
-export const Section: ParentComponent<SectionProps> = (props) => {
+export const Section: ParentComponent<SectionProps> = props => {
   const [expanded, setExpanded] = createSignal(props.defaultExpanded !== false);
 
   const variantClasses = {
@@ -97,11 +101,11 @@ export const Section: ParentComponent<SectionProps> = (props) => {
   return (
     <section class={cn(variantClasses[props.variant || 'default'], props.class)}>
       <Show when={props.title}>
-        <div class="flex items-start justify-between mb-6">
+        <div class="mb-6 flex items-start justify-between">
           <div>
             <h3 class="text-xl font-black tracking-tight text-white">{props.title}</h3>
             <Show when={props.subtitle}>
-              <p class="mt-1 text-sm text-nebula-500 font-medium">{props.subtitle}</p>
+              <p class="text-nebula-500 mt-1 text-sm font-medium">{props.subtitle}</p>
             </Show>
           </div>
           <div class="flex items-center gap-3">
@@ -109,7 +113,7 @@ export const Section: ParentComponent<SectionProps> = (props) => {
             <Show when={props.collapsible}>
               <button
                 onClick={() => setExpanded(!expanded())}
-                class="p-2 rounded-lg text-nebula-500 hover:text-white hover:bg-white/5 transition-colors"
+                class="text-nebula-500 rounded-lg p-2 transition-colors hover:bg-white/5 hover:text-white"
               >
                 <svg
                   width="16"
@@ -132,9 +136,7 @@ export const Section: ParentComponent<SectionProps> = (props) => {
         </div>
       </Show>
       <Show when={!props.collapsible || expanded()}>
-        <div class={cn(props.collapsible && 'animate-slide-in-bottom')}>
-          {props.children}
-        </div>
+        <div class={cn(props.collapsible && 'animate-slide-in-bottom')}>{props.children}</div>
       </Show>
     </section>
   );
@@ -148,7 +150,7 @@ interface PageHeaderProps {
   class?: string;
 }
 
-export const PageHeader: Component<PageHeaderProps> = (props) => {
+export const PageHeader: Component<PageHeaderProps> = props => {
   return (
     <header class={cn('mb-8', props.class)}>
       <Show when={props.breadcrumbs && props.breadcrumbs.length > 0}>
@@ -156,10 +158,11 @@ export const PageHeader: Component<PageHeaderProps> = (props) => {
           <For each={props.breadcrumbs}>
             {(crumb, index) => (
               <>
-                <Show when={crumb.href} fallback={
-                  <span class="text-nebula-400">{crumb.label}</span>
-                }>
-                  <a href={crumb.href} class="text-nebula-500 hover:text-white transition-colors">
+                <Show
+                  when={crumb.href}
+                  fallback={<span class="text-nebula-400">{crumb.label}</span>}
+                >
+                  <a href={crumb.href} class="text-nebula-500 transition-colors hover:text-white">
                     {crumb.label}
                   </a>
                 </Show>
@@ -173,11 +176,9 @@ export const PageHeader: Component<PageHeaderProps> = (props) => {
       </Show>
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 class="text-4xl font-black tracking-tight text-white font-display">
-            {props.title}
-          </h1>
+          <h1 class="font-display text-4xl font-black tracking-tight text-white">{props.title}</h1>
           <Show when={props.subtitle}>
-            <p class="mt-2 text-base text-nebula-400 font-medium">{props.subtitle}</p>
+            <p class="text-nebula-400 mt-2 text-base font-medium">{props.subtitle}</p>
           </Show>
         </div>
         <Show when={props.actions}>
@@ -201,7 +202,7 @@ interface TabNavigationProps {
   class?: string;
 }
 
-export const TabNavigation: Component<TabNavigationProps> = (props) => {
+export const TabNavigation: Component<TabNavigationProps> = props => {
   const variant = () => props.variant || 'pills';
 
   const baseClasses = {
@@ -211,30 +212,33 @@ export const TabNavigation: Component<TabNavigationProps> = (props) => {
   };
 
   const tabClasses = {
-    pills: (active: boolean) => cn(
-      'flex items-center gap-2 rounded-xl px-5 py-2.5 font-bold transition-all',
-      active
-        ? 'bg-white text-black shadow-lg scale-[1.02]'
-        : 'text-nebula-400 hover:bg-white/5 hover:text-white'
-    ),
-    underline: (active: boolean) => cn(
-      'flex items-center gap-2 py-3 font-bold transition-all border-b-2 -mb-px',
-      active
-        ? 'border-indigo-500 text-white'
-        : 'border-transparent text-nebula-400 hover:text-white hover:border-white/20'
-    ),
-    cards: (active: boolean) => cn(
-      'flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all border',
-      active
-        ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
-        : 'bg-void-850 border-white/5 text-nebula-400 hover:border-white/10 hover:text-white'
-    ),
+    pills: (active: boolean) =>
+      cn(
+        'flex items-center gap-2 rounded-xl px-5 py-2.5 font-bold transition-all',
+        active
+          ? 'bg-white text-black shadow-lg scale-[1.02]'
+          : 'text-nebula-400 hover:bg-white/5 hover:text-white'
+      ),
+    underline: (active: boolean) =>
+      cn(
+        'flex items-center gap-2 py-3 font-bold transition-all border-b-2 -mb-px',
+        active
+          ? 'border-indigo-500 text-white'
+          : 'border-transparent text-nebula-400 hover:text-white hover:border-white/20'
+      ),
+    cards: (active: boolean) =>
+      cn(
+        'flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all border',
+        active
+          ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
+          : 'bg-void-850 border-white/5 text-nebula-400 hover:border-white/10 hover:text-white'
+      ),
   };
 
   return (
     <nav class={cn(baseClasses[variant()], props.class)}>
       <For each={props.tabs}>
-        {(tab) => (
+        {tab => (
           <button
             onClick={() => props.onChange(tab.id)}
             class={tabClasses[variant()](props.activeTab === tab.id)}
@@ -242,12 +246,14 @@ export const TabNavigation: Component<TabNavigationProps> = (props) => {
             {tab.icon}
             <span>{tab.label}</span>
             <Show when={tab.badge !== undefined}>
-              <span class={cn(
-                'px-1.5 py-0.5 rounded-full text-2xs font-black',
-                props.activeTab === tab.id
-                  ? 'bg-black/20 text-inherit'
-                  : 'bg-white/10 text-nebula-300'
-              )}>
+              <span
+                class={cn(
+                  'text-2xs rounded-full px-1.5 py-0.5 font-black',
+                  props.activeTab === tab.id
+                    ? 'bg-black/20 text-inherit'
+                    : 'text-nebula-300 bg-white/10'
+                )}
+              >
                 {tab.badge}
               </span>
             </Show>
@@ -275,35 +281,35 @@ const drawerWidths = {
   '2xl': 'max-w-2xl',
 };
 
-export const Drawer: ParentComponent<DrawerProps> = (props) => {
+export const Drawer: ParentComponent<DrawerProps> = props => {
   return (
     <Show when={props.open}>
       <div class="fixed inset-0 z-50 flex justify-end">
         <div
-          class="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+          class="animate-fade-in absolute inset-0 bg-black/60 backdrop-blur-sm"
           onClick={props.onClose}
         />
         <div
           class={cn(
-            'relative w-full overflow-y-auto border-l border-white/10 bg-void-950 shadow-2xl',
+            'bg-void-950 relative w-full overflow-y-auto border-l border-white/10 shadow-2xl',
             'animate-slide-in-right',
             drawerWidths[props.width || 'lg'],
             props.class
           )}
         >
-          <div class="sticky top-0 z-10 border-b border-white/5 bg-void-950/95 p-6 backdrop-blur-xl">
+          <div class="bg-void-950/95 sticky top-0 z-10 border-b border-white/5 p-6 backdrop-blur-xl">
             <div class="flex items-start justify-between">
               <div>
                 <Show when={props.title}>
                   <h2 class="text-2xl font-black tracking-tight text-white">{props.title}</h2>
                 </Show>
                 <Show when={props.subtitle}>
-                  <p class="mt-1 text-sm text-nebula-500">{props.subtitle}</p>
+                  <p class="text-nebula-500 mt-1 text-sm">{props.subtitle}</p>
                 </Show>
               </div>
               <button
                 onClick={props.onClose}
-                class="p-2 rounded-xl text-nebula-400 hover:bg-white/5 hover:text-white transition-colors"
+                class="text-nebula-400 rounded-xl p-2 transition-colors hover:bg-white/5 hover:text-white"
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <path
@@ -332,18 +338,15 @@ interface EmptyStateProps {
   class?: string;
 }
 
-export const EmptyState: Component<EmptyStateProps> = (props) => {
+export const EmptyState: Component<EmptyStateProps> = props => {
   return (
-    <div class={cn(
-      'flex flex-col items-center justify-center py-16 text-center',
-      props.class
-    )}>
+    <div class={cn('flex flex-col items-center justify-center py-16 text-center', props.class)}>
       <Show when={props.icon}>
-        <div class="mb-4 text-nebula-600">{props.icon}</div>
+        <div class="text-nebula-600 mb-4">{props.icon}</div>
       </Show>
       <h3 class="text-lg font-bold text-white">{props.title}</h3>
       <Show when={props.description}>
-        <p class="mt-2 text-sm text-nebula-500 max-w-sm">{props.description}</p>
+        <p class="text-nebula-500 mt-2 max-w-sm text-sm">{props.description}</p>
       </Show>
       <Show when={props.action}>
         <div class="mt-6">{props.action}</div>
@@ -358,16 +361,16 @@ interface LoadingStateProps {
   class?: string;
 }
 
-export const LoadingState: Component<LoadingStateProps> = (props) => {
+export const LoadingState: Component<LoadingStateProps> = props => {
   const variant = () => props.variant || 'skeleton';
   const count = () => props.count || 3;
 
   if (variant() === 'spinner') {
     return (
       <div class={cn('flex items-center justify-center py-16', props.class)}>
-        <div class="relative w-12 h-12">
-          <div class="absolute inset-0 rounded-full border-2 border-void-700" />
-          <div class="absolute inset-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+        <div class="relative h-12 w-12">
+          <div class="border-void-700 absolute inset-0 rounded-full border-2" />
+          <div class="absolute inset-0 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
         </div>
       </div>
     );
@@ -377,9 +380,7 @@ export const LoadingState: Component<LoadingStateProps> = (props) => {
     return (
       <div class={cn('space-y-4', props.class)}>
         <For each={Array(count()).fill(0)}>
-          {() => (
-            <div class="h-24 rounded-2xl bg-white/5 animate-pulse" />
-          )}
+          {() => <div class="h-24 animate-pulse rounded-2xl bg-white/5" />}
         </For>
       </div>
     );
@@ -389,14 +390,14 @@ export const LoadingState: Component<LoadingStateProps> = (props) => {
     <div class={cn('space-y-4', props.class)}>
       <For each={Array(count()).fill(0)}>
         {() => (
-          <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
+          <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
             <div class="flex items-start gap-4">
-              <div class="w-12 h-12 rounded-xl bg-white/5 animate-pulse" />
+              <div class="h-12 w-12 animate-pulse rounded-xl bg-white/5" />
               <div class="flex-1 space-y-2">
-                <div class="h-4 w-1/3 rounded bg-white/5 animate-pulse" />
-                <div class="h-3 w-2/3 rounded bg-white/5 animate-pulse" />
+                <div class="h-4 w-1/3 animate-pulse rounded bg-white/5" />
+                <div class="h-3 w-2/3 animate-pulse rounded bg-white/5" />
               </div>
-              <div class="h-6 w-16 rounded-full bg-white/5 animate-pulse" />
+              <div class="h-6 w-16 animate-pulse rounded-full bg-white/5" />
             </div>
           </div>
         )}

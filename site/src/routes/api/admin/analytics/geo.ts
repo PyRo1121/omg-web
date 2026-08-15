@@ -1,7 +1,7 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, gte, desc, eq } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import type { APIEvent } from '@solidjs/start/server';
+import { sql, gte, desc, eq } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
 
 export async function GET(event: APIEvent) {
   try {
@@ -11,9 +11,9 @@ export async function GET(event: APIEvent) {
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const days = parseInt(url.searchParams.get("days") || "30");
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 200);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const days = parseInt(url.searchParams.get('days') || '30');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+    const offset = parseInt(url.searchParams.get('offset') || '0');
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -26,7 +26,7 @@ export async function GET(event: APIEvent) {
         totalSessions: sql<number>`COUNT(*)`,
       })
       .from(schema.geoUsage)
-      .where(gte(schema.geoUsage.lastSeenAt, startDate.getTime()))
+      .where(gte(schema.geoUsage.lastSeenAt, startDate))
       .groupBy(schema.geoUsage.countryCode)
       .orderBy(desc(sql`COUNT(DISTINCT ${schema.geoUsage.licenseId})`))
       .limit(limit)
@@ -88,7 +88,7 @@ export async function GET(event: APIEvent) {
         totalRegions: sql<number>`COUNT(DISTINCT ${schema.geoUsage.countryCode} || '-' || COALESCE(${schema.geoUsage.region}, ''))`,
       })
       .from(schema.geoUsage)
-      .where(gte(schema.geoUsage.lastSeenAt, startDate.getTime()))
+      .where(gte(schema.geoUsage.lastSeenAt, startDate))
       .get();
 
     // OS distribution from machine data (as a proxy for geo+platform)
@@ -98,7 +98,7 @@ export async function GET(event: APIEvent) {
         count: sql<number>`COUNT(*)`,
       })
       .from(schema.machine)
-      .where(gte(schema.machine.lastSeenAt, startDate.getTime()))
+      .where(gte(schema.machine.lastSeenAt, startDate))
       .groupBy(schema.machine.os)
       .orderBy(desc(sql`COUNT(*)`))
       .all();
@@ -130,7 +130,7 @@ export async function GET(event: APIEvent) {
           uniqueUsers: Number(t.uniqueUsers),
         })),
         platforms: osDistribution.map(o => ({
-          os: o.os || "unknown",
+          os: o.os || 'unknown',
           count: Number(o.count),
         })),
         summary: {
@@ -148,21 +148,21 @@ export async function GET(event: APIEvent) {
       {
         status: 200,
         headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "private, no-cache, no-store, must-revalidate",
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
         },
       }
     );
   } catch (error) {
-    console.error("[Admin Geo Analytics] Error:", error);
+    console.error('[Admin Geo Analytics] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

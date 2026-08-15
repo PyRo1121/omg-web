@@ -1,15 +1,15 @@
 import { Component, For, createSignal, createMemo, Switch, Match } from 'solid-js';
 import * as api from '../../lib/api';
-import { 
-  useTeamData, 
-  useTeamPolicies, 
-  useNotificationSettings, 
+import {
+  useTeamData,
+  useTeamPolicies,
+  useNotificationSettings,
   useTeamAuditLogs,
   useRevokeMachine,
   useCreatePolicy,
   useDeletePolicy,
   useUpdateThreshold,
-  useUpdateNotifications
+  useUpdateNotifications,
 } from '../../lib/api-hooks';
 import { StatCard } from './analytics/StatCard';
 import { RoiChart } from './analytics/RoiChart';
@@ -31,7 +31,7 @@ import {
   Crown,
   Plus,
   Trash2,
-  Bell
+  Bell,
 } from '../ui/Icons';
 
 interface TeamAnalyticsProps {
@@ -48,7 +48,7 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
   const [sortBy, setSortBy] = createSignal<'commands' | 'recent' | 'name'>('commands');
   const [filterActive, setFilterActive] = createSignal<boolean | null>(null);
   const [alertThreshold, setAlertThreshold] = createSignal(100);
-  
+
   // Forms state
   const [newPolicyScope, setNewPolicyScope] = createSignal('runtime');
   const [newPolicyRule, setNewPolicyRule] = createSignal('');
@@ -76,7 +76,7 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
     const members = data?.members || [];
     const total = members.length || 1;
     const compliant = members.filter(m => m.omg_version && m.omg_version.startsWith('1.')).length;
-    
+
     return {
       compliance_score: Math.round((compliant / total) * 100),
       critical: members.filter(m => m.omg_version && !m.omg_version.startsWith('1.')).length,
@@ -90,21 +90,21 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
     const data = teamData();
     const timeSavedMs = data?.totals?.total_time_saved_ms || 0;
     const hours = Math.floor(timeSavedMs / 3600000);
-    const valueUsd = data?.totals?.total_value_usd || (hours * 85); 
-    
+    const valueUsd = data?.totals?.total_value_usd || hours * 85;
+
     const daily = data?.daily_usage || [];
     const trend = daily.map(d => d.commands_run);
-    
+
     return {
       hours_reclaimed: hours,
       developer_value: valueUsd,
-      daily_trend: trend.length > 0 ? trend : [0]
+      daily_trend: trend.length > 0 ? trend : [0],
     };
   });
 
   const sortedMembers = createMemo(() => {
     let members = [...(teamData()?.members || [])];
-    
+
     if (filterActive() !== null) {
       members = members.filter(m => m.is_active === filterActive());
     }
@@ -134,7 +134,7 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
       scope: newPolicyScope(),
       rule: newPolicyRule(),
       value: newPolicyValue(),
-      enforced: true
+      enforced: true,
     });
     setNewPolicyRule('');
     setNewPolicyValue('');
@@ -142,13 +142,14 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
 
   if (teamData()?.license?.tier === 'free' || teamData()?.license?.tier === 'pro') {
     return (
-      <div class="flex flex-col items-center justify-center py-20 text-center animate-in fade-in duration-700">
+      <div class="animate-in fade-in flex flex-col items-center justify-center py-20 text-center duration-700">
         <div class="mb-8 flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-2xl shadow-indigo-500/20">
           <Crown size={48} class="text-white" />
         </div>
-        <h2 class="mb-4 text-4xl font-black text-white tracking-tight">Unlock Team Intelligence</h2>
+        <h2 class="mb-4 text-4xl font-black tracking-tight text-white">Unlock Team Intelligence</h2>
         <p class="mb-10 max-w-lg text-lg font-medium text-slate-400">
-          Gain visibility into your entire fleet. Manage runtimes, enforce security policies, and track productivity across your organization.
+          Gain visibility into your entire fleet. Manage runtimes, enforce security policies, and
+          track productivity across your organization.
         </p>
         <button
           onClick={() => window.open('https://pyro1121.com/pricing', '_blank')}
@@ -170,16 +171,16 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
           <div>
             <div class="flex items-center gap-3">
               <h1 class="text-4xl font-black tracking-tight text-white">Team Intelligence</h1>
-              <div class="mt-1 flex items-center gap-2 rounded-full bg-indigo-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-indigo-400 ring-1 ring-indigo-500/20">
+              <div class="mt-1 flex items-center gap-2 rounded-full bg-indigo-500/10 px-3 py-1 text-[10px] font-bold tracking-widest text-indigo-400 uppercase ring-1 ring-indigo-500/20">
                 Enterprise Active
               </div>
             </div>
-            <p class="mt-2 text-slate-400 font-medium">
+            <p class="mt-2 font-medium text-slate-400">
               Aggregate value, fleet health, and developer productivity insights.
             </p>
           </div>
         </div>
-        
+
         <div class="flex flex-wrap items-center gap-3">
           <button
             onClick={() => teamQuery.refetch()}
@@ -192,26 +193,30 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
         </div>
       </div>
 
-      <div class="flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[1.5rem] border border-white/5 bg-white/[0.02] p-1.5 backdrop-blur-xl">
-        <For each={[
-          { id: 'overview', label: 'Value & ROI', Icon: BarChart3, color: 'text-indigo-400' },
-          { id: 'members', label: 'Fleet & Members', Icon: Users, color: 'text-emerald-400' },
-          { id: 'security', label: 'Compliance', Icon: Shield, color: 'text-rose-400' },
-          { id: 'activity', label: 'Execution', Icon: Zap, color: 'text-amber-400' },
-          { id: 'settings', label: 'Control', Icon: Settings, color: 'text-slate-400' },
-        ]}>{tab => (
-          <button
-            onClick={() => setView(tab.id)}
-            class={`relative flex flex-1 items-center justify-center gap-3 rounded-[1.25rem] py-3.5 text-sm font-bold transition-all duration-300 ${
-              view() === tab.id
-                ? 'bg-white text-black shadow-lg scale-[1.02]'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <tab.Icon size={18} class={view() === tab.id ? 'text-black' : tab.color} />
-            <span class="hidden md:inline">{tab.label}</span>
-          </button>
-        )}</For>
+      <div class="no-scrollbar flex items-center gap-1 overflow-x-auto rounded-[1.5rem] border border-white/5 bg-white/[0.02] p-1.5 backdrop-blur-xl">
+        <For
+          each={[
+            { id: 'overview', label: 'Value & ROI', Icon: BarChart3, color: 'text-indigo-400' },
+            { id: 'members', label: 'Fleet & Members', Icon: Users, color: 'text-emerald-400' },
+            { id: 'security', label: 'Compliance', Icon: Shield, color: 'text-rose-400' },
+            { id: 'activity', label: 'Execution', Icon: Zap, color: 'text-amber-400' },
+            { id: 'settings', label: 'Control', Icon: Settings, color: 'text-slate-400' },
+          ]}
+        >
+          {tab => (
+            <button
+              onClick={() => setView(tab.id)}
+              class={`relative flex flex-1 items-center justify-center gap-3 rounded-[1.25rem] py-3.5 text-sm font-bold transition-all duration-300 ${
+                view() === tab.id
+                  ? 'scale-[1.02] bg-white text-black shadow-lg'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <tab.Icon size={18} class={view() === tab.id ? 'text-black' : tab.color} />
+              <span class="hidden md:inline">{tab.label}</span>
+            </button>
+          )}
+        </For>
       </div>
 
       <Switch>
@@ -224,9 +229,9 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
         <Match when={teamQuery.isSuccess}>
           <Switch>
             <Match when={view() === 'overview'}>
-              <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div class="animate-in fade-in slide-in-from-bottom-4 space-y-8 duration-500">
                 <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                  <StatCard 
+                  <StatCard
                     title="Efficiency Reclaimed"
                     value={`${productivityImpact().hours_reclaimed} Hours`}
                     icon={<Clock size={20} />}
@@ -250,11 +255,21 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
                   />
                   <div class="relative overflow-hidden rounded-[2rem] border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
                     <div class="mb-4 flex items-center justify-between">
-                      <h3 class="text-sm font-bold text-white uppercase tracking-widest">Seat Utilization</h3>
-                      <span class="text-[10px] font-black text-slate-500">{seatUsage()?.[0]?.value || 0} / {teamData()?.license?.max_seats || 30}</span>
+                      <h3 class="text-sm font-bold tracking-widest text-white uppercase">
+                        Seat Utilization
+                      </h3>
+                      <span class="text-[10px] font-black text-slate-500">
+                        {seatUsage()?.[0]?.value || 0} / {teamData()?.license?.max_seats || 30}
+                      </span>
                     </div>
                     <div class="flex items-center justify-center py-2">
-                      <DonutChart data={seatUsage()} size={140} thickness={16} centerLabel="Seats" centerValue={seatUsage()?.[0]?.value || 0} />
+                      <DonutChart
+                        data={seatUsage()}
+                        size={140}
+                        thickness={16}
+                        centerLabel="Seats"
+                        centerValue={seatUsage()?.[0]?.value || 0}
+                      />
                     </div>
                   </div>
                 </div>
@@ -263,7 +278,7 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
                   <div class="lg:col-span-2">
                     <RoiChart data={productivityImpact().daily_trend} peakVelocity={84} />
                   </div>
-                  <SecurityScore 
+                  <SecurityScore
                     score={securityMetrics().compliance_score}
                     critical={securityMetrics().critical}
                     high={securityMetrics().high}
@@ -276,59 +291,86 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
             </Match>
 
             <Match when={view() === 'members'}>
-               <div class="space-y-6">
-                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-2">
-                    <div class="flex rounded-2xl bg-white/[0.03] p-1.5 border border-white/5">
-                      <button onClick={() => setFilterActive(null)} class={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${filterActive() === null ? 'bg-white text-black' : 'text-slate-400'}`}>All</button>
-                      <button onClick={() => setFilterActive(true)} class={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${filterActive() === true ? 'bg-emerald-500 text-white' : 'text-slate-400'}`}>Online</button>
-                    </div>
-                    <select value={sortBy()} onChange={e => setSortBy(e.currentTarget.value as any)} class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm font-bold text-white outline-none">
-                      <option value="commands">Ops Volume</option>
-                      <option value="recent">Last Seen</option>
-                      <option value="name">Email</option>
-                    </select>
-                 </div>
-                 
-                 <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <For each={sortedMembers()}>
-                      {member => (
-                        <div class="p-6 rounded-3xl bg-[#0d0d0e] border border-white/5 group hover:border-white/10 transition-all">
-                          <div class="flex justify-between items-start mb-4">
-                            <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center font-bold text-white shadow-lg">
-                              {(member.user_email?.[0] || 'U').toUpperCase()}
-                            </div>
-                            <div class="flex flex-col items-end">
-                              <StatusBadge status={member.is_active ? 'active' : 'inactive'} />
-                              <span class="text-[9px] font-mono text-slate-500 mt-1 uppercase tracking-widest">{api.formatRelativeTime(member.last_seen_at)}</span>
-                            </div>
+              <div class="space-y-6">
+                <div class="mb-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="flex rounded-2xl border border-white/5 bg-white/[0.03] p-1.5">
+                    <button
+                      onClick={() => setFilterActive(null)}
+                      class={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${filterActive() === null ? 'bg-white text-black' : 'text-slate-400'}`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setFilterActive(true)}
+                      class={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${filterActive() === true ? 'bg-emerald-500 text-white' : 'text-slate-400'}`}
+                    >
+                      Online
+                    </button>
+                  </div>
+                  <select
+                    value={sortBy()}
+                    onChange={e => setSortBy(e.currentTarget.value as any)}
+                    class="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white outline-none"
+                  >
+                    <option value="commands">Ops Volume</option>
+                    <option value="recent">Last Seen</option>
+                    <option value="name">Email</option>
+                  </select>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <For each={sortedMembers()}>
+                    {member => (
+                      <div class="group rounded-3xl border border-white/5 bg-[#0d0d0e] p-6 transition-all hover:border-white/10">
+                        <div class="mb-4 flex items-start justify-between">
+                          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 font-bold text-white shadow-lg">
+                            {(member.user_email?.[0] || 'U').toUpperCase()}
                           </div>
-                          <div class="text-sm font-bold text-white truncate">{member.user_email || 'Unknown User'}</div>
-                          <div class="text-xs text-slate-500 mt-1 truncate">{member.hostname || 'Unknown Host'} • {member.os || 'Unknown OS'}</div>
-                          <div class="mt-6 pt-4 border-t border-white/5 flex justify-between items-center">
-                            <div>
-                               <div class="text-[9px] font-black uppercase tracking-widest text-slate-500">Throughput</div>
-                               <div class="text-lg font-black text-indigo-400">{(member.total_commands ?? 0).toLocaleString()}</div>
-                            </div>
-                            <button 
-                              onClick={() => { if(confirm('Revoke node access?')) revokeMutation.mutate(member.machine_id) }}
-                              disabled={revokeMutation.isPending}
-                              class="p-2 rounded-lg hover:bg-rose-500/10 text-slate-600 hover:text-rose-500 transition-all"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                          <div class="flex flex-col items-end">
+                            <StatusBadge status={member.is_active ? 'active' : 'inactive'} />
+                            <span class="mt-1 font-mono text-[9px] tracking-widest text-slate-500 uppercase">
+                              {api.formatRelativeTime(member.last_seen_at)}
+                            </span>
                           </div>
                         </div>
-                      )}
-                     </For>
-                 </div>
-               </div>
+                        <div class="truncate text-sm font-bold text-white">
+                          {member.user_email || 'Unknown User'}
+                        </div>
+                        <div class="mt-1 truncate text-xs text-slate-500">
+                          {member.hostname || 'Unknown Host'} • {member.os || 'Unknown OS'}
+                        </div>
+                        <div class="mt-6 flex items-center justify-between border-t border-white/5 pt-4">
+                          <div>
+                            <div class="text-[9px] font-black tracking-widest text-slate-500 uppercase">
+                              Throughput
+                            </div>
+                            <div class="text-lg font-black text-indigo-400">
+                              {(member.total_commands ?? 0).toLocaleString()}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (confirm('Revoke node access?'))
+                                revokeMutation.mutate(member.machine_id);
+                            }}
+                            disabled={revokeMutation.isPending}
+                            class="rounded-lg p-2 text-slate-600 transition-all hover:bg-rose-500/10 hover:text-rose-500"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
             </Match>
 
             <Match when={view() === 'security'}>
-              <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div class="animate-in fade-in slide-in-from-bottom-4 space-y-8 duration-500">
                 {/* Security Overview */}
                 <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                  <StatCard 
+                  <StatCard
                     title="Compliance Score"
                     value={`${securityMetrics().compliance_score}%`}
                     icon={<Shield size={20} />}
@@ -340,11 +382,19 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
                     value={securityMetrics().critical.toString()}
                     icon={<Shield size={20} />}
                     description="Nodes requiring immediate attention."
-                    class={securityMetrics().critical > 0 ? "border-rose-500/20 bg-rose-500/[0.03]" : "border-emerald-500/20 bg-emerald-500/[0.03]"}
+                    class={
+                      securityMetrics().critical > 0
+                        ? 'border-rose-500/20 bg-rose-500/[0.03]'
+                        : 'border-emerald-500/20 bg-emerald-500/[0.03]'
+                    }
                   />
                   <StatCard
                     title="Outdated Versions"
-                    value={(teamData()?.members?.filter(m => m.omg_version && !m.omg_version.startsWith('1.')).length || 0).toString()}
+                    value={(
+                      teamData()?.members?.filter(
+                        m => m.omg_version && !m.omg_version.startsWith('1.')
+                      ).length || 0
+                    ).toString()}
                     icon={<Clock size={20} />}
                     description="Nodes running outdated OMG versions."
                     class="border-amber-500/20 bg-amber-500/[0.03]"
@@ -361,7 +411,7 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
                 {/* Security Score Card */}
                 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
                   <div class="lg:col-span-2">
-                    <SecurityScore 
+                    <SecurityScore
                       score={securityMetrics().compliance_score}
                       critical={securityMetrics().critical}
                       high={securityMetrics().high}
@@ -369,29 +419,38 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
                       low={securityMetrics().low}
                     />
                   </div>
-                  
+
                   {/* Version Distribution */}
                   <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
-                    <h3 class="text-lg font-bold text-white uppercase tracking-widest mb-6">Version Distribution</h3>
+                    <h3 class="mb-6 text-lg font-bold tracking-widest text-white uppercase">
+                      Version Distribution
+                    </h3>
                     <div class="space-y-4">
-                      <For each={Object.entries(
-                        (teamData()?.members || []).reduce((acc, m) => {
-                          const ver = m.omg_version || 'Unknown';
-                          acc[ver] = (acc[ver] || 0) + 1;
-                          return acc;
-                        }, {} as Record<string, number>)
-                      ).sort((a, b) => b[1] - a[1])}>
+                      <For
+                        each={Object.entries(
+                          (teamData()?.members || []).reduce(
+                            (acc, m) => {
+                              const ver = m.omg_version || 'Unknown';
+                              acc[ver] = (acc[ver] || 0) + 1;
+                              return acc;
+                            },
+                            {} as Record<string, number>
+                          )
+                        ).sort((a, b) => b[1] - a[1])}
+                      >
                         {([version, count]) => (
                           <div class="flex items-center justify-between">
-                            <span class="text-sm font-mono text-slate-300">{version}</span>
+                            <span class="font-mono text-sm text-slate-300">{version}</span>
                             <div class="flex items-center gap-3">
-                              <div class="w-24 h-2 bg-white/5 rounded-full overflow-hidden">
-                                <div 
+                              <div class="h-2 w-24 overflow-hidden rounded-full bg-white/5">
+                                <div
                                   class={`h-full rounded-full ${version.startsWith('1.') ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                                  style={{ width: `${(count / (teamData()?.members?.length || 1)) * 100}%` }}
+                                  style={{
+                                    width: `${(count / (teamData()?.members?.length || 1)) * 100}%`,
+                                  }}
                                 />
                               </div>
-                              <span class="text-xs font-bold text-slate-500 w-8">{count}</span>
+                              <span class="w-8 text-xs font-bold text-slate-500">{count}</span>
                             </div>
                           </div>
                         )}
@@ -402,16 +461,28 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
 
                 {/* Compliance Table */}
                 <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
-                  <h3 class="text-xl font-bold text-white uppercase tracking-widest mb-6">Node Compliance Status</h3>
+                  <h3 class="mb-6 text-xl font-bold tracking-widest text-white uppercase">
+                    Node Compliance Status
+                  </h3>
                   <div class="overflow-x-auto">
                     <table class="w-full">
                       <thead>
                         <tr class="border-b border-white/5">
-                          <th class="text-left text-[10px] font-black text-slate-500 uppercase tracking-widest pb-4">Node</th>
-                          <th class="text-left text-[10px] font-black text-slate-500 uppercase tracking-widest pb-4">Version</th>
-                          <th class="text-left text-[10px] font-black text-slate-500 uppercase tracking-widest pb-4">OS</th>
-                          <th class="text-left text-[10px] font-black text-slate-500 uppercase tracking-widest pb-4">Last Seen</th>
-                          <th class="text-left text-[10px] font-black text-slate-500 uppercase tracking-widest pb-4">Status</th>
+                          <th class="pb-4 text-left text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                            Node
+                          </th>
+                          <th class="pb-4 text-left text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                            Version
+                          </th>
+                          <th class="pb-4 text-left text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                            OS
+                          </th>
+                          <th class="pb-4 text-left text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                            Last Seen
+                          </th>
+                          <th class="pb-4 text-left text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                            Status
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -422,24 +493,36 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
                               <tr class="border-b border-white/5 hover:bg-white/[0.02]">
                                 <td class="py-4">
                                   <div class="flex items-center gap-3">
-                                    <div class="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-xs font-bold text-white">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-slate-800 text-xs font-bold text-white">
                                       {(member.user_email?.[0] || 'U').toUpperCase()}
                                     </div>
                                     <div>
-                                      <div class="text-sm font-bold text-white truncate max-w-[200px]">{member.user_email || 'Unknown'}</div>
-                                      <div class="text-[10px] text-slate-500">{member.hostname || 'Unknown Host'}</div>
+                                      <div class="max-w-[200px] truncate text-sm font-bold text-white">
+                                        {member.user_email || 'Unknown'}
+                                      </div>
+                                      <div class="text-[10px] text-slate-500">
+                                        {member.hostname || 'Unknown Host'}
+                                      </div>
                                     </div>
                                   </div>
                                 </td>
                                 <td class="py-4">
-                                  <span class={`text-sm font-mono ${isCompliant ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                  <span
+                                    class={`font-mono text-sm ${isCompliant ? 'text-emerald-400' : 'text-amber-400'}`}
+                                  >
                                     {member.omg_version || 'Unknown'}
                                   </span>
                                 </td>
-                                <td class="py-4 text-sm text-slate-400">{member.os || 'Unknown'}</td>
-                                <td class="py-4 text-xs text-slate-500 font-mono">{api.formatRelativeTime(member.last_seen_at)}</td>
+                                <td class="py-4 text-sm text-slate-400">
+                                  {member.os || 'Unknown'}
+                                </td>
+                                <td class="py-4 font-mono text-xs text-slate-500">
+                                  {api.formatRelativeTime(member.last_seen_at)}
+                                </td>
                                 <td class="py-4">
-                                  <StatusBadge status={isCompliant ? 'compliant' : 'non-compliant'} />
+                                  <StatusBadge
+                                    status={isCompliant ? 'compliant' : 'non-compliant'}
+                                  />
                                 </td>
                               </tr>
                             );
@@ -453,10 +536,10 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
             </Match>
 
             <Match when={view() === 'activity'}>
-              <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div class="animate-in fade-in slide-in-from-bottom-4 space-y-8 duration-500">
                 {/* Activity Stats */}
                 <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                  <StatCard 
+                  <StatCard
                     title="Total Operations"
                     value={(teamData()?.totals?.total_commands ?? 0).toLocaleString()}
                     icon={<Zap size={20} />}
@@ -465,19 +548,23 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
                   />
                   <StatCard
                     title="Active Today"
-                    value={(teamData()?.members?.filter(m => {
-                      if (!m.last_seen_at) return false;
-                      const today = new Date();
-                      const lastSeen = new Date(m.last_seen_at);
-                      return lastSeen.toDateString() === today.toDateString();
-                    }).length || 0).toString()}
+                    value={(
+                      teamData()?.members?.filter(m => {
+                        if (!m.last_seen_at) return false;
+                        const today = new Date();
+                        const lastSeen = new Date(m.last_seen_at);
+                        return lastSeen.toDateString() === today.toDateString();
+                      }).length || 0
+                    ).toString()}
                     icon={<Users size={20} />}
                     description="Nodes active in the last 24 hours."
                     class="border-emerald-500/20 bg-emerald-500/[0.03]"
                   />
                   <StatCard
                     title="Avg Commands/Node"
-                    value={Math.round((teamData()?.totals?.total_commands || 0) / (teamData()?.members?.length || 1)).toLocaleString()}
+                    value={Math.round(
+                      (teamData()?.totals?.total_commands || 0) / (teamData()?.members?.length || 1)
+                    ).toLocaleString()}
                     icon={<BarChart3 size={20} />}
                     description="Average execution volume per node."
                     class="border-indigo-500/20 bg-indigo-500/[0.03]"
@@ -494,28 +581,48 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
                 {/* Activity Chart */}
                 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
                   <div class="lg:col-span-2">
-                    <RoiChart data={productivityImpact().daily_trend} peakVelocity={Math.max(...(teamData()?.daily_usage?.map(d => d.commands_run) || [0]))} />
+                    <RoiChart
+                      data={productivityImpact().daily_trend}
+                      peakVelocity={Math.max(
+                        ...(teamData()?.daily_usage?.map(d => d.commands_run) || [0])
+                      )}
+                    />
                   </div>
-                  
+
                   {/* Top Performers */}
                   <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
-                    <h3 class="text-lg font-bold text-white uppercase tracking-widest mb-6">Top Performers</h3>
+                    <h3 class="mb-6 text-lg font-bold tracking-widest text-white uppercase">
+                      Top Performers
+                    </h3>
                     <div class="space-y-4">
-                      <For each={[...(teamData()?.members || [])].sort((a, b) => (b.total_commands || 0) - (a.total_commands || 0)).slice(0, 5)}>
+                      <For
+                        each={[...(teamData()?.members || [])]
+                          .sort((a, b) => (b.total_commands || 0) - (a.total_commands || 0))
+                          .slice(0, 5)}
+                      >
                         {(member, i) => (
-                          <div class="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                          <div class="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3">
                             <div class="flex items-center gap-3">
-                              <div class={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                                i() === 0 ? 'bg-amber-500 text-black' : 
-                                i() === 1 ? 'bg-slate-400 text-black' : 
-                                i() === 2 ? 'bg-amber-700 text-white' : 
-                                'bg-slate-700 text-slate-400'
-                              }`}>
+                              <div
+                                class={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                                  i() === 0
+                                    ? 'bg-amber-500 text-black'
+                                    : i() === 1
+                                      ? 'bg-slate-400 text-black'
+                                      : i() === 2
+                                        ? 'bg-amber-700 text-white'
+                                        : 'bg-slate-700 text-slate-400'
+                                }`}
+                              >
                                 {i() + 1}
                               </div>
-                              <span class="text-sm font-medium text-white truncate max-w-[120px]">{member.user_email?.split('@')[0] || 'Unknown'}</span>
+                              <span class="max-w-[120px] truncate text-sm font-medium text-white">
+                                {member.user_email?.split('@')[0] || 'Unknown'}
+                              </span>
                             </div>
-                            <span class="text-sm font-bold text-indigo-400">{(member.total_commands || 0).toLocaleString()}</span>
+                            <span class="text-sm font-bold text-indigo-400">
+                              {(member.total_commands || 0).toLocaleString()}
+                            </span>
                           </div>
                         )}
                       </For>
@@ -525,24 +632,38 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
 
                 {/* Recent Activity Log */}
                 <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
-                  <h3 class="text-xl font-bold text-white uppercase tracking-widest mb-6">Execution Log</h3>
+                  <h3 class="mb-6 text-xl font-bold tracking-widest text-white uppercase">
+                    Execution Log
+                  </h3>
                   <div class="space-y-3">
                     <For each={auditLogsQuery.data?.logs?.slice(0, 15) || []}>
                       {log => (
-                        <div class="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all">
-                          <div class="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                        <div class="flex items-center gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-white/10">
+                          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10">
                             <Zap size={18} class="text-indigo-400" />
                           </div>
-                          <div class="flex-1 min-w-0">
+                          <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2">
-                              <span class="text-sm font-bold text-white">{log.action || 'Action'}</span>
-                              <span class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{log.resource_type || 'system'}</span>
+                              <span class="text-sm font-bold text-white">
+                                {log.action || 'Action'}
+                              </span>
+                              <span class="font-mono text-[10px] tracking-widest text-slate-500 uppercase">
+                                {log.resource_type || 'system'}
+                              </span>
                             </div>
-                            <div class="text-xs text-slate-500 mt-1">{log.resource_id || 'N/A'}</div>
+                            <div class="mt-1 text-xs text-slate-500">
+                              {log.resource_id || 'N/A'}
+                            </div>
                           </div>
                           <div class="text-right">
-                            <div class="text-[10px] font-mono text-slate-500">{log.created_at ? new Date(log.created_at).toLocaleTimeString() : 'N/A'}</div>
-                            <div class="text-[10px] text-slate-600">{log.created_at ? new Date(log.created_at).toLocaleDateString() : ''}</div>
+                            <div class="font-mono text-[10px] text-slate-500">
+                              {log.created_at
+                                ? new Date(log.created_at).toLocaleTimeString()
+                                : 'N/A'}
+                            </div>
+                            <div class="text-[10px] text-slate-600">
+                              {log.created_at ? new Date(log.created_at).toLocaleDateString() : ''}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -553,24 +674,47 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
             </Match>
 
             <Match when={view() === 'settings'}>
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-2 space-y-8">
+              <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                <div class="space-y-8 lg:col-span-2">
                   {/* Policies Section */}
                   <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
-                    <div class="flex items-center justify-between mb-8">
-                      <h3 class="text-xl font-bold text-white uppercase tracking-widest">Fleet Policies</h3>
+                    <div class="mb-8 flex items-center justify-between">
+                      <h3 class="text-xl font-bold tracking-widest text-white uppercase">
+                        Fleet Policies
+                      </h3>
                       <Shield size={20} class="text-indigo-400" />
                     </div>
-                    
-                    <form onSubmit={handleCreatePolicy} class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-8">
-                      <select value={newPolicyScope()} onChange={e => setNewPolicyScope(e.currentTarget.value)} class="sm:col-span-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none">
+
+                    <form
+                      onSubmit={handleCreatePolicy}
+                      class="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-4"
+                    >
+                      <select
+                        value={newPolicyScope()}
+                        onChange={e => setNewPolicyScope(e.currentTarget.value)}
+                        class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white outline-none sm:col-span-1"
+                      >
                         <option value="runtime">Runtime</option>
                         <option value="package">Package</option>
                         <option value="security">Security</option>
                       </select>
-                      <input value={newPolicyRule()} onInput={e => setNewPolicyRule(e.currentTarget.value)} placeholder="Rule (e.g. min-version)" class="sm:col-span-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-medium text-white outline-none" />
-                      <input value={newPolicyValue()} onInput={e => setNewPolicyValue(e.currentTarget.value)} placeholder="Value (e.g. 20.x)" class="sm:col-span-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-medium text-white outline-none" />
-                      <button type="submit" disabled={createPolicyMutation.isPending} class="rounded-xl bg-white text-black font-bold text-sm hover:scale-[1.02] transition-all flex items-center justify-center gap-2">
+                      <input
+                        value={newPolicyRule()}
+                        onInput={e => setNewPolicyRule(e.currentTarget.value)}
+                        placeholder="Rule (e.g. min-version)"
+                        class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white outline-none sm:col-span-1"
+                      />
+                      <input
+                        value={newPolicyValue()}
+                        onInput={e => setNewPolicyValue(e.currentTarget.value)}
+                        placeholder="Value (e.g. 20.x)"
+                        class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white outline-none sm:col-span-1"
+                      />
+                      <button
+                        type="submit"
+                        disabled={createPolicyMutation.isPending}
+                        class="flex items-center justify-center gap-2 rounded-xl bg-white text-sm font-bold text-black transition-all hover:scale-[1.02]"
+                      >
                         <Plus size={16} /> Add
                       </button>
                     </form>
@@ -578,21 +722,28 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
                     <div class="space-y-4">
                       <For each={policiesQuery.data?.policies || []}>
                         {policy => (
-                          <div class="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 group">
+                          <div class="group flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.02] p-4">
                             <div class="flex items-center gap-4">
-                              <div class="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                              <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
                                 <Lock size={16} />
                               </div>
                               <div>
-                                <div class="text-sm font-bold text-white uppercase tracking-wider">{policy.scope} Policy</div>
-                                <div class="text-xs text-slate-500 font-medium">{policy.rule}: <span class="text-slate-300">{policy.value}</span></div>
+                                <div class="text-sm font-bold tracking-wider text-white uppercase">
+                                  {policy.scope} Policy
+                                </div>
+                                <div class="text-xs font-medium text-slate-500">
+                                  {policy.rule}: <span class="text-slate-300">{policy.value}</span>
+                                </div>
                               </div>
                             </div>
                             <div class="flex items-center gap-4">
-                               <StatusBadge status={policy.enforced ? 'enforced' : 'audit'} />
-                               <button onClick={() => deletePolicyMutation.mutate(policy.id)} class="p-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-600 hover:text-rose-500">
-                                 <Trash2 size={16} />
-                               </button>
+                              <StatusBadge status={policy.enforced ? 'enforced' : 'audit'} />
+                              <button
+                                onClick={() => deletePolicyMutation.mutate(policy.id)}
+                                class="p-2 text-slate-600 opacity-0 transition-opacity group-hover:opacity-100 hover:text-rose-500"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
                           </div>
                         )}
@@ -602,14 +753,22 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
 
                   {/* Audit Logs */}
                   <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
-                    <h3 class="text-xl font-bold text-white uppercase tracking-widest mb-6">Security Audit</h3>
+                    <h3 class="mb-6 text-xl font-bold tracking-widest text-white uppercase">
+                      Security Audit
+                    </h3>
                     <div class="space-y-4">
                       <For each={auditLogsQuery.data?.logs || []}>
                         {log => (
-                          <div class="flex items-center gap-4 text-sm py-2 border-b border-white/5">
-                            <div class="text-slate-500 font-mono text-[10px] w-32">{log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A'}</div>
-                            <div class="text-indigo-400 font-bold w-32 uppercase tracking-tighter">{log.action || 'ACTION'}</div>
-                            <div class="text-slate-300 flex-1 truncate">{log.resource_type || 'System'} {log.resource_id || ''}</div>
+                          <div class="flex items-center gap-4 border-b border-white/5 py-2 text-sm">
+                            <div class="w-32 font-mono text-[10px] text-slate-500">
+                              {log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A'}
+                            </div>
+                            <div class="w-32 font-bold tracking-tighter text-indigo-400 uppercase">
+                              {log.action || 'ACTION'}
+                            </div>
+                            <div class="flex-1 truncate text-slate-300">
+                              {log.resource_type || 'System'} {log.resource_id || ''}
+                            </div>
                           </div>
                         )}
                       </For>
@@ -620,18 +779,35 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
                 <div class="space-y-8">
                   {/* Thresholds */}
                   <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
-                    <h3 class="text-lg font-bold text-white uppercase tracking-widest mb-6">Activity Monitor</h3>
+                    <h3 class="mb-6 text-lg font-bold tracking-widest text-white uppercase">
+                      Activity Monitor
+                    </h3>
                     <div class="space-y-6">
                       <div>
-                        <div class="flex justify-between mb-4">
-                          <span class="text-xs font-bold text-slate-400">Node Inactivity (Ops)</span>
+                        <div class="mb-4 flex justify-between">
+                          <span class="text-xs font-bold text-slate-400">
+                            Node Inactivity (Ops)
+                          </span>
                           <span class="text-xs font-black text-indigo-400">{alertThreshold()}</span>
                         </div>
-                        <input type="range" min="10" max="1000" step="10" value={alertThreshold()} onInput={e => setAlertThreshold(parseInt(e.currentTarget.value))} class="w-full" />
-                        <button 
-                          onClick={() => updateThresholdMutation.mutate({ type: 'low_activity', value: alertThreshold() })}
+                        <input
+                          type="range"
+                          min="10"
+                          max="1000"
+                          step="10"
+                          value={alertThreshold()}
+                          onInput={e => setAlertThreshold(parseInt(e.currentTarget.value))}
+                          class="w-full"
+                        />
+                        <button
+                          onClick={() =>
+                            updateThresholdMutation.mutate({
+                              type: 'low_activity',
+                              value: alertThreshold(),
+                            })
+                          }
                           disabled={updateThresholdMutation.isPending}
-                          class="mt-4 w-full py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white hover:bg-white/10 transition-all"
+                          class="mt-4 w-full rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-bold text-white transition-all hover:bg-white/10"
                         >
                           Save Threshold
                         </button>
@@ -641,23 +817,29 @@ export const TeamAnalytics: Component<TeamAnalyticsProps> = props => {
 
                   {/* Notifications */}
                   <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
-                    <div class="flex items-center gap-3 mb-6">
+                    <div class="mb-6 flex items-center gap-3">
                       <Bell size={18} class="text-amber-400" />
-                      <h3 class="text-lg font-bold text-white uppercase tracking-widest">Alerts</h3>
+                      <h3 class="text-lg font-bold tracking-widest text-white uppercase">Alerts</h3>
                     </div>
                     <div class="space-y-4">
                       <For each={notificationsQuery.data?.settings || []}>
                         {notif => (
                           <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">{notif.type.replace('_', ' ')}</span>
-                            <button 
+                            <span class="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                              {notif.type.replace('_', ' ')}
+                            </span>
+                            <button
                               onClick={() => {
-                                const updated = (notificationsQuery.data?.settings || []).map(n => n.type === notif.type ? { ...n, enabled: !n.enabled } : n);
+                                const updated = (notificationsQuery.data?.settings || []).map(n =>
+                                  n.type === notif.type ? { ...n, enabled: !n.enabled } : n
+                                );
                                 updateNotifMutation.mutate(updated);
                               }}
-                              class={`w-10 h-5 rounded-full relative transition-all ${notif.enabled ? 'bg-indigo-500' : 'bg-slate-700'}`}
+                              class={`relative h-5 w-10 rounded-full transition-all ${notif.enabled ? 'bg-indigo-500' : 'bg-slate-700'}`}
                             >
-                              <div class={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${notif.enabled ? 'left-6' : 'left-1'}`} />
+                              <div
+                                class={`absolute top-1 h-3 w-3 rounded-full bg-white transition-all ${notif.enabled ? 'left-6' : 'left-1'}`}
+                              />
                             </button>
                           </div>
                         )}

@@ -5,13 +5,6 @@
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-export interface Env {
-  MAIN_SITE: string;
-  DOCS_SITE: string;
-}
-
-const CACHE_VERSION = 'v1';
-
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -31,13 +24,17 @@ export default {
       redirect: 'follow',
     });
   },
-};
+} satisfies ExportedHandler<Env>;
 
 /**
  * Production-ready docs proxy handler
  * Handles caching, content rewriting, and performance optimization
  */
-async function handleDocsProxy(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+async function handleDocsProxy(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext
+): Promise<Response> {
   try {
     const url = new URL(request.url);
     const hostname = url.hostname;
@@ -119,7 +116,7 @@ async function handleDocsProxy(request: Request, env: Env, ctx: ExecutionContext
         start(controller) {
           controller.enqueue(new TextEncoder().encode(rewritten));
           controller.close();
-        }
+        },
       });
 
       // Update response
@@ -149,7 +146,7 @@ async function handleDocsProxy(request: Request, env: Env, ctx: ExecutionContext
     const finalResponse = new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers
+      headers,
     });
 
     // Store in cache only for successful responses
@@ -168,7 +165,7 @@ async function handleDocsProxy(request: Request, env: Env, ctx: ExecutionContext
         'Content-Type': 'text/plain',
         'X-Proxy-Error': 'true',
         'Retry-After': '60',
-      }
+      },
     });
   }
 }
@@ -218,7 +215,14 @@ function prepareOriginHeaders(headers: Headers, origin: string): Headers {
  * Rewrite content to fix asset paths
  * Converts omg-docs.pages.dev URLs to /docs/ URLs
  */
-function rewriteContent(content: string, isHTML: boolean, isCSS: boolean, isJS: boolean, hostname: string, docsOrigin: string): string {
+function rewriteContent(
+  content: string,
+  isHTML: boolean,
+  isCSS: boolean,
+  isJS: boolean,
+  hostname: string,
+  docsOrigin: string
+): string {
   let rewritten = content;
   const docsHostname = new URL(docsOrigin).hostname;
 
@@ -226,28 +230,58 @@ function rewriteContent(content: string, isHTML: boolean, isCSS: boolean, isJS: 
     // Rewrite absolute URLs in HTML
     rewritten = rewritten
       // Fix href and src attributes
-      .replace(new RegExp(`href="https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'), `href="https://${hostname}/docs$1"`)
-      .replace(new RegExp(`src="https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'), `src="https://${hostname}/docs$1"`)
+      .replace(
+        new RegExp(`href="https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'),
+        `href="https://${hostname}/docs$1"`
+      )
+      .replace(
+        new RegExp(`src="https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'),
+        `src="https://${hostname}/docs$1"`
+      )
       // Fix base href if present
-      .replace(new RegExp(`<base\\s+href="[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'), `<base href="https://${hostname}/docs$1"`)
+      .replace(
+        new RegExp(`<base\\s+href="[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'),
+        `<base href="https://${hostname}/docs$1"`
+      )
       // Fix meta tags
-      .replace(new RegExp(`content="https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'), `content="https://${hostname}/docs$1"`)
+      .replace(
+        new RegExp(
+          `content="https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`,
+          'g'
+        ),
+        `content="https://${hostname}/docs$1"`
+      )
       // Fix JSON-LD and structured data
-      .replace(new RegExp(`https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}`, 'g'), `https://${hostname}/docs`);
+      .replace(
+        new RegExp(`https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}`, 'g'),
+        `https://${hostname}/docs`
+      );
   }
 
   if (isCSS) {
     // Rewrite URLs in CSS url() functions
     rewritten = rewritten
-      .replace(new RegExp(`url\\(["']?https?:\\/\\/[^)\\"']*${docsHostname.replace('.', '\\.')}([^)\\"']*)["']?\\)`, 'g'), `url("https://${hostname}/docs$1")`)
+      .replace(
+        new RegExp(
+          `url\\(["']?https?:\\/\\/[^)\\"']*${docsHostname.replace('.', '\\.')}([^)\\"']*)["']?\\)`,
+          'g'
+        ),
+        `url("https://${hostname}/docs$1")`
+      )
       .replace(/url\(["']?\/([^)"']*)["']?\)/g, `url("/docs/$1")`);
   }
 
   if (isJS) {
     // Rewrite URLs in JavaScript strings (careful to not break code)
     rewritten = rewritten
-      .replace(new RegExp(`"https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'), `"https://${hostname}/docs$1"`)
-      .replace(new RegExp(`'https?:\\/\\/[^']*${docsHostname.replace('.', '\\.')}([^']*)'`, 'g'), `'https://${hostname}/docs$1'`);
+      .replace(
+        new RegExp(`"https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'),
+        `"https://${hostname}/docs$1"`
+      )
+      .replace(
+        new RegExp(`'https?:\\/\\/[^']*${docsHostname.replace('.', '\\.')}([^']*)'`, 'g'),
+        `'https://${hostname}/docs$1'`
+      );
   }
 
   return rewritten;

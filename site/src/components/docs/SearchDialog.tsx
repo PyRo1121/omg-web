@@ -1,7 +1,7 @@
-import { createSignal, For, Show, onMount, createEffect } from "solid-js";
-import { useNavigate } from "@solidjs/router";
-import { Dialog } from "@kobalte/core";
-import { Search, FileText, ArrowRight, Command } from "lucide-solid";
+import { createSignal, For, Show, onMount, createEffect } from 'solid-js';
+import { useNavigate } from '@solidjs/router';
+import { Dialog } from '@kobalte/core';
+import { Search, FileText, ArrowRight, Command } from 'lucide-solid';
 
 interface SearchResult {
   url: string;
@@ -15,21 +15,29 @@ interface SearchDialogProps {
 }
 
 export function SearchDialog(props: SearchDialogProps) {
-  const [query, setQuery] = createSignal("");
+  const [query, setQuery] = createSignal('');
   const [results, setResults] = createSignal<SearchResult[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const navigate = useNavigate();
 
-  let pagefind: { search?: (query: string) => Promise<{ results: Array<{ data: () => Promise<{ url: string; meta?: { title?: string }; excerpt?: string }> }> }> } | null = null;
+  let pagefind: {
+    search?: (query: string) => Promise<{
+      results: Array<{
+        data: () => Promise<{ url: string; meta?: { title?: string }; excerpt?: string }>;
+      }>;
+    }>;
+  } | null = null;
   let inputRef: HTMLInputElement | undefined;
 
   onMount(async () => {
     try {
       // Pagefind is generated at build time and served as a static asset
-      pagefind = await (globalThis as Record<string, unknown>).__pagefind ?? await import(/* @vite-ignore */ "/pagefind/pagefind.js" as string);
+      pagefind =
+        (await (globalThis as Record<string, unknown>).__pagefind) ??
+        (await import(/* @vite-ignore */ '/pagefind/pagefind.js' as string));
     } catch {
-      console.warn("Pagefind not available - search disabled");
+      console.warn('Pagefind not available - search disabled');
     }
   });
 
@@ -68,7 +76,7 @@ export function SearchDialog(props: SearchDialogProps) {
       );
       setResults(data);
     } catch (err) {
-      console.error("Search failed:", err);
+      console.error('Search failed:', err);
       setResults([]);
     } finally {
       setLoading(false);
@@ -80,15 +88,15 @@ export function SearchDialog(props: SearchDialogProps) {
     if (len === 0) return;
 
     switch (e.key) {
-      case "ArrowDown":
+      case 'ArrowDown':
         e.preventDefault();
-        setSelectedIndex((i) => (i + 1) % len);
+        setSelectedIndex(i => (i + 1) % len);
         break;
-      case "ArrowUp":
+      case 'ArrowUp':
         e.preventDefault();
-        setSelectedIndex((i) => (i - 1 + len) % len);
+        setSelectedIndex(i => (i - 1 + len) % len);
         break;
-      case "Enter":
+      case 'Enter':
         e.preventDefault();
         const result = results()[selectedIndex()];
         if (result) {
@@ -102,12 +110,12 @@ export function SearchDialog(props: SearchDialogProps) {
   const handleResultClick = (url: string) => {
     navigate(url);
     props.onClose();
-    setQuery("");
+    setQuery('');
     setResults([]);
   };
 
   return (
-    <Dialog.Root open={props.open} onOpenChange={(open) => !open && props.onClose()}>
+    <Dialog.Root open={props.open} onOpenChange={open => !open && props.onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
         <div class="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
@@ -118,14 +126,12 @@ export function SearchDialog(props: SearchDialogProps) {
                 ref={inputRef}
                 type="text"
                 value={query()}
-                onInput={(e) => handleSearch(e.currentTarget.value)}
+                onInput={e => handleSearch(e.currentTarget.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search documentation..."
                 class="flex-1 bg-transparent text-white placeholder:text-slate-500 focus:outline-none"
               />
-              <kbd class="rounded bg-slate-800 px-2 py-1 text-xs text-slate-400">
-                ESC
-              </kbd>
+              <kbd class="rounded bg-slate-800 px-2 py-1 text-xs text-slate-400">ESC</kbd>
             </div>
 
             <Show when={loading()}>
@@ -143,14 +149,11 @@ export function SearchDialog(props: SearchDialogProps) {
                       onMouseEnter={() => setSelectedIndex(index())}
                       class="group flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors"
                       classList={{
-                        "bg-indigo-500/20": selectedIndex() === index(),
-                        "hover:bg-white/5": selectedIndex() !== index(),
+                        'bg-indigo-500/20': selectedIndex() === index(),
+                        'hover:bg-white/5': selectedIndex() !== index(),
                       }}
                     >
-                      <FileText
-                        size={18}
-                        class="mt-0.5 flex-shrink-0 text-slate-500"
-                      />
+                      <FileText size={18} class="mt-0.5 flex-shrink-0 text-slate-500" />
                       <div class="min-w-0 flex-1">
                         <div class="font-medium text-white">{result.title}</div>
                         <div
@@ -162,7 +165,7 @@ export function SearchDialog(props: SearchDialogProps) {
                         size={16}
                         class="mt-1 flex-shrink-0 text-slate-600 transition-transform group-hover:translate-x-1"
                         classList={{
-                          "text-indigo-400": selectedIndex() === index(),
+                          'text-indigo-400': selectedIndex() === index(),
                         }}
                       />
                     </button>
@@ -175,9 +178,7 @@ export function SearchDialog(props: SearchDialogProps) {
               <div class="py-12 text-center">
                 <Search size={40} class="mx-auto mb-3 text-slate-600" />
                 <p class="text-slate-400">No results found for "{query()}"</p>
-                <p class="mt-1 text-sm text-slate-500">
-                  Try searching for something else
-                </p>
+                <p class="mt-1 text-sm text-slate-500">Try searching for something else</p>
               </div>
             </Show>
 
@@ -189,21 +190,15 @@ export function SearchDialog(props: SearchDialogProps) {
                     <kbd class="rounded bg-slate-800 px-1.5 py-0.5 text-xs">
                       <Command size={10} />
                     </kbd>
-                    <kbd class="rounded bg-slate-800 px-1.5 py-0.5 text-xs">
-                      K
-                    </kbd>
+                    <kbd class="rounded bg-slate-800 px-1.5 py-0.5 text-xs">K</kbd>
                     <span class="ml-1">to open</span>
                   </span>
                   <span class="flex items-center gap-1">
-                    <kbd class="rounded bg-slate-800 px-1.5 py-0.5 text-xs">
-                      ↑↓
-                    </kbd>
+                    <kbd class="rounded bg-slate-800 px-1.5 py-0.5 text-xs">↑↓</kbd>
                     <span class="ml-1">to navigate</span>
                   </span>
                   <span class="flex items-center gap-1">
-                    <kbd class="rounded bg-slate-800 px-1.5 py-0.5 text-xs">
-                      ↵
-                    </kbd>
+                    <kbd class="rounded bg-slate-800 px-1.5 py-0.5 text-xs">↵</kbd>
                     <span class="ml-1">to select</span>
                   </span>
                 </div>

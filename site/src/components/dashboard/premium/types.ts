@@ -2,28 +2,28 @@
 // These types match the D1 database schema for customer health and CRM data
 
 export interface CustomerHealth {
-  overall_score: number;        // 0-100
-  engagement_score: number;     // 0-100
-  activation_score: number;     // 0-100
-  growth_score: number;         // 0-100
-  risk_score: number;           // 0-100 (higher = worse)
+  overall_score: number; // 0-100
+  engagement_score: number; // 0-100
+  activation_score: number; // 0-100
+  growth_score: number; // 0-100
+  risk_score: number; // 0-100 (higher = worse)
   lifecycle_stage: LifecycleStage;
-  predicted_churn_probability: number;  // 0.0-1.0
+  predicted_churn_probability: number; // 0.0-1.0
   predicted_upgrade_probability: number;
   expansion_readiness_score: number;
   command_velocity_7d: number;
   command_velocity_trend: 'growing' | 'stable' | 'declining';
 }
 
-export type LifecycleStage = 
-  | 'new' 
-  | 'onboarding' 
-  | 'activated' 
-  | 'engaged' 
-  | 'power_user' 
-  | 'at_risk' 
-  | 'churning' 
-  | 'churned' 
+export type LifecycleStage =
+  | 'new'
+  | 'onboarding'
+  | 'activated'
+  | 'engaged'
+  | 'power_user'
+  | 'at_risk'
+  | 'churning'
+  | 'churned'
   | 'reactivated';
 
 export interface CustomerNote {
@@ -55,7 +55,7 @@ export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 export interface CustomerTag {
   id: string;
   name: string;
-  color: string;  // hex
+  color: string; // hex
   description?: string;
 }
 
@@ -69,7 +69,7 @@ export interface FirehoseEvent {
   timestamp: string;
   duration_ms: number;
   success?: boolean;
-  metadata?: Record<string, unknown>;
+  metadata?: Readonly<Record<string, string | number | boolean | null>>;
 }
 
 export interface GeoDistribution {
@@ -80,7 +80,7 @@ export interface GeoDistribution {
 }
 
 export interface CommandHealth {
-  success: number;  // percentage
+  success: number; // percentage
   failure: number;
 }
 

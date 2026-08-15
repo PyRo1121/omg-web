@@ -1,10 +1,10 @@
-import { createAuthClient } from "better-auth/solid";
+import { createAuthClient } from 'better-auth/solid';
 
 const getBaseURL = () => {
-  if (typeof window !== "undefined") {
-    return window.location.origin;
+  if (import.meta.env.SSR) {
+    return import.meta.env.VITE_BETTER_AUTH_URL || 'https://pyro1121.com';
   }
-  return import.meta.env.VITE_BETTER_AUTH_URL || "https://pyro1121.com";
+  return window.location.origin;
 };
 
 export const authClient = createAuthClient({

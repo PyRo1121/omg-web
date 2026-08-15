@@ -104,26 +104,37 @@ const variantClasses = {
   elevated: 'bg-void-800 border border-white/5 shadow-xl',
 };
 
-export const DataCard: Component<DataCardProps> = (props) => {
+export const DataCard: Component<DataCardProps> = props => {
   const [local, others] = splitProps(props, [
-    'title', 'value', 'subtitle', 'icon', 'trend', 'variant', 'size', 'accent', 'loading', 'class'
+    'title',
+    'value',
+    'subtitle',
+    'icon',
+    'trend',
+    'variant',
+    'size',
+    'accent',
+    'loading',
+    'class',
   ]);
 
   const accent = () => accentConfig[local.accent || 'indigo'];
   const size = () => sizeConfig[local.size || 'md'];
   const variant = () => local.variant || 'default';
 
-  const TrendIcon = local.trend?.direction === 'up' 
-    ? TrendingUp 
-    : local.trend?.direction === 'down' 
-    ? TrendingDown 
-    : Minus;
+  const TrendIcon =
+    local.trend?.direction === 'up'
+      ? TrendingUp
+      : local.trend?.direction === 'down'
+        ? TrendingDown
+        : Minus;
 
-  const trendColor = local.trend?.direction === 'up'
-    ? 'text-aurora-400'
-    : local.trend?.direction === 'down'
-    ? 'text-flare-400'
-    : 'text-nebula-500';
+  const trendColor =
+    local.trend?.direction === 'up'
+      ? 'text-aurora-400'
+      : local.trend?.direction === 'down'
+        ? 'text-flare-400'
+        : 'text-nebula-500';
 
   return (
     <div
@@ -139,30 +150,36 @@ export const DataCard: Component<DataCardProps> = (props) => {
       {...others}
     >
       <div class="flex items-start justify-between">
-        <div class="flex-1 min-w-0">
-          <p class={cn(
-            'font-bold uppercase tracking-widest text-nebula-500',
-            size().title
-          )}>
+        <div class="min-w-0 flex-1">
+          <p class={cn('text-nebula-500 font-bold tracking-widest uppercase', size().title)}>
             {local.title}
           </p>
-          
-          <Show when={!local.loading} fallback={
-            <div class={cn('h-9 w-24 rounded-lg bg-white/5 animate-pulse mt-2', size().value)} />
-          }>
-            <h3 class={cn(
-              'font-display font-black tracking-tight text-white mt-2 tabular-nums',
-              size().value
-            )}>
+
+          <Show
+            when={!local.loading}
+            fallback={
+              <div class={cn('mt-2 h-9 w-24 animate-pulse rounded-lg bg-white/5', size().value)} />
+            }
+          >
+            <h3
+              class={cn(
+                'font-display mt-2 font-black tracking-tight text-white tabular-nums',
+                size().value
+              )}
+            >
               {local.value}
             </h3>
           </Show>
 
           <Show when={local.trend}>
-            <div class={cn('flex items-center gap-1 mt-2', trendColor)}>
+            <div class={cn('mt-2 flex items-center gap-1', trendColor)}>
               <TrendIcon size={14} />
               <span class="text-xs font-bold">
-                {local.trend!.direction === 'up' ? '+' : local.trend!.direction === 'down' ? '' : ''}
+                {local.trend!.direction === 'up'
+                  ? '+'
+                  : local.trend!.direction === 'down'
+                    ? ''
+                    : ''}
                 {local.trend!.value}%
               </span>
               <Show when={local.trend!.period}>
@@ -172,16 +189,12 @@ export const DataCard: Component<DataCardProps> = (props) => {
           </Show>
 
           <Show when={local.subtitle}>
-            <p class={cn('text-nebula-500 mt-2 font-medium', size().subtitle)}>
-              {local.subtitle}
-            </p>
+            <p class={cn('text-nebula-500 mt-2 font-medium', size().subtitle)}>{local.subtitle}</p>
           </Show>
         </div>
 
         <Show when={local.icon}>
-          <div class={cn(accent().icon, size().icon)}>
-            {local.icon}
-          </div>
+          <div class={cn(accent().icon, size().icon)}>{local.icon}</div>
         </Show>
       </div>
     </div>
@@ -193,7 +206,7 @@ interface MetricGridProps {
   class?: string;
 }
 
-export const MetricGrid: ParentComponent<MetricGridProps> = (props) => {
+export const MetricGrid: ParentComponent<MetricGridProps> = props => {
   const colClasses = {
     2: 'grid-cols-1 md:grid-cols-2',
     3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
@@ -201,11 +214,7 @@ export const MetricGrid: ParentComponent<MetricGridProps> = (props) => {
   };
 
   return (
-    <div class={cn(
-      'grid gap-6',
-      colClasses[props.columns || 4],
-      props.class
-    )}>
+    <div class={cn('grid gap-6', colClasses[props.columns || 4], props.class)}>
       {props.children}
     </div>
   );
@@ -216,7 +225,7 @@ interface SparklineCardProps extends DataCardProps {
   sparklineColor?: string;
 }
 
-export const SparklineCard: Component<SparklineCardProps> = (props) => {
+export const SparklineCard: Component<SparklineCardProps> = props => {
   const maxValue = () => Math.max(...props.data, 1);
   const minValue = () => Math.min(...props.data);
   const range = () => maxValue() - minValue() || 1;
@@ -224,11 +233,13 @@ export const SparklineCard: Component<SparklineCardProps> = (props) => {
   const points = () => {
     const width = 100;
     const height = 30;
-    return props.data.map((value, index) => {
-      const x = (index / (props.data.length - 1)) * width;
-      const y = height - ((value - minValue()) / range()) * height;
-      return `${x},${y}`;
-    }).join(' ');
+    return props.data
+      .map((value, index) => {
+        const x = (index / (props.data.length - 1)) * width;
+        const y = height - ((value - minValue()) / range()) * height;
+        return `${x},${y}`;
+      })
+      .join(' ');
   };
 
   const areaPath = () => {
@@ -247,17 +258,20 @@ export const SparklineCard: Component<SparklineCardProps> = (props) => {
   return (
     <DataCard {...props}>
       <div class="mt-4 h-8">
-        <svg viewBox="0 0 100 30" class="w-full h-full" preserveAspectRatio="none">
+        <svg viewBox="0 0 100 30" class="h-full w-full" preserveAspectRatio="none">
           <defs>
-            <linearGradient id={`sparkline-gradient-${props.title}`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <linearGradient
+              id={`sparkline-gradient-${props.title}`}
+              x1="0%"
+              y1="0%"
+              x2="0%"
+              y2="100%"
+            >
               <stop offset="0%" stop-color={props.sparklineColor || '#6366f1'} stop-opacity="0.3" />
               <stop offset="100%" stop-color={props.sparklineColor || '#6366f1'} stop-opacity="0" />
             </linearGradient>
           </defs>
-          <path
-            d={areaPath()}
-            fill={`url(#sparkline-gradient-${props.title})`}
-          />
+          <path d={areaPath()} fill={`url(#sparkline-gradient-${props.title})`} />
           <polyline
             points={points()}
             fill="none"
@@ -277,17 +291,15 @@ interface ComparisonCardProps extends DataCardProps {
   previousLabel?: string;
 }
 
-export const ComparisonCard: Component<ComparisonCardProps> = (props) => {
+export const ComparisonCard: Component<ComparisonCardProps> = props => {
   return (
     <DataCard {...props}>
-      <div class="mt-4 pt-4 border-t border-white/5">
+      <div class="mt-4 border-t border-white/5 pt-4">
         <div class="flex items-center justify-between">
-          <span class="text-xs text-nebula-500 font-medium">
+          <span class="text-nebula-500 text-xs font-medium">
             {props.previousLabel || 'Previous period'}
           </span>
-          <span class="text-sm font-bold text-nebula-400 tabular-nums">
-            {props.previousValue}
-          </span>
+          <span class="text-nebula-400 text-sm font-bold tabular-nums">{props.previousValue}</span>
         </div>
       </div>
     </DataCard>

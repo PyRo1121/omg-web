@@ -1,6 +1,6 @@
 /**
  * SegmentBuilder - Visual Segment Builder for Customer Filtering
- * 
+ *
  * Enterprise-grade component for building complex customer segments
  * with support for multiple fields, operators, and nested AND/OR logic.
  */
@@ -8,16 +8,16 @@
 import { Component, For, Show, createSignal, createMemo, createEffect } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { 
-  Plus, 
-  Trash2, 
-  GripVertical, 
-  Save, 
-  X, 
+import {
+  Plus,
+  Trash2,
+  GripVertical,
+  Save,
+  X,
   Users,
   ChevronDown,
   Filter,
-  Layers
+  Layers,
 } from 'lucide-solid';
 
 function cn(...inputs: ClassValue[]) {
@@ -25,23 +25,18 @@ function cn(...inputs: ClassValue[]) {
 }
 
 /** Available field types for segment filtering */
-export type SegmentFieldType = 
-  | 'tier' 
-  | 'lifecycle_stage' 
-  | 'engagement_score' 
-  | 'last_active' 
-  | 'total_commands' 
-  | 'machine_count' 
+export type SegmentFieldType =
+  | 'tier'
+  | 'lifecycle_stage'
+  | 'engagement_score'
+  | 'last_active'
+  | 'total_commands'
+  | 'machine_count'
   | 'created_at';
 
 /** Available comparison operators */
-export type SegmentOperator = 
-  | 'equals' 
-  | 'not_equals' 
-  | 'greater_than' 
-  | 'less_than' 
-  | 'contains' 
-  | 'between';
+export type SegmentOperator =
+  'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'between';
 
 /** Logical operators for combining conditions */
 export type LogicalOperator = 'AND' | 'OR';
@@ -186,9 +181,9 @@ const SegmentSelect: Component<{
   onChange: (value: string) => void;
   placeholder?: string;
   class?: string;
-}> = (props) => {
+}> = props => {
   const [isOpen, setIsOpen] = createSignal(false);
-  
+
   const selectedLabel = createMemo(() => {
     const option = props.options.find(o => o.value === props.value);
     return option?.label || props.placeholder || 'Select...';
@@ -199,41 +194,39 @@ const SegmentSelect: Component<{
       <button
         type="button"
         class={cn(
-          'flex items-center justify-between gap-2 w-full px-3 py-2 rounded-xl',
-          'bg-segment-builder-field border border-segment-builder-border',
-          'text-sm font-mono text-nebula-200',
+          'flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2',
+          'bg-segment-builder-field border-segment-builder-border border',
+          'text-nebula-200 font-mono text-sm',
           'transition-all duration-300',
           'hover:border-segment-builder-border-hover',
-          'focus:outline-none focus:ring-2 focus:ring-indigo-500/30',
+          'focus:ring-2 focus:ring-indigo-500/30 focus:outline-none',
           isOpen() && 'ring-2 ring-indigo-500/30'
         )}
         onClick={() => setIsOpen(!isOpen())}
         aria-expanded={isOpen()}
         aria-haspopup="listbox"
       >
-        <span class={!props.value ? 'text-nebula-500' : ''}>
-          {selectedLabel()}
-        </span>
-        <ChevronDown 
-          size={14} 
-          class={cn('text-nebula-500 transition-transform duration-300', isOpen() && 'rotate-180')} 
+        <span class={!props.value ? 'text-nebula-500' : ''}>{selectedLabel()}</span>
+        <ChevronDown
+          size={14}
+          class={cn('text-nebula-500 transition-transform duration-300', isOpen() && 'rotate-180')}
         />
       </button>
-      
+
       <Show when={isOpen()}>
-        <div 
-          class="absolute z-50 w-full mt-1 py-1 rounded-xl bg-void-850 border border-white/10 shadow-xl"
+        <div
+          class="bg-void-850 absolute z-50 mt-1 w-full rounded-xl border border-white/10 py-1 shadow-xl"
           role="listbox"
         >
           <For each={props.options}>
-            {(option) => (
+            {option => (
               <button
                 type="button"
                 class={cn(
-                  'w-full px-3 py-2 text-left text-sm font-mono',
+                  'w-full px-3 py-2 text-left font-mono text-sm',
                   'transition-colors duration-150',
-                  option.value === props.value 
-                    ? 'bg-indigo-500/20 text-indigo-300' 
+                  option.value === props.value
+                    ? 'bg-indigo-500/20 text-indigo-300'
                     : 'text-nebula-300 hover:bg-white/5'
                 )}
                 onClick={() => {
@@ -260,25 +253,24 @@ const SegmentInput: Component<{
   onChange: (value: string | number) => void;
   placeholder?: string;
   class?: string;
-}> = (props) => {
+}> = props => {
   return (
     <input
       type={props.type}
       value={String(props.value)}
-      onInput={(e) => {
-        const val = props.type === 'number' 
-          ? parseFloat(e.currentTarget.value) || 0
-          : e.currentTarget.value;
+      onInput={e => {
+        const val =
+          props.type === 'number' ? parseFloat(e.currentTarget.value) || 0 : e.currentTarget.value;
         props.onChange(val);
       }}
       placeholder={props.placeholder}
       class={cn(
-        'px-3 py-2 rounded-xl w-full',
-        'bg-segment-builder-value border border-segment-builder-border',
-        'text-sm font-mono text-nebula-100 placeholder:text-nebula-600',
+        'w-full rounded-xl px-3 py-2',
+        'bg-segment-builder-value border-segment-builder-border border',
+        'text-nebula-100 placeholder:text-nebula-600 font-mono text-sm',
         'transition-all duration-300',
         'hover:border-segment-builder-border-hover',
-        'focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-transparent',
+        'focus:border-transparent focus:ring-2 focus:ring-indigo-500/30 focus:outline-none',
         props.class
       )}
     />
@@ -293,23 +285,26 @@ const ConditionRow: Component<{
   isFirst: boolean;
   logic: LogicalOperator;
   onLogicChange: (logic: LogicalOperator) => void;
-}> = (props) => {
+}> = props => {
   const fieldMeta = () => FIELD_METADATA[props.condition.field];
   const availableOperators = () => getOperatorsForField(props.condition.field);
-  
+
   const inputType = () => {
     switch (fieldMeta().type) {
-      case 'number': return 'number';
-      case 'date': return 'date';
-      default: return 'text';
+      case 'number':
+        return 'number';
+      case 'date':
+        return 'date';
+      default:
+        return 'text';
     }
   };
 
   const isBetween = () => props.condition.operator === 'between';
 
   return (
-    <div class="flex items-center gap-2 group">
-      <div class="cursor-grab opacity-0 group-hover:opacity-50 transition-opacity duration-300">
+    <div class="group flex items-center gap-2">
+      <div class="cursor-grab opacity-0 transition-opacity duration-300 group-hover:opacity-50">
         <GripVertical size={14} class="text-nebula-600" />
       </div>
 
@@ -317,10 +312,10 @@ const ConditionRow: Component<{
         <button
           type="button"
           class={cn(
-            'px-2 py-1 rounded-lg text-2xs font-bold uppercase tracking-widest',
+            'text-2xs rounded-lg px-2 py-1 font-bold tracking-widest uppercase',
             'transition-all duration-300',
-            props.logic === 'AND' 
-              ? 'bg-indigo-500/20 text-indigo-300' 
+            props.logic === 'AND'
+              ? 'bg-indigo-500/20 text-indigo-300'
               : 'bg-photon-500/20 text-photon-300'
           )}
           onClick={() => props.onLogicChange(props.logic === 'AND' ? 'OR' : 'AND')}
@@ -339,26 +334,30 @@ const ConditionRow: Component<{
           value: key,
           label: meta.label,
         }))}
-        onChange={(value) => props.onUpdate({ 
-          ...props.condition, 
-          field: value as SegmentFieldType,
-          operator: getOperatorsForField(value as SegmentFieldType)[0],
-          value: '',
-        })}
+        onChange={value =>
+          props.onUpdate({
+            ...props.condition,
+            field: value as SegmentFieldType,
+            operator: getOperatorsForField(value as SegmentFieldType)[0],
+            value: '',
+          })
+        }
         class="w-40"
       />
 
       <SegmentSelect
         value={props.condition.operator}
-        options={availableOperators().map((op) => ({
+        options={availableOperators().map(op => ({
           value: op,
           label: `${OPERATORS[op].symbol} ${OPERATORS[op].label}`,
         }))}
-        onChange={(value) => props.onUpdate({ 
-          ...props.condition, 
-          operator: value as SegmentOperator,
-          value: value === 'between' ? [0, 100] : '',
-        })}
+        onChange={value =>
+          props.onUpdate({
+            ...props.condition,
+            operator: value as SegmentOperator,
+            value: value === 'between' ? [0, 100] : '',
+          })
+        }
         class="w-36"
       />
 
@@ -366,9 +365,9 @@ const ConditionRow: Component<{
         <SegmentSelect
           value={String(props.condition.value)}
           options={fieldMeta().options!}
-          onChange={(value) => props.onUpdate({ ...props.condition, value })}
+          onChange={value => props.onUpdate({ ...props.condition, value })}
           placeholder="Select value..."
-          class="flex-1 min-w-[140px]"
+          class="min-w-[140px] flex-1"
         />
       </Show>
 
@@ -376,29 +375,29 @@ const ConditionRow: Component<{
         <SegmentInput
           type={inputType()}
           value={props.condition.value as string | number}
-          onChange={(value) => props.onUpdate({ ...props.condition, value })}
+          onChange={value => props.onUpdate({ ...props.condition, value })}
           placeholder={inputType() === 'date' ? 'YYYY-MM-DD' : 'Enter value...'}
-          class="flex-1 min-w-[140px]"
+          class="min-w-[140px] flex-1"
         />
       </Show>
 
       <Show when={isBetween()}>
-        <div class="flex items-center gap-2 flex-1 min-w-[200px]">
+        <div class="flex min-w-[200px] flex-1 items-center gap-2">
           <SegmentInput
             type={inputType()}
             value={(props.condition.value as [number, number])[0]}
-            onChange={(value) => {
+            onChange={value => {
               const current = props.condition.value as [number, number];
               props.onUpdate({ ...props.condition, value: [value as number, current[1]] });
             }}
             placeholder="Min"
             class="w-24"
           />
-          <span class="text-nebula-500 text-xs font-mono">to</span>
+          <span class="text-nebula-500 font-mono text-xs">to</span>
           <SegmentInput
             type={inputType()}
             value={(props.condition.value as [number, number])[1]}
-            onChange={(value) => {
+            onChange={value => {
               const current = props.condition.value as [number, number];
               props.onUpdate({ ...props.condition, value: [current[0], value as number] });
             }}
@@ -411,7 +410,7 @@ const ConditionRow: Component<{
       <button
         type="button"
         class={cn(
-          'p-2 rounded-lg opacity-0 group-hover:opacity-100',
+          'rounded-lg p-2 opacity-0 group-hover:opacity-100',
           'text-flare-400 hover:bg-flare-500/10',
           'transition-all duration-300'
         )}
@@ -431,7 +430,7 @@ const ConditionGroup: Component<{
   isFirst: boolean;
   rootLogic: LogicalOperator;
   onRootLogicChange: (logic: LogicalOperator) => void;
-}> = (props) => {
+}> = props => {
   const addCondition = () => {
     const newCondition: SegmentCondition = {
       id: generateId(),
@@ -463,15 +462,15 @@ const ConditionGroup: Component<{
   return (
     <div class="relative">
       <Show when={!props.isFirst}>
-        <div class="flex items-center gap-3 mb-3">
+        <div class="mb-3 flex items-center gap-3">
           <div class="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
           <button
             type="button"
             class={cn(
-              'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest',
+              'rounded-full px-3 py-1 text-xs font-bold tracking-widest uppercase',
               'transition-all duration-300',
-              props.rootLogic === 'AND' 
-                ? 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30' 
+              props.rootLogic === 'AND'
+                ? 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30'
                 : 'bg-photon-500/20 text-photon-300 hover:bg-photon-500/30'
             )}
             onClick={() => props.onRootLogicChange(props.rootLogic === 'AND' ? 'OR' : 'AND')}
@@ -482,9 +481,9 @@ const ConditionGroup: Component<{
         </div>
       </Show>
 
-      <div 
+      <div
         class={cn(
-          'relative p-4 rounded-2xl',
+          'relative rounded-2xl p-4',
           'bg-void-900/50 border border-white/5',
           'transition-all duration-300',
           'hover:border-white/10'
@@ -494,7 +493,7 @@ const ConditionGroup: Component<{
           <button
             type="button"
             class={cn(
-              'p-1.5 rounded-lg text-nebula-500',
+              'text-nebula-500 rounded-lg p-1.5',
               'hover:text-flare-400 hover:bg-flare-500/10',
               'transition-all duration-300'
             )}
@@ -510,11 +509,11 @@ const ConditionGroup: Component<{
             {(condition, index) => (
               <ConditionRow
                 condition={condition}
-                onUpdate={(c) => updateCondition(index(), c)}
+                onUpdate={c => updateCondition(index(), c)}
                 onRemove={() => removeCondition(index())}
                 isFirst={index() === 0}
                 logic={props.group.logic}
-                onLogicChange={(logic) => props.onUpdate({ ...props.group, logic })}
+                onLogicChange={logic => props.onUpdate({ ...props.group, logic })}
               />
             )}
           </For>
@@ -523,11 +522,11 @@ const ConditionGroup: Component<{
         <button
           type="button"
           class={cn(
-            'mt-4 flex items-center gap-2 px-3 py-2 rounded-xl w-full',
-            'text-sm font-medium text-nebula-400',
+            'mt-4 flex w-full items-center gap-2 rounded-xl px-3 py-2',
+            'text-nebula-400 text-sm font-medium',
             'border border-dashed border-white/10',
             'transition-all duration-300',
-            'hover:border-indigo-500/30 hover:text-indigo-300 hover:bg-indigo-500/5'
+            'hover:border-indigo-500/30 hover:bg-indigo-500/5 hover:text-indigo-300'
           )}
           onClick={addCondition}
         >
@@ -547,18 +546,15 @@ const SaveSegmentModal: Component<{
   onDescriptionChange: (description: string) => void;
   onSave: () => void;
   onClose: () => void;
-}> = (props) => {
+}> = props => {
   return (
     <Show when={props.isOpen}>
       <div class="fixed inset-0 z-50 flex items-center justify-center">
-        <div 
-          class="absolute inset-0 bg-void-950/80 backdrop-blur-sm"
-          onClick={props.onClose}
-        />
-        
-        <div 
+        <div class="bg-void-950/80 absolute inset-0 backdrop-blur-sm" onClick={props.onClose} />
+
+        <div
           class={cn(
-            'relative w-full max-w-md p-6 rounded-3xl',
+            'relative w-full max-w-md rounded-3xl p-6',
             'bg-void-850 border border-white/10',
             'shadow-2xl'
           )}
@@ -566,59 +562,56 @@ const SaveSegmentModal: Component<{
           aria-modal="true"
           aria-labelledby="save-segment-title"
         >
-          <h3 
-            id="save-segment-title"
-            class="text-lg font-display font-bold text-white mb-4"
-          >
+          <h3 id="save-segment-title" class="font-display mb-4 text-lg font-bold text-white">
             Save Segment
           </h3>
 
           <div class="space-y-4">
             <div>
-              <label class="block text-xs font-bold uppercase tracking-widest text-nebula-500 mb-2">
+              <label class="text-nebula-500 mb-2 block text-xs font-bold tracking-widest uppercase">
                 Segment Name
               </label>
               <input
                 type="text"
                 value={props.name}
-                onInput={(e) => props.onNameChange(e.currentTarget.value)}
+                onInput={e => props.onNameChange(e.currentTarget.value)}
                 placeholder="e.g., High-Value At-Risk"
                 class={cn(
-                  'w-full px-4 py-3 rounded-xl',
+                  'w-full rounded-xl px-4 py-3',
                   'bg-void-900 border border-white/10',
-                  'text-white placeholder:text-nebula-600',
+                  'placeholder:text-nebula-600 text-white',
                   'transition-all duration-300',
-                  'focus:outline-none focus:ring-2 focus:ring-indigo-500/30'
+                  'focus:ring-2 focus:ring-indigo-500/30 focus:outline-none'
                 )}
               />
             </div>
 
             <div>
-              <label class="block text-xs font-bold uppercase tracking-widest text-nebula-500 mb-2">
+              <label class="text-nebula-500 mb-2 block text-xs font-bold tracking-widest uppercase">
                 Description
               </label>
               <textarea
                 value={props.description}
-                onInput={(e) => props.onDescriptionChange(e.currentTarget.value)}
+                onInput={e => props.onDescriptionChange(e.currentTarget.value)}
                 placeholder="Describe what this segment represents..."
                 rows={3}
                 class={cn(
-                  'w-full px-4 py-3 rounded-xl resize-none',
+                  'w-full resize-none rounded-xl px-4 py-3',
                   'bg-void-900 border border-white/10',
-                  'text-white placeholder:text-nebula-600',
+                  'placeholder:text-nebula-600 text-white',
                   'transition-all duration-300',
-                  'focus:outline-none focus:ring-2 focus:ring-indigo-500/30'
+                  'focus:ring-2 focus:ring-indigo-500/30 focus:outline-none'
                 )}
               />
             </div>
           </div>
 
-          <div class="flex items-center justify-end gap-3 mt-6">
+          <div class="mt-6 flex items-center justify-end gap-3">
             <button
               type="button"
               class={cn(
-                'px-4 py-2 rounded-xl',
-                'text-sm font-medium text-nebula-400',
+                'rounded-xl px-4 py-2',
+                'text-nebula-400 text-sm font-medium',
                 'transition-all duration-300',
                 'hover:bg-white/5 hover:text-white'
               )}
@@ -629,11 +622,11 @@ const SaveSegmentModal: Component<{
             <button
               type="button"
               class={cn(
-                'px-4 py-2 rounded-xl',
-                'bg-indigo-500 text-white text-sm font-medium',
+                'rounded-xl px-4 py-2',
+                'bg-indigo-500 text-sm font-medium text-white',
                 'transition-all duration-300',
                 'hover:bg-indigo-400',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
+                'disabled:cursor-not-allowed disabled:opacity-50'
               )}
               disabled={!props.name.trim()}
               onClick={props.onSave}
@@ -647,7 +640,7 @@ const SaveSegmentModal: Component<{
   );
 };
 
-export const SegmentBuilder: Component<SegmentBuilderProps> = (props) => {
+export const SegmentBuilder: Component<SegmentBuilderProps> = props => {
   const defaultSegment: Segment = {
     id: generateId(),
     name: '',
@@ -691,11 +684,11 @@ export const SegmentBuilder: Component<SegmentBuilderProps> = (props) => {
         },
       ],
     };
-    setSegment((s) => ({ ...s, groups: [...s.groups, newGroup] }));
+    setSegment(s => ({ ...s, groups: [...s.groups, newGroup] }));
   };
 
   const updateGroup = (index: number, group: SegmentGroup) => {
-    setSegment((s) => {
+    setSegment(s => {
       const newGroups = [...s.groups];
       newGroups[index] = group;
       return { ...s, groups: newGroups };
@@ -703,7 +696,7 @@ export const SegmentBuilder: Component<SegmentBuilderProps> = (props) => {
   };
 
   const removeGroup = (index: number) => {
-    setSegment((s) => {
+    setSegment(s => {
       if (s.groups.length === 1) {
         return defaultSegment;
       }
@@ -716,7 +709,7 @@ export const SegmentBuilder: Component<SegmentBuilderProps> = (props) => {
     setShowSaveModal(false);
   };
 
-  const conditionCount = createMemo(() => 
+  const conditionCount = createMemo(() =>
     segment().groups.reduce((sum, g) => sum + g.conditions.length, 0)
   );
 
@@ -724,49 +717,46 @@ export const SegmentBuilder: Component<SegmentBuilderProps> = (props) => {
     <div class={cn('space-y-6', props.class)}>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="p-2.5 rounded-xl bg-indigo-500/10">
+          <div class="rounded-xl bg-indigo-500/10 p-2.5">
             <Filter size={20} class="text-indigo-400" />
           </div>
           <div>
-            <h3 class="text-lg font-display font-bold text-white">
-              Segment Builder
-            </h3>
-            <p class="text-sm text-nebula-500">
-              {conditionCount()} condition{conditionCount() !== 1 ? 's' : ''} in {segment().groups.length} group{segment().groups.length !== 1 ? 's' : ''}
+            <h3 class="font-display text-lg font-bold text-white">Segment Builder</h3>
+            <p class="text-nebula-500 text-sm">
+              {conditionCount()} condition{conditionCount() !== 1 ? 's' : ''} in{' '}
+              {segment().groups.length} group{segment().groups.length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
 
         <div class="flex items-center gap-4">
-          <div 
+          <div
             class={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl',
+              'flex items-center gap-2 rounded-xl px-4 py-2',
               'bg-void-800 border border-white/5'
             )}
             role="status"
             aria-live="polite"
           >
             <Users size={16} class="text-electric-400" />
-            <Show 
-              when={!props.previewLoading} 
-              fallback={
-                <div class="h-5 w-16 rounded bg-white/5 animate-pulse" />
-              }
+            <Show
+              when={!props.previewLoading}
+              fallback={<div class="h-5 w-16 animate-pulse rounded bg-white/5" />}
             >
               <span class="font-mono font-bold text-white tabular-nums">
                 {props.previewCount?.toLocaleString() ?? '—'}
               </span>
             </Show>
-            <span class="text-sm text-nebula-500">matching</span>
+            <span class="text-nebula-500 text-sm">matching</span>
           </div>
 
           <button
             type="button"
             class={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl',
-              'bg-indigo-500 text-white font-medium',
+              'flex items-center gap-2 rounded-xl px-4 py-2',
+              'bg-indigo-500 font-medium text-white',
               'transition-all duration-300',
-              'hover:bg-indigo-400 hover:shadow-glow-sm'
+              'hover:shadow-glow-sm hover:bg-indigo-400'
             )}
             onClick={() => setShowSaveModal(true)}
           >
@@ -781,11 +771,11 @@ export const SegmentBuilder: Component<SegmentBuilderProps> = (props) => {
           {(group, index) => (
             <ConditionGroup
               group={group}
-              onUpdate={(g) => updateGroup(index(), g)}
+              onUpdate={g => updateGroup(index(), g)}
               onRemove={() => removeGroup(index())}
               isFirst={index() === 0}
               rootLogic={segment().rootLogic}
-              onRootLogicChange={(logic) => setSegment((s) => ({ ...s, rootLogic: logic }))}
+              onRootLogicChange={logic => setSegment(s => ({ ...s, rootLogic: logic }))}
             />
           )}
         </For>
@@ -794,11 +784,11 @@ export const SegmentBuilder: Component<SegmentBuilderProps> = (props) => {
       <button
         type="button"
         class={cn(
-          'flex items-center justify-center gap-2 w-full px-4 py-4 rounded-2xl',
-          'text-sm font-medium text-nebula-400',
+          'flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-4',
+          'text-nebula-400 text-sm font-medium',
           'border-2 border-dashed border-white/10',
           'transition-all duration-300',
-          'hover:border-indigo-500/30 hover:text-indigo-300 hover:bg-indigo-500/5'
+          'hover:border-indigo-500/30 hover:bg-indigo-500/5 hover:text-indigo-300'
         )}
         onClick={addGroup}
       >
@@ -810,8 +800,8 @@ export const SegmentBuilder: Component<SegmentBuilderProps> = (props) => {
         isOpen={showSaveModal()}
         name={segment().name}
         description={segment().description}
-        onNameChange={(name) => setSegment((s) => ({ ...s, name }))}
-        onDescriptionChange={(description) => setSegment((s) => ({ ...s, description }))}
+        onNameChange={name => setSegment(s => ({ ...s, name }))}
+        onDescriptionChange={description => setSegment(s => ({ ...s, description }))}
         onSave={handleSave}
         onClose={() => setShowSaveModal(false)}
       />

@@ -81,7 +81,7 @@ function escapeXml(str: string): string {
 function generateSitemap(): string {
   const allPages = [...STATIC_PAGES, ...DOC_PAGES];
 
-  const urlEntries = allPages.map((page) => generateUrlEntry(page, SITE_URL)).join('\n');
+  const urlEntries = allPages.map(page => generateUrlEntry(page, SITE_URL)).join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"

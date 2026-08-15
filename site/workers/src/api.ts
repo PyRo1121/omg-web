@@ -230,42 +230,51 @@ export const TIER_FEATURES = {
 };
 
 // CORS headers - Allow main site and docs site
+interface TurnstileResponse {
+  success: boolean;
+  'error-codes'?: string[];
+}
+
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://pyro1121.com',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 // Helper to get origin-specific CORS headers (for authenticated endpoints)
-export function getCorsHeaders(origin: string | null): Record<string, string> {
+export function getCorsHeaders(origin: string | null) {
   const allowedOrigins = [
     'https://pyro1121.com',
     'https://omg-docs.pages.dev',
     'https://*.omg-docs.pages.dev',
   ];
 
-  const isAllowed = origin && allowedOrigins.some(allowed =>
-    allowed.includes('*')
-      ? origin.endsWith(allowed.replace('https://*.', '.'))
-      : origin === allowed
-  );
+  const isAllowed =
+    origin &&
+    allowedOrigins.some(allowed =>
+      allowed.includes('*')
+        ? origin.endsWith(allowed.replace('https://*.', '.'))
+        : origin === allowed
+    );
+
+  const allowedOrigin = isAllowed && origin ? origin : 'https://pyro1121.com';
 
   return {
-    'Access-Control-Allow-Origin': isAllowed ? origin! : 'https://pyro1121.com',
+    'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Credentials': 'true',
   };
 }
 
-export function jsonResponse(data: unknown, status = 200): Response {
-  const headers: Record<string, string> = { 
-    'Content-Type': 'application/json', 
+export function jsonResponse<TResponse>(data: TResponse, status = 200): Response {
+  const headers = new Headers({
+    'Content-Type': 'application/json',
     ...corsHeaders,
     'CDN-Cache-Control': 'no-store',
-  };
+  });
   if (status >= 400) {
-    headers['Cache-Control'] = 'no-store, no-cache, must-revalidate';
+    headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   }
   return new Response(JSON.stringify(data), { status, headers });
 }
@@ -293,6 +302,17 @@ export function generateOTP(): string {
 }
 
 // Validate session and return user (uses customers table from existing schema)
+interface SessionRow {
+  id: string;
+  customer_id: string;
+  token: string;
+  expires_at: string;
+  email: string;
+  company: string | null;
+  stripe_customer_id: string | null;
+  customer_created_at: string;
+}
+
 export async function validateSession(
   db: D1Database,
   token: string
@@ -307,24 +327,24 @@ export async function validateSession(
   `
     )
     .bind(token)
-    .first();
+    .first<SessionRow>();
 
   if (!session) return null;
 
   return {
     user: {
-      id: session.customer_id as string,
-      email: session.email as string,
-      name: session.company as string | null,
+      id: session.customer_id,
+      email: session.email,
+      name: session.company,
       avatar_url: null,
-      stripe_customer_id: session.stripe_customer_id as string | null,
-      created_at: session.customer_created_at as string,
+      stripe_customer_id: session.stripe_customer_id,
+      created_at: session.customer_created_at,
     },
     session: {
-      id: session.id as string,
-      user_id: session.customer_id as string,
-      token: session.token as string,
-      expires_at: session.expires_at as string,
+      id: session.id,
+      user_id: session.customer_id,
+      token: session.token,
+      expires_at: session.expires_at,
     },
   };
 }
@@ -339,14 +359,14 @@ export function getAuthToken(request: Request): string | null {
 }
 
 // Audit log helper
-export async function logAudit(
+export async function logAudit<TMetadata extends object>(
   db: D1Database,
   customerId: string | null | undefined,
   action: string,
   resourceType?: string | null,
   resourceId?: string | null,
   request?: Request,
-  metadata?: Record<string, unknown>
+  metadata?: TMetadata
 ): Promise<void> {
   try {
     await db
@@ -390,10 +410,7 @@ export async function verifyTurnstile(
       body: formData,
     });
 
-    const result = await response.json() as {
-      success: boolean;
-      'error-codes'?: string[];
-    };
+    const result = await response.json<TurnstileResponse>();
 
     if (!result.success) {
       return {

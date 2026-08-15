@@ -15,10 +15,13 @@ export default {
         // No version marker in R2 — the release pipeline hasn't synced yet.
         // Return 503 so `omg self-update` reports a clear error instead of
         // silently comparing against a stale hardcoded version.
-        return new Response('Version info unavailable. Release pipeline may not have synced to R2 yet.', {
-          status: 503,
-          headers: { 'Content-Type': 'text/plain' },
-        });
+        return new Response(
+          'Version info unavailable. Release pipeline may not have synced to R2 yet.',
+          {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' },
+          }
+        );
       }
       return new Response(object.body, {
         headers: {

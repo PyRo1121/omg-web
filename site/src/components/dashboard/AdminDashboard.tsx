@@ -49,7 +49,6 @@ type SavedView = {
   compareEnabled: boolean;
 };
 
-
 import type {
   ExecutiveKPI,
   AdvancedMetrics,
@@ -60,7 +59,8 @@ import type {
   CustomerHealth,
 } from './premium/types';
 
-type AdminTab = 'overview' | 'crm' | 'analytics' | 'insights' | 'revenue' | 'audit' | 'segments' | 'predictions';
+type AdminTab =
+  'overview' | 'crm' | 'analytics' | 'insights' | 'revenue' | 'audit' | 'segments' | 'predictions';
 
 const SEGMENTS = [
   { id: 'all', name: 'All Customers' },
@@ -84,16 +84,35 @@ function transformToExecutiveKPI(
     dau: metrics?.engagement?.dau || dashboard?.daily_active_users?.[0]?.active_users || 0,
     wau: metrics?.engagement?.wau || 0,
     mau: metrics?.engagement?.mau || 0,
-    stickiness: parseFloat(metrics?.engagement?.stickiness?.daily_to_monthly?.replace('%', '') || '0'),
-    churn_rate: metrics?.churn_risk_segments?.reduce((acc, s) => s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc, 0) 
-      ? (metrics.churn_risk_segments.reduce((acc, s) => s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc, 0) / (metrics.engagement?.mau || 1)) * 100 
+    stickiness: parseFloat(
+      metrics?.engagement?.stickiness?.daily_to_monthly?.replace('%', '') || '0'
+    ),
+    churn_rate: metrics?.churn_risk_segments?.reduce(
+      (acc, s) =>
+        s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc,
+      0
+    )
+      ? (metrics.churn_risk_segments.reduce(
+          (acc, s) =>
+            s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc,
+          0
+        ) /
+          (metrics.engagement?.mau || 1)) *
+        100
       : 2.1,
-    at_risk_count: metrics?.churn_risk_segments?.reduce((acc, s) => s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc, 0) || 0,
+    at_risk_count:
+      metrics?.churn_risk_segments?.reduce(
+        (acc, s) =>
+          s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc,
+        0
+      ) || 0,
     expansion_pipeline: metrics?.revenue_metrics?.expansion_mrr_12m || 0,
   };
 }
 
-function transformToAdvancedMetrics(metrics: api.AdminAdvancedMetrics | undefined): AdvancedMetrics | undefined {
+function transformToAdvancedMetrics(
+  metrics: api.AdminAdvancedMetrics | undefined
+): AdvancedMetrics | undefined {
   if (!metrics) return undefined;
   return {
     engagement: {
@@ -106,12 +125,13 @@ function transformToAdvancedMetrics(metrics: api.AdminAdvancedMetrics | undefine
       },
     },
     retention: {
-      cohorts: metrics.retention?.cohorts?.map(c => ({
-        cohort_date: c.cohort_date,
-        week_number: c.week_number,
-        retained_users: c.retained_users,
-        retention_rate: 0,
-      })) || [],
+      cohorts:
+        metrics.retention?.cohorts?.map(c => ({
+          cohort_date: c.cohort_date,
+          week_number: c.week_number,
+          retained_users: c.retained_users,
+          retention_rate: 0,
+        })) || [],
     },
     ltv_by_tier: metrics.ltv_by_tier || [],
     feature_adoption: {
@@ -121,25 +141,29 @@ function transformToAdvancedMetrics(metrics: api.AdminAdvancedMetrics | undefine
       total_users: metrics.feature_adoption?.total_active_users || 0,
     },
     command_heatmap: metrics.command_heatmap || [],
-    runtime_adoption: metrics.runtime_adoption?.map(r => ({
-      runtime: r.runtime,
-      unique_users: r.unique_users,
-      total_uses: r.total_uses,
-      growth_rate: 0,
-    })) || [],
-    churn_risk_segments: metrics.churn_risk_segments?.map(s => ({
-      risk_segment: s.risk_segment as 'low' | 'medium' | 'high' | 'critical',
-      user_count: s.user_count,
-      tier: s.tier,
-      avg_days_inactive: 0,
-    })) || [],
-    expansion_opportunities: metrics.expansion_opportunities?.map(o => ({
-      email: o.email,
-      tier: o.tier,
-      opportunity_type: o.opportunity_type as 'usage_based' | 'feature_gate' | 'team_growth' | 'enterprise',
-      priority: o.priority as 'low' | 'medium' | 'high' | 'urgent',
-      potential_arr: 0,
-    })) || [],
+    runtime_adoption:
+      metrics.runtime_adoption?.map(r => ({
+        runtime: r.runtime,
+        unique_users: r.unique_users,
+        total_uses: r.total_uses,
+        growth_rate: 0,
+      })) || [],
+    churn_risk_segments:
+      metrics.churn_risk_segments?.map(s => ({
+        risk_segment: s.risk_segment as 'low' | 'medium' | 'high' | 'critical',
+        user_count: s.user_count,
+        tier: s.tier,
+        avg_days_inactive: 0,
+      })) || [],
+    expansion_opportunities:
+      metrics.expansion_opportunities?.map(o => ({
+        email: o.email,
+        tier: o.tier,
+        opportunity_type: o.opportunity_type as
+          'usage_based' | 'feature_gate' | 'team_growth' | 'enterprise',
+        priority: o.priority as 'low' | 'medium' | 'high' | 'urgent',
+        potential_arr: 0,
+      })) || [],
     time_to_value: {
       avg_days_to_activation: metrics.time_to_value?.avg_days_to_activation || 0,
       pct_activated_week1: metrics.time_to_value?.pct_activated_week1 || 0,
@@ -206,9 +230,20 @@ function transformGeoDistribution(data: { dimension: string; count: number }[]):
 
 function getCountryName(code: string): string {
   const countries: Record<string, string> = {
-    US: 'United States', DE: 'Germany', GB: 'United Kingdom', FR: 'France',
-    CA: 'Canada', JP: 'Japan', AU: 'Australia', BR: 'Brazil', IN: 'India',
-    NL: 'Netherlands', SE: 'Sweden', ES: 'Spain', IT: 'Italy', KR: 'South Korea',
+    US: 'United States',
+    DE: 'Germany',
+    GB: 'United Kingdom',
+    FR: 'France',
+    CA: 'Canada',
+    JP: 'Japan',
+    AU: 'Australia',
+    BR: 'Brazil',
+    IN: 'India',
+    NL: 'Netherlands',
+    SE: 'Sweden',
+    ES: 'Spain',
+    IT: 'Italy',
+    KR: 'South Korea',
   };
   return countries[code] || code || 'Unknown';
 }
@@ -216,7 +251,7 @@ function getCountryName(code: string): string {
 function transformToCRMCustomer(user: api.AdminUser): CRMCustomer {
   const score = user.engagement_score || 50;
   const stage = (user.lifecycle_stage || 'active') as CustomerHealth['lifecycle_stage'];
-  
+
   return {
     id: user.id,
     email: user.email,
@@ -251,17 +286,19 @@ export const AdminDashboard: Component = () => {
   const firehoseQuery = useAdminFirehose(100);
   const crmUsersQuery = useAdminCRMUsers(store.crm.page, 25, store.crm.search);
   const advancedMetricsQuery = useAdminAdvancedMetrics();
-  const siteGeoQuery = useSiteGeoAnalytics(store.filters.dateRange === '7d' ? 7 : store.filters.dateRange === '90d' ? 90 : 30);
+  const siteGeoQuery = useSiteGeoAnalytics(
+    store.filters.dateRange === '7d' ? 7 : store.filters.dateRange === '90d' ? 90 : 30
+  );
   const realtimeQuery = useSiteRealtimeAnalytics();
-  const siteOverviewQuery = useSiteAnalyticsOverview(store.filters.dateRange === '7d' ? 7 : store.filters.dateRange === '90d' ? 90 : 30);
+  const siteOverviewQuery = useSiteAnalyticsOverview(
+    store.filters.dateRange === '7d' ? 7 : store.filters.dateRange === '90d' ? 90 : 30
+  );
 
   const executiveKPI = createMemo(() =>
     transformToExecutiveKPI(dashboardQuery.data, advancedMetricsQuery.data)
   );
 
-  const advancedMetrics = createMemo(() =>
-    transformToAdvancedMetrics(advancedMetricsQuery.data)
-  );
+  const advancedMetrics = createMemo(() => transformToAdvancedMetrics(advancedMetricsQuery.data));
 
   const firehoseEvents = createMemo(() =>
     transformFirehoseEvents(firehoseQuery.data?.events || [])
@@ -338,11 +375,20 @@ export const AdminDashboard: Component = () => {
     insights: advancedMetricsQuery.data?.expansion_opportunities?.length || 0,
     predictions:
       (advancedMetricsQuery.data?.churn_risk_segments?.filter(
-        (s) => s.risk_segment === 'high' || s.risk_segment === 'critical'
+        s => s.risk_segment === 'high' || s.risk_segment === 'critical'
       ).length || 0) + (advancedMetricsQuery.data?.expansion_opportunities?.length || 0),
   }));
 
-  const TABS_ORDER: AdminTab[] = ['overview', 'crm', 'analytics', 'insights', 'segments', 'predictions', 'revenue', 'audit'];
+  const TABS_ORDER: AdminTab[] = [
+    'overview',
+    'crm',
+    'analytics',
+    'insights',
+    'segments',
+    'predictions',
+    'revenue',
+    'audit',
+  ];
 
   const handleTabKeyDown = (e: KeyboardEvent, tabId: AdminTab) => {
     const currentIndex = TABS_ORDER.indexOf(tabId);
@@ -366,14 +412,21 @@ export const AdminDashboard: Component = () => {
 
     const nextTab = TABS_ORDER[nextIndex];
     actions.setTab(nextTab);
-    
+
     setTimeout(() => {
-      const nextButton = document.querySelector(`[role="tab"][aria-controls="tabpanel-${nextTab}"]`) as HTMLElement;
+      const nextButton = document.querySelector(
+        `[role="tab"][aria-controls="tabpanel-${nextTab}"]`
+      ) as HTMLElement;
       nextButton?.focus();
     }, 0);
   };
 
-  const TabButton = (props: { id: AdminTab; icon: Component<{ size?: number }>; label: string; count?: number }) => {
+  const TabButton = (props: {
+    id: AdminTab;
+    icon: Component<{ size?: number }>;
+    label: string;
+    count?: number;
+  }) => {
     const isActive = () => store.navigation.activeTab === props.id;
 
     return (
@@ -383,24 +436,24 @@ export const AdminDashboard: Component = () => {
         aria-controls={`tabpanel-${props.id}`}
         tabindex={isActive() ? 0 : -1}
         onClick={() => actions.setTab(props.id)}
-        onKeyDown={(e) => handleTabKeyDown(e, props.id)}
+        onKeyDown={e => handleTabKeyDown(e, props.id)}
         class={`relative flex items-center gap-2 rounded-xl px-4 py-2.5 font-bold transition-all duration-300 ${
           isActive()
-            ? 'bg-gradient-to-r from-electric-500/20 to-photon-500/20 text-white shadow-lg shadow-electric-500/10 ring-1 ring-electric-500/30'
+            ? 'from-electric-500/20 to-photon-500/20 shadow-electric-500/10 ring-electric-500/30 bg-gradient-to-r text-white shadow-lg ring-1'
             : 'text-nebula-400 hover:bg-white/5 hover:text-white'
         }`}
       >
         <Show when={isActive()}>
-          <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-electric-500/10 to-photon-500/10 blur-sm" />
+          <div class="from-electric-500/10 to-photon-500/10 absolute inset-0 rounded-xl bg-gradient-to-r blur-sm" />
         </Show>
-        <span class="relative"><props.icon size={16} /></span>
+        <span class="relative">
+          <props.icon size={16} />
+        </span>
         <span class="relative">{props.label}</span>
         <Show when={props.count !== undefined && props.count > 0}>
           <span
-            class={`relative rounded-full px-1.5 py-0.5 text-2xs font-black ${
-              isActive()
-                ? 'bg-electric-500/20 text-electric-400' 
-                : 'bg-white/10 text-nebula-300'
+            class={`text-2xs relative rounded-full px-1.5 py-0.5 font-black ${
+              isActive() ? 'bg-electric-500/20 text-electric-400' : 'text-nebula-300 bg-white/10'
             }`}
           >
             {props.count}
@@ -414,7 +467,9 @@ export const AdminDashboard: Component = () => {
     <div class="space-y-6 pb-20">
       <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 class="font-display text-4xl font-black tracking-tight text-white">Mission Control</h1>
+          <h1 class="font-display text-4xl font-black tracking-tight text-white">
+            Mission Control
+          </h1>
           <p class="mt-2 font-medium text-slate-400">
             Global infrastructure, revenue, and fleet telemetry
           </p>
@@ -425,7 +480,7 @@ export const AdminDashboard: Component = () => {
             <Calendar size={14} class="text-nebula-500" />
             <select
               value={store.filters.dateRange}
-              onChange={(e) => actions.setDateRange(e.currentTarget.value as DateRange)}
+              onChange={e => actions.setDateRange(e.currentTarget.value as DateRange)}
               class="bg-transparent text-sm font-bold text-white focus:outline-none"
             >
               <option value="7d">Last 7 days</option>
@@ -439,10 +494,10 @@ export const AdminDashboard: Component = () => {
             <Filter size={14} class="text-nebula-500" />
             <select
               value={store.filters.segment}
-              onChange={(e) => actions.setSegment(e.currentTarget.value)}
+              onChange={e => actions.setSegment(e.currentTarget.value)}
               class="bg-transparent text-sm font-bold text-white focus:outline-none"
             >
-              <For each={SEGMENTS}>{(seg) => <option value={seg.id}>{seg.name}</option>}</For>
+              <For each={SEGMENTS}>{seg => <option value={seg.id}>{seg.name}</option>}</For>
             </select>
           </div>
 
@@ -468,7 +523,7 @@ export const AdminDashboard: Component = () => {
 
           <div class="relative">
             <button
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 actions.toggleExportMenu();
               }}
@@ -477,11 +532,14 @@ export const AdminDashboard: Component = () => {
             >
               <Download size={14} />
               <span class="hidden sm:inline">Export</span>
-              <ChevronDown size={12} class={`transition-transform ${store.ui.exportMenuOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                size={12}
+                class={`transition-transform ${store.ui.exportMenuOpen ? 'rotate-180' : ''}`}
+              />
             </button>
 
             <Show when={store.ui.exportMenuOpen}>
-              <div class="absolute right-0 top-full z-50 mt-2 w-56 origin-top-right rounded-xl border border-white/10 bg-[#0d0d0e] p-1 shadow-2xl sm:right-0 max-sm:right-0 max-sm:left-auto">
+              <div class="absolute top-full right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border border-white/10 bg-[#0d0d0e] p-1 shadow-2xl max-sm:right-0 max-sm:left-auto sm:right-0">
                 <button
                   onClick={() => handleExport('users')}
                   class="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm text-white transition-colors hover:bg-white/5"
@@ -522,7 +580,12 @@ export const AdminDashboard: Component = () => {
         <div class="flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3">
           <GitCompare size={18} class="text-indigo-400" />
           <span class="text-sm font-medium text-indigo-300">
-            Comparing current period with previous {store.filters.dateRange === '7d' ? '7 days' : store.filters.dateRange === '30d' ? '30 days' : '90 days'}
+            Comparing current period with previous{' '}
+            {store.filters.dateRange === '7d'
+              ? '7 days'
+              : store.filters.dateRange === '30d'
+                ? '30 days'
+                : '90 days'}
           </span>
           <button
             onClick={() => actions.toggleCompare()}
@@ -535,9 +598,9 @@ export const AdminDashboard: Component = () => {
 
       <Show when={store.views.saved.length > 0}>
         <div class="flex items-center gap-2 overflow-x-auto">
-          <span class="text-xs font-bold text-nebula-500">Saved Views:</span>
+          <span class="text-nebula-500 text-xs font-bold">Saved Views:</span>
           <For each={store.views.saved}>
-            {(view) => (
+            {view => (
               <button
                 onClick={() => loadView(view)}
                 class="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-white/[0.06]"
@@ -549,8 +612,8 @@ export const AdminDashboard: Component = () => {
         </div>
       </Show>
 
-      <div 
-        role="tablist" 
+      <div
+        role="tablist"
         aria-label="Dashboard sections"
         class="no-scrollbar flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-white/5 bg-white/[0.02] p-1.5"
       >
@@ -559,7 +622,12 @@ export const AdminDashboard: Component = () => {
         <TabButton id="analytics" icon={BarChart3} label="Analytics" />
         <TabButton id="insights" icon={Lightbulb} label="Insights" count={tabCounts().insights} />
         <TabButton id="segments" icon={Layers} label="Segments" />
-        <TabButton id="predictions" icon={Brain} label="Predictions" count={tabCounts().predictions} />
+        <TabButton
+          id="predictions"
+          icon={Brain}
+          label="Predictions"
+          count={tabCounts().predictions}
+        />
         <TabButton id="revenue" icon={CreditCard} label="Revenue" />
         <TabButton id="audit" icon={History} label="Audit Log" />
       </div>
@@ -573,10 +641,10 @@ export const AdminDashboard: Component = () => {
         </div>
       </Show>
 
-      <Show 
-        when={!dashboardQuery.isError} 
+      <Show
+        when={!dashboardQuery.isError}
         fallback={
-          <ErrorCard 
+          <ErrorCard
             title="Failed to Load Dashboard"
             message="Unable to fetch dashboard data. Please check your connection and try again."
             onRetry={() => dashboardQuery.refetch()}
@@ -589,114 +657,114 @@ export const AdminDashboard: Component = () => {
               <div role="tabpanel" id="tabpanel-overview" aria-labelledby="tab-overview">
                 <TabErrorBoundary tab="Overview">
                   <OverviewTab
-                executiveKPI={executiveKPI()}
-                advancedMetrics={advancedMetrics()}
-                firehoseEvents={firehoseEvents()}
-                geoDistribution={geoDistribution()}
-                commandHealth={commandHealth()}
-                isMetricsLoading={advancedMetricsQuery.isLoading}
-                onRefresh={() => firehoseQuery.refetch()}
-              />
-            </TabErrorBoundary>
+                    executiveKPI={executiveKPI()}
+                    advancedMetrics={advancedMetrics()}
+                    firehoseEvents={firehoseEvents()}
+                    geoDistribution={geoDistribution()}
+                    commandHealth={commandHealth()}
+                    isMetricsLoading={advancedMetricsQuery.isLoading}
+                    onRefresh={() => firehoseQuery.refetch()}
+                  />
+                </TabErrorBoundary>
               </div>
-          </Match>
+            </Match>
 
-          <Match when={store.navigation.activeTab === 'crm'}>
-            <div role="tabpanel" id="tabpanel-crm" aria-labelledby="tab-crm">
-              <TabErrorBoundary tab="CRM">
-              <CRMTab
-                customers={crmCustomers()}
-                pagination={crmPagination()}
-                isLoading={crmUsersQuery.isLoading}
-                isSuccess={crmUsersQuery.isSuccess}
-                isError={crmUsersQuery.isError}
-                onSearchChange={(search) => {
-                  actions.setCRMSearch(search);
-                }}
-                onPageChange={actions.setCRMPage}
-                onViewDetail={actions.setSelectedUserId}
-                onRetry={() => crmUsersQuery.refetch()}
-              />
-            </TabErrorBoundary>
-            </div>
-          </Match>
+            <Match when={store.navigation.activeTab === 'crm'}>
+              <div role="tabpanel" id="tabpanel-crm" aria-labelledby="tab-crm">
+                <TabErrorBoundary tab="CRM">
+                  <CRMTab
+                    customers={crmCustomers()}
+                    pagination={crmPagination()}
+                    isLoading={crmUsersQuery.isLoading}
+                    isSuccess={crmUsersQuery.isSuccess}
+                    isError={crmUsersQuery.isError}
+                    onSearchChange={search => {
+                      actions.setCRMSearch(search);
+                    }}
+                    onPageChange={actions.setCRMPage}
+                    onViewDetail={actions.setSelectedUserId}
+                    onRetry={() => crmUsersQuery.refetch()}
+                  />
+                </TabErrorBoundary>
+              </div>
+            </Match>
 
-          <Match when={store.navigation.activeTab === 'analytics'}>
-            <div role="tabpanel" id="tabpanel-analytics" aria-labelledby="tab-analytics">
-              <TabErrorBoundary tab="Analytics">
-              <AnalyticsTab
-                dateRange={store.filters.dateRange}
-                siteOverview={siteOverviewQuery.data}
-                siteGeo={siteGeoQuery.data}
-                realtimeData={realtimeQuery.data}
-                isOverviewLoading={siteOverviewQuery.isLoading}
-                isRealtimeLoading={realtimeQuery.isLoading}
-                isOverviewSuccess={siteOverviewQuery.isSuccess}
-                isRealtimeSuccess={realtimeQuery.isSuccess}
-                isOverviewError={siteOverviewQuery.isError}
-                isRealtimeError={realtimeQuery.isError}
-                onRetryOverview={() => siteOverviewQuery.refetch()}
-                onRetryRealtime={() => realtimeQuery.refetch()}
-              />
-            </TabErrorBoundary>
-            </div>
-          </Match>
+            <Match when={store.navigation.activeTab === 'analytics'}>
+              <div role="tabpanel" id="tabpanel-analytics" aria-labelledby="tab-analytics">
+                <TabErrorBoundary tab="Analytics">
+                  <AnalyticsTab
+                    dateRange={store.filters.dateRange}
+                    siteOverview={siteOverviewQuery.data}
+                    siteGeo={siteGeoQuery.data}
+                    realtimeData={realtimeQuery.data}
+                    isOverviewLoading={siteOverviewQuery.isLoading}
+                    isRealtimeLoading={realtimeQuery.isLoading}
+                    isOverviewSuccess={siteOverviewQuery.isSuccess}
+                    isRealtimeSuccess={realtimeQuery.isSuccess}
+                    isOverviewError={siteOverviewQuery.isError}
+                    isRealtimeError={realtimeQuery.isError}
+                    onRetryOverview={() => siteOverviewQuery.refetch()}
+                    onRetryRealtime={() => realtimeQuery.refetch()}
+                  />
+                </TabErrorBoundary>
+              </div>
+            </Match>
 
-          <Match when={store.navigation.activeTab === 'insights'}>
-            <div role="tabpanel" id="tabpanel-insights" aria-labelledby="tab-insights">
-              <TabErrorBoundary tab="Insights">
-                <InsightsTab />
-              </TabErrorBoundary>
-            </div>
-          </Match>
+            <Match when={store.navigation.activeTab === 'insights'}>
+              <div role="tabpanel" id="tabpanel-insights" aria-labelledby="tab-insights">
+                <TabErrorBoundary tab="Insights">
+                  <InsightsTab />
+                </TabErrorBoundary>
+              </div>
+            </Match>
 
-          <Match when={store.navigation.activeTab === 'segments'}>
-            <div role="tabpanel" id="tabpanel-segments" aria-labelledby="tab-segments">
-              <TabErrorBoundary tab="Segments">
-                <SegmentAnalytics />
-              </TabErrorBoundary>
-            </div>
-          </Match>
+            <Match when={store.navigation.activeTab === 'segments'}>
+              <div role="tabpanel" id="tabpanel-segments" aria-labelledby="tab-segments">
+                <TabErrorBoundary tab="Segments">
+                  <SegmentAnalytics />
+                </TabErrorBoundary>
+              </div>
+            </Match>
 
-          <Match when={store.navigation.activeTab === 'predictions'}>
-            <div role="tabpanel" id="tabpanel-predictions" aria-labelledby="tab-predictions">
-              <TabErrorBoundary tab="Predictions">
-                <PredictiveInsights />
-              </TabErrorBoundary>
-            </div>
-          </Match>
+            <Match when={store.navigation.activeTab === 'predictions'}>
+              <div role="tabpanel" id="tabpanel-predictions" aria-labelledby="tab-predictions">
+                <TabErrorBoundary tab="Predictions">
+                  <PredictiveInsights />
+                </TabErrorBoundary>
+              </div>
+            </Match>
 
-          <Match when={store.navigation.activeTab === 'revenue'}>
-            <div role="tabpanel" id="tabpanel-revenue" aria-labelledby="tab-revenue">
-              <TabErrorBoundary tab="Revenue">
-                <RevenueTab />
-              </TabErrorBoundary>
-            </div>
-          </Match>
+            <Match when={store.navigation.activeTab === 'revenue'}>
+              <div role="tabpanel" id="tabpanel-revenue" aria-labelledby="tab-revenue">
+                <TabErrorBoundary tab="Revenue">
+                  <RevenueTab />
+                </TabErrorBoundary>
+              </div>
+            </Match>
 
-          <Match when={store.navigation.activeTab === 'audit'}>
-            <div role="tabpanel" id="tabpanel-audit" aria-labelledby="tab-audit">
-              <TabErrorBoundary tab="Audit">
-                <AuditLogTab />
-              </TabErrorBoundary>
-            </div>
-          </Match>
+            <Match when={store.navigation.activeTab === 'audit'}>
+              <div role="tabpanel" id="tabpanel-audit" aria-labelledby="tab-audit">
+                <TabErrorBoundary tab="Audit">
+                  <AuditLogTab />
+                </TabErrorBoundary>
+              </div>
+            </Match>
           </Switch>
         </Show>
       </Show>
 
       <Show when={store.views.showSaveModal}>
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div class="w-full max-w-md rounded-2xl border border-white/10 bg-void-900 p-6 shadow-2xl">
+          <div class="bg-void-900 w-full max-w-md rounded-2xl border border-white/10 p-6 shadow-2xl">
             <h3 class="mb-4 text-lg font-black text-white">Save Current View</h3>
             <input
               type="text"
               value={store.views.newViewName}
-              onInput={(e) => actions.setNewViewName(e.currentTarget.value)}
+              onInput={e => actions.setNewViewName(e.currentTarget.value)}
               placeholder="View name..."
-              class="mb-4 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-nebula-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              class="placeholder-nebula-500 mb-4 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
             />
-            <div class="mb-4 space-y-2 rounded-xl border border-white/5 bg-void-850 p-3 text-xs text-nebula-400">
+            <div class="bg-void-850 text-nebula-400 mb-4 space-y-2 rounded-xl border border-white/5 p-3 text-xs">
               <div class="flex justify-between">
                 <span>Tab:</span>
                 <span class="font-bold text-white">{store.navigation.activeTab}</span>
@@ -707,11 +775,15 @@ export const AdminDashboard: Component = () => {
               </div>
               <div class="flex justify-between">
                 <span>Segment:</span>
-                <span class="font-bold text-white">{SEGMENTS.find((s) => s.id === store.filters.segment)?.name}</span>
+                <span class="font-bold text-white">
+                  {SEGMENTS.find(s => s.id === store.filters.segment)?.name}
+                </span>
               </div>
               <div class="flex justify-between">
                 <span>Compare Mode:</span>
-                <span class="font-bold text-white">{store.filters.compareEnabled ? 'On' : 'Off'}</span>
+                <span class="font-bold text-white">
+                  {store.filters.compareEnabled ? 'On' : 'Off'}
+                </span>
               </div>
             </div>
             <div class="flex justify-end gap-3">
@@ -733,7 +805,10 @@ export const AdminDashboard: Component = () => {
         </div>
       </Show>
 
-      <CustomerDetailDrawer userId={store.crm.selectedUserId} onClose={() => actions.setSelectedUserId(null)} />
+      <CustomerDetailDrawer
+        userId={store.crm.selectedUserId}
+        onClose={() => actions.setSelectedUserId(null)}
+      />
     </div>
   );
 };

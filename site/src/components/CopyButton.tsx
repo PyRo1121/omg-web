@@ -14,7 +14,7 @@ export interface CopyButtonProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-const CopyButton: Component<CopyButtonProps> = (props) => {
+const CopyButton: Component<CopyButtonProps> = props => {
   const [copied, setCopied] = createSignal(false);
   const [ripples, setRipples] = createSignal<Array<{ id: number; x: number; y: number }>>([]);
 
@@ -26,7 +26,7 @@ const CopyButton: Component<CopyButtonProps> = (props) => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const id = ++rippleId;
-    
+
     setRipples(prev => [...prev, { id, x, y }]);
     setTimeout(() => {
       setRipples(prev => prev.filter(r => r.id !== id));
@@ -83,25 +83,17 @@ const CopyButton: Component<CopyButtonProps> = (props) => {
     <button
       type="button"
       onClick={handleCopy}
-      class={`
-        copy-button group relative inline-flex items-center justify-center
-        overflow-hidden rounded-lg font-medium
-        transition-all duration-200 ease-out
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900
-        ${props.iconOnly
-          ? 'bg-transparent hover:bg-slate-700/50 text-slate-400 hover:text-white'
+      class={`copy-button group relative inline-flex items-center justify-center overflow-hidden rounded-lg font-medium transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+        props.iconOnly
+          ? 'bg-transparent text-slate-400 hover:bg-slate-700/50 hover:text-white'
           : 'border border-slate-600/50 bg-slate-800/80 text-slate-300 hover:border-indigo-500/50 hover:bg-slate-700/80 hover:text-white'
-        }
-        ${copied() ? 'border-green-500/50 text-green-400' : ''}
-        ${sizeClasses()}
-        ${props.class || ''}
-      `}
+      } ${copied() ? 'border-green-500/50 text-green-400' : ''} ${sizeClasses()} ${props.class || ''} `}
       aria-label={copied() ? 'Copied to clipboard' : `Copy ${props.label || 'to clipboard'}`}
       title={copied() ? 'Copied!' : 'Copy to clipboard'}
     >
       {ripples().map(ripple => (
         <span
-          class="absolute animate-ripple rounded-full bg-white/20 pointer-events-none"
+          class="animate-ripple pointer-events-none absolute rounded-full bg-white/20"
           style={{
             left: `${ripple.x}px`,
             top: `${ripple.y}px`,
@@ -114,20 +106,12 @@ const CopyButton: Component<CopyButtonProps> = (props) => {
 
       <span class="relative flex items-center justify-center">
         <span
-          class={`
-            absolute inset-0 flex items-center justify-center
-            transition-all duration-300 ease-out
-            ${copied() ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}
-          `}
+          class={`absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out ${copied() ? 'scale-100 opacity-100' : 'scale-50 opacity-0'} `}
         >
           <Check size={iconSize()} class="text-green-400" strokeWidth={2.5} />
         </span>
         <span
-          class={`
-            flex items-center justify-center
-            transition-all duration-300 ease-out
-            ${copied() ? 'scale-50 opacity-0' : 'scale-100 opacity-100'}
-          `}
+          class={`flex items-center justify-center transition-all duration-300 ease-out ${copied() ? 'scale-50 opacity-0' : 'scale-100 opacity-100'} `}
         >
           <Copy size={iconSize()} strokeWidth={2} />
         </span>
@@ -136,19 +120,12 @@ const CopyButton: Component<CopyButtonProps> = (props) => {
       <Show when={props.label}>
         <span class="relative overflow-hidden">
           <span
-            class={`
-              block transition-all duration-300 ease-out
-              ${copied() ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}
-            `}
+            class={`block transition-all duration-300 ease-out ${copied() ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'} `}
           >
             {props.label}
           </span>
           <span
-            class={`
-              absolute inset-0 flex items-center
-              transition-all duration-300 ease-out
-              ${copied() ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}
-            `}
+            class={`absolute inset-0 flex items-center transition-all duration-300 ease-out ${copied() ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'} `}
           >
             <span class="text-green-400">Copied!</span>
           </span>

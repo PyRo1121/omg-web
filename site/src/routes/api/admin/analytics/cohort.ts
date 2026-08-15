@@ -1,7 +1,7 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, gte, and, eq, lte } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import type { APIEvent } from '@solidjs/start/server';
+import { sql, gte, and, eq, lte } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
 
 export async function GET(event: APIEvent) {
   try {
@@ -11,12 +11,12 @@ export async function GET(event: APIEvent) {
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const weeks = parseInt(url.searchParams.get("weeks") || "12");
+    const weeks = parseInt(url.searchParams.get('weeks') || '12');
 
     // Get signup cohorts by week
     const now = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - (weeks * 7));
+    startDate.setDate(startDate.getDate() - weeks * 7);
 
     // Get all users with their signup week
     const users = await db
@@ -25,7 +25,7 @@ export async function GET(event: APIEvent) {
         createdAt: schema.user.createdAt,
       })
       .from(schema.user)
-      .where(gte(schema.user.createdAt, startDate.getTime()))
+      .where(gte(schema.user.createdAt, startDate))
       .all();
 
     // Get all licenses with their users
@@ -115,7 +115,7 @@ export async function GET(event: APIEvent) {
 
       for (let weekNum = 0; weekNum <= weeksToCheck; weekNum++) {
         const weekStartDate = new Date(cohortStartDate);
-        weekStartDate.setDate(weekStartDate.getDate() + (weekNum * 7));
+        weekStartDate.setDate(weekStartDate.getDate() + weekNum * 7);
         const weekKey = getWeekStart(weekStartDate).toISOString().split('T')[0];
 
         let activeCount = 0;
@@ -132,9 +132,8 @@ export async function GET(event: APIEvent) {
         retentionByWeek.push({
           weekNumber: weekNum,
           activeUsers: activeCount,
-          retentionRate: cohortUsers.length > 0
-            ? Math.round((activeCount / cohortUsers.length) * 100)
-            : 0,
+          retentionRate:
+            cohortUsers.length > 0 ? Math.round((activeCount / cohortUsers.length) * 100) : 0,
         });
       }
 
@@ -147,23 +146,25 @@ export async function GET(event: APIEvent) {
 
     // Calculate summary metrics
     const totalSignups = users.length;
-    const avgWeek1Retention = cohorts.length > 0
-      ? Math.round(
-          cohorts
-            .filter(c => c.retentionByWeek.length > 1)
-            .reduce((sum, c) => sum + (c.retentionByWeek[1]?.retentionRate || 0), 0) /
-          cohorts.filter(c => c.retentionByWeek.length > 1).length
-        )
-      : 0;
+    const avgWeek1Retention =
+      cohorts.length > 0
+        ? Math.round(
+            cohorts
+              .filter(c => c.retentionByWeek.length > 1)
+              .reduce((sum, c) => sum + (c.retentionByWeek[1]?.retentionRate || 0), 0) /
+              cohorts.filter(c => c.retentionByWeek.length > 1).length
+          )
+        : 0;
 
-    const avgWeek4Retention = cohorts.length > 0
-      ? Math.round(
-          cohorts
-            .filter(c => c.retentionByWeek.length > 4)
-            .reduce((sum, c) => sum + (c.retentionByWeek[4]?.retentionRate || 0), 0) /
-          cohorts.filter(c => c.retentionByWeek.length > 4).length || 1
-        )
-      : 0;
+    const avgWeek4Retention =
+      cohorts.length > 0
+        ? Math.round(
+            cohorts
+              .filter(c => c.retentionByWeek.length > 4)
+              .reduce((sum, c) => sum + (c.retentionByWeek[4]?.retentionRate || 0), 0) /
+              cohorts.filter(c => c.retentionByWeek.length > 4).length || 1
+          )
+        : 0;
 
     return new Response(
       JSON.stringify({
@@ -178,21 +179,21 @@ export async function GET(event: APIEvent) {
       {
         status: 200,
         headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "private, no-cache, no-store, must-revalidate",
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
         },
       }
     );
   } catch (error) {
-    console.error("[Admin Cohort Analytics] Error:", error);
+    console.error('[Admin Cohort Analytics] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

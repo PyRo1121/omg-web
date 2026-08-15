@@ -1,7 +1,7 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, gte, desc, eq } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import { APIEvent } from '@solidjs/start/server';
+import { sql, gte, desc, eq } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
 
 export async function GET(event: APIEvent) {
   try {
@@ -11,8 +11,8 @@ export async function GET(event: APIEvent) {
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const days = parseInt(url.searchParams.get("days") || "30");
-    const format = url.searchParams.get("format") || "csv";
+    const days = parseInt(url.searchParams.get('days') || '30');
+    const format = url.searchParams.get('format') || 'csv';
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -42,7 +42,7 @@ export async function GET(event: APIEvent) {
       .orderBy(desc(schema.usageDaily.date), schema.user.email)
       .all();
 
-    if (format === "json") {
+    if (format === 'json') {
       return new Response(
         JSON.stringify({
           exportedAt: new Date().toISOString(),
@@ -63,14 +63,14 @@ export async function GET(event: APIEvent) {
             sbomGenerated: row.sbomGenerated,
             vulnerabilitiesFound: row.vulnerabilitiesFound,
             timeSavedMs: row.timeSavedMs,
-            timeSavedMinutes: Math.round(row.timeSavedMs / 60000 * 10) / 10,
+            timeSavedMinutes: Math.round((row.timeSavedMs / 60000) * 10) / 10,
           })),
         }),
         {
           status: 200,
           headers: {
-            "Content-Type": "application/json",
-            "Content-Disposition": `attachment; filename="usage-report-${dateStr}-to-${new Date().toISOString().split('T')[0]}.json"`,
+            'Content-Type': 'application/json',
+            'Content-Disposition': `attachment; filename="usage-report-${dateStr}-to-${new Date().toISOString().split('T')[0]}.json"`,
           },
         }
       );
@@ -78,30 +78,30 @@ export async function GET(event: APIEvent) {
 
     // Generate CSV
     const headers = [
-      "Date",
-      "User ID",
-      "Email",
-      "Name",
-      "Tier",
-      "Status",
-      "Commands Run",
-      "Packages Installed",
-      "Packages Searched",
-      "Runtimes Switched",
-      "SBOM Generated",
-      "Vulnerabilities Found",
-      "Time Saved (ms)",
-      "Time Saved (minutes)",
+      'Date',
+      'User ID',
+      'Email',
+      'Name',
+      'Tier',
+      'Status',
+      'Commands Run',
+      'Packages Installed',
+      'Packages Searched',
+      'Runtimes Switched',
+      'SBOM Generated',
+      'Vulnerabilities Found',
+      'Time Saved (ms)',
+      'Time Saved (minutes)',
     ];
 
-    const csvRows = [headers.join(",")];
+    const csvRows = [headers.join(',')];
 
     for (const row of usageData) {
       const values = [
         row.date,
         row.userId,
         escapeCSV(row.email),
-        escapeCSV(row.name || ""),
+        escapeCSV(row.name || ''),
         row.tier,
         row.status,
         row.commandsRun,
@@ -111,37 +111,37 @@ export async function GET(event: APIEvent) {
         row.sbomGenerated,
         row.vulnerabilitiesFound,
         row.timeSavedMs,
-        Math.round(row.timeSavedMs / 60000 * 10) / 10,
+        Math.round((row.timeSavedMs / 60000) * 10) / 10,
       ];
-      csvRows.push(values.join(","));
+      csvRows.push(values.join(','));
     }
 
-    const csv = csvRows.join("\n");
+    const csv = csvRows.join('\n');
 
     return new Response(csv, {
       status: 200,
       headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="usage-report-${dateStr}-to-${new Date().toISOString().split('T')[0]}.csv"`,
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="usage-report-${dateStr}-to-${new Date().toISOString().split('T')[0]}.csv"`,
       },
     });
   } catch (error) {
-    console.error("[Admin Export Usage Report] Error:", error);
+    console.error('[Admin Export Usage Report] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }
 }
 
 function escapeCSV(value: string): string {
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;

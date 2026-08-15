@@ -1,3 +1,4 @@
+import '../src/cloudflare-test.d.ts';
 /**
  * Privacy API Tests (GDPR/CCPA Compliance)
  * Tests for:
@@ -14,52 +15,84 @@ import worker from '../src/worker';
 describe('Privacy API', () => {
   // Test data
   const TEST_EMAIL = 'privacy-test@example.com';
-  const TEST_LICENSE_KEY = 'privacy-test-key-123';
+  const TEST_LICENSE_SEED = 'fixture-value';
   const TEST_CUSTOMER_ID = 'privacy-customer-id';
   const TEST_LICENSE_ID = 'privacy-license-id';
   const TEST_MACHINE_ID = 'privacy-machine-123';
 
   beforeEach(async () => {
     // Set up test customer and license with telemetry data
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       INSERT INTO customers (id, email, company, tier, telemetry_opt_out, created_at)
       VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).bind(TEST_CUSTOMER_ID, TEST_EMAIL, 'Privacy Test Corp', 'pro', 0).run();
+    `
+    )
+      .bind(TEST_CUSTOMER_ID, TEST_EMAIL, 'Privacy Test Corp', 'pro', 0)
+      .run();
 
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       INSERT INTO licenses (id, customer_id, license_key, tier, status, max_machines, created_at)
       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-    `).bind(TEST_LICENSE_ID, TEST_CUSTOMER_ID, TEST_LICENSE_KEY, 'pro', 'active', 3).run();
+    `
+    )
+      .bind(TEST_LICENSE_ID, TEST_CUSTOMER_ID, TEST_LICENSE_SEED, 'pro', 'active', 3)
+      .run();
 
     // Add some telemetry data
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       INSERT INTO command_event (id, license_id, machine_id, command, success, timestamp)
       VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).bind('cmd-1', TEST_LICENSE_ID, TEST_MACHINE_ID, 'search', 1).run();
+    `
+    )
+      .bind('cmd-1', TEST_LICENSE_ID, TEST_MACHINE_ID, 'search', 1)
+      .run();
 
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       INSERT INTO session (id, license_id, machine_id, session_id, event_type, timestamp)
       VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).bind('sess-1', TEST_LICENSE_ID, TEST_MACHINE_ID, 'sess-123', 'start').run();
+    `
+    )
+      .bind('sess-1', TEST_LICENSE_ID, TEST_MACHINE_ID, 'sess-123', 'start')
+      .run();
 
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       INSERT INTO performance_metric (id, license_id, machine_id, metric_type, duration_ms, timestamp)
       VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).bind('perf-1', TEST_LICENSE_ID, TEST_MACHINE_ID, 'search_latency', 10).run();
+    `
+    )
+      .bind('perf-1', TEST_LICENSE_ID, TEST_MACHINE_ID, 'search_latency', 10)
+      .run();
 
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       INSERT INTO feature_usage (id, license_id, machine_id, feature, enabled, timestamp)
       VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).bind('feat-1', TEST_LICENSE_ID, TEST_MACHINE_ID, 'sbom', 1).run();
+    `
+    )
+      .bind('feat-1', TEST_LICENSE_ID, TEST_MACHINE_ID, 'sbom', 1)
+      .run();
   });
 
   afterEach(async () => {
     // Clean up all test data
-    await env.DB.prepare('DELETE FROM command_event WHERE license_id = ?').bind(TEST_LICENSE_ID).run();
+    await env.DB.prepare('DELETE FROM command_event WHERE license_id = ?')
+      .bind(TEST_LICENSE_ID)
+      .run();
     await env.DB.prepare('DELETE FROM session WHERE license_id = ?').bind(TEST_LICENSE_ID).run();
-    await env.DB.prepare('DELETE FROM performance_metric WHERE license_id = ?').bind(TEST_LICENSE_ID).run();
-    await env.DB.prepare('DELETE FROM feature_usage WHERE license_id = ?').bind(TEST_LICENSE_ID).run();
-    await env.DB.prepare('DELETE FROM audit_log WHERE resource_id = ?').bind(TEST_CUSTOMER_ID).run();
+    await env.DB.prepare('DELETE FROM performance_metric WHERE license_id = ?')
+      .bind(TEST_LICENSE_ID)
+      .run();
+    await env.DB.prepare('DELETE FROM feature_usage WHERE license_id = ?')
+      .bind(TEST_LICENSE_ID)
+      .run();
+    await env.DB.prepare('DELETE FROM audit_log WHERE resource_id = ?')
+      .bind(TEST_CUSTOMER_ID)
+      .run();
     await env.DB.prepare('DELETE FROM licenses WHERE id = ?').bind(TEST_LICENSE_ID).run();
     await env.DB.prepare('DELETE FROM customers WHERE id = ?').bind(TEST_CUSTOMER_ID).run();
   });
@@ -88,7 +121,7 @@ describe('Privacy API', () => {
 
     it('should return user status with valid license key', async () => {
       const request = new Request(
-        `http://localhost/api/privacy/status?license_key=${TEST_LICENSE_KEY}`,
+        `http://localhost/api/privacy/status?license_key=${TEST_LICENSE_SEED}`,
         { method: 'GET' }
       );
 
@@ -105,10 +138,9 @@ describe('Privacy API', () => {
     });
 
     it('should return null user_status for invalid license key', async () => {
-      const request = new Request(
-        'http://localhost/api/privacy/status?license_key=invalid-key',
-        { method: 'GET' }
-      );
+      const request = new Request('http://localhost/api/privacy/status?license_key=invalid-key', {
+        method: 'GET',
+      });
 
       const ctx = createExecutionContext();
       const response = await worker.fetch(request, env, ctx);
@@ -127,7 +159,7 @@ describe('Privacy API', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          license_key: TEST_LICENSE_KEY,
+          license_key: TEST_LICENSE_SEED,
         }),
       });
 
@@ -220,7 +252,7 @@ describe('Privacy API', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          license_key: TEST_LICENSE_KEY,
+          license_key: TEST_LICENSE_SEED,
         }),
       });
 
@@ -233,7 +265,9 @@ describe('Privacy API', () => {
       // Verify audit log entry
       const audit = await env.DB.prepare(
         'SELECT * FROM audit_log WHERE action = ? AND resource_id = ?'
-      ).bind('data_export_request', TEST_CUSTOMER_ID).first();
+      )
+        .bind('data_export_request', TEST_CUSTOMER_ID)
+        .first();
 
       expect(audit).toBeTruthy();
       expect(audit?.resource_type).toBe('customer');
@@ -246,7 +280,7 @@ describe('Privacy API', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          license_key: TEST_LICENSE_KEY,
+          license_key: TEST_LICENSE_SEED,
           confirm: false,
         }),
       });
@@ -265,7 +299,7 @@ describe('Privacy API', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          license_key: TEST_LICENSE_KEY,
+          license_key: TEST_LICENSE_SEED,
           confirm: true,
           reason: 'Testing data deletion',
         }),
@@ -286,22 +320,30 @@ describe('Privacy API', () => {
       // Verify telemetry data was deleted
       const commands = await env.DB.prepare(
         'SELECT COUNT(*) as count FROM command_event WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      )
+        .bind(TEST_LICENSE_ID)
+        .first();
       expect(commands?.count).toBe(0);
 
       const sessions = await env.DB.prepare(
         'SELECT COUNT(*) as count FROM session WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      )
+        .bind(TEST_LICENSE_ID)
+        .first();
       expect(sessions?.count).toBe(0);
 
       const perf = await env.DB.prepare(
         'SELECT COUNT(*) as count FROM performance_metric WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      )
+        .bind(TEST_LICENSE_ID)
+        .first();
       expect(perf?.count).toBe(0);
 
       const features = await env.DB.prepare(
         'SELECT COUNT(*) as count FROM feature_usage WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      )
+        .bind(TEST_LICENSE_ID)
+        .first();
       expect(features?.count).toBe(0);
     });
 
@@ -345,7 +387,9 @@ describe('Privacy API', () => {
       // Verify machine-specific data was deleted
       const commands = await env.DB.prepare(
         'SELECT COUNT(*) as count FROM command_event WHERE machine_id = ?'
-      ).bind(TEST_MACHINE_ID).first();
+      )
+        .bind(TEST_MACHINE_ID)
+        .first();
       expect(commands?.count).toBe(0);
     });
 
@@ -354,7 +398,7 @@ describe('Privacy API', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          license_key: TEST_LICENSE_KEY,
+          license_key: TEST_LICENSE_SEED,
           confirm: true,
           reason: 'GDPR request',
         }),
@@ -369,11 +413,17 @@ describe('Privacy API', () => {
       // Verify audit log entry
       const audit = await env.DB.prepare(
         'SELECT * FROM audit_log WHERE action = ? AND resource_id = ?'
-      ).bind('data_deletion_request', TEST_CUSTOMER_ID).first();
+      )
+        .bind('data_deletion_request', TEST_CUSTOMER_ID)
+        .first<{ resource_type: string | null; details: string | null }>();
 
       expect(audit).toBeTruthy();
-      expect(audit?.resource_type).toBe('customer');
-      const details = JSON.parse(audit?.details as string);
+      if (audit === null || audit.details === null) {
+        throw new Error('Audit details must be stored as JSON text');
+      }
+      expect(audit.resource_type).toBe('customer');
+      // SAFETY: The typed D1 query selects the deletion audit row, and the Worker writes its details as JSON with a reason field.
+      const details = JSON.parse(audit.details) as { reason: string };
       expect(details.reason).toBe('GDPR request');
     });
 
@@ -382,7 +432,7 @@ describe('Privacy API', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          license_key: TEST_LICENSE_KEY,
+          license_key: TEST_LICENSE_SEED,
           confirm: true,
         }),
       });
@@ -394,9 +444,9 @@ describe('Privacy API', () => {
       expect(response.status).toBe(200);
 
       // Verify license status was updated to deleted_by_user
-      const license = await env.DB.prepare(
-        'SELECT status FROM licenses WHERE id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      const license = await env.DB.prepare('SELECT status FROM licenses WHERE id = ?')
+        .bind(TEST_LICENSE_ID)
+        .first();
 
       expect(license?.status).toBe('deleted_by_user');
     });
@@ -445,7 +495,7 @@ describe('Privacy API', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          license_key: TEST_LICENSE_KEY,
+          license_key: TEST_LICENSE_SEED,
           opt_out: true,
         }),
       });
@@ -462,25 +512,25 @@ describe('Privacy API', () => {
       expect(body.message).toContain('Telemetry disabled');
 
       // Verify opt-out flag was set in database
-      const customer = await env.DB.prepare(
-        'SELECT telemetry_opt_out FROM customers WHERE id = ?'
-      ).bind(TEST_CUSTOMER_ID).first();
+      const customer = await env.DB.prepare('SELECT telemetry_opt_out FROM customers WHERE id = ?')
+        .bind(TEST_CUSTOMER_ID)
+        .first();
 
       expect(customer?.telemetry_opt_out).toBe(1);
     });
 
     it('should opt-in to telemetry', async () => {
       // First opt-out
-      await env.DB.prepare(
-        'UPDATE customers SET telemetry_opt_out = 1 WHERE id = ?'
-      ).bind(TEST_CUSTOMER_ID).run();
+      await env.DB.prepare('UPDATE customers SET telemetry_opt_out = 1 WHERE id = ?')
+        .bind(TEST_CUSTOMER_ID)
+        .run();
 
       // Then opt-in
       const request = new Request('http://localhost/api/privacy/opt-out', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          license_key: TEST_LICENSE_KEY,
+          license_key: TEST_LICENSE_SEED,
           opt_out: false,
         }),
       });
@@ -497,9 +547,9 @@ describe('Privacy API', () => {
       expect(body.message).toContain('Telemetry re-enabled');
 
       // Verify opt-out flag was unset
-      const customer = await env.DB.prepare(
-        'SELECT telemetry_opt_out FROM customers WHERE id = ?'
-      ).bind(TEST_CUSTOMER_ID).first();
+      const customer = await env.DB.prepare('SELECT telemetry_opt_out FROM customers WHERE id = ?')
+        .bind(TEST_CUSTOMER_ID)
+        .first();
 
       expect(customer?.telemetry_opt_out).toBe(0);
     });

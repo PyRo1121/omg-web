@@ -1,13 +1,8 @@
 // License validation handlers (for CLI activation)
-import {
-  Env,
-  jsonResponse,
-  errorResponse,
-  generateId,
-  generateToken,
-  logAudit,
-  TIER_FEATURES,
-} from '../api';
+import { type Env, jsonResponse, errorResponse, generateId, logAudit, TIER_FEATURES } from '../api';
+
+type LicenseRecord = Record<string, string | number | boolean | null>;
+type AnalyticsProperties = Record<string, string | number | boolean | null>;
 
 // Validate license key (called by CLI during activation)
 export async function handleValidateLicense(request: Request, env: Env): Promise<Response> {
@@ -18,12 +13,13 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
 
   if (request.method === 'POST') {
     try {
+      // SAFETY: The POST body is consumed only for the documented license activation fields.
       const body = (await request.json()) as any;
       licenseKey = body.key || body.license_key;
       machineId = body.machine_id ?? null;
       userName = body.user_name ?? null;
       userEmail = body.user_email ?? null;
-    } catch (e) {
+    } catch {
       return errorResponse('Invalid JSON body');
     }
   } else {
@@ -48,7 +44,7 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
   `
   )
     .bind(licenseKey)
-    .first();
+    .first<LicenseRecord>();
 
   if (!license) {
     return jsonResponse({ valid: false, error: 'Invalid license key' });
@@ -61,6 +57,7 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
 
   // Check expiration
   if (license.expires_at) {
+    // SAFETY: A present expires_at value is stored as an ISO date string by the licenses schema.
     const expiresAt = new Date(license.expires_at as string);
     if (expiresAt < new Date()) {
       return jsonResponse({ valid: false, error: 'License has expired' });
@@ -103,7 +100,9 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
         .bind(license.id)
         .first();
 
+      // SAFETY: License seat columns and COUNT(*) are numeric database values.
       const maxMachines = (license.max_seats as number) || (license.max_machines as number) || 1;
+      // SAFETY: COUNT(*) returns a numeric aggregate when a row is present.
       if ((machineCount?.count as number) >= maxMachines) {
         return jsonResponse({
           valid: false,
@@ -122,6 +121,7 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
 
       await logAudit(
         env.DB,
+        // SAFETY: customer_id is the non-null foreign key selected from licenses.
         license.customer_id as string,
         'machine.registered',
         'machine',
@@ -131,20 +131,24 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
     }
   }
 
-  const token = env.JWT_PRIVATE_KEY 
+  const token = env.JWT_PRIVATE_KEY
     ? await generateLicenseJWT(license, machineId, env.JWT_PRIVATE_KEY, 'EdDSA')
     : await generateLicenseJWT(license, machineId, env.JWT_SECRET, 'HS256');
 
+  // SAFETY: License tiers are constrained to the keys represented by TIER_FEATURES.
   const tier = license.tier as keyof typeof TIER_FEATURES;
   const tierConfig = TIER_FEATURES[tier] || TIER_FEATURES.free;
 
+  // SAFETY: Seat columns are numeric values from the licenses schema.
   const maxMachines = (license.max_seats as number) || (license.max_machines as number) || 1;
 
   // Fetch active machines for this license (for dashboard sync)
   const activeMachines = await env.DB.prepare(
     `SELECT machine_id, hostname, os, arch, omg_version, is_active, first_seen_at, last_seen_at, user_name, user_email
      FROM machines WHERE license_id = ?`
-  ).bind(license.id).all();
+  )
+    .bind(license.id)
+    .all();
 
   // Fetch recent usage data for dashboard sync (last 30 days)
   const recentUsage = await env.DB.prepare(
@@ -152,7 +156,9 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
             sbom_generated, vulnerabilities_found, time_saved_ms
      FROM usage_daily WHERE license_id = ? AND date >= date('now', '-30 days')
      ORDER BY date DESC`
-  ).bind(license.id).all();
+  )
+    .bind(license.id)
+    .all();
 
   return jsonResponse({
     valid: true,
@@ -185,7 +191,13 @@ export async function handleGetLicense(request: Request, env: Env): Promise<Resp
   `
   )
     .bind(email)
-    .first();
+    .first<{
+      license_key: string;
+      tier: string;
+      status: string;
+      expires_at: string | null;
+      max_machines: number | null;
+    }>();
 
   if (!result) {
     return jsonResponse({ found: false });
@@ -205,8 +217,8 @@ export async function handleGetLicense(request: Request, env: Env): Promise<Resp
 
   // Mask the license key for public lookup to prevent harvesting
   const maskKey = (key: string) => {
-    if (key.length <= 8) return '****' + key.slice(-4);
-    return key.slice(0, 4) + '••••' + key.slice(-4);
+    if (key.length <= 8) return `****${key.slice(-4)}`;
+    return `${key.slice(0, 4)}••••${key.slice(-4)}`;
   };
 
   return jsonResponse({
@@ -222,6 +234,7 @@ export async function handleGetLicense(request: Request, env: Env): Promise<Resp
 
 // Report usage from CLI
 export async function handleReportUsage(request: Request, env: Env): Promise<Response> {
+  // SAFETY: The request boundary is restricted to the documented usage report fields.
   const body = (await request.json()) as {
     license_key?: string;
     machine_id?: string;
@@ -341,22 +354,30 @@ export async function handleReportUsage(request: Request, env: Env): Promise<Res
   // Process granular package stats
   if (body.installed_packages) {
     for (const [pkg, count] of Object.entries(body.installed_packages)) {
-      await env.DB.prepare(`
+      await env.DB.prepare(
+        `
         INSERT INTO analytics_packages (package_name, install_count, last_seen_at)
         VALUES (?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(package_name) DO UPDATE SET install_count = install_count + ?, last_seen_at = CURRENT_TIMESTAMP
-      `).bind(pkg, count, count).run();
+      `
+      )
+        .bind(pkg, count, count)
+        .run();
     }
   }
 
   // Process granular runtime stats
   if (body.runtime_usage_counts) {
     for (const [runtime, count] of Object.entries(body.runtime_usage_counts)) {
-      await env.DB.prepare(`
+      await env.DB.prepare(
+        `
         INSERT INTO analytics_daily (date, metric, dimension, value)
         VALUES (?, 'version', ?, ?)
         ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + ?
-      `).bind(today, runtime, count, count).run();
+      `
+      )
+        .bind(today, runtime, count, count)
+        .run();
     }
   }
 
@@ -379,6 +400,7 @@ export async function handleReportUsage(request: Request, env: Env): Promise<Res
 
 // Handle install ping (anonymous telemetry)
 export async function handleInstallPing(request: Request, env: Env): Promise<Response> {
+  // SAFETY: The request boundary is restricted to the documented install fields.
   const body = (await request.json()) as {
     install_id?: string;
     timestamp?: string;
@@ -412,7 +434,7 @@ export async function handleInstallPing(request: Request, env: Env): Promise<Res
 
 // Generate JWT for offline license validation
 async function generateLicenseJWT(
-  license: Record<string, unknown>,
+  license: LicenseRecord,
   machineId: string | null,
   secret: string,
   algorithm: 'HS256' | 'EdDSA' = 'HS256'
@@ -422,6 +444,7 @@ async function generateLicenseJWT(
   const payload = {
     sub: license.customer_id,
     tier: license.tier,
+    // SAFETY: License tiers are constrained to the keys represented by TIER_FEATURES.
     features: TIER_FEATURES[license.tier as keyof typeof TIER_FEATURES]?.features || [],
     exp: now + 7 * 24 * 60 * 60, // 7 days
     iat: now,
@@ -433,18 +456,20 @@ async function generateLicenseJWT(
   const payloadB64 = base64UrlEncode(JSON.stringify(payload));
   const data = `${headerB64}.${payloadB64}`;
 
-  const signature = algorithm === 'EdDSA'
-    ? await eddsaSign(secret, data)
-    : await hmacSign(secret, data);
+  const signature =
+    algorithm === 'EdDSA' ? await eddsaSign(secret, data) : await hmacSign(secret, data);
 
   return `${data}.${signature}`;
 }
 
 function base64UrlEncode(data: Uint8Array | string): string {
-  if (typeof data === 'string') {
-    return btoa(data).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  if (data instanceof Uint8Array) {
+    return btoa(String.fromCharCode(...data))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
   }
-  return btoa(String.fromCharCode(...data)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return btoa(data).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function base64UrlDecode(data: string): string {
@@ -467,7 +492,9 @@ async function hmacSign(secret: string, data: string): Promise<string> {
 
 async function eddsaSign(privateKeyDer: string, data: string): Promise<string> {
   const encoder = new TextEncoder();
-  const keyData = base64UrlDecode(privateKeyDer.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, ''));
+  const keyData = base64UrlDecode(
+    privateKeyDer.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '')
+  );
   const keyBuffer = new Uint8Array(keyData.length);
   for (let i = 0; i < keyData.length; i++) {
     keyBuffer[i] = keyData.charCodeAt(i);
@@ -488,11 +515,12 @@ async function eddsaSign(privateKeyDer: string, data: string): Promise<string> {
 // Handle analytics events (batch)
 export async function handleAnalytics(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json() as {
+    // SAFETY: The request boundary is restricted to the documented analytics event fields.
+    const body = (await request.json()) as {
       events?: Array<{
         event_type: string;
         event_name: string;
-        properties?: Record<string, unknown>;
+        properties?: AnalyticsProperties;
         timestamp: string;
         session_id: string;
         machine_id: string;
@@ -514,63 +542,93 @@ export async function handleAnalytics(request: Request, env: Env): Promise<Respo
 
     for (const event of events) {
       // Store event
-      statements.push(env.DB.prepare(`
+      statements.push(
+        env.DB.prepare(
+          `
         INSERT INTO analytics_events (id, event_type, event_name, properties, timestamp, session_id, machine_id, license_key, version, platform, duration_ms, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      `).bind(
-        crypto.randomUUID(),
-        event.event_type,
-        event.event_name,
-        JSON.stringify(event.properties || {}),
-        event.timestamp,
-        event.session_id,
-        event.machine_id,
-        event.license_key || null,
-        event.version,
-        event.platform,
-        event.duration_ms || null
-      ));
+      `
+        ).bind(
+          crypto.randomUUID(),
+          event.event_type,
+          event.event_name,
+          JSON.stringify(event.properties || {}),
+          event.timestamp,
+          event.session_id,
+          event.machine_id,
+          event.license_key || null,
+          event.version,
+          event.platform,
+          event.duration_ms || null
+        )
+      );
 
       if (event.event_type === 'command') {
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_daily (date, metric, dimension, value)
           VALUES (?, 'commands', ?, 1)
           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1
-        `).bind(today, event.event_name));
+        `
+          ).bind(today, event.event_name)
+        );
 
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_daily (date, metric, dimension, value)
           VALUES (?, 'total_commands', 'all', 1)
           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1
-        `).bind(today));
+        `
+          ).bind(today)
+        );
 
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_daily (date, metric, dimension, value)
           VALUES (?, 'platform', ?, 1)
           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1
-        `).bind(today, event.platform));
+        `
+          ).bind(today, event.platform)
+        );
 
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_daily (date, metric, dimension, value)
           VALUES (?, 'version', ?, 1)
           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1
-        `).bind(today, event.version));
+        `
+          ).bind(today, event.version)
+        );
       }
 
       if (event.event_type === 'error') {
+        // SAFETY: Analytics error messages are emitted as string properties by the CLI.
         const errorMsg = (event.properties?.message as string) || 'unknown error';
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_errors (error_message, occurrences, last_occurred_at)
           VALUES (?, 1, CURRENT_TIMESTAMP)
           ON CONFLICT(error_message) DO UPDATE SET occurrences = occurrences + 1, last_occurred_at = CURRENT_TIMESTAMP
-        `).bind(errorMsg));
+        `
+          ).bind(errorMsg)
+        );
 
+        // SAFETY: Analytics error types are emitted as string properties by the CLI.
         const errorType = (event.properties?.error_type as string) || 'unknown';
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_daily (date, metric, dimension, value)
           VALUES (?, 'errors', ?, 1)
           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1
-        `).bind(today, errorType));
+        `
+          ).bind(today, errorType)
+        );
       }
     }
 
@@ -580,12 +638,14 @@ export async function handleAnalytics(request: Request, env: Env): Promise<Respo
     }
 
     // Track unique active machines today
-    const uniqueMachines = [...new Set(events.map((e) => e.machine_id))];
+    const uniqueMachines = [...new Set(events.map(e => e.machine_id))];
     for (const machineId of uniqueMachines) {
-      await env.DB.prepare(`
+      await env.DB.prepare(
+        `
         INSERT OR IGNORE INTO analytics_active_users (date, machine_id)
         VALUES (?, ?)
-      `)
+      `
+      )
         .bind(today, machineId)
         .run();
     }

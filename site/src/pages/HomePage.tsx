@@ -1,4 +1,4 @@
-import { Component, createSignal, onMount, Show, For, lazy, Suspense } from 'solid-js';
+import { type Component, createSignal, onMount, Show, For, lazy, Suspense } from 'solid-js';
 import Header from '../components/Header';
 import Hero from '../components/Hero';
 import FeatureGrid from '../components/landing/FeatureGrid';
@@ -7,6 +7,7 @@ import Benchmarks from '../components/Benchmarks';
 import Pricing from '../components/Pricing';
 import Installation from '../components/Installation';
 import Footer from '../components/Footer';
+import { parseLicenseLookup } from '../lib/dashboard-contract';
 
 const BackgroundMesh = lazy(() => import('../components/3d/BackgroundMesh'));
 
@@ -62,10 +63,13 @@ const HomePage: Component = () => {
       const res = await fetch(
         `https://api.pyro1121.com/api/get-license?email=${encodeURIComponent(userEmail)}`
       );
-      const data = (await res.json()) as { found: boolean; license_key?: string; tier?: string };
-      if (data.found) {
-        setLicenseKey(data.license_key ?? '');
-        setTier(data.tier ?? '');
+      const parsed = parseLicenseLookup(await res.json());
+      if (!parsed.ok) {
+        throw new Error(parsed.error);
+      }
+      if (parsed.value.found) {
+        setLicenseKey(parsed.value.license_key);
+        setTier(parsed.value.tier);
         spawnConfetti();
       } else {
         setNotFound(true);

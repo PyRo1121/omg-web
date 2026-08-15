@@ -1,13 +1,15 @@
 {
   "compilerOptions": {
-    "target": "ES2021",
+    "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2021", "DOM"],
-    "types": ["@cloudflare/workers-types"],
+    "lib": ["ES2022"],
     "strict": true,
     "noEmit": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": ["worker-configuration.d.ts", "src/**/*.ts"]
 }

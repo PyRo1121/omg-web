@@ -16,12 +16,29 @@ const MAX_BATCH_SIZE = 20;
 
 // Event types for analytics
 type EventType =
-  | 'pageview'
-  | 'scroll_depth'
-  | 'time_on_page'
-  | 'cta_click'
-  | 'web_vitals'
-  | 'engagement';
+  'pageview' | 'scroll_depth' | 'time_on_page' | 'cta_click' | 'web_vitals' | 'engagement';
+type CtaType = 'download' | 'signup' | 'pricing' | 'docs' | 'github' | 'install';
+
+interface PageContext {
+  page_path: string;
+  page_url: string;
+}
+
+interface UtmParams {
+  source?: string;
+  medium?: string;
+  campaign?: string;
+  content?: string;
+  term?: string;
+}
+
+interface Viewport {
+  width: number;
+  height: number;
+}
+
+type AnalyticsValue = string | number | boolean | null | UtmParams | Viewport;
+type AnalyticsProperties = Record<string, AnalyticsValue>;
 
 interface AnalyticsEvent {
   type: EventType;
@@ -29,7 +46,7 @@ interface AnalyticsEvent {
   timestamp: number;
   page_path: string;
   page_url: string;
-  properties: Record<string, unknown>;
+  properties: AnalyticsProperties;
 }
 
 interface WebVitalsMetrics {
@@ -63,13 +80,13 @@ let currentPageViewId = '';
 /**
  * Get basic page context without any tracking identifiers
  */
-function getPageContext(): { page_path: string; page_url: string } {
-  if (typeof window === 'undefined') {
+function getPageContext(): PageContext {
+  if (!('window' in globalThis)) {
     return { page_path: '', page_url: '' };
   }
   return {
-    page_path: window.location.pathname,
-    page_url: window.location.href.split('?')[0], // Strip query params for privacy
+    page_path: globalThis.window.location.pathname,
+    page_url: globalThis.window.location.href.split('?')[0], // Strip query params for privacy
   };
 }
 
@@ -77,12 +94,12 @@ function getPageContext(): { page_path: string; page_url: string } {
  * Get referrer domain only (not full URL for privacy)
  */
 function getReferrerDomain(): string {
-  if (typeof document === 'undefined' || !document.referrer) {
+  if (!('document' in globalThis) || !globalThis.document.referrer) {
     return 'direct';
   }
   try {
-    const url = new URL(document.referrer);
-    if (url.hostname === window.location.hostname) {
+    const url = new URL(globalThis.document.referrer);
+    if (url.hostname === globalThis.window.location.hostname) {
       return 'internal';
     }
     return url.hostname;
@@ -94,24 +111,29 @@ function getReferrerDomain(): string {
 /**
  * Get UTM parameters from current URL
  */
-function getUtmParams(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
-  const params = new URLSearchParams(window.location.search);
-  const utm: Record<string, string> = {};
-  const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
-  for (const key of utmKeys) {
-    const value = params.get(key);
-    if (value) {
-      utm[key.replace('utm_', '')] = value;
-    }
-  }
+function getUtmParams(): UtmParams {
+  if (!('window' in globalThis)) return {};
+  const params = new URLSearchParams(globalThis.window.location.search);
+  const utm: UtmParams = {};
+  const values = {
+    source: params.get('utm_source'),
+    medium: params.get('utm_medium'),
+    campaign: params.get('utm_campaign'),
+    content: params.get('utm_content'),
+    term: params.get('utm_term'),
+  };
+  if (values.source) utm.source = values.source;
+  if (values.medium) utm.medium = values.medium;
+  if (values.campaign) utm.campaign = values.campaign;
+  if (values.content) utm.content = values.content;
+  if (values.term) utm.term = values.term;
   return utm;
 }
 
 /**
  * Queue an analytics event
  */
-function queueEvent(type: EventType, name: string, properties: Record<string, unknown> = {}): void {
+function queueEvent(type: EventType, name: string, properties: AnalyticsProperties = {}): void {
   const context = getPageContext();
   const event: AnalyticsEvent = {
     type,
@@ -197,7 +219,7 @@ async function sendWithFetch(payload: string, events: AnalyticsEvent[]): Promise
  * Track a page view
  */
 export function trackPageView(): void {
-  if (typeof window === 'undefined') return;
+  if (!('window' in globalThis)) return;
 
   currentPageViewId = generatePageViewId();
   pageLoadTime = Date.now();
@@ -215,7 +237,7 @@ export function trackPageView(): void {
     referrer: getReferrerDomain(),
     utm: getUtmParams(),
     viewport,
-    device_type: viewport.width < 768 ? 'mobile' : viewport.width < 1024 ? 'tablet' : 'desktop',
+    device_type: getDeviceType(viewport.width),
   });
 }
 
@@ -225,7 +247,7 @@ export function trackPageView(): void {
 export function trackScrollDepth(depth: number): void {
   // Only track at specific thresholds: 25%, 50%, 75%, 90%, 100%
   const thresholds = [25, 50, 75, 90, 100];
-  const roundedDepth = thresholds.find((t) => depth >= t && maxScrollDepth < t);
+  const roundedDepth = thresholds.find(t => depth >= t && maxScrollDepth < t);
 
   if (roundedDepth && roundedDepth > maxScrollDepth) {
     maxScrollDepth = roundedDepth;
@@ -256,10 +278,7 @@ export function trackTimeOnPage(): void {
 /**
  * Track CTA clicks
  */
-export function trackCtaClick(
-  ctaType: 'download' | 'signup' | 'pricing' | 'docs' | 'github' | 'install',
-  ctaLabel?: string
-): void {
+export function trackCtaClick(ctaType: CtaType, ctaLabel?: string): void {
   queueEvent('cta_click', 'cta_interaction', {
     cta_type: ctaType,
     cta_label: ctaLabel || ctaType,
@@ -269,39 +288,55 @@ export function trackCtaClick(
 /**
  * Track custom engagement events
  */
-export function trackEngagement(action: string, properties?: Record<string, unknown>): void {
+export function trackEngagement(action: string, properties?: AnalyticsProperties): void {
   queueEvent('engagement', action, properties || {});
 }
 
 /**
  * Report Core Web Vitals
  */
+function getDeviceType(width: number): 'mobile' | 'tablet' | 'desktop' {
+  if (width < 768) return 'mobile';
+  if (width < 1024) return 'tablet';
+  return 'desktop';
+}
+
+function getMetricRating(
+  value: number,
+  goodThreshold: number,
+  needsImprovementThreshold: number
+): 'good' | 'needs-improvement' | 'poor' {
+  if (value <= goodThreshold) return 'good';
+  if (value <= needsImprovementThreshold) return 'needs-improvement';
+  return 'poor';
+}
+
 export function reportWebVitals(metrics: WebVitalsMetrics): void {
   if (vitalsReported) return;
   vitalsReported = true;
 
-  const vitalsWithRating: Record<string, unknown> = {};
+  const vitalsWithRating: AnalyticsProperties = {};
 
   // Add values and ratings for each metric
   if (metrics.lcp !== undefined) {
     vitalsWithRating.lcp = metrics.lcp;
-    vitalsWithRating.lcp_rating = metrics.lcp <= 2500 ? 'good' : metrics.lcp <= 4000 ? 'needs-improvement' : 'poor';
+    vitalsWithRating.lcp_rating = getMetricRating(metrics.lcp, 2500, 4000);
   }
   if (metrics.inp !== undefined) {
     vitalsWithRating.inp = metrics.inp;
-    vitalsWithRating.inp_rating = metrics.inp <= 200 ? 'good' : metrics.inp <= 500 ? 'needs-improvement' : 'poor';
+    vitalsWithRating.inp_rating = getMetricRating(metrics.inp, 200, 500);
   }
   if (metrics.cls !== undefined) {
     vitalsWithRating.cls = metrics.cls;
-    vitalsWithRating.cls_rating = metrics.cls <= 0.1 ? 'good' : metrics.cls <= 0.25 ? 'needs-improvement' : 'poor';
+    vitalsWithRating.cls_rating = getMetricRating(metrics.cls, 0.1, 0.25);
   }
   if (metrics.ttfb !== undefined) {
     vitalsWithRating.ttfb = metrics.ttfb;
-    vitalsWithRating.ttfb_rating = metrics.ttfb <= 800 ? 'good' : metrics.ttfb <= 1800 ? 'needs-improvement' : 'poor';
+    vitalsWithRating.ttfb_rating = getMetricRating(metrics.ttfb, 800, 1800);
   }
   if (metrics.fcp !== undefined) {
     vitalsWithRating.fcp = metrics.fcp;
-    vitalsWithRating.fcp_rating = metrics.fcp <= 1800 ? 'good' : metrics.fcp <= 3000 ? 'needs-improvement' : 'poor';
+    vitalsWithRating.fcp_rating = getMetricRating(metrics.fcp, 1800, 3000);
   }
 
   queueEvent('web_vitals', 'core_web_vitals', vitalsWithRating);
@@ -338,11 +373,10 @@ function initWebVitalsCollection(): void {
 
   const metrics: WebVitalsMetrics = {};
   let lcpReported = false;
-  let inpReported = false;
 
   // LCP Observer
   try {
-    const lcpObserver = new PerformanceObserver((list) => {
+    const lcpObserver = new PerformanceObserver(list => {
       const entries = list.getEntries();
       const lastEntry = entries[entries.length - 1];
       if (lastEntry) {
@@ -358,7 +392,7 @@ function initWebVitalsCollection(): void {
         lcpObserver.disconnect();
       }
     };
-    ['keydown', 'click', 'visibilitychange'].forEach((event) => {
+    ['keydown', 'click', 'visibilitychange'].forEach(event => {
       window.addEventListener(event, reportLcp, { once: true, capture: true });
     });
   } catch {
@@ -367,8 +401,9 @@ function initWebVitalsCollection(): void {
 
   // INP Observer (replaces FID)
   try {
-    const inpObserver = new PerformanceObserver((list) => {
+    const inpObserver = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
+        // SAFETY: PerformanceObserver entries observed with type "event" are PerformanceEventTiming per the Web Performance API.
         const eventEntry = entry as PerformanceEventTiming;
         const duration = eventEntry.processingEnd - eventEntry.startTime;
         if (!metrics.inp || duration > metrics.inp) {
@@ -380,8 +415,9 @@ function initWebVitalsCollection(): void {
   } catch {
     // INP observer not supported, try FID as fallback
     try {
-      const fidObserver = new PerformanceObserver((list) => {
+      const fidObserver = new PerformanceObserver(list => {
         for (const entry of list.getEntries()) {
+          // SAFETY: PerformanceObserver entries observed with type "first-input" are PerformanceEventTiming per the Web Performance API.
           const eventEntry = entry as PerformanceEventTiming;
           metrics.inp = eventEntry.processingStart - eventEntry.startTime;
         }
@@ -394,9 +430,13 @@ function initWebVitalsCollection(): void {
 
   // CLS Observer
   try {
-    const clsObserver = new PerformanceObserver((list) => {
+    const clsObserver = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
-        const layoutShift = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number };
+        // SAFETY: PerformanceObserver entries observed with type "layout-shift" expose these layout-shift fields.
+        const layoutShift = entry as PerformanceEntry & {
+          hadRecentInput?: boolean;
+          value?: number;
+        };
         if (!layoutShift.hadRecentInput && layoutShift.value) {
           clsValue += layoutShift.value;
           clsEntries.push(entry);
@@ -411,7 +451,7 @@ function initWebVitalsCollection(): void {
 
   // TTFB and FCP from navigation timing
   try {
-    const paintObserver = new PerformanceObserver((list) => {
+    const paintObserver = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
         if (entry.name === 'first-contentful-paint') {
           metrics.fcp = entry.startTime;
@@ -421,6 +461,7 @@ function initWebVitalsCollection(): void {
     paintObserver.observe({ type: 'paint', buffered: true });
 
     // Get TTFB from navigation timing
+    // SAFETY: Entries returned for the "navigation" performance entry type are PerformanceNavigationTiming.
     const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
     if (navEntry) {
       metrics.ttfb = navEntry.responseStart - navEntry.requestStart;
@@ -445,15 +486,29 @@ function initWebVitalsCollection(): void {
   window.addEventListener('pagehide', reportVitals);
 }
 
+function parseCtaType(value: string): CtaType | undefined {
+  switch (value) {
+    case 'download':
+    case 'signup':
+    case 'pricing':
+    case 'docs':
+    case 'github':
+    case 'install':
+      return value;
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Initialize CTA click tracking
  */
 function initCtaTracking(): void {
   document.addEventListener(
     'click',
-    (e) => {
-      const target = e.target as HTMLElement;
-      const link = target.closest('a, button');
+    e => {
+      if (!(e.target instanceof HTMLElement)) return;
+      const link = e.target.closest('a, button');
       if (!link) return;
 
       const href = link.getAttribute('href') || '';
@@ -461,7 +516,8 @@ function initCtaTracking(): void {
 
       // Auto-detect CTA type from href or data attribute
       if (dataTrack) {
-        trackCtaClick(dataTrack as Parameters<typeof trackCtaClick>[0], link.textContent?.trim());
+        const parsedCtaType = parseCtaType(dataTrack);
+        if (parsedCtaType) trackCtaClick(parsedCtaType, link.textContent?.trim());
       } else if (href.includes('install') || href.includes('#install')) {
         trackCtaClick('install', link.textContent?.trim());
       } else if (href.includes('signup') || href.includes('login')) {
@@ -513,7 +569,7 @@ function initNavigationTracking(): void {
  * Initialize all analytics tracking
  */
 export function initAnalytics(): void {
-  if (typeof window === 'undefined' || isInitialized) return;
+  if (!('window' in globalThis) || isInitialized) return;
   isInitialized = true;
 
   // Track initial page view

@@ -9,7 +9,11 @@ interface GitHubCommitActivity {
 const CACHE_TTL = 120;
 const STALE_TTL = 3600;
 
-export async function handleGitHubProxy(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+export async function handleGitHubProxy(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext
+): Promise<Response> {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -17,7 +21,7 @@ export async function handleGitHubProxy(request: Request, env: Env, ctx: Executi
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Max-Age': '86400',
-      }
+      },
     });
   }
 
@@ -29,31 +33,36 @@ export async function handleGitHubProxy(request: Request, env: Env, ctx: Executi
   const cacheKey = new Request(request.url, request);
 
   let cachedResponse = await cache.match(cacheKey);
-  
+
   if (cachedResponse) {
     const age = parseInt(cachedResponse.headers.get('Age') || '0');
-    
+
     if (age < CACHE_TTL) {
       return new Response(cachedResponse.body, {
-        headers: { 
+        headers: {
           ...Object.fromEntries(cachedResponse.headers),
           'X-Cache': 'HIT',
           'X-Cache-Age': age.toString(),
-          'Access-Control-Allow-Origin': '*'
-        }
+          'Access-Control-Allow-Origin': '*',
+        },
       });
     }
-    
+
     if (age < STALE_TTL) {
-      ctx.waitUntil(refreshCache(env, cache, cacheKey));
-      
+      // Never let background refresh failures bubble as uncaught Worker exceptions.
+      ctx.waitUntil(
+        refreshCache(env, cache, cacheKey).catch(error => {
+          console.error('GitHub cache background refresh failed:', error);
+        })
+      );
+
       return new Response(cachedResponse.body, {
-        headers: { 
+        headers: {
           ...Object.fromEntries(cachedResponse.headers),
           'X-Cache': 'STALE',
           'X-Cache-Age': age.toString(),
-          'Access-Control-Allow-Origin': '*'
-        }
+          'Access-Control-Allow-Origin': '*',
+        },
       });
     }
   }
@@ -62,15 +71,18 @@ export async function handleGitHubProxy(request: Request, env: Env, ctx: Executi
 }
 
 async function refreshCache(env: Env, cache: Cache, cacheKey: Request): Promise<Response> {
-  const ghResponse = await fetch(
-    'https://api.github.com/repos/PyRo1121/omg/stats/commit_activity',
-    { 
-      headers: { 
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'OMG-Package-Manager-Site/1.0'
-      } 
-    }
-  );
+  let ghResponse: Response;
+  try {
+    ghResponse = await fetch('https://api.github.com/repos/PyRo1121/omg/stats/commit_activity', {
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'OMG-Package-Manager-Site/1.0',
+      },
+    });
+  } catch (error) {
+    console.error('GitHub API network error:', error);
+    return errorResponse('GitHub API unreachable', 503);
+  }
 
   const remaining = ghResponse.headers.get('X-RateLimit-Remaining');
   if (remaining && parseInt(remaining) < 10) {
@@ -78,19 +90,22 @@ async function refreshCache(env: Env, cache: Cache, cacheKey: Request): Promise<
   }
 
   if (ghResponse.status === 202) {
-    return new Response(JSON.stringify({ 
-      computing: true, 
-      message: 'GitHub is computing statistics. Please try again in 60 seconds.' 
-    }), {
-      status: 202,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        'Retry-After': '60',
-        'Access-Control-Allow-Origin': '*',
-        'X-GitHub-Status': 'computing'
+    return new Response(
+      JSON.stringify({
+        computing: true,
+        message: 'GitHub is computing statistics. Please try again in 60 seconds.',
+      }),
+      {
+        status: 202,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Retry-After': '60',
+          'Access-Control-Allow-Origin': '*',
+          'X-GitHub-Status': 'computing',
+        },
       }
-    });
+    );
   }
 
   if (!ghResponse.ok) {
@@ -100,18 +115,22 @@ async function refreshCache(env: Env, cache: Cache, cacheKey: Request): Promise<
 
   const data: GitHubCommitActivity[] = await ghResponse.json();
   const responseBody = JSON.stringify(data);
-  
+
   const response = new Response(responseBody, {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': `public, max-age=${CACHE_TTL}, stale-while-revalidate=${STALE_TTL}`,
       'Access-Control-Allow-Origin': '*',
       'X-Cache': 'MISS',
-      'X-RateLimit-Remaining': remaining || 'unknown'
-    }
+      'X-RateLimit-Remaining': remaining || 'unknown',
+    },
   });
 
-  await cache.put(cacheKey, response.clone());
-  
+  try {
+    await cache.put(cacheKey, response.clone());
+  } catch (error) {
+    console.warn('Failed to write GitHub response to cache:', error);
+  }
+
   return response;
 }

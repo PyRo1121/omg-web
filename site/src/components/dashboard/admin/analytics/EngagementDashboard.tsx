@@ -1,15 +1,15 @@
 import { Component, Show, createMemo, createSignal, onMount, onCleanup, For } from 'solid-js';
-import { 
-  Users, 
-  TrendingUp, 
-  Activity, 
-  Calendar, 
-  Zap, 
-  Target, 
-  ArrowUpRight, 
+import {
+  Users,
+  TrendingUp,
+  Activity,
+  Calendar,
+  Zap,
+  Target,
+  ArrowUpRight,
   ArrowDownRight,
   Minus,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -53,7 +53,7 @@ interface AnimatedCounterProps {
   duration?: number;
 }
 
-const AnimatedCounter: Component<AnimatedCounterProps> = (props) => {
+const AnimatedCounter: Component<AnimatedCounterProps> = props => {
   const [displayValue, setDisplayValue] = createSignal(0);
   const duration = () => props.duration || 1200;
 
@@ -80,7 +80,7 @@ const AnimatedCounter: Component<AnimatedCounterProps> = (props) => {
   return <span class="font-mono tabular-nums">{Math.round(displayValue()).toLocaleString()}</span>;
 };
 
-export const EngagementDashboard: Component<EngagementDashboardProps> = (props) => {
+export const EngagementDashboard: Component<EngagementDashboardProps> = props => {
   const [mounted, setMounted] = createSignal(false);
 
   onMount(() => {
@@ -104,23 +104,46 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
     return ((current - previous) / previous) * 100;
   };
 
-  const dauTrend = createMemo(() => 
+  const dauTrend = createMemo(() =>
     calculateTrend(props.engagement.dau, props.previousPeriod?.dau)
   );
 
-  const wauTrend = createMemo(() => 
+  const wauTrend = createMemo(() =>
     calculateTrend(props.engagement.wau, props.previousPeriod?.wau)
   );
 
-  const mauTrend = createMemo(() => 
+  const mauTrend = createMemo(() =>
     calculateTrend(props.engagement.mau, props.previousPeriod?.mau)
   );
 
   const getStickinessHealth = (value: number) => {
-    if (value >= 25) return { label: 'Excellent', color: 'var(--color-aurora-400)', glow: 'rgba(16, 185, 129, 0.3)', status: 'excellent' };
-    if (value >= 15) return { label: 'Good', color: 'var(--color-electric-400)', glow: 'rgba(34, 211, 211, 0.25)', status: 'good' };
-    if (value >= 10) return { label: 'Average', color: 'var(--color-solar-400)', glow: 'rgba(245, 158, 11, 0.25)', status: 'average' };
-    return { label: 'Needs Work', color: 'var(--color-flare-400)', glow: 'rgba(239, 68, 68, 0.25)', status: 'poor' };
+    if (value >= 25)
+      return {
+        label: 'Excellent',
+        color: 'var(--color-aurora-400)',
+        glow: 'rgba(16, 185, 129, 0.3)',
+        status: 'excellent',
+      };
+    if (value >= 15)
+      return {
+        label: 'Good',
+        color: 'var(--color-electric-400)',
+        glow: 'rgba(34, 211, 211, 0.25)',
+        status: 'good',
+      };
+    if (value >= 10)
+      return {
+        label: 'Average',
+        color: 'var(--color-solar-400)',
+        glow: 'rgba(245, 158, 11, 0.25)',
+        status: 'average',
+      };
+    return {
+      label: 'Needs Work',
+      color: 'var(--color-flare-400)',
+      glow: 'rgba(239, 68, 68, 0.25)',
+      status: 'poor',
+    };
   };
 
   const stickinessHealth = createMemo(() => getStickinessHealth(stickinessValue()));
@@ -129,7 +152,7 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
     if (!props.funnel) return [];
     const { installs, activated, engaged, power_users } = props.funnel;
     const base = installs || 1;
-    
+
     return [
       { label: 'Installed', count: installs, percentage: 100 },
       { label: 'Activated', count: activated, percentage: (activated / base) * 100 },
@@ -138,14 +161,22 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
     ];
   });
 
-  const TrendIndicator: Component<{ trend: number | null }> = (trendProps) => {
+  const TrendIndicator: Component<{ trend: number | null }> = trendProps => {
     if (trendProps.trend === null) return null;
-    
+
     const isPositive = trendProps.trend > 0;
     const isNeutral = Math.abs(trendProps.trend) < 0.5;
     const Icon = isNeutral ? Minus : isPositive ? ArrowUpRight : ArrowDownRight;
-    const color = isNeutral ? 'var(--color-nebula-500)' : isPositive ? 'var(--color-aurora-400)' : 'var(--color-flare-400)';
-    const bg = isNeutral ? 'rgba(113, 113, 122, 0.1)' : isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+    const color = isNeutral
+      ? 'var(--color-nebula-500)'
+      : isPositive
+        ? 'var(--color-aurora-400)'
+        : 'var(--color-flare-400)';
+    const bg = isNeutral
+      ? 'rgba(113, 113, 122, 0.1)'
+      : isPositive
+        ? 'rgba(16, 185, 129, 0.1)'
+        : 'rgba(239, 68, 68, 0.1)';
 
     return (
       <div
@@ -163,17 +194,18 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div
-            class="w-10 h-10 rounded-xl flex items-center justify-center"
+            class="flex h-10 w-10 items-center justify-center rounded-xl"
             style={{
-              background: 'linear-gradient(135deg, var(--color-indigo-600), var(--color-indigo-400))',
+              background:
+                'linear-gradient(135deg, var(--color-indigo-600), var(--color-indigo-400))',
               'box-shadow': '0 0 15px rgba(99, 102, 241, 0.3)',
             }}
           >
             <Activity size={20} class="text-white" />
           </div>
           <div>
-            <h2 class="text-xl font-bold tracking-tight text-nebula-100">User Engagement</h2>
-            <p class="text-xs text-nebula-500">Real-time activity and engagement metrics</p>
+            <h2 class="text-nebula-100 text-xl font-bold tracking-tight">User Engagement</h2>
+            <p class="text-nebula-500 text-xs">Real-time activity and engagement metrics</p>
           </div>
         </div>
 
@@ -193,7 +225,7 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
         </Show>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           icon={Users}
           label="Daily Active"
@@ -236,8 +268,8 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
         <div
           class={cn(
             'group relative overflow-hidden rounded-2xl border p-5',
-            'transition-all duration-500 cursor-default',
-            mounted() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            'cursor-default transition-all duration-500',
+            mounted() ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
           )}
           style={{
             background: `linear-gradient(135deg, ${stickinessHealth().color}08, ${stickinessHealth().color}03)`,
@@ -246,14 +278,14 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
           }}
         >
           <div
-            class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-40"
+            class="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-40"
             style={{ background: stickinessHealth().color }}
           />
 
           <div class="relative">
             <div class="mb-4 flex items-center justify-between">
               <div
-                class="w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
+                class="flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
                 style={{
                   background: `linear-gradient(135deg, ${stickinessHealth().color}, color-mix(in srgb, ${stickinessHealth().color} 70%, white))`,
                   'box-shadow': `0 0 10px ${stickinessHealth().glow}`,
@@ -271,8 +303,8 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
                 >
                   {stickinessHealth().label}
                 </span>
-                <span 
-                  class="text-[10px] font-black uppercase tracking-widest"
+                <span
+                  class="text-[10px] font-black tracking-widest uppercase"
                   style={{ color: stickinessHealth().color }}
                 >
                   Stickiness
@@ -280,19 +312,23 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
               </div>
             </div>
 
-            <div class="text-3xl font-black tracking-tight text-nebula-100">
+            <div class="text-nebula-100 text-3xl font-black tracking-tight">
               {stickinessValue().toFixed(1)}
-              <span class="ml-1 text-xl" style={{ color: stickinessHealth().color }}>%</span>
+              <span class="ml-1 text-xl" style={{ color: stickinessHealth().color }}>
+                %
+              </span>
             </div>
 
-            <p class="mt-2 text-sm font-medium text-nebula-400">DAU/MAU Ratio</p>
+            <p class="text-nebula-400 mt-2 text-sm font-medium">DAU/MAU Ratio</p>
 
             <div class="mt-3 space-y-2">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-nebula-500">DAU/MAU</span>
-                <span class="font-mono font-bold tabular-nums text-nebula-200">{stickinessValue().toFixed(1)}%</span>
+                <span class="text-nebula-200 font-mono font-bold tabular-nums">
+                  {stickinessValue().toFixed(1)}%
+                </span>
               </div>
-              <div class="h-1.5 overflow-hidden rounded-full bg-void-700">
+              <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
                 <div
                   class="h-full rounded-full transition-all duration-1000"
                   style={{
@@ -304,14 +340,17 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
 
               <div class="flex items-center justify-between text-xs">
                 <span class="text-nebula-500">WAU/MAU</span>
-                <span class="font-mono font-bold tabular-nums text-nebula-400">{wauMauRatio().toFixed(1)}%</span>
+                <span class="text-nebula-400 font-mono font-bold tabular-nums">
+                  {wauMauRatio().toFixed(1)}%
+                </span>
               </div>
-              <div class="h-1.5 overflow-hidden rounded-full bg-void-700">
+              <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
                 <div
                   class="h-full rounded-full transition-all duration-1000"
                   style={{
                     width: mounted() ? `${Math.min(wauMauRatio(), 100)}%` : '0%',
-                    background: 'linear-gradient(90deg, var(--color-electric-500), var(--color-electric-300))',
+                    background:
+                      'linear-gradient(90deg, var(--color-electric-500), var(--color-electric-300))',
                   }}
                 />
               </div>
@@ -321,30 +360,48 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
       </div>
 
       <Show when={props.funnel && funnelStages().length > 0}>
-        <div class="rounded-2xl border border-white/[0.06] bg-void-900 p-6">
+        <div class="bg-void-900 rounded-2xl border border-white/[0.06] p-6">
           <div class="mb-4 flex items-center gap-2">
             <Target size={18} class="text-aurora-400" />
-            <h3 class="text-lg font-bold text-nebula-100">Engagement Funnel</h3>
+            <h3 class="text-nebula-100 text-lg font-bold">Engagement Funnel</h3>
           </div>
 
           <div class="space-y-3">
             <For each={funnelStages()}>
               {(stage, index) => {
                 const colors = [
-                  { gradient: 'linear-gradient(90deg, var(--color-indigo-600), var(--color-indigo-400))', glow: 'rgba(99, 102, 241, 0.3)' },
-                  { gradient: 'linear-gradient(90deg, var(--color-electric-600), var(--color-electric-400))', glow: 'rgba(34, 211, 211, 0.3)' },
-                  { gradient: 'linear-gradient(90deg, var(--color-aurora-600), var(--color-aurora-400))', glow: 'rgba(16, 185, 129, 0.3)' },
-                  { gradient: 'linear-gradient(90deg, var(--color-photon-600), var(--color-photon-400))', glow: 'rgba(176, 109, 232, 0.3)' },
+                  {
+                    gradient:
+                      'linear-gradient(90deg, var(--color-indigo-600), var(--color-indigo-400))',
+                    glow: 'rgba(99, 102, 241, 0.3)',
+                  },
+                  {
+                    gradient:
+                      'linear-gradient(90deg, var(--color-electric-600), var(--color-electric-400))',
+                    glow: 'rgba(34, 211, 211, 0.3)',
+                  },
+                  {
+                    gradient:
+                      'linear-gradient(90deg, var(--color-aurora-600), var(--color-aurora-400))',
+                    glow: 'rgba(16, 185, 129, 0.3)',
+                  },
+                  {
+                    gradient:
+                      'linear-gradient(90deg, var(--color-photon-600), var(--color-photon-400))',
+                    glow: 'rgba(176, 109, 232, 0.3)',
+                  },
                 ];
                 const stageColors = colors[index() % colors.length];
                 const prevStage = funnelStages()[index() - 1];
-                const dropoff = prevStage ? ((prevStage.count - stage.count) / prevStage.count * 100).toFixed(1) : null;
+                const dropoff = prevStage
+                  ? (((prevStage.count - stage.count) / prevStage.count) * 100).toFixed(1)
+                  : null;
 
                 return (
                   <div class="flex items-center gap-4">
-                    <div class="w-24 text-sm font-medium text-nebula-200">{stage.label}</div>
+                    <div class="text-nebula-200 w-24 text-sm font-medium">{stage.label}</div>
                     <div class="flex-1">
-                      <div class="h-8 rounded-lg bg-void-800 overflow-hidden relative">
+                      <div class="bg-void-800 relative h-8 overflow-hidden rounded-lg">
                         <div
                           class="h-full rounded-lg transition-all duration-1000"
                           style={{
@@ -365,7 +422,7 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = (props) 
                     </div>
                     <div class="w-16 text-right">
                       <Show when={dropoff !== null}>
-                        <span class="text-xs text-flare-400/80">-{dropoff}%</span>
+                        <span class="text-flare-400/80 text-xs">-{dropoff}%</span>
                       </Show>
                     </div>
                   </div>
@@ -392,18 +449,26 @@ interface MetricCardProps {
   delay: number;
 }
 
-const MetricCard: Component<MetricCardProps> = (props) => {
+const MetricCard: Component<MetricCardProps> = props => {
   const [hovered, setHovered] = createSignal(false);
   const IconComponent = props.icon;
 
-  const TrendIndicator: Component<{ trend: number | null | undefined }> = (trendProps) => {
+  const TrendIndicator: Component<{ trend: number | null | undefined }> = trendProps => {
     if (trendProps.trend === null || trendProps.trend === undefined) return null;
-    
+
     const isPositive = trendProps.trend > 0;
     const isNeutral = Math.abs(trendProps.trend) < 0.5;
     const Icon = isNeutral ? Minus : isPositive ? ArrowUpRight : ArrowDownRight;
-    const color = isNeutral ? 'var(--color-nebula-500)' : isPositive ? 'var(--color-aurora-400)' : 'var(--color-flare-400)';
-    const bg = isNeutral ? 'rgba(113, 113, 122, 0.1)' : isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+    const color = isNeutral
+      ? 'var(--color-nebula-500)'
+      : isPositive
+        ? 'var(--color-aurora-400)'
+        : 'var(--color-flare-400)';
+    const bg = isNeutral
+      ? 'rgba(113, 113, 122, 0.1)'
+      : isPositive
+        ? 'rgba(16, 185, 129, 0.1)'
+        : 'rgba(239, 68, 68, 0.1)';
 
     return (
       <div
@@ -420,12 +485,14 @@ const MetricCard: Component<MetricCardProps> = (props) => {
     <div
       class={cn(
         'group relative overflow-hidden rounded-2xl border p-5',
-        'transition-all duration-500 cursor-default',
-        props.mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+        'cursor-default transition-all duration-500',
+        props.mounted ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
       )}
       style={{
         background: `linear-gradient(135deg, ${props.color}08, ${props.color}03)`,
-        'border-color': hovered() ? `color-mix(in srgb, ${props.color} 30%, transparent)` : 'rgba(255, 255, 255, 0.04)',
+        'border-color': hovered()
+          ? `color-mix(in srgb, ${props.color} 30%, transparent)`
+          : 'rgba(255, 255, 255, 0.04)',
         'box-shadow': hovered() ? `0 0 25px ${props.glow}` : undefined,
         'animation-delay': `${props.delay}ms`,
       }}
@@ -433,7 +500,7 @@ const MetricCard: Component<MetricCardProps> = (props) => {
       onMouseLeave={() => setHovered(false)}
     >
       <div
-        class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-40"
+        class="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-40"
         style={{ background: props.color }}
       />
 
@@ -441,7 +508,7 @@ const MetricCard: Component<MetricCardProps> = (props) => {
         <div class="mb-4 flex items-center justify-between">
           <div
             class={cn(
-              'w-10 h-10 rounded-xl flex items-center justify-center',
+              'flex h-10 w-10 items-center justify-center rounded-xl',
               'transition-transform duration-300',
               hovered() && 'scale-110'
             )}
@@ -454,8 +521,8 @@ const MetricCard: Component<MetricCardProps> = (props) => {
           </div>
           <div class="flex items-center gap-2">
             <TrendIndicator trend={props.trend} />
-            <span 
-              class="text-[10px] font-black uppercase tracking-widest"
+            <span
+              class="text-[10px] font-black tracking-widest uppercase"
               style={{ color: props.color }}
             >
               {props.label}
@@ -463,11 +530,11 @@ const MetricCard: Component<MetricCardProps> = (props) => {
           </div>
         </div>
 
-        <div class="text-3xl font-black tracking-tight text-nebula-100">
+        <div class="text-nebula-100 text-3xl font-black tracking-tight">
           <AnimatedCounter value={props.value} duration={1200 + props.delay} />
         </div>
 
-        <p class="mt-2 text-sm font-medium text-nebula-400">{props.sublabel}</p>
+        <p class="text-nebula-400 mt-2 text-sm font-medium">{props.sublabel}</p>
       </div>
     </div>
   );

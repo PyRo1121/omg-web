@@ -29,33 +29,36 @@ Unlike generic admin templates, OMG Mission Control features:
 ### Font Stack
 
 ```css
---font-display: 'Space Grotesk', system-ui, sans-serif;  /* Headers, metrics */
+--font-display: 'Space Grotesk', system-ui, sans-serif; /* Headers, metrics */
 --font-body: 'Plus Jakarta Sans', system-ui, sans-serif; /* Body, UI text */
---font-mono: 'JetBrains Mono', 'Fira Code', monospace;   /* Code, data */
+--font-mono: 'JetBrains Mono', 'Fira Code', monospace; /* Code, data */
 ```
 
 ### Google Fonts Import
 
 ```html
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+  rel="stylesheet"
+/>
 ```
 
 ### Type Scale
 
-| Token | Size | Use Case |
-|-------|------|----------|
-| `text-2xs` | 10px | Micro labels, timestamps |
-| `text-xs` | 12px | Badges, captions |
-| `text-sm` | 14px | Body text, table cells |
-| `text-base` | 16px | Default body |
-| `text-lg` | 18px | Emphasized body |
-| `text-xl` | 20px | Card headers |
-| `text-2xl` | 24px | Section titles |
-| `text-3xl` | 30px | Page subtitles |
-| `text-4xl` | 36px | Page titles |
-| `text-5xl` | 48px | Hero metrics |
+| Token       | Size | Use Case                 |
+| ----------- | ---- | ------------------------ |
+| `text-2xs`  | 10px | Micro labels, timestamps |
+| `text-xs`   | 12px | Badges, captions         |
+| `text-sm`   | 14px | Body text, table cells   |
+| `text-base` | 16px | Default body             |
+| `text-lg`   | 18px | Emphasized body          |
+| `text-xl`   | 20px | Card headers             |
+| `text-2xl`  | 24px | Section titles           |
+| `text-3xl`  | 30px | Page subtitles           |
+| `text-4xl`  | 36px | Page titles              |
+| `text-5xl`  | 48px | Hero metrics             |
 
 ### Typography Patterns
 
@@ -92,17 +95,17 @@ Unlike generic admin templates, OMG Mission Control features:
 
 ### Palette Philosophy
 
-| Palette | Purpose | Primary Use |
-|---------|---------|-------------|
-| **Void** | Backgrounds | Surface hierarchy, depth |
-| **Nebula** | Text | Content hierarchy, disabled states |
-| **Indigo** | Primary | Actions, links, focus states |
-| **Electric** | Accent | Energy, activated states |
-| **Photon** | Secondary | Creative, secondary actions |
-| **Aurora** | Success | Healthy, positive, growth |
-| **Solar** | Warning | Attention, caution, review |
-| **Flare** | Error | Critical, danger, urgent |
-| **Plasma** | Info | Informational, new, neutral |
+| Palette      | Purpose     | Primary Use                        |
+| ------------ | ----------- | ---------------------------------- |
+| **Void**     | Backgrounds | Surface hierarchy, depth           |
+| **Nebula**   | Text        | Content hierarchy, disabled states |
+| **Indigo**   | Primary     | Actions, links, focus states       |
+| **Electric** | Accent      | Energy, activated states           |
+| **Photon**   | Secondary   | Creative, secondary actions        |
+| **Aurora**   | Success     | Healthy, positive, growth          |
+| **Solar**    | Warning     | Attention, caution, review         |
+| **Flare**    | Error       | Critical, danger, urgent           |
+| **Plasma**   | Info        | Informational, new, neutral        |
 
 ### Health Score Colors
 
@@ -116,26 +119,26 @@ Unlike generic admin templates, OMG Mission Control features:
 
 ### Lifecycle Stage Colors
 
-| Stage | Color | Icon |
-|-------|-------|------|
-| New | Plasma-400 | Sparkles |
-| Onboarding | Photon-400 | Rocket |
-| Activated | Electric-500 | Zap |
-| Engaged | Indigo-400 | Activity |
-| Power User | Solar-400 | Crown |
-| At Risk | Flare-400 | AlertTriangle |
-| Churning | Flare-600 | TrendingDown |
-| Churned | Nebula-600 | XCircle |
-| Reactivated | Aurora-400 | RefreshCw |
+| Stage       | Color        | Icon          |
+| ----------- | ------------ | ------------- |
+| New         | Plasma-400   | Sparkles      |
+| Onboarding  | Photon-400   | Rocket        |
+| Activated   | Electric-500 | Zap           |
+| Engaged     | Indigo-400   | Activity      |
+| Power User  | Solar-400    | Crown         |
+| At Risk     | Flare-400    | AlertTriangle |
+| Churning    | Flare-600    | TrendingDown  |
+| Churned     | Nebula-600   | XCircle       |
+| Reactivated | Aurora-400   | RefreshCw     |
 
 ### Tier Colors
 
-| Tier | Color | Background |
-|------|-------|------------|
-| Free | Nebula-500 | Solid |
-| Pro | Indigo-400 | Gradient to Purple |
-| Team | Electric-400 | Gradient to Plasma |
-| Enterprise | Solar-400 | Gradient to Orange |
+| Tier       | Color        | Background         |
+| ---------- | ------------ | ------------------ |
+| Free       | Nebula-500   | Solid              |
+| Pro        | Indigo-400   | Gradient to Purple |
+| Team       | Electric-400 | Gradient to Plasma |
+| Enterprise | Solar-400    | Gradient to Orange |
 
 ---
 
@@ -219,7 +222,7 @@ xl:  1280px  | Desktops
 <LifecycleProgress currentStage="engaged" showLabels />
 
 // Timeline view
-<LifecycleTimeline 
+<LifecycleTimeline
   currentStage="activated"
   stageHistory={[
     { stage: 'new', date: 'Jan 15' },
@@ -242,7 +245,7 @@ xl:  1280px  | Desktops
 <PresenceIndicator status="online" label="John Doe" />
 
 // Data stream
-<DataStream 
+<DataStream
   items={[
     { id: '1', content: 'omg search firefox', type: 'success' },
     { id: '2', content: 'omg install vim', type: 'info' }
@@ -294,7 +297,7 @@ xl:  1280px  | Desktops
 <RiskIndicator level="critical" variant="bar" probability={92} showLabel />
 
 // Segments list
-<RiskSegments 
+<RiskSegments
   segments={[
     { level: 'critical', count: 5, tier: 'enterprise', avgCommands: 12 },
     { level: 'high', count: 23, tier: 'pro', avgCommands: 45 }
@@ -394,32 +397,30 @@ xl:  1280px  | Desktops
 ### Timing
 
 ```css
---duration-fast:    100ms  /* Hover states */
---duration-normal:  200ms  /* Standard transitions */
---duration-slow:    300ms  /* Complex animations */
---duration-slower:  500ms  /* Page transitions */
+--duration-fast: 100ms /* Hover states */ --duration-normal: 200ms /* Standard transitions */
+  --duration-slow: 300ms /* Complex animations */ --duration-slower: 500ms /* Page transitions */;
 ```
 
 ### Easing
 
 ```css
---ease-smooth: cubic-bezier(0.23, 1, 0.32, 1)   /* Most interactions */
---ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1) /* Bouncy feedback */
---ease-swift:  cubic-bezier(0.16, 1, 0.3, 1)    /* Quick, snappy */
+--ease-smooth: cubic-bezier(0.23, 1, 0.32, 1) /* Most interactions */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1) /* Bouncy feedback */
+  --ease-swift: cubic-bezier(0.16, 1, 0.3, 1) /* Quick, snappy */;
 ```
 
 ### Keyframe Animations
 
-| Animation | Use Case |
-|-----------|----------|
-| `animate-pulse-glow` | Active/selected states with glow |
-| `animate-pulse-slow` | Subtle breathing effect |
-| `animate-float` | Floating elements |
-| `animate-shimmer` | Loading/skeleton states |
-| `animate-gauge-fill` | Health score ring fill |
-| `animate-stream-in` | List item entrance |
-| `animate-slide-in-right` | Drawer entrance |
-| `animate-fade-up` | Content entrance |
+| Animation                | Use Case                         |
+| ------------------------ | -------------------------------- |
+| `animate-pulse-glow`     | Active/selected states with glow |
+| `animate-pulse-slow`     | Subtle breathing effect          |
+| `animate-float`          | Floating elements                |
+| `animate-shimmer`        | Loading/skeleton states          |
+| `animate-gauge-fill`     | Health score ring fill           |
+| `animate-stream-in`      | List item entrance               |
+| `animate-slide-in-right` | Drawer entrance                  |
+| `animate-fade-up`        | Content entrance                 |
 
 ---
 
@@ -434,12 +435,7 @@ xl:  1280px  | Desktops
 // 3. Glow pulses briefly
 // 4. Optional trend indicator appears
 
-<HealthScore 
-  score={newScore} 
-  animated 
-  showTrend 
-  trend={delta}
-/>
+<HealthScore score={newScore} animated showTrend trend={delta} />
 ```
 
 ### Real-time Updates
@@ -485,6 +481,7 @@ xl:  1280px  | Desktops
 ### Color Contrast
 
 All text meets WCAG AA standards:
+
 - Regular text: 4.5:1 contrast ratio
 - Large text: 3:1 contrast ratio
 - Interactive elements: Visible focus states
@@ -515,7 +512,10 @@ focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2 foc
 ### Required Google Fonts
 
 ```html
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link
+  href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+  rel="stylesheet"
+/>
 ```
 
 ### CSS Import
@@ -538,7 +538,7 @@ export default {
 ### Component Import
 
 ```tsx
-import { 
+import {
   HealthScore,
   LifecycleBadge,
   LiveIndicator,
@@ -546,6 +546,6 @@ import {
   TierBadge,
   RiskIndicator,
   DashboardGrid,
-  Section
+  Section,
 } from './design-system';
 ```

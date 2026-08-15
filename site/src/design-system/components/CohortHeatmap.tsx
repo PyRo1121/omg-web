@@ -29,7 +29,11 @@ interface CohortHeatmapProps {
   colorScale?: 'retention' | 'churn';
   cellSize?: 'sm' | 'md' | 'lg';
   animated?: boolean;
-  onCellClick?: (cohortId: string, periodIndex: number, data: { retained: number; retentionRate: number }) => void;
+  onCellClick?: (
+    cohortId: string,
+    periodIndex: number,
+    data: { retained: number; retentionRate: number }
+  ) => void;
   class?: string;
 }
 
@@ -93,25 +97,25 @@ interface TooltipData {
   y: number;
 }
 
-const CohortTooltip: Component<{ data: TooltipData | null }> = (props) => {
+const CohortTooltip: Component<{ data: TooltipData | null }> = props => {
   return (
     <Show when={props.data}>
-      {(data) => (
+      {data => (
         <div
-          class="pointer-events-none fixed z-50 rounded-xl border border-white/10 bg-void-900/95 p-3 shadow-xl backdrop-blur-md transition-all duration-150"
+          class="bg-void-900/95 pointer-events-none fixed z-50 rounded-xl border border-white/10 p-3 shadow-xl backdrop-blur-md transition-all duration-150"
           style={{
             left: `${data().x + 10}px`,
             top: `${data().y - 60}px`,
           }}
         >
-          <div class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+          <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
             {data().cohortLabel} → {data().periodLabel}
           </div>
           <div class="mt-2 flex items-baseline gap-2">
-            <span class="font-display text-xl font-black tabular-nums text-white">
+            <span class="font-display text-xl font-black text-white tabular-nums">
               {data().retentionRate.toFixed(1)}%
             </span>
-            <span class="text-xs text-nebula-400">
+            <span class="text-nebula-400 text-xs">
               ({data().retained.toLocaleString()} / {data().cohortSize.toLocaleString()})
             </span>
           </div>
@@ -121,18 +125,27 @@ const CohortTooltip: Component<{ data: TooltipData | null }> = (props) => {
   );
 };
 
-export const CohortHeatmap: Component<CohortHeatmapProps> = (props) => {
+export const CohortHeatmap: Component<CohortHeatmapProps> = props => {
   const [local, others] = splitProps(props, [
-    'data', 'periodLabels', 'periodType', 'showCohortSize', 'showPercentages',
-    'showTooltips', 'highlightDiagonal', 'colorScale', 'cellSize', 'animated',
-    'onCellClick', 'class'
+    'data',
+    'periodLabels',
+    'periodType',
+    'showCohortSize',
+    'showPercentages',
+    'showTooltips',
+    'highlightDiagonal',
+    'colorScale',
+    'cellSize',
+    'animated',
+    'onCellClick',
+    'class',
   ]);
 
   const [tooltip, setTooltip] = createSignal<TooltipData | null>(null);
   const [selectedCell, setSelectedCell] = createSignal<string | null>(null);
 
   const size = () => cellSizes[local.cellSize || 'md'];
-  const colors = () => local.colorScale === 'churn' ? churnColors : retentionColors;
+  const colors = () => (local.colorScale === 'churn' ? churnColors : retentionColors);
   const showTooltips = () => local.showTooltips !== false;
 
   const maxPeriods = createMemo(() => {
@@ -148,9 +161,7 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = (props) => {
   const averageRetention = createMemo(() => {
     const totals: number[] = [];
     for (let i = 0; i < maxPeriods(); i++) {
-      const rates = local.data
-        .filter(c => c.periods[i])
-        .map(c => c.periods[i].retentionRate);
+      const rates = local.data.filter(c => c.periods[i]).map(c => c.periods[i].retentionRate);
       if (rates.length > 0) {
         totals.push(rates.reduce((a, b) => a + b, 0) / rates.length);
       }
@@ -184,7 +195,7 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = (props) => {
     period: { periodIndex: number; retained: number; retentionRate: number }
   ) => {
     const cellKey = `${cohort.cohortId}-${period.periodIndex}`;
-    setSelectedCell(prev => prev === cellKey ? null : cellKey);
+    setSelectedCell(prev => (prev === cellKey ? null : cellKey));
     local.onCellClick?.(cohort.cohortId, period.periodIndex, {
       retained: period.retained,
       retentionRate: period.retentionRate,
@@ -199,17 +210,32 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = (props) => {
         <table class="border-separate border-spacing-1">
           <thead>
             <tr>
-              <th class={cn('text-left font-bold uppercase tracking-widest text-nebula-500', size().label)}>
+              <th
+                class={cn(
+                  'text-nebula-500 text-left font-bold tracking-widest uppercase',
+                  size().label
+                )}
+              >
                 Cohort
               </th>
               <Show when={local.showCohortSize}>
-                <th class={cn('text-center font-bold uppercase tracking-widest text-nebula-500 px-2', size().header)}>
+                <th
+                  class={cn(
+                    'text-nebula-500 px-2 text-center font-bold tracking-widest uppercase',
+                    size().header
+                  )}
+                >
                   <Users size={12} class="inline-block" />
                 </th>
               </Show>
               <For each={periodLabels()}>
-                {(label) => (
-                  <th class={cn('text-center font-bold uppercase tracking-widest text-nebula-500', size().header)}>
+                {label => (
+                  <th
+                    class={cn(
+                      'text-nebula-500 text-center font-bold tracking-widest uppercase',
+                      size().header
+                    )}
+                  >
                     {label}
                   </th>
                 )}
@@ -220,11 +246,16 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = (props) => {
             <For each={local.data}>
               {(cohort, cohortIndex) => (
                 <tr>
-                  <td class={cn('font-medium text-nebula-300 pr-3', size().label)}>
+                  <td class={cn('text-nebula-300 pr-3 font-medium', size().label)}>
                     {cohort.cohortLabel}
                   </td>
                   <Show when={local.showCohortSize}>
-                    <td class={cn('text-center font-mono text-nebula-500 tabular-nums px-2', size().header)}>
+                    <td
+                      class={cn(
+                        'text-nebula-500 px-2 text-center font-mono tabular-nums',
+                        size().header
+                      )}
+                    >
                       {cohort.cohortSize.toLocaleString()}
                     </td>
                   </Show>
@@ -250,25 +281,37 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = (props) => {
                         <td>
                           <div
                             class={cn(
-                              'flex items-center justify-center rounded font-bold tabular-nums cursor-pointer',
+                              'flex cursor-pointer items-center justify-center rounded font-bold tabular-nums',
                               'transition-all duration-200',
                               size().cell,
                               colorClass,
                               isDiagonal && local.highlightDiagonal && 'ring-2 ring-indigo-500/50',
-                              isSelected && 'ring-2 ring-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.3)]',
-                              'hover:scale-105 hover:shadow-lg hover:z-10',
+                              isSelected &&
+                                'shadow-[0_0_15px_rgba(99,102,241,0.3)] ring-2 ring-indigo-400',
+                              'hover:z-10 hover:scale-105 hover:shadow-lg',
                               local.animated && 'animate-fade-up',
                               period.retentionRate >= 70 ? 'text-white' : 'text-nebula-200'
                             )}
-                            style={local.animated ? { 'animation-delay': `${(cohortIndex() * maxPeriods() + periodIndex()) * 20}ms` } : {}}
-                            onMouseEnter={(e) => handleMouseEnter(e, cohort, period)}
+                            style={
+                              local.animated
+                                ? {
+                                    'animation-delay': `${(cohortIndex() * maxPeriods() + periodIndex()) * 20}ms`,
+                                  }
+                                : {}
+                            }
+                            onMouseEnter={e => handleMouseEnter(e, cohort, period)}
                             onMouseLeave={handleMouseLeave}
                             onClick={() => handleCellClick(cohort, period)}
                             role="button"
                             tabIndex={0}
                             aria-label={`${cohort.cohortLabel} ${periodLabels()[periodIndex()]}: ${period.retentionRate.toFixed(1)}% retention`}
                           >
-                            <Show when={local.showPercentages} fallback={period.retentionRate >= 1 ? Math.round(period.retentionRate) : ''}>
+                            <Show
+                              when={local.showPercentages}
+                              fallback={
+                                period.retentionRate >= 1 ? Math.round(period.retentionRate) : ''
+                              }
+                            >
                               {period.retentionRate.toFixed(0)}%
                             </Show>
                           </div>
@@ -282,7 +325,9 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = (props) => {
           </tbody>
           <tfoot>
             <tr class="border-t border-white/5">
-              <td class={cn('font-bold uppercase tracking-widest text-nebula-500 pt-2', size().label)}>
+              <td
+                class={cn('text-nebula-500 pt-2 font-bold tracking-widest uppercase', size().label)}
+              >
                 Average
               </td>
               <Show when={local.showCohortSize}>
@@ -294,14 +339,16 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = (props) => {
                   return (
                     <td class="pt-2">
                       <div class={cn('flex flex-col items-center gap-0.5', size().header)}>
-                        <span class="font-bold text-nebula-300 tabular-nums">
+                        <span class="text-nebula-300 font-bold tabular-nums">
                           {avg.toFixed(1)}%
                         </span>
                         <Show when={i() > 0}>
-                          <span class={cn(
-                            'flex items-center gap-0.5 text-2xs',
-                            trend >= 0 ? 'text-aurora-400' : 'text-flare-400'
-                          )}>
+                          <span
+                            class={cn(
+                              'text-2xs flex items-center gap-0.5',
+                              trend >= 0 ? 'text-aurora-400' : 'text-flare-400'
+                            )}
+                          >
                             {trend >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                             {Math.abs(trend).toFixed(1)}
                           </span>
@@ -317,22 +364,18 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = (props) => {
       </div>
 
       <div class="mt-4 flex items-center justify-between">
-        <div class="flex items-center gap-2 text-2xs text-nebula-500">
+        <div class="text-2xs text-nebula-500 flex items-center gap-2">
           <Calendar size={12} />
           <span class="font-medium">
             {local.data.length} cohorts, {maxPeriods()} periods
           </span>
         </div>
 
-        <div class="flex items-center gap-2 text-2xs text-nebula-500">
+        <div class="text-2xs text-nebula-500 flex items-center gap-2">
           <span>0%</span>
           <div class="flex gap-0.5">
             <For each={[0, 20, 40, 60, 80, 100] as RetentionLevel[]}>
-              {(level) => (
-                <div
-                  class={cn('h-3 w-6 rounded-sm', colors()[level])}
-                />
-              )}
+              {level => <div class={cn('h-3 w-6 rounded-sm', colors()[level])} />}
             </For>
           </div>
           <span>100%</span>
@@ -347,13 +390,12 @@ export interface CohortSummaryProps {
   class?: string;
 }
 
-export const CohortSummary: Component<CohortSummaryProps> = (props) => {
+export const CohortSummary: Component<CohortSummaryProps> = props => {
   const stats = createMemo(() => {
     const allRates = props.data.flatMap(c => c.periods.map(p => p.retentionRate));
     const totalUsers = props.data.reduce((sum, c) => sum + c.cohortSize, 0);
-    const avgRetention = allRates.length > 0
-      ? allRates.reduce((a, b) => a + b, 0) / allRates.length
-      : 0;
+    const avgRetention =
+      allRates.length > 0 ? allRates.reduce((a, b) => a + b, 0) / allRates.length : 0;
 
     const latestCohort = props.data[props.data.length - 1];
     const latestFirstMonth = latestCohort?.periods[0]?.retentionRate ?? 0;
@@ -363,35 +405,31 @@ export const CohortSummary: Component<CohortSummaryProps> = (props) => {
 
   return (
     <div class={cn('grid grid-cols-4 gap-4', props.class)}>
-      <div class="rounded-xl border border-white/5 bg-void-850 p-4">
-        <div class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+      <div class="bg-void-850 rounded-xl border border-white/5 p-4">
+        <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
           Total Cohorts
         </div>
-        <div class="mt-2 font-display text-2xl font-black text-white tabular-nums">
+        <div class="font-display mt-2 text-2xl font-black text-white tabular-nums">
           {stats().cohortCount}
         </div>
       </div>
-      <div class="rounded-xl border border-white/5 bg-void-850 p-4">
-        <div class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
-          Total Users
-        </div>
-        <div class="mt-2 font-display text-2xl font-black text-white tabular-nums">
+      <div class="bg-void-850 rounded-xl border border-white/5 p-4">
+        <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Total Users</div>
+        <div class="font-display mt-2 text-2xl font-black text-white tabular-nums">
           {stats().totalUsers.toLocaleString()}
         </div>
       </div>
-      <div class="rounded-xl border border-white/5 bg-void-850 p-4">
-        <div class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+      <div class="bg-void-850 rounded-xl border border-white/5 p-4">
+        <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
           Avg Retention
         </div>
-        <div class="mt-2 font-display text-2xl font-black text-aurora-400 tabular-nums">
+        <div class="font-display text-aurora-400 mt-2 text-2xl font-black tabular-nums">
           {stats().avgRetention.toFixed(1)}%
         </div>
       </div>
-      <div class="rounded-xl border border-white/5 bg-void-850 p-4">
-        <div class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
-          Latest M0
-        </div>
-        <div class="mt-2 font-display text-2xl font-black text-electric-400 tabular-nums">
+      <div class="bg-void-850 rounded-xl border border-white/5 p-4">
+        <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Latest M0</div>
+        <div class="font-display text-electric-400 mt-2 text-2xl font-black tabular-nums">
           {stats().latestFirstMonth.toFixed(1)}%
         </div>
       </div>

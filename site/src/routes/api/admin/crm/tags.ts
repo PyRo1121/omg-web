@@ -1,7 +1,8 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, eq, desc, and, inArray } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import type { APIEvent } from '@solidjs/start/server';
+import { sql, eq, desc, and } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
+import { parseAdminCrmTagInput } from '~/lib/dashboard-contract';
 
 export async function GET(event: APIEvent) {
   try {
@@ -11,9 +12,9 @@ export async function GET(event: APIEvent) {
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const customerId = url.searchParams.get("customerId");
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 200);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const customerId = url.searchParams.get('customerId');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '100'), 200);
+    const offset = parseInt(url.searchParams.get('offset') || '0');
 
     if (customerId) {
       // Get tags for a specific customer
@@ -51,8 +52,8 @@ export async function GET(event: APIEvent) {
         {
           status: 200,
           headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "private, no-cache, no-store, must-revalidate",
+            'Content-Type': 'application/json',
+            'Cache-Control': 'private, no-cache, no-store, must-revalidate',
           },
         }
       );
@@ -102,21 +103,21 @@ export async function GET(event: APIEvent) {
       {
         status: 200,
         headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "private, no-cache, no-store, must-revalidate",
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
         },
       }
     );
   } catch (error) {
-    console.error("[Admin CRM Tags GET] Error:", error);
+    console.error('[Admin CRM Tags GET] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }
@@ -129,8 +130,15 @@ export async function POST(event: APIEvent) {
 
     const { db, userId: adminId } = adminCheck;
 
-    const body = await event.request.json();
-    const { customerId, tagId, name, color, description } = body;
+    const parsedBody = parseAdminCrmTagInput(await event.request.json());
+    if (!parsedBody.ok) {
+      return new Response(JSON.stringify({ error: parsedBody.error }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { customerId, tagId, name, color, description } = parsedBody.value;
 
     // Case 1: Assign existing tag to customer
     if (customerId && tagId) {
@@ -143,13 +151,10 @@ export async function POST(event: APIEvent) {
         .get();
 
       if (!customer) {
-        return new Response(
-          JSON.stringify({ error: "Customer not found" }),
-          {
-            status: 404,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+        return new Response(JSON.stringify({ error: 'Customer not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
 
       // Verify tag exists
@@ -161,13 +166,10 @@ export async function POST(event: APIEvent) {
         .get();
 
       if (!tag) {
-        return new Response(
-          JSON.stringify({ error: "Tag not found" }),
-          {
-            status: 404,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+        return new Response(JSON.stringify({ error: 'Tag not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
 
       // Check if assignment already exists
@@ -184,13 +186,10 @@ export async function POST(event: APIEvent) {
         .get();
 
       if (existingAssignment) {
-        return new Response(
-          JSON.stringify({ error: "Tag already assigned to customer" }),
-          {
-            status: 409,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+        return new Response(JSON.stringify({ error: 'Tag already assigned to customer' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
 
       const assignmentId = crypto.randomUUID();
@@ -212,7 +211,7 @@ export async function POST(event: APIEvent) {
         }),
         {
           status: 201,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         }
       );
     }
@@ -228,13 +227,10 @@ export async function POST(event: APIEvent) {
         .get();
 
       if (existingTag) {
-        return new Response(
-          JSON.stringify({ error: "Tag with this name already exists" }),
-          {
-            status: 409,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+        return new Response(JSON.stringify({ error: 'Tag with this name already exists' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
 
       const tagId = crypto.randomUUID();
@@ -243,7 +239,7 @@ export async function POST(event: APIEvent) {
         .values({
           id: tagId,
           name: name.trim(),
-          color: color || "#6366f1",
+          color: color || '#6366f1',
           description: description?.trim() || null,
           createdAt: new Date(),
         })
@@ -278,34 +274,34 @@ export async function POST(event: APIEvent) {
           tag: {
             id: tagId,
             name: name.trim(),
-            color: color || "#6366f1",
+            color: color || '#6366f1',
             description: description?.trim() || null,
           },
         }),
         {
           status: 201,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         }
       );
     }
 
     return new Response(
-      JSON.stringify({ error: "Either (customerId and tagId) or name is required" }),
+      JSON.stringify({ error: 'Either (customerId and tagId) or name is required' }),
       {
         status: 400,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   } catch (error) {
-    console.error("[Admin CRM Tags POST] Error:", error);
+    console.error('[Admin CRM Tags POST] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }
@@ -318,17 +314,21 @@ export async function PUT(event: APIEvent) {
 
     const { db } = adminCheck;
 
-    const body = await event.request.json();
-    const { tagId, name, color, description } = body;
+    const parsedBody = parseAdminCrmTagInput(await event.request.json());
+    if (!parsedBody.ok) {
+      return new Response(JSON.stringify({ error: parsedBody.error }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { tagId, name, color, description } = parsedBody.value;
 
     if (!tagId) {
-      return new Response(
-        JSON.stringify({ error: "tagId is required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'tagId is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Verify tag exists
@@ -340,13 +340,10 @@ export async function PUT(event: APIEvent) {
       .get();
 
     if (!existingTag) {
-      return new Response(
-        JSON.stringify({ error: "Tag not found" }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Tag not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Check for name conflict if updating name
@@ -359,18 +356,15 @@ export async function PUT(event: APIEvent) {
         .get();
 
       if (nameConflict) {
-        return new Response(
-          JSON.stringify({ error: "Tag with this name already exists" }),
-          {
-            status: 409,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+        return new Response(JSON.stringify({ error: 'Tag with this name already exists' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
     }
 
     // Build update object
-    const updates: Record<string, any> = {};
+    const updates: Partial<typeof schema.customerTag.$inferInsert> = {};
     if (name !== undefined) updates.name = name.trim();
     if (color !== undefined) updates.color = color;
     if (description !== undefined) updates.description = description?.trim() || null;
@@ -383,23 +377,20 @@ export async function PUT(event: APIEvent) {
         .run();
     }
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error("[Admin CRM Tags PUT] Error:", error);
+    console.error('[Admin CRM Tags PUT] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }
@@ -413,17 +404,14 @@ export async function DELETE(event: APIEvent) {
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const tagId = url.searchParams.get("tagId");
-    const customerId = url.searchParams.get("customerId");
+    const tagId = url.searchParams.get('tagId');
+    const customerId = url.searchParams.get('customerId');
 
     if (!tagId) {
-      return new Response(
-        JSON.stringify({ error: "tagId is required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'tagId is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // If customerId is provided, remove tag assignment only
@@ -438,13 +426,10 @@ export async function DELETE(event: APIEvent) {
         )
         .run();
 
-      return new Response(
-        JSON.stringify({ success: true }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Otherwise, delete the tag entirely (cascade will remove assignments)
@@ -456,37 +441,28 @@ export async function DELETE(event: APIEvent) {
       .get();
 
     if (!existingTag) {
-      return new Response(
-        JSON.stringify({ error: "Tag not found" }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Tag not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    await db
-      .delete(schema.customerTag)
-      .where(eq(schema.customerTag.id, tagId))
-      .run();
+    await db.delete(schema.customerTag).where(eq(schema.customerTag.id, tagId)).run();
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error("[Admin CRM Tags DELETE] Error:", error);
+    console.error('[Admin CRM Tags DELETE] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

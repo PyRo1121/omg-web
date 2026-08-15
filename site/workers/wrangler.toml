@@ -1,12 +1,10 @@
 name = "omg-saas"
 main = "src/worker.ts"
 compatibility_date = "2026-01-17"
-compatibility_flags = ["nodejs_compat"]  # Required for Sentry SDK
+compatibility_flags = ["nodejs_compat"] # Required for Sentry SDK
 
 # Custom domain routes
-routes = [
-  { pattern = "api.pyro1121.com/*", zone_name = "pyro1121.com" }
-]
+routes = [{ pattern = "api.pyro1121.com/*", zone_name = "pyro1121.com" }]
 
 # D1 Databases
 [[d1_databases]]
@@ -68,5 +66,5 @@ mode = "smart"
 [vars]
 ACCOUNT_ID = "f1e95b3e1b502cf366dfc81a863695fa"
 
-# Cron triggers for scheduled tasks (set via CLI)
-# bunx wrangler triggers cronjob put --cron "0 2 * * *" omg-saas
+[triggers]
+crons = ["0 2 * * *"]

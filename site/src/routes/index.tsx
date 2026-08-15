@@ -1,18 +1,19 @@
-import { createSignal, onMount, Show, For, lazy, Suspense } from "solid-js";
-import { Title, Meta, Link } from "@solidjs/meta";
-import { clientOnly } from "@solidjs/start";
-import Header from "../components/Header";
-import Hero from "../components/Hero";
-import FeatureGrid from "../components/landing/FeatureGrid";
-import RuntimeEcosystem from "../components/RuntimeEcosystem";
-import Benchmarks from "../components/Benchmarks";
-import Pricing from "../components/Pricing";
-import Installation from "../components/Installation";
-import Footer from "../components/Footer";
+import { createSignal, onMount, Show, For } from 'solid-js';
+import { Title, Meta, Link } from '@solidjs/meta';
+import { clientOnly } from '@solidjs/start';
+import Header from '../components/Header';
+import Hero from '../components/Hero';
+import FeatureGrid from '../components/landing/FeatureGrid';
+import RuntimeEcosystem from '../components/RuntimeEcosystem';
+import Benchmarks from '../components/Benchmarks';
+import Pricing from '../components/Pricing';
+import Installation from '../components/Installation';
+import Footer from '../components/Footer';
+import { parseLicenseLookup } from '../lib/dashboard-contract';
 
-const BackgroundMesh = clientOnly(() => import("../components/3d/BackgroundMesh"));
+const BackgroundMesh = clientOnly(() => import('../components/3d/BackgroundMesh'));
 
-const CONFETTI_COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#10b981", "#f59e0b", "#3b82f6"];
+const CONFETTI_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6'];
 
 export default function Home() {
   const [showSuccess, setShowSuccess] = createSignal(false);
@@ -20,7 +21,7 @@ export default function Home() {
   const [licenseKey, setLicenseKey] = createSignal<string | null>(null);
   const [tier, setTier] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(false);
-  const [email, setEmail] = createSignal("");
+  const [email, setEmail] = createSignal('');
   const [copied, setCopied] = createSignal(false);
   const [confetti, setConfetti] = createSignal<
     Array<{ id: number; left: number; color: string; delay: number }>
@@ -29,15 +30,13 @@ export default function Home() {
   const [retryCount, setRetryCount] = createSignal(0);
 
   onMount(() => {
-    if (typeof window !== "undefined") {
-      requestIdleCallback(() => setShow3D(true), { timeout: 8000 });
+    window.requestIdleCallback(() => setShow3D(true), { timeout: 8000 });
 
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("success") === "true") {
-        setShowSuccess(true);
-        spawnConfetti();
-        window.history.replaceState({}, "", "/");
-      }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
+      setShowSuccess(true);
+      spawnConfetti();
+      window.history.replaceState({}, '', '/');
     }
   });
 
@@ -63,14 +62,18 @@ export default function Home() {
       const res = await fetch(
         `https://api.pyro1121.com/api/get-license?email=${encodeURIComponent(userEmail)}`
       );
-      const data = await res.json();
-      if (data.found) {
-        setLicenseKey(data.license_key);
-        setTier(data.tier);
+      const parsed = parseLicenseLookup(await res.json());
+      if (!parsed.ok) {
+        throw new Error(parsed.error);
+      }
+
+      if (parsed.value.found) {
+        setLicenseKey(parsed.value.license_key);
+        setTier(parsed.value.tier);
         spawnConfetti();
       } else {
         setNotFound(true);
-        setRetryCount((c) => c + 1);
+        setRetryCount(c => c + 1);
       }
     } catch (e) {
       console.error(e);
@@ -89,7 +92,7 @@ export default function Home() {
     setShowSuccess(false);
     setLicenseKey(null);
     setTier(null);
-    setEmail("");
+    setEmail('');
     setNotFound(false);
     setRetryCount(0);
   };
@@ -143,13 +146,13 @@ export default function Home() {
         <Footer />
 
         <For each={confetti()}>
-          {(piece) => (
+          {piece => (
             <div
               class="animate-confetti pointer-events-none fixed top-0 z-[200] h-3 w-3 rounded-full"
               style={{
                 left: `${piece.left}%`,
                 background: piece.color,
-                "animation-delay": `${piece.delay}s`,
+                'animation-delay': `${piece.delay}s`,
               }}
             />
           )}
@@ -157,13 +160,20 @@ export default function Home() {
 
         <Show when={showSuccess()}>
           <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={handleClose} />
+            <button
+              type="button"
+              aria-label="Close payment success dialog"
+              class="absolute inset-0 bg-black/80 backdrop-blur-md"
+              onClick={handleClose}
+            />
             <div class="relative w-full max-w-lg rounded-3xl border border-slate-700/50 bg-gradient-to-b from-slate-800 to-slate-900 p-8 shadow-2xl">
               <button
+                type="button"
                 onClick={handleClose}
                 class="absolute top-4 right-4 text-slate-400 hover:text-white"
               >
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <title>Close</title>
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -182,6 +192,7 @@ export default function Home() {
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
+                      <title>Payment confirmed</title>
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
@@ -198,8 +209,8 @@ export default function Home() {
                   <input
                     type="email"
                     value={email()}
-                    onInput={(e) => setEmail(e.currentTarget.value)}
-                    onKeyPress={(e) => e.key === "Enter" && fetchLicense()}
+                    onInput={e => setEmail(e.currentTarget.value)}
+                    onKeyPress={e => e.key === 'Enter' && fetchLicense()}
                     placeholder="Enter your email"
                     class="mb-4 w-full rounded-xl border border-slate-600 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
                   />
@@ -212,11 +223,12 @@ export default function Home() {
                   </Show>
 
                   <button
+                    type="button"
                     onClick={fetchLicense}
                     disabled={loading() || !email()}
                     class="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 py-3 font-semibold text-white transition-all hover:from-indigo-400 hover:to-purple-400 disabled:from-slate-600 disabled:to-slate-600"
                   >
-                    {loading() ? "Checking..." : "Get License Key"}
+                    {loading() ? 'Checking...' : 'Get License Key'}
                   </button>
                 </div>
               </Show>
@@ -230,6 +242,7 @@ export default function Home() {
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
+                      <title>License key</title>
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
@@ -249,7 +262,11 @@ export default function Home() {
                   </div>
 
                   <button
-                    onClick={() => copyToClipboard(licenseKey()!)}
+                    type="button"
+                    onClick={() => {
+                      const key = licenseKey();
+                      if (key) copyToClipboard(key);
+                    }}
                     class="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 py-3 font-semibold text-white transition-all hover:bg-slate-600"
                   >
                     {copied() ? (
@@ -260,6 +277,7 @@ export default function Home() {
                           stroke="currentColor"
                           viewBox="0 0 24 24"
                         >
+                          <title>Copied</title>
                           <path
                             stroke-linecap="round"
                             stroke-linejoin="round"
@@ -272,6 +290,7 @@ export default function Home() {
                     ) : (
                       <>
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <title>Copy license key</title>
                           <path
                             stroke-linecap="round"
                             stroke-linejoin="round"

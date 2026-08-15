@@ -1,7 +1,8 @@
-import { JSX, For, Show } from 'solid-js';
+import { For, Show } from 'solid-js';
+import type { JSX } from 'solid-js';
 
 interface Column<T> {
-  key: string;
+  key: keyof T;
   header: string;
   render?: (item: T, index: number) => JSX.Element;
   class?: string;
@@ -28,7 +29,7 @@ export function Table<T extends object>(props: TableProps<T>) {
               <For each={props.columns}>
                 {col => (
                   <th
-                    class={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 ${col.headerClass || ''}`}
+                    class={`px-4 py-3 text-left text-xs font-semibold tracking-wider text-slate-400 uppercase ${col.headerClass || ''}`}
                   >
                     {col.header}
                   </th>
@@ -47,9 +48,7 @@ export function Table<T extends object>(props: TableProps<T>) {
                     <For each={props.columns}>
                       {col => (
                         <td class={`px-4 py-3 ${col.class || ''}`}>
-                          {col.render
-                            ? col.render(item, index())
-                            : String(item[col.key as keyof T] ?? '')}
+                          {col.render ? col.render(item, index()) : String(item[col.key] ?? '')}
                         </td>
                       )}
                     </For>

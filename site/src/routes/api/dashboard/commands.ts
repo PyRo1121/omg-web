@@ -1,12 +1,12 @@
-import { APIEvent } from "@solidjs/start/server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, desc, gte, lte, and, sql } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { createAuth, CloudflareEnv } from "~/lib/auth";
+import type { APIEvent } from '@solidjs/start/server';
+import { drizzle } from 'drizzle-orm/d1';
+import { eq, desc, gte, lte, and, sql } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { createAuth, type CloudflareEnv } from '~/lib/auth';
 
 function getEnv(event: APIEvent): CloudflareEnv {
-  const env = (event.nativeEvent as any).context?.cloudflare?.env;
-  if (!env) throw new Error("Cloudflare environment not available");
+  const env = event.nativeEvent.context.cloudflare?.env;
+  if (!env) throw new Error('Cloudflare environment not available');
 
   return {
     DB: env.DB,
@@ -54,9 +54,9 @@ export async function GET(event: APIEvent) {
     });
 
     if (!session?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -72,9 +72,9 @@ export async function GET(event: APIEvent) {
       .get();
 
     if (!license) {
-      return new Response(JSON.stringify({ error: "No license found" }), {
+      return new Response(JSON.stringify({ error: 'No license found' }), {
         status: 404,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -82,12 +82,12 @@ export async function GET(event: APIEvent) {
 
     // Parse query parameters
     const url = new URL(event.request.url);
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
-    const commandFilter = url.searchParams.get("command");
-    const startDate = url.searchParams.get("startDate");
-    const endDate = url.searchParams.get("endDate");
-    const successFilter = url.searchParams.get("success");
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+    const offset = parseInt(url.searchParams.get('offset') || '0');
+    const commandFilter = url.searchParams.get('command');
+    const startDate = url.searchParams.get('startDate');
+    const endDate = url.searchParams.get('endDate');
+    const successFilter = url.searchParams.get('success');
 
     // Build query conditions
     const conditions = [eq(schema.commandUsage.licenseId, licenseId)];
@@ -97,17 +97,22 @@ export async function GET(event: APIEvent) {
     }
 
     if (startDate) {
-      const startTimestamp = new Date(startDate).getTime();
-      conditions.push(gte(schema.commandUsage.createdAt, startTimestamp));
+      const parsedStartDate = new Date(startDate);
+      if (!Number.isNaN(parsedStartDate.getTime())) {
+        conditions.push(gte(schema.commandUsage.createdAt, parsedStartDate));
+      }
     }
 
     if (endDate) {
-      const endTimestamp = new Date(endDate).getTime() + 24 * 60 * 60 * 1000; // Include full day
-      conditions.push(lte(schema.commandUsage.createdAt, endTimestamp));
+      const parsedEndDate = new Date(endDate);
+      if (!Number.isNaN(parsedEndDate.getTime())) {
+        parsedEndDate.setDate(parsedEndDate.getDate() + 1);
+        conditions.push(lte(schema.commandUsage.createdAt, parsedEndDate));
+      }
     }
 
     if (successFilter !== null && successFilter !== undefined) {
-      conditions.push(eq(schema.commandUsage.success, successFilter === "true"));
+      conditions.push(eq(schema.commandUsage.success, successFilter === 'true'));
     }
 
     // Get total count for pagination
@@ -170,20 +175,20 @@ export async function GET(event: APIEvent) {
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "private, no-cache, no-store, must-revalidate",
+        'Content-Type': 'application/json',
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
       },
     });
   } catch (error) {
-    console.error("[Command History API] Error:", error);
+    console.error('[Command History API] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

@@ -23,7 +23,7 @@ const Hero: Component = () => {
             </div>
 
             {/* Main headline */}
-            <h1 class="animate-fade-in-up delay-100 mb-6 text-5xl leading-[1.1] font-black tracking-tight md:text-6xl lg:text-7xl">
+            <h1 class="animate-fade-in-up mb-6 text-5xl leading-[1.1] font-black tracking-tight delay-100 md:text-6xl lg:text-7xl">
               <span class="text-white">The Fastest </span>
               <span class="gradient-text">Package Manager</span>
               <br />
@@ -31,14 +31,14 @@ const Hero: Component = () => {
               <span class="text-cyan-400">Linux</span>
             </h1>
 
-            <p class="animate-fade-in-up delay-200 mb-8 max-w-xl text-xl leading-relaxed text-slate-400 md:text-2xl">
-              Native managers for <span class="font-medium text-white">Node, Python, Go, Rust</span>, and more. 
-              Built in Rust for extreme performance.
+            <p class="animate-fade-in-up mb-8 max-w-xl text-xl leading-relaxed text-slate-400 delay-200 md:text-2xl">
+              Native managers for <span class="font-medium text-white">Node, Python, Go, Rust</span>
+              , and more. Built in Rust for extreme performance.
               <span class="font-semibold text-cyan-400"> 22x faster</span> than standard tools.
             </p>
 
             {/* CTA buttons */}
-            <div class="animate-fade-in-up delay-300 mb-12 flex flex-col items-start gap-4 sm:flex-row">
+            <div class="animate-fade-in-up mb-12 flex flex-col items-start gap-4 delay-300 sm:flex-row">
               <a href="#install" class="btn-primary group text-lg">
                 <svg
                   class="h-5 w-5 transition-transform group-hover:-translate-y-0.5"
@@ -74,16 +74,24 @@ const Hero: Component = () => {
             </div>
 
             {/* Trust badges */}
-            <div class="animate-fade-in-up delay-400 flex flex-wrap items-center gap-6 text-sm text-slate-500">
+            <div class="animate-fade-in-up flex flex-wrap items-center gap-6 text-sm text-slate-500 delay-400">
               <div class="flex items-center gap-2">
                 <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd"
+                  />
                 </svg>
                 <span>No sudo required</span>
               </div>
               <div class="flex items-center gap-2">
                 <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd"
+                  />
                 </svg>
                 <span>Arch • Debian • Ubuntu</span>
               </div>
@@ -91,14 +99,14 @@ const Hero: Component = () => {
           </div>
 
           {/* Right: The 3D Glass Terminal */}
-          <div class="animate-fade-in-up delay-500 relative">
+          <div class="animate-fade-in-up relative delay-500">
             <HeroTerminal />
-            
+
             {/* Floating badges around terminal */}
-            <div class="animate-bounce-slow absolute -top-6 -right-6 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-xl z-10">
+            <div class="animate-bounce-slow absolute -top-6 -right-6 z-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-xl">
               22x Faster
             </div>
-            <div class="absolute -bottom-6 -left-6 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-2 text-xs font-bold text-white shadow-xl z-10">
+            <div class="absolute -bottom-6 -left-6 z-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-2 text-xs font-bold text-white shadow-xl">
               Pure Rust
             </div>
           </div>

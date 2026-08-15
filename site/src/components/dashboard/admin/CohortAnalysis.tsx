@@ -17,7 +17,7 @@ export const CohortAnalysis: Component = () => {
     const data = cohortsQuery.data?.cohorts || [];
     const map = new Map<string, CohortData[]>();
 
-    data.forEach((item) => {
+    data.forEach(item => {
       if (!map.has(item.cohort_week)) {
         map.set(item.cohort_week, []);
       }
@@ -39,8 +39,8 @@ export const CohortAnalysis: Component = () => {
   };
 
   const getRetentionRate = (cohortData: CohortData[], weekIndex: number) => {
-    const weekData = cohortData.find((d) => d.weeks_since_signup === weekIndex);
-    const week0Data = cohortData.find((d) => d.weeks_since_signup === 0);
+    const weekData = cohortData.find(d => d.weeks_since_signup === weekIndex);
+    const week0Data = cohortData.find(d => d.weeks_since_signup === 0);
 
     if (!weekData || !week0Data || week0Data.active_users === 0) return null;
 
@@ -73,14 +73,12 @@ export const CohortAnalysis: Component = () => {
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-white/10">
-                <th class="sticky left-0 z-10 bg-[#0d0d0e] px-4 py-3 text-left text-xs font-bold uppercase text-slate-400">
+                <th class="sticky left-0 z-10 bg-[#0d0d0e] px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">
                   Cohort
                 </th>
                 <For each={Array.from({ length: 13 }, (_, i) => i)}>
-                  {(week) => (
-                    <th class="px-2 py-3 text-center text-xs font-bold text-slate-400">
-                      W{week}
-                    </th>
+                  {week => (
+                    <th class="px-2 py-3 text-center text-xs font-bold text-slate-400">W{week}</th>
                   )}
                 </For>
               </tr>
@@ -88,7 +86,7 @@ export const CohortAnalysis: Component = () => {
             <tbody>
               <For each={cohortMap()}>
                 {([cohortWeek, data]) => {
-                  const week0 = data.find((d) => d.weeks_since_signup === 0);
+                  const week0 = data.find(d => d.weeks_since_signup === 0);
                   return (
                     <tr class="border-b border-white/5 transition-colors hover:bg-white/5">
                       <td class="sticky left-0 z-10 bg-[#0d0d0e] px-4 py-3 font-mono text-xs text-white">
@@ -96,14 +94,17 @@ export const CohortAnalysis: Component = () => {
                         <div class="text-slate-500">{week0?.active_users || 0} users</div>
                       </td>
                       <For each={Array.from({ length: 13 }, (_, i) => i)}>
-                        {(weekIndex) => {
+                        {weekIndex => {
                           const rate = getRetentionRate(data, weekIndex);
                           return (
                             <td class="px-2 py-3 text-center">
-                              <Show when={rate !== null} fallback={<span class="text-slate-700">-</span>}>
+                              <Show
+                                when={rate !== null}
+                                fallback={<span class="text-slate-700">-</span>}
+                              >
                                 <div
                                   class={`inline-block rounded px-2 py-1 text-xs font-bold text-white ${getRetentionColor(rate!)}`}
-                                  title={`${rate}% retention (${data.find((d) => d.weeks_since_signup === weekIndex)?.active_users || 0} users)`}
+                                  title={`${rate}% retention (${data.find(d => d.weeks_since_signup === weekIndex)?.active_users || 0} users)`}
                                 >
                                   {rate}%
                                 </div>

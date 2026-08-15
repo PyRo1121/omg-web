@@ -1,9 +1,9 @@
-import { Env, jsonResponse, errorResponse, generateId, getAuthToken, validateSession } from '../api';
+import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 
 interface TrackingEvent {
   event_type: 'pageview' | 'click' | 'form' | 'error' | 'performance';
   event_name: string;
-  properties: Record<string, unknown>;
+  properties: TrackingProperties;
   timestamp: number;
   session_id: string;
   duration_ms?: number;
@@ -13,25 +13,39 @@ interface TrackingBatch {
   events: TrackingEvent[];
 }
 
-const SALT_ROTATION_MS = 90 * 1000;
+type TrackingProperty =
+  string | number | boolean | null | TrackingProperty[] | { [key: string]: TrackingProperty };
+type TrackingProperties = Record<string, TrackingProperty>;
+
+interface ParsedUserAgent {
+  device: string;
+  browser: string;
+  os: string;
+}
 
 async function getCurrentSalt(db: D1Database): Promise<Uint8Array> {
-  const result = await db.prepare(
-    `SELECT salt FROM analytics_salts 
+  const result = await db
+    .prepare(
+      `SELECT salt FROM analytics_salts 
      WHERE inserted_at > (unixepoch() * 1000 - 90000)
      ORDER BY inserted_at DESC LIMIT 1`
-  ).first<{ salt: ArrayBuffer }>();
+    )
+    .first<{ salt: ArrayBuffer }>();
 
   if (result?.salt) {
     return new Uint8Array(result.salt);
   }
 
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
-  
-  await db.prepare(
-    `INSERT INTO analytics_salts (salt, inserted_at) VALUES (x'${saltHex}', unixepoch() * 1000)`
-  ).run();
+  const saltHex = Array.from(salt)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  await db
+    .prepare(
+      `INSERT INTO analytics_salts (salt, inserted_at) VALUES (x'${saltHex}', unixepoch() * 1000)`
+    )
+    .run();
 
   return salt;
 }
@@ -46,16 +60,20 @@ async function generateVisitorId(
   const ua = request.headers.get('User-Agent') || '';
 
   const data = new TextEncoder().encode(`${ua}${ip}${domain}`);
-  const key = await crypto.subtle.importKey(
-    'raw', salt, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  );
+  const key = await crypto.subtle.importKey('raw', salt, { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+  ]);
   const hash = await crypto.subtle.sign('HMAC', key, data);
 
-  return 'v_' + Array.from(new Uint8Array(hash).slice(0, 8))
-    .map(b => b.toString(16).padStart(2, '0')).join('');
+  return (
+    'v_' +
+    Array.from(new Uint8Array(hash).slice(0, 8))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+  );
 }
 
-function parseUserAgent(ua: string): { device: string; browser: string; os: string } {
+function parseUserAgent(ua: string): ParsedUserAgent {
   let device = 'desktop';
   let browser = 'Unknown';
   let os = 'Unknown';
@@ -117,6 +135,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
 
       const eventId = generateId();
       const props = event.properties || {};
+      // SAFETY: Analytics clients send referrer as a string when present; absent values map to direct.
       const referrerDomain = extractReferrerDomain(props.referrer as string);
 
       statements.push(
@@ -198,7 +217,9 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
          WHERE date >= ?
          GROUP BY country_code
          ORDER BY visitors DESC`
-      ).bind(startDateStr).all(),
+      )
+        .bind(startDateStr)
+        .all(),
 
       env.DB.prepare(
         `SELECT country_code, SUM(sessions) as sessions, SUM(pageviews) as pageviews
@@ -206,7 +227,9 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
          WHERE date >= ?
          GROUP BY country_code
          ORDER BY sessions DESC`
-      ).bind(startDateStr).all(),
+      )
+        .bind(startDateStr)
+        .all(),
 
       env.DB.prepare(
         `SELECT json_extract(metadata, '$.country') as country_code, COUNT(*) as count
@@ -219,17 +242,21 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
       ).all(),
     ]);
 
-    const combined = new Map<string, { 
-      country_code: string; 
-      site_visitors: number; 
-      site_sessions: number;
-      site_pageviews: number;
-      docs_sessions: number;
-      docs_pageviews: number;
-      cli_installs: number;
-      total_engagement: number;
-    }>();
+    const combined = new Map<
+      string,
+      {
+        country_code: string;
+        site_visitors: number;
+        site_sessions: number;
+        site_pageviews: number;
+        docs_sessions: number;
+        docs_pageviews: number;
+        cli_installs: number;
+        total_engagement: number;
+      }
+    >();
 
+    // SAFETY: The query selects one aggregate row shape per country.
     for (const row of siteGeo.results as any[]) {
       combined.set(row.country_code, {
         country_code: row.country_code,
@@ -243,12 +270,13 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
       });
     }
 
+    // SAFETY: The query selects one aggregate row shape per country.
     for (const row of docsGeo.results as any[]) {
       const existing = combined.get(row.country_code);
       if (existing) {
         existing.docs_sessions = row.sessions || 0;
         existing.docs_pageviews = row.pageviews || 0;
-        existing.total_engagement += (row.sessions || 0);
+        existing.total_engagement += row.sessions || 0;
       } else {
         combined.set(row.country_code, {
           country_code: row.country_code,
@@ -263,6 +291,7 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
       }
     }
 
+    // SAFETY: The query selects one aggregate row shape per country.
     for (const row of cliGeo.results as any[]) {
       const existing = combined.get(row.country_code);
       if (existing) {
@@ -316,7 +345,7 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
   }
 }
 
-export async function handleGetRealtimeAnalytics(request: Request, env: Env): Promise<Response> {
+export async function handleGetRealtimeAnalytics(_request: Request, env: Env): Promise<Response> {
   try {
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
@@ -325,7 +354,9 @@ export async function handleGetRealtimeAnalytics(request: Request, env: Env): Pr
         `SELECT COUNT(DISTINCT visitor_id) as count
          FROM site_analytics_realtime
          WHERE last_seen_at > ?`
-      ).bind(fiveMinutesAgo).first<{ count: number }>(),
+      )
+        .bind(fiveMinutesAgo)
+        .first<{ count: number }>(),
 
       env.DB.prepare(
         `SELECT country_code, COUNT(DISTINCT visitor_id) as count
@@ -334,7 +365,9 @@ export async function handleGetRealtimeAnalytics(request: Request, env: Env): Pr
          GROUP BY country_code
          ORDER BY count DESC
          LIMIT 10`
-      ).bind(fiveMinutesAgo).all(),
+      )
+        .bind(fiveMinutesAgo)
+        .all(),
 
       env.DB.prepare(
         `SELECT page_path, COUNT(*) as count
@@ -343,7 +376,9 @@ export async function handleGetRealtimeAnalytics(request: Request, env: Env): Pr
          GROUP BY page_path
          ORDER BY count DESC
          LIMIT 10`
-      ).bind(fiveMinutesAgo).all(),
+      )
+        .bind(fiveMinutesAgo)
+        .all(),
     ]);
 
     return jsonResponse({
@@ -366,13 +401,7 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString().split('T')[0];
 
-    const [
-      totalStats,
-      dailyTrend,
-      topPages,
-      topReferrers,
-      deviceBreakdown,
-    ] = await Promise.all([
+    const [totalStats, dailyTrend, topPages, topReferrers, deviceBreakdown] = await Promise.all([
       env.DB.prepare(
         `SELECT 
            SUM(pageviews) as total_pageviews,
@@ -380,15 +409,23 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
            SUM(sessions) as total_sessions
          FROM site_analytics_geo_daily
          WHERE date >= ?`
-      ).bind(startDateStr).first(),
+      )
+        .bind(startDateStr)
+        .first<{
+          total_pageviews: number | null;
+          total_visitors: number | null;
+          total_sessions: number | null;
+        }>(),
 
       env.DB.prepare(
-        `SELECT date, SUM(pageviews) as pageviews, SUM(visitors) as visitors
+        `SELECT date, SUM(pageviews), as pageviews, SUM(visitors) as visitors
          FROM site_analytics_geo_daily
          WHERE date >= ?
          GROUP BY date
          ORDER BY date ASC`
-      ).bind(startDateStr).all(),
+      )
+        .bind(startDateStr)
+        .all(),
 
       env.DB.prepare(
         `SELECT path, SUM(views) as views, SUM(unique_visitors) as visitors
@@ -397,7 +434,9 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
          GROUP BY path
          ORDER BY views DESC
          LIMIT 20`
-      ).bind(startDateStr).all(),
+      )
+        .bind(startDateStr)
+        .all(),
 
       env.DB.prepare(
         `SELECT referrer_domain, SUM(visitors) as visitors, SUM(pageviews) as pageviews
@@ -406,7 +445,9 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
          GROUP BY referrer_domain
          ORDER BY visitors DESC
          LIMIT 10`
-      ).bind(startDateStr).all(),
+      )
+        .bind(startDateStr)
+        .all(),
 
       env.DB.prepare(
         `SELECT device_type, SUM(visitors) as visitors
@@ -414,15 +455,17 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
          WHERE date >= ?
          GROUP BY device_type
          ORDER BY visitors DESC`
-      ).bind(startDateStr).all(),
+      )
+        .bind(startDateStr)
+        .all(),
     ]);
 
     return jsonResponse({
       period_days: days,
       summary: {
-        total_pageviews: (totalStats as any)?.total_pageviews || 0,
-        total_visitors: (totalStats as any)?.total_visitors || 0,
-        total_sessions: (totalStats as any)?.total_sessions || 0,
+        total_pageviews: totalStats?.total_pageviews || 0,
+        total_visitors: totalStats?.total_visitors || 0,
+        total_sessions: totalStats?.total_sessions || 0,
       },
       daily_trend: dailyTrend.results,
       top_pages: topPages.results,

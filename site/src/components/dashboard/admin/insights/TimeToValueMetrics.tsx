@@ -31,7 +31,7 @@ interface MetricCardProps {
   isGood?: boolean;
 }
 
-const MetricCard: Component<MetricCardProps> = (props) => {
+const MetricCard: Component<MetricCardProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [hovered, setHovered] = createSignal(false);
 
@@ -45,22 +45,26 @@ const MetricCard: Component<MetricCardProps> = (props) => {
   return (
     <div
       class={cn(
-        'relative rounded-xl border bg-void-800/40 p-4',
-        'transition-all duration-300 cursor-default',
+        'bg-void-800/40 relative rounded-xl border p-4',
+        'cursor-default transition-all duration-300',
         'hover:bg-void-750/60',
         hovered() && 'border-white/15'
       )}
       style={{
-        'border-color': hovered() ? `color-mix(in srgb, ${props.color} 30%, transparent)` : 'rgba(255,255,255,0.04)',
-        'box-shadow': hovered() ? `0 0 20px ${props.glow}, inset 0 1px 0 rgba(255,255,255,0.03)` : undefined,
+        'border-color': hovered()
+          ? `color-mix(in srgb, ${props.color} 30%, transparent)`
+          : 'rgba(255,255,255,0.04)',
+        'box-shadow': hovered()
+          ? `0 0 20px ${props.glow}, inset 0 1px 0 rgba(255,255,255,0.03)`
+          : undefined,
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div class="flex items-center gap-2 mb-3">
+      <div class="mb-3 flex items-center gap-2">
         <div
           class={cn(
-            'w-8 h-8 rounded-lg flex items-center justify-center',
+            'flex h-8 w-8 items-center justify-center rounded-lg',
             'transition-transform duration-300',
             hovered() && 'scale-110'
           )}
@@ -71,7 +75,7 @@ const MetricCard: Component<MetricCardProps> = (props) => {
         >
           <Icon size={14} class="text-white" />
         </div>
-        <span class="text-2xs font-bold uppercase tracking-wider text-nebula-500">
+        <span class="text-2xs text-nebula-500 font-bold tracking-wider uppercase">
           {props.label}
         </span>
         <Show when={props.isGood !== undefined}>
@@ -88,19 +92,19 @@ const MetricCard: Component<MetricCardProps> = (props) => {
       <div
         class={cn(
           'text-2xl font-black tabular-nums transition-all duration-500',
-          mounted() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          mounted() ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
         )}
         style={{ color: props.color }}
       >
         {props.value}
         <Show when={props.suffix}>
-          <span class="text-sm font-medium text-nebula-500 ml-1">{props.suffix}</span>
+          <span class="text-nebula-500 ml-1 text-sm font-medium">{props.suffix}</span>
         </Show>
       </div>
 
       <Show when={props.benchmark}>
-        <div class="mt-2 flex items-center gap-1.5 text-2xs text-nebula-500">
-          <div class="w-12 h-1 rounded-full bg-void-700 overflow-hidden">
+        <div class="text-2xs text-nebula-500 mt-2 flex items-center gap-1.5">
+          <div class="bg-void-700 h-1 w-12 overflow-hidden rounded-full">
             <div
               class="h-full rounded-full transition-all duration-700"
               style={{
@@ -116,7 +120,7 @@ const MetricCard: Component<MetricCardProps> = (props) => {
   );
 };
 
-export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = (props) => {
+export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = props => {
   const [mounted, setMounted] = createSignal(false);
 
   onMount(() => {
@@ -131,7 +135,8 @@ export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = (props) =>
 
   const activationHealth = createMemo(() => {
     const days = activationDays();
-    if (days <= 1) return { status: 'excellent', color: 'var(--color-aurora-400)', label: 'Excellent' };
+    if (days <= 1)
+      return { status: 'excellent', color: 'var(--color-aurora-400)', label: 'Excellent' };
     if (days <= 3) return { status: 'good', color: 'var(--color-electric-400)', label: 'Good' };
     if (days <= 7) return { status: 'fair', color: 'var(--color-solar-400)', label: 'Fair' };
     return { status: 'slow', color: 'var(--color-flare-400)', label: 'Needs Work' };
@@ -144,57 +149,77 @@ export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = (props) =>
 
     if (d1 >= 60 && pu >= 40) {
       return {
-        message: 'Outstanding onboarding! Users activate quickly and convert to power users at high rates.',
+        message:
+          'Outstanding onboarding! Users activate quickly and convert to power users at high rates.',
         type: 'excellent' as const,
         icon: Rocket,
       };
     }
     if (d1 >= 40 && w1 >= 70) {
       return {
-        message: 'Strong week-1 activation. Consider improving day-1 experience to accelerate time-to-value.',
+        message:
+          'Strong week-1 activation. Consider improving day-1 experience to accelerate time-to-value.',
         type: 'good' as const,
         icon: TrendingUp,
       };
     }
     if (w1 >= 50) {
       return {
-        message: 'Moderate activation rate. Focus on improving first-run experience and reducing friction.',
+        message:
+          'Moderate activation rate. Focus on improving first-run experience and reducing friction.',
         type: 'fair' as const,
         icon: Target,
       };
     }
     return {
-      message: 'Activation needs improvement. Consider adding guided onboarding and quick-start tutorials.',
+      message:
+        'Activation needs improvement. Consider adding guided onboarding and quick-start tutorials.',
       type: 'attention' as const,
       icon: Zap,
     };
   });
 
   const insightColors = {
-    excellent: { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)', text: 'var(--color-aurora-400)' },
-    good: { bg: 'rgba(34, 211, 211, 0.08)', border: 'rgba(34, 211, 211, 0.2)', text: 'var(--color-electric-400)' },
-    fair: { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)', text: 'var(--color-solar-400)' },
-    attention: { bg: 'rgba(99, 102, 241, 0.08)', border: 'rgba(99, 102, 241, 0.2)', text: 'var(--color-indigo-400)' },
+    excellent: {
+      bg: 'rgba(16, 185, 129, 0.08)',
+      border: 'rgba(16, 185, 129, 0.2)',
+      text: 'var(--color-aurora-400)',
+    },
+    good: {
+      bg: 'rgba(34, 211, 211, 0.08)',
+      border: 'rgba(34, 211, 211, 0.2)',
+      text: 'var(--color-electric-400)',
+    },
+    fair: {
+      bg: 'rgba(245, 158, 11, 0.08)',
+      border: 'rgba(245, 158, 11, 0.2)',
+      text: 'var(--color-solar-400)',
+    },
+    attention: {
+      bg: 'rgba(99, 102, 241, 0.08)',
+      border: 'rgba(99, 102, 241, 0.2)',
+      text: 'var(--color-indigo-400)',
+    },
   };
 
   return (
-    <div class="rounded-2xl border border-white/[0.06] bg-void-900 p-6 shadow-2xl relative overflow-hidden">
+    <div class="bg-void-900 relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 shadow-2xl">
       <div
-        class="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-3xl opacity-15"
+        class="absolute -top-20 -right-20 h-40 w-40 rounded-full opacity-15 blur-3xl"
         style={{ background: activationHealth().color }}
       />
 
       <div class="mb-6 flex items-start justify-between">
         <div>
-          <div class="flex items-center gap-2 mb-1">
+          <div class="mb-1 flex items-center gap-2">
             <Rocket size={20} class="text-indigo-400" />
-            <h3 class="text-lg font-bold tracking-tight text-nebula-100">Time to Value</h3>
+            <h3 class="text-nebula-100 text-lg font-bold tracking-tight">Time to Value</h3>
           </div>
-          <p class="text-xs text-nebula-500">Onboarding success and activation metrics</p>
+          <p class="text-nebula-500 text-xs">Onboarding success and activation metrics</p>
         </div>
 
         <div
-          class="px-3 py-1.5 rounded-full text-xs font-bold border"
+          class="rounded-full border px-3 py-1.5 text-xs font-bold"
           style={{
             color: activationHealth().color,
             'background-color': `color-mix(in srgb, ${activationHealth().color} 10%, transparent)`,
@@ -206,7 +231,7 @@ export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = (props) =>
         </div>
       </div>
 
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         <MetricCard
           icon={Clock}
           label="Activation"
@@ -268,7 +293,7 @@ export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = (props) =>
       <div
         class={cn(
           'mt-6 rounded-xl border p-4 transition-all duration-500',
-          mounted() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          mounted() ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
         )}
         style={{
           background: insightColors[onboardingInsight().type].bg,
@@ -277,7 +302,7 @@ export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = (props) =>
       >
         <div class="flex items-start gap-3">
           <div
-            class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
             style={{
               background: `linear-gradient(135deg, ${insightColors[onboardingInsight().type].text}, color-mix(in srgb, ${insightColors[onboardingInsight().type].text} 60%, white))`,
             }}
@@ -289,14 +314,12 @@ export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = (props) =>
           </div>
           <div>
             <p
-              class="text-sm font-semibold mb-0.5"
+              class="mb-0.5 text-sm font-semibold"
               style={{ color: insightColors[onboardingInsight().type].text }}
             >
               Onboarding Insight
             </p>
-            <p class="text-xs text-nebula-400 leading-relaxed">
-              {onboardingInsight().message}
-            </p>
+            <p class="text-nebula-400 text-xs leading-relaxed">{onboardingInsight().message}</p>
           </div>
         </div>
       </div>

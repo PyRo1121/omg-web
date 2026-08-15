@@ -7,17 +7,33 @@ let sessionId: string | null = null;
 let lastActivity = Date.now();
 let flushTimeout: ReturnType<typeof setTimeout> | null = null;
 
+interface UtmParams {
+  source?: string;
+  medium?: string;
+  campaign?: string;
+  content?: string;
+  term?: string;
+}
+
+interface Viewport {
+  width: number;
+  height: number;
+}
+
+type AnalyticsValue = string | number | boolean | null | UtmParams | Viewport;
+type AnalyticsProperties = Record<string, AnalyticsValue>;
+
 interface AnalyticsEvent {
   event_type: 'pageview' | 'click' | 'form' | 'error' | 'performance';
   event_name: string;
-  properties: Record<string, unknown>;
+  properties: AnalyticsProperties;
   timestamp: number;
   session_id: string;
   duration_ms?: number;
 }
 
 function generateSessionId(): string {
-  return 'ses_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+  return `ses_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
 }
 
 function getSessionId(): string {
@@ -29,24 +45,32 @@ function getSessionId(): string {
   return sessionId;
 }
 
-function getUtmParams(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
-  const params = new URLSearchParams(window.location.search);
-  const utm: Record<string, string> = {};
-  ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach(key => {
-    const value = params.get(key);
-    if (value) utm[key.replace('utm_', '')] = value;
-  });
+function getUtmParams(): UtmParams {
+  if (!('window' in globalThis)) return {};
+  const params = new URLSearchParams(globalThis.window.location.search);
+  const utm: UtmParams = {};
+  const values = {
+    source: params.get('utm_source'),
+    medium: params.get('utm_medium'),
+    campaign: params.get('utm_campaign'),
+    content: params.get('utm_content'),
+    term: params.get('utm_term'),
+  };
+  if (values.source) utm.source = values.source;
+  if (values.medium) utm.medium = values.medium;
+  if (values.campaign) utm.campaign = values.campaign;
+  if (values.content) utm.content = values.content;
+  if (values.term) utm.term = values.term;
   return utm;
 }
 
 function getReferrer(): string {
-  if (typeof document === 'undefined') return 'direct';
-  const ref = document.referrer;
+  if (!('document' in globalThis)) return 'direct';
+  const ref = globalThis.document.referrer;
   if (!ref) return 'direct';
   try {
     const url = new URL(ref);
-    if (url.hostname === window.location.hostname) return 'internal';
+    if (url.hostname === globalThis.window.location.hostname) return 'internal';
     return url.hostname;
   } catch {
     return 'direct';
@@ -66,7 +90,7 @@ async function flushEvents(): Promise<void> {
       body: JSON.stringify({ events }),
       keepalive: true,
     });
-    
+
     if (!response.ok) {
       eventQueue = [...events, ...eventQueue];
     }
@@ -83,6 +107,11 @@ function scheduleFlush(): void {
   }, BATCH_INTERVAL);
 }
 
+function getPagePath(): string {
+  if (!('window' in globalThis)) return '';
+  return globalThis.window.location.pathname;
+}
+
 function queueEvent(event: Omit<AnalyticsEvent, 'timestamp' | 'session_id'>): void {
   eventQueue.push({
     ...event,
@@ -93,35 +122,31 @@ function queueEvent(event: Omit<AnalyticsEvent, 'timestamp' | 'session_id'>): vo
 }
 
 export function trackPageview(path?: string): void {
-  if (typeof window === 'undefined') return;
-  
+  if (!('window' in globalThis)) return;
+
   queueEvent({
     event_type: 'pageview',
     event_name: 'page_view',
     properties: {
-      path: path || window.location.pathname,
-      url: window.location.href,
+      path: path || globalThis.window.location.pathname,
+      url: globalThis.window.location.href,
       referrer: getReferrer(),
       utm: getUtmParams(),
       viewport: {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      },
-      screen: {
-        width: screen.width,
-        height: screen.height,
+        width: globalThis.window.innerWidth,
+        height: globalThis.window.innerHeight,
       },
     },
   });
 }
 
-export function trackClick(target: string, metadata?: Record<string, unknown>): void {
+export function trackClick(target: string, metadata?: AnalyticsProperties): void {
   queueEvent({
     event_type: 'click',
     event_name: 'element_click',
     properties: {
       target,
-      path: typeof window !== 'undefined' ? window.location.pathname : '',
+      path: getPagePath(),
       ...metadata,
     },
   });
@@ -133,18 +158,18 @@ export function trackFormSubmit(formId: string, success: boolean): void {
     event_name: success ? 'form_submit_success' : 'form_submit_error',
     properties: {
       form_id: formId,
-      path: typeof window !== 'undefined' ? window.location.pathname : '',
+      path: getPagePath(),
     },
   });
 }
 
-export function trackError(error: string, context?: Record<string, unknown>): void {
+export function trackError(error: string, context?: AnalyticsProperties): void {
   queueEvent({
     event_type: 'error',
     event_name: 'client_error',
     properties: {
       error,
-      path: typeof window !== 'undefined' ? window.location.pathname : '',
+      path: getPagePath(),
       ...context,
     },
   });
@@ -160,14 +185,14 @@ export function trackPerformance(metrics: {
     event_type: 'performance',
     event_name: 'web_vitals',
     properties: {
-      path: typeof window !== 'undefined' ? window.location.pathname : '',
+      path: getPagePath(),
       ...metrics,
     },
   });
 }
 
 export function initAnalytics(): void {
-  if (typeof window === 'undefined') return;
+  if (!('window' in globalThis)) return;
 
   trackPageview();
 
@@ -194,25 +219,33 @@ export function initAnalytics(): void {
 
   if ('PerformanceObserver' in window) {
     try {
-      const observer = new PerformanceObserver((list) => {
+      const observer = new PerformanceObserver(list => {
         const entries = list.getEntries();
         const metrics: Record<string, number> = {};
-        
+
         for (const entry of entries) {
           if (entry.entryType === 'largest-contentful-paint') {
             metrics.lcp = entry.startTime;
           } else if (entry.entryType === 'first-input') {
+            // SAFETY: PerformanceObserver entries observed with type "first-input" are PerformanceEventTiming.
             metrics.fid = (entry as PerformanceEventTiming).processingStart - entry.startTime;
-          } else if (entry.entryType === 'layout-shift' && !(entry as any).hadRecentInput) {
-            metrics.cls = (metrics.cls || 0) + (entry as any).value;
+          } else if (entry.entryType === 'layout-shift') {
+            // SAFETY: PerformanceObserver entries with type "layout-shift" expose these fields.
+            const layoutShift = entry as PerformanceEntry & {
+              hadRecentInput?: boolean;
+              value?: number;
+            };
+            if (!layoutShift.hadRecentInput) {
+              metrics.cls = (metrics.cls || 0) + (layoutShift.value || 0);
+            }
           }
         }
-        
+
         if (Object.keys(metrics).length > 0) {
           trackPerformance(metrics);
         }
       });
-      
+
       observer.observe({ type: 'largest-contentful-paint', buffered: true });
       observer.observe({ type: 'first-input', buffered: true });
       observer.observe({ type: 'layout-shift', buffered: true });

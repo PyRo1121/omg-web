@@ -12,15 +12,15 @@ interface SimpleLiveIndicatorProps {
   class?: string;
 }
 
-export const SimpleLiveIndicator: Component<SimpleLiveIndicatorProps> = (props) => {
+export const SimpleLiveIndicator: Component<SimpleLiveIndicatorProps> = props => {
   const [local, others] = splitProps(props, ['isLive', 'label', 'class']);
 
   return (
     <Show when={local.isLive}>
       <div
         class={cn(
-          'inline-flex items-center gap-2 rounded-full font-bold uppercase tracking-wider',
-          'bg-aurora-500/10 px-2.5 py-1 text-xs text-aurora-400',
+          'inline-flex items-center gap-2 rounded-full font-bold tracking-wider uppercase',
+          'bg-aurora-500/10 text-aurora-400 px-2.5 py-1 text-xs',
           'animate-pulse-glow',
           local.class
         )}
@@ -30,8 +30,8 @@ export const SimpleLiveIndicator: Component<SimpleLiveIndicatorProps> = (props) 
         {...others}
       >
         <div class="relative">
-          <div class="h-2 w-2 rounded-full bg-aurora-500" />
-          <div class="absolute inset-0 h-2 w-2 rounded-full bg-aurora-500 animate-ping opacity-75" />
+          <div class="bg-aurora-500 h-2 w-2 rounded-full" />
+          <div class="bg-aurora-500 absolute inset-0 h-2 w-2 animate-ping rounded-full opacity-75" />
         </div>
         <span>{local.label || 'Live'}</span>
       </div>
@@ -86,7 +86,7 @@ const sizeConfig = {
   lg: { dot: 'h-2.5 w-2.5', ring: 'h-5 w-5', text: 'text-sm', padding: 'px-3 py-1.5' },
 };
 
-export const LiveIndicator: Component<LiveIndicatorProps> = (props) => {
+export const LiveIndicator: Component<LiveIndicatorProps> = props => {
   const color = () => colorConfig[props.color || 'success'];
   const size = () => sizeConfig[props.size || 'md'];
   const variant = () => props.variant || 'pulse';
@@ -95,7 +95,7 @@ export const LiveIndicator: Component<LiveIndicatorProps> = (props) => {
   return (
     <div
       class={cn(
-        'inline-flex items-center gap-2 rounded-full font-bold uppercase tracking-wider',
+        'inline-flex items-center gap-2 rounded-full font-bold tracking-wider uppercase',
         color().bg,
         size().padding,
         size().text,
@@ -109,35 +109,35 @@ export const LiveIndicator: Component<LiveIndicatorProps> = (props) => {
             <div class={cn('rounded-full', size().dot, color().dot)} />
             <div
               class={cn(
-                'absolute inset-0 rounded-full animate-ping opacity-75',
+                'absolute inset-0 animate-ping rounded-full opacity-75',
                 size().dot,
                 color().dot
               )}
             />
           </>
         )}
-        
+
         {variant() === 'ring' && (
           <div class="relative">
             <div class={cn('rounded-full', size().dot, color().dot, color().glow)} />
             <div
               class={cn(
-                'absolute inset-[-4px] rounded-full border-2 animate-[ring-expand_1.5s_ease-out_infinite]',
+                'absolute inset-[-4px] animate-[ring-expand_1.5s_ease-out_infinite] rounded-full border-2',
                 color().ring,
                 'opacity-50'
               )}
             />
           </div>
         )}
-        
+
         {variant() === 'dot' && (
           <div class={cn('rounded-full', size().dot, color().dot, color().glow)} />
         )}
-        
+
         {variant() === 'bar' && (
           <div class="flex gap-0.5">
             <For each={[0, 1, 2]}>
-              {(i) => (
+              {i => (
                 <div
                   class={cn('w-0.5 rounded-full', color().dot)}
                   style={{
@@ -150,11 +150,11 @@ export const LiveIndicator: Component<LiveIndicatorProps> = (props) => {
           </div>
         )}
       </div>
-      
+
       <Show when={showLabel()}>
         <span>{props.label || 'Live'}</span>
       </Show>
-      
+
       <Show when={props.count !== undefined}>
         <span class="font-mono tabular-nums">{props.count}</span>
       </Show>
@@ -169,7 +169,7 @@ interface StreamCounterProps {
   class?: string;
 }
 
-export const StreamCounter: Component<StreamCounterProps> = (props) => {
+export const StreamCounter: Component<StreamCounterProps> = props => {
   const [displayCount, setDisplayCount] = createSignal(props.count);
   const [isAnimating, setIsAnimating] = createSignal(false);
 
@@ -206,25 +206,23 @@ export const StreamCounter: Component<StreamCounterProps> = (props) => {
       <div class="relative">
         <span
           class={cn(
-            'font-display text-2xl font-black tabular-nums text-white transition-transform',
+            'font-display text-2xl font-black text-white tabular-nums transition-transform',
             isAnimating() && 'scale-110'
           )}
         >
           {displayCount().toLocaleString()}
         </span>
         <Show when={isAnimating()}>
-          <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+          <div class="animate-shimmer absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         </Show>
       </div>
       <Show when={props.label}>
-        <span class="text-xs font-bold uppercase tracking-widest text-nebula-500">
+        <span class="text-nebula-500 text-xs font-bold tracking-widest uppercase">
           {props.label}
         </span>
       </Show>
       <Show when={props.rate}>
-        <span class="text-xs text-aurora-400 font-medium">
-          +{props.rate}/s
-        </span>
+        <span class="text-aurora-400 text-xs font-medium">+{props.rate}/s</span>
       </Show>
     </div>
   );
@@ -261,7 +259,7 @@ const presenceConfig = {
   },
 };
 
-export const PresenceIndicator: Component<PresenceIndicatorProps> = (props) => {
+export const PresenceIndicator: Component<PresenceIndicatorProps> = props => {
   const config = () => presenceConfig[props.status];
   const size = () => sizeConfig[props.size || 'md'];
 
@@ -272,7 +270,7 @@ export const PresenceIndicator: Component<PresenceIndicatorProps> = (props) => {
         <Show when={props.status === 'online'}>
           <div
             class={cn(
-              'absolute inset-0 rounded-full animate-ping opacity-50',
+              'absolute inset-0 animate-ping rounded-full opacity-50',
               size().dot,
               config().color
             )}
@@ -280,12 +278,10 @@ export const PresenceIndicator: Component<PresenceIndicatorProps> = (props) => {
         </Show>
       </div>
       <Show when={props.label !== undefined}>
-        <span class="text-sm font-medium text-nebula-300">
-          {props.label || config().label}
-        </span>
+        <span class="text-nebula-300 text-sm font-medium">{props.label || config().label}</span>
       </Show>
       <Show when={props.lastSeen && props.status === 'offline'}>
-        <span class="text-xs text-nebula-500">{props.lastSeen}</span>
+        <span class="text-nebula-500 text-xs">{props.lastSeen}</span>
       </Show>
     </div>
   );
@@ -297,7 +293,7 @@ interface DataStreamProps {
   class?: string;
 }
 
-export const DataStream: Component<DataStreamProps> = (props) => {
+export const DataStream: Component<DataStreamProps> = props => {
   const maxVisible = () => props.maxVisible || 5;
   const visibleItems = () => props.items.slice(0, maxVisible());
 
@@ -313,7 +309,7 @@ export const DataStream: Component<DataStreamProps> = (props) => {
         {(item, index) => (
           <div
             class={cn(
-              'rounded-lg border border-white/5 bg-void-800/50 px-3 py-2 border-l-2',
+              'bg-void-800/50 rounded-lg border border-l-2 border-white/5 px-3 py-2',
               'animate-stream-in opacity-0',
               typeColors[item.type || 'info']
             )}
@@ -322,7 +318,7 @@ export const DataStream: Component<DataStreamProps> = (props) => {
               'animation-fill-mode': 'forwards',
             }}
           >
-            <p class="text-sm text-nebula-300 font-mono truncate">{item.content}</p>
+            <p class="text-nebula-300 truncate font-mono text-sm">{item.content}</p>
           </div>
         )}
       </For>

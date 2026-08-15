@@ -1,4 +1,4 @@
-import { Component, createResource, For, Show } from 'solid-js';
+import { type Component, createResource, For, Show } from 'solid-js';
 import GlassCard from '../../ui/GlassCard';
 import { StatCard } from '../analytics/StatCard';
 import { Sparkline, TrendIndicator } from '../../ui/Sparkline';
@@ -8,8 +8,6 @@ import {
   Package,
   Repeat,
   Timer,
-  TrendingUp,
-  TrendingDown,
   CheckCircle,
   Loader2,
   AlertCircle,
@@ -94,22 +92,18 @@ const getMetricIcon = (metricType: string) => {
 };
 
 const getMetricColor = (metricType: string) => {
-  const colors: Record<string, { text: string; bg: string }> = {
+  const colors = {
     search: { text: 'text-cyan-400', bg: 'bg-cyan-500' },
     install: { text: 'text-indigo-400', bg: 'bg-indigo-500' },
     update: { text: 'text-emerald-400', bg: 'bg-emerald-500' },
     remove: { text: 'text-rose-400', bg: 'bg-rose-500' },
-  };
-  return colors[metricType] || { text: 'text-slate-400', bg: 'bg-slate-500' };
-};
-
-const getSparklineColor = (metricType: string) => {
-  const colors: Record<string, string> = {
-    startup: '#6366f1',
-    search: '#22d3ee',
-    install: '#a855f7',
-  };
-  return colors[metricType] || '#6366f1';
+  } satisfies Record<string, { text: string; bg: string }>;
+  return (
+    Object.entries(colors).find(([key]) => key === metricType)?.[1] || {
+      text: 'text-slate-400',
+      bg: 'bg-slate-500',
+    }
+  );
 };
 
 export const PerformanceMetrics: Component = () => {
@@ -133,10 +127,10 @@ export const PerformanceMetrics: Component = () => {
       </Show>
 
       <Show when={performance()}>
-        {(data) => (
+        {data => (
           <>
             {/* Summary Stats */}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 title="Avg Search Time"
                 value={formatDuration(data().summary.avgSearchMs)}
@@ -170,10 +164,10 @@ export const PerformanceMetrics: Component = () => {
             <GlassCard class="p-6">
               <div class="flex items-center justify-between">
                 <div>
-                  <p class="text-xs font-bold uppercase tracking-widest text-slate-500">
+                  <p class="text-xs font-bold tracking-widest text-slate-500 uppercase">
                     Total Time Saved
                   </p>
-                  <p class="mt-2 text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
+                  <p class="mt-2 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-4xl font-black text-transparent">
                     {formatTimeSaved(data().summary.totalTimeSavedMs)}
                   </p>
                   <p class="mt-2 text-sm text-slate-400">
@@ -188,18 +182,20 @@ export const PerformanceMetrics: Component = () => {
 
             {/* Performance Trends */}
             <GlassCard class="p-6">
-              <h3 class="text-lg font-bold text-white mb-6">Performance Trends</h3>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <h3 class="mb-6 text-lg font-bold text-white">Performance Trends</h3>
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
                 {/* Search Performance */}
                 <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <div class="flex items-center justify-between mb-4">
+                  <div class="mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                       <Search size={18} class="text-cyan-400" />
                       <span class="text-sm font-medium text-white">Search</span>
                     </div>
                     <Show when={data().sparklineData.search.length >= 2}>
                       <TrendIndicator
-                        value={data().sparklineData.search[data().sparklineData.search.length - 1] || 0}
+                        value={
+                          data().sparklineData.search[data().sparklineData.search.length - 1] || 0
+                        }
                         previousValue={data().sparklineData.search[0] || 0}
                         size="sm"
                       />
@@ -220,14 +216,16 @@ export const PerformanceMetrics: Component = () => {
 
                 {/* Install Performance */}
                 <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <div class="flex items-center justify-between mb-4">
+                  <div class="mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                       <Package size={18} class="text-indigo-400" />
                       <span class="text-sm font-medium text-white">Install</span>
                     </div>
                     <Show when={data().sparklineData.install.length >= 2}>
                       <TrendIndicator
-                        value={data().sparklineData.install[data().sparklineData.install.length - 1] || 0}
+                        value={
+                          data().sparklineData.install[data().sparklineData.install.length - 1] || 0
+                        }
                         previousValue={data().sparklineData.install[0] || 0}
                         size="sm"
                       />
@@ -248,14 +246,16 @@ export const PerformanceMetrics: Component = () => {
 
                 {/* Startup Performance */}
                 <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <div class="flex items-center justify-between mb-4">
+                  <div class="mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                       <Zap size={18} class="text-amber-400" />
                       <span class="text-sm font-medium text-white">Update</span>
                     </div>
                     <Show when={data().sparklineData.startup.length >= 2}>
                       <TrendIndicator
-                        value={data().sparklineData.startup[data().sparklineData.startup.length - 1] || 0}
+                        value={
+                          data().sparklineData.startup[data().sparklineData.startup.length - 1] || 0
+                        }
                         previousValue={data().sparklineData.startup[0] || 0}
                         size="sm"
                       />
@@ -278,9 +278,9 @@ export const PerformanceMetrics: Component = () => {
 
             {/* Detailed Metrics Table */}
             <GlassCard class="p-6">
-              <h3 class="text-lg font-bold text-white mb-4">Detailed Performance Metrics</h3>
+              <h3 class="mb-4 text-lg font-bold text-white">Detailed Performance Metrics</h3>
               <Show when={data().metrics.length === 0}>
-                <p class="text-slate-400 text-sm py-8 text-center">
+                <p class="py-8 text-center text-sm text-slate-400">
                   No performance data available yet. Start using OMG to see metrics here.
                 </p>
               </Show>
@@ -289,36 +289,36 @@ export const PerformanceMetrics: Component = () => {
                   <table class="w-full">
                     <thead>
                       <tr class="border-b border-white/10">
-                        <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
                           Command
                         </th>
-                        <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <th class="px-4 py-3 text-right text-xs font-bold tracking-wider text-slate-500 uppercase">
                           Avg
                         </th>
-                        <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <th class="px-4 py-3 text-right text-xs font-bold tracking-wider text-slate-500 uppercase">
                           P50
                         </th>
-                        <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <th class="px-4 py-3 text-right text-xs font-bold tracking-wider text-slate-500 uppercase">
                           P95
                         </th>
-                        <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <th class="px-4 py-3 text-right text-xs font-bold tracking-wider text-slate-500 uppercase">
                           Min
                         </th>
-                        <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <th class="px-4 py-3 text-right text-xs font-bold tracking-wider text-slate-500 uppercase">
                           Max
                         </th>
-                        <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <th class="px-4 py-3 text-right text-xs font-bold tracking-wider text-slate-500 uppercase">
                           Samples
                         </th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-white/5">
                       <For each={data().metrics}>
-                        {(metric) => {
+                        {metric => {
                           const Icon = getMetricIcon(metric.metricType);
                           const colors = getMetricColor(metric.metricType);
                           return (
-                            <tr class="hover:bg-white/5 transition-colors">
+                            <tr class="transition-colors hover:bg-white/5">
                               <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
                                   <Icon size={16} class={colors.text} />
@@ -328,27 +328,27 @@ export const PerformanceMetrics: Component = () => {
                                 </div>
                               </td>
                               <td class="px-4 py-3 text-right">
-                                <span class="text-sm font-mono text-white">
+                                <span class="font-mono text-sm text-white">
                                   {formatDuration(metric.avgValue)}
                                 </span>
                               </td>
                               <td class="px-4 py-3 text-right">
-                                <span class="text-sm font-mono text-slate-300">
+                                <span class="font-mono text-sm text-slate-300">
                                   {formatDuration(metric.p50Value)}
                                 </span>
                               </td>
                               <td class="px-4 py-3 text-right">
-                                <span class="text-sm font-mono text-slate-300">
+                                <span class="font-mono text-sm text-slate-300">
                                   {formatDuration(metric.p95Value)}
                                 </span>
                               </td>
                               <td class="px-4 py-3 text-right">
-                                <span class="text-sm font-mono text-emerald-400">
+                                <span class="font-mono text-sm text-emerald-400">
                                   {formatDuration(metric.minValue)}
                                 </span>
                               </td>
                               <td class="px-4 py-3 text-right">
-                                <span class="text-sm font-mono text-amber-400">
+                                <span class="font-mono text-sm text-amber-400">
                                   {formatDuration(metric.maxValue)}
                                 </span>
                               </td>
@@ -374,16 +374,19 @@ export const PerformanceMetrics: Component = () => {
                   <Activity size={24} class="text-indigo-400" />
                 </div>
                 <div>
-                  <h4 class="text-sm font-bold text-white mb-1">Performance Tips</h4>
-                  <ul class="text-sm text-slate-400 space-y-1">
+                  <h4 class="mb-1 text-sm font-bold text-white">Performance Tips</h4>
+                  <ul class="space-y-1 text-sm text-slate-400">
                     <li>
-                      <span class="text-emerald-400">Enable daemon mode</span> for faster startup times
+                      <span class="text-emerald-400">Enable daemon mode</span> for faster startup
+                      times
                     </li>
                     <li>
-                      <span class="text-emerald-400">Use parallel sync</span> to speed up package updates
+                      <span class="text-emerald-400">Use parallel sync</span> to speed up package
+                      updates
                     </li>
                     <li>
-                      <span class="text-emerald-400">Enable caching</span> for frequently accessed packages
+                      <span class="text-emerald-400">Enable caching</span> for frequently accessed
+                      packages
                     </li>
                   </ul>
                 </div>

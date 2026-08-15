@@ -1,4 +1,5 @@
-import { Component, createMemo } from 'solid-js';
+import { type Component, createMemo } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import {
   Sparkles,
   Zap,
@@ -48,18 +49,68 @@ const SIZE_CONFIG = {
   lg: { badge: 'px-3 py-1.5 text-sm', icon: 14, gap: 'gap-2.5' },
 } as const;
 
-const STAGE_CONFIG: Record<string, StageConfig> = {
-  new: { icon: Sparkles, label: 'New', color: 'text-[var(--lifecycle-new)]', bg: 'bg-[var(--lifecycle-new-bg)]' },
-  onboarding: { icon: Rocket, label: 'Onboarding', color: 'text-[var(--lifecycle-onboarding)]', bg: 'bg-[var(--lifecycle-onboarding-bg)]' },
-  activated: { icon: Zap, label: 'Activated', color: 'text-[var(--lifecycle-activated)]', bg: 'bg-[var(--lifecycle-activated-bg)]' },
-  engaged: { icon: Activity, label: 'Engaged', color: 'text-[var(--lifecycle-engaged)]', bg: 'bg-[var(--lifecycle-engaged-bg)]' },
-  power_user: { icon: Crown, label: 'Power User', color: 'text-[var(--lifecycle-power-user)]', bg: 'bg-[var(--lifecycle-power-user-bg)]' },
-  at_risk: { icon: AlertTriangle, label: 'At Risk', color: 'text-[var(--lifecycle-at-risk)]', bg: 'bg-[var(--lifecycle-at-risk-bg)]' },
-  churning: { icon: TrendingDown, label: 'Churning', color: 'text-[var(--lifecycle-churning)]', bg: 'bg-[var(--lifecycle-churning-bg)]' },
-  churned: { icon: XCircle, label: 'Churned', color: 'text-[var(--lifecycle-churned)]', bg: 'bg-[var(--lifecycle-churned-bg)]' },
-  reactivated: { icon: RefreshCw, label: 'Reactivated', color: 'text-[var(--lifecycle-reactivated)]', bg: 'bg-[var(--lifecycle-reactivated-bg)]' },
-  default: { icon: Activity, label: 'Active', color: 'text-[var(--lifecycle-engaged)]', bg: 'bg-[var(--lifecycle-engaged-bg)]' },
-};
+const STAGE_CONFIG = {
+  new: {
+    icon: Sparkles,
+    label: 'New',
+    color: 'text-[var(--lifecycle-new)]',
+    bg: 'bg-[var(--lifecycle-new-bg)]',
+  },
+  onboarding: {
+    icon: Rocket,
+    label: 'Onboarding',
+    color: 'text-[var(--lifecycle-onboarding)]',
+    bg: 'bg-[var(--lifecycle-onboarding-bg)]',
+  },
+  activated: {
+    icon: Zap,
+    label: 'Activated',
+    color: 'text-[var(--lifecycle-activated)]',
+    bg: 'bg-[var(--lifecycle-activated-bg)]',
+  },
+  engaged: {
+    icon: Activity,
+    label: 'Engaged',
+    color: 'text-[var(--lifecycle-engaged)]',
+    bg: 'bg-[var(--lifecycle-engaged-bg)]',
+  },
+  power_user: {
+    icon: Crown,
+    label: 'Power User',
+    color: 'text-[var(--lifecycle-power-user)]',
+    bg: 'bg-[var(--lifecycle-power-user-bg)]',
+  },
+  at_risk: {
+    icon: AlertTriangle,
+    label: 'At Risk',
+    color: 'text-[var(--lifecycle-at-risk)]',
+    bg: 'bg-[var(--lifecycle-at-risk-bg)]',
+  },
+  churning: {
+    icon: TrendingDown,
+    label: 'Churning',
+    color: 'text-[var(--lifecycle-churning)]',
+    bg: 'bg-[var(--lifecycle-churning-bg)]',
+  },
+  churned: {
+    icon: XCircle,
+    label: 'Churned',
+    color: 'text-[var(--lifecycle-churned)]',
+    bg: 'bg-[var(--lifecycle-churned-bg)]',
+  },
+  reactivated: {
+    icon: RefreshCw,
+    label: 'Reactivated',
+    color: 'text-[var(--lifecycle-reactivated)]',
+    bg: 'bg-[var(--lifecycle-reactivated-bg)]',
+  },
+  default: {
+    icon: Activity,
+    label: 'Active',
+    color: 'text-[var(--lifecycle-engaged)]',
+    bg: 'bg-[var(--lifecycle-engaged-bg)]',
+  },
+} satisfies Record<string, StageConfig>;
 
 function getHealthConfig(score: number, showGlow: boolean): HealthConfig {
   if (score >= HEALTH_THRESHOLDS.EXCELLENT) {
@@ -128,14 +179,16 @@ function getRingDimensions(size: 'sm' | 'md' | 'lg') {
   return dimensions[size];
 }
 
-export const HealthBadge: Component<HealthBadgeProps> = (props) => {
+export const HealthBadge: Component<HealthBadgeProps> = props => {
   const size = () => props.size || 'md';
   const showGlow = () => props.showGlow !== false;
   const variant = () => props.variant || 'badge';
 
   const healthConfig = createMemo(() => getHealthConfig(props.score, showGlow()));
-  const stageConfig = createMemo(() => STAGE_CONFIG[props.stage] || STAGE_CONFIG.default);
-  const StageIcon = createMemo(() => stageConfig().icon);
+  const stageConfig = createMemo(
+    () =>
+      Object.entries(STAGE_CONFIG).find(([key]) => key === props.stage)?.[1] ?? STAGE_CONFIG.default
+  );
   const sizes = createMemo(() => SIZE_CONFIG[size()]);
 
   if (variant() === 'ring') {
@@ -146,7 +199,13 @@ export const HealthBadge: Component<HealthBadgeProps> = (props) => {
     return (
       <div class={`relative flex items-center ${sizes().gap}`}>
         <div class="relative">
-          <svg width={ringDims().width} height={ringDims().height} class="-rotate-90">
+          <svg
+            width={ringDims().width}
+            height={ringDims().height}
+            class="-rotate-90"
+            aria-label="Health score ring"
+            role="img"
+          >
             <circle
               cx={ringDims().cx}
               cy={ringDims().cy}
@@ -163,17 +222,22 @@ export const HealthBadge: Component<HealthBadgeProps> = (props) => {
               stroke-width={ringDims().strokeWidth}
               fill="none"
               stroke-linecap="round"
-              stroke-dasharray={CIRCUMFERENCE * ringDims().factor}
-              stroke-dashoffset={offset() * ringDims().factor}
+              stroke-dasharray={String(CIRCUMFERENCE * ringDims().factor)}
+              stroke-dashoffset={String(offset() * ringDims().factor)}
               class={`transition-all duration-700 ${showGlow() ? 'drop-shadow-[0_0_4px_currentColor]' : ''}`}
             />
           </svg>
-          <span class={`absolute inset-0 flex items-center justify-center font-mono font-black tabular-nums ${healthConfig().text} ${size() === 'lg' ? 'text-sm' : 'text-2xs'}`}>
+          <span
+            class={`absolute inset-0 flex items-center justify-center font-mono font-black tabular-nums ${healthConfig().text} ${size() === 'lg' ? 'text-sm' : 'text-2xs'}`}
+          >
             {props.score}
           </span>
         </div>
-        <div class={`flex items-center justify-center rounded-lg p-1 ${stageConfig().bg}`} title={stageConfig().label}>
-          <StageIcon size={sizes().icon} class={stageConfig().color} />
+        <div
+          class={`flex items-center justify-center rounded-lg p-1 ${stageConfig().bg}`}
+          title={stageConfig().label}
+        >
+          <Dynamic component={stageConfig().icon} size={sizes().icon} class={stageConfig().color} />
         </div>
       </div>
     );
@@ -181,15 +245,19 @@ export const HealthBadge: Component<HealthBadgeProps> = (props) => {
 
   if (variant() === 'pill') {
     return (
-      <div class={`inline-flex items-center ${sizes().gap} rounded-full border ${healthConfig().border} ${healthConfig().bg} ${healthConfig().glow} ${sizes().badge} transition-all duration-300`}>
+      <div
+        class={`inline-flex items-center ${sizes().gap} rounded-full border ${healthConfig().border} ${healthConfig().bg} ${healthConfig().glow} ${sizes().badge} transition-all duration-300`}
+      >
         <span class={`font-mono font-black tabular-nums ${healthConfig().text}`}>
           {props.score}
         </span>
         <div class={`flex items-center gap-1 rounded-full px-1.5 py-0.5 ${stageConfig().bg}`}>
-          <StageIcon size={sizes().icon - 2} class={stageConfig().color} />
-          <span class={`text-2xs font-bold ${stageConfig().color}`}>
-            {stageConfig().label}
-          </span>
+          <Dynamic
+            component={stageConfig().icon}
+            size={sizes().icon - 2}
+            class={stageConfig().color}
+          />
+          <span class={`text-2xs font-bold ${stageConfig().color}`}>{stageConfig().label}</span>
         </div>
       </div>
     );
@@ -203,11 +271,11 @@ export const HealthBadge: Component<HealthBadgeProps> = (props) => {
       >
         {props.score}
       </div>
-      <div 
-        class={`flex items-center justify-center rounded-lg p-1 ${stageConfig().bg} transition-all duration-200 hover:scale-110`} 
+      <div
+        class={`flex items-center justify-center rounded-lg p-1 ${stageConfig().bg} transition-all duration-200 hover:scale-110`}
         title={stageConfig().label}
       >
-        <StageIcon size={sizes().icon} class={stageConfig().color} />
+        <Dynamic component={stageConfig().icon} size={sizes().icon} class={stageConfig().color} />
       </div>
     </div>
   );

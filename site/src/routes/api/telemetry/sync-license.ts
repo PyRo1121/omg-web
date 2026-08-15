@@ -1,13 +1,26 @@
-import { APIEvent } from "@solidjs/start/server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { createAuth, CloudflareEnv } from "~/lib/auth";
+import type { APIEvent } from '@solidjs/start/server';
+import { drizzle } from 'drizzle-orm/d1';
+import { eq, and } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { createAuth, type CloudflareEnv } from '~/lib/auth';
+import { parseExternalLicenseResponse } from '~/lib/dashboard-contract';
+
+type LicenseTier = 'free' | 'team' | 'enterprise';
+
+function parseLicenseTier(value: string | undefined): LicenseTier {
+  switch (value) {
+    case 'team':
+    case 'enterprise':
+      return value;
+    default:
+      return 'free';
+  }
+}
 
 function getEnv(event: APIEvent): CloudflareEnv {
-  const env = (event.nativeEvent as any).context?.cloudflare?.env;
-  if (!env) throw new Error("Cloudflare environment not available");
-  
+  const env = event.nativeEvent.context.cloudflare?.env;
+  if (!env) throw new Error('Cloudflare environment not available');
+
   return {
     DB: env.DB,
     BETTER_AUTH_KV: env.BETTER_AUTH_KV,
@@ -28,15 +41,15 @@ export async function POST(event: APIEvent) {
   try {
     const env = getEnv(event);
     const auth = createAuth(env);
-    
+
     const session = await auth.api.getSession({
       headers: event.request.headers,
     });
 
     if (!session?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -52,56 +65,85 @@ export async function POST(event: APIEvent) {
       .limit(1)
       .get();
 
-    console.log('[Sync License] License found:', license ? `id=${license.id}, tier=${license.tier}, licenseKey=${license.licenseKey}` : 'null');
+    console.log(
+      '[Sync License] License found:',
+      license ? `id=${license.id}, tier=${license.tier}, licenseKey=${license.licenseKey}` : 'null'
+    );
 
     if (!license) {
-      return new Response(JSON.stringify({ error: "No license found" }), {
+      return new Response(JSON.stringify({ error: 'No license found' }), {
         status: 404,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const externalApiResponse = await fetch("https://api.pyro1121.com/api/validate-license", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const externalApiResponse = await fetch('https://api.pyro1121.com/api/validate-license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         license_key: license.licenseKey,
       }),
     });
 
     if (!externalApiResponse.ok) {
-      console.error("[Sync License] External API error:", externalApiResponse.status);
-      return new Response(JSON.stringify({ 
-        error: "Failed to validate with external API",
-        synced: false 
-      }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      console.error('[Sync License] External API error:', externalApiResponse.status);
+      return new Response(
+        JSON.stringify({
+          error: 'Failed to validate with external API',
+          synced: false,
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
-    const externalData = await externalApiResponse.json();
+    const parsedExternalData = parseExternalLicenseResponse(await externalApiResponse.json());
+    if (!parsedExternalData.ok) {
+      console.error('[Sync License] Invalid external API response:', parsedExternalData.error);
+      return new Response(
+        JSON.stringify({ error: 'Invalid external API response', synced: false }),
+        {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    const externalData = parsedExternalData.value;
 
-    console.log('[Sync License] External API response:', { valid: externalData.valid, tier: externalData.tier, max_machines: externalData.max_machines });
+    console.log('[Sync License] External API response:', {
+      valid: externalData.valid,
+      tier: externalData.tier,
+      max_machines: externalData.max_machines,
+    });
 
     if (!externalData.valid) {
-      return new Response(JSON.stringify({ 
-        error: "License is not valid",
-        synced: false 
-      }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'License is not valid',
+          synced: false,
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
-    const newTier = externalData.tier || "free";
+    const newTier = parseLicenseTier(externalData.tier);
     const maxMachines = externalData.max_machines || license.maxMachines;
 
     console.log('[Sync License] Comparing - DB tier:', license.tier, 'vs External tier:', newTier);
 
     if (license.tier !== newTier || license.maxMachines !== maxMachines) {
-      console.log('[Sync License] Updating database: old_tier =', license.tier, ', new_tier =', newTier);
-      
+      console.log(
+        '[Sync License] Updating database: old_tier =',
+        license.tier,
+        ', new_tier =',
+        newTier
+      );
+
       await db
         .update(schema.license)
         .set({
@@ -118,17 +160,20 @@ export async function POST(event: APIEvent) {
       const machinesSynced = await syncMachines(db, license.id, externalData.machines);
       const usageSynced = await syncUsage(db, license.id, externalData.usage);
 
-      return new Response(JSON.stringify({
-        synced: true,
-        old_tier: license.tier,
-        new_tier: newTier,
-        max_machines: maxMachines,
-        machines_synced: machinesSynced,
-        usage_synced: usageSynced,
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          synced: true,
+          old_tier: license.tier,
+          new_tier: newTier,
+          max_machines: maxMachines,
+          machines_synced: machinesSynced,
+          usage_synced: usageSynced,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log('[Sync License] No update needed - tiers match');
@@ -137,27 +182,30 @@ export async function POST(event: APIEvent) {
     const machinesSynced = await syncMachines(db, license.id, externalData.machines);
     const usageSynced = await syncUsage(db, license.id, externalData.usage);
 
-    return new Response(JSON.stringify({
-      synced: true,
-      message: "Already up to date",
-      tier: newTier,
-      machines_synced: machinesSynced,
-      usage_synced: usageSynced,
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("[Sync License] Error:", error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-        synced: false
+        synced: true,
+        message: 'Already up to date',
+        tier: newTier,
+        machines_synced: machinesSynced,
+        usage_synced: usageSynced,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (error) {
+    console.error('[Sync License] Error:', error);
+    return new Response(
+      JSON.stringify({
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        synced: false,
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }
@@ -170,7 +218,7 @@ export async function POST(event: APIEvent) {
 async function syncMachines(
   db: ReturnType<typeof drizzle>,
   licenseId: string,
-  machines?: Array<{
+  machines?: ReadonlyArray<{
     machine_id: string;
     hostname?: string;
     os?: string;
@@ -192,10 +240,7 @@ async function syncMachines(
         .select({ id: schema.machine.id })
         .from(schema.machine)
         .where(
-          and(
-            eq(schema.machine.licenseId, licenseId),
-            eq(schema.machine.machineId, m.machine_id)
-          )
+          and(eq(schema.machine.licenseId, licenseId), eq(schema.machine.machineId, m.machine_id))
         )
         .limit(1)
         .get();
@@ -253,7 +298,7 @@ async function syncMachines(
 async function syncUsage(
   db: ReturnType<typeof drizzle>,
   licenseId: string,
-  usage?: Array<{
+  usage?: ReadonlyArray<{
     date: string;
     commands_run: number;
     packages_installed: number;
@@ -275,10 +320,7 @@ async function syncUsage(
         .select({ id: schema.usageDaily.id })
         .from(schema.usageDaily)
         .where(
-          and(
-            eq(schema.usageDaily.licenseId, licenseId),
-            eq(schema.usageDaily.date, day.date)
-          )
+          and(eq(schema.usageDaily.licenseId, licenseId), eq(schema.usageDaily.date, day.date))
         )
         .limit(1)
         .get();

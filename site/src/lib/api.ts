@@ -1,6 +1,8 @@
 // API Client for OMG Dashboard
 // All authenticated requests include Bearer token
 
+import { parseApiError } from './dashboard-contract';
+
 const API_BASE = 'https://api.pyro1121.com';
 
 // Get stored session token
@@ -22,13 +24,11 @@ export function clearSession(): void {
 export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getSessionToken();
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...((options.headers as Record<string, string>) || {}),
-  };
+  const headers = new Headers(options.headers);
+  headers.set('Content-Type', 'application/json');
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -39,9 +39,10 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
   const data = await response.json();
 
   if (!response.ok) {
-    throw new ApiError(data.error || 'Request failed', response.status);
+    throw new ApiError(parseApiError(data, 'Request failed'), response.status);
   }
 
+  // SAFETY: This legacy helper is being retired behind typed endpoint parsers. Existing callers provide the endpoint response type, and non-2xx responses are rejected above.
   return data as T;
 }
 
@@ -410,7 +411,7 @@ export interface TeamAuditLogEntry {
   resource_id: string | null;
   ip_address: string | null;
   user_agent: string | null;
-  metadata: Record<string, unknown> | null;
+  metadata: string | null;
   created_at: string;
 }
 
@@ -1205,13 +1206,15 @@ export async function getSiteAnalyticsOverview(days = 30): Promise<SiteAnalytics
   return apiRequest(`/api/site/analytics/overview?days=${days}`);
 }
 
-export async function trackSiteEvent(events: Array<{
-  event_type: 'pageview' | 'click' | 'form' | 'error' | 'performance';
-  event_name: string;
-  properties: Record<string, unknown>;
-  session_id: string;
-  duration_ms?: number;
-}>): Promise<{ success: boolean; processed: number }> {
+export async function trackSiteEvent(
+  events: Array<{
+    event_type: 'pageview' | 'click' | 'form' | 'error' | 'performance';
+    event_name: string;
+    properties: Readonly<Record<string, string | number | boolean | null>>;
+    session_id: string;
+    duration_ms?: number;
+  }>
+): Promise<{ success: boolean; processed: number }> {
   return apiRequest('/api/site/analytics/track', {
     method: 'POST',
     body: JSON.stringify({ events }),
@@ -1303,7 +1306,9 @@ export async function syncAdminStripeData(): Promise<AdminStripeSyncResult> {
   return post('/api/admin/stripe/sync');
 }
 
-export async function openAdminBillingPortal(email: string): Promise<{ success: boolean; url: string }> {
+export async function openAdminBillingPortal(
+  email: string
+): Promise<{ success: boolean; url: string }> {
   return post('/api/billing/portal', { email });
 }
 

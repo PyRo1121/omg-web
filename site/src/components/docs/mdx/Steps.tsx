@@ -1,4 +1,4 @@
-import { For, ParentProps, JSX, Show } from "solid-js";
+import { For, ParentProps, JSX, Show } from 'solid-js';
 
 interface StepProps extends ParentProps {
   title?: string;
@@ -34,7 +34,7 @@ export function Steps(props: StepsProps) {
                 {index() + 1}
               </div>
               <Show when={index() < children().length - 1}>
-                <div class="absolute left-4 top-10 h-[calc(100%-24px)] w-0.5 -translate-x-1/2 bg-slate-700" />
+                <div class="absolute top-10 left-4 h-[calc(100%-24px)] w-0.5 -translate-x-1/2 bg-slate-700" />
               </Show>
             </div>
             <div class="flex-1 pb-2">{child}</div>

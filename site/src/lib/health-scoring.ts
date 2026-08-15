@@ -14,7 +14,17 @@
 
 export type ChurnRisk = 'low' | 'medium' | 'high' | 'critical';
 
-export type FeatureName = 'daemon' | 'parallel' | 'sbom' | 'fleet' | 'aur' | 'runtimes' | 'audit' | 'pgp' | 'slsa' | 'cache';
+export type FeatureName =
+  | 'daemon'
+  | 'parallel'
+  | 'sbom'
+  | 'fleet'
+  | 'aur'
+  | 'runtimes'
+  | 'audit'
+  | 'pgp'
+  | 'slsa'
+  | 'cache';
 
 export type VelocityTrend = 'growing' | 'stable' | 'declining';
 
@@ -149,7 +159,7 @@ export interface InterventionSuggestion {
 
 export interface ChurnPrediction {
   probability: number; // 0.0-1.0
-  confidence: number;  // 0.0-1.0
+  confidence: number; // 0.0-1.0
   riskFactors: string[];
   protectiveFactors: string[];
 }
@@ -159,15 +169,26 @@ export interface ChurnPrediction {
 // ============================================================================
 
 const WEIGHTS = {
-  engagement: 0.40,
-  adoption: 0.30,
-  satisfaction: 0.20,
-  supportHealth: 0.10,
+  engagement: 0.4,
+  adoption: 0.3,
+  satisfaction: 0.2,
+  supportHealth: 0.1,
 } as const;
 
 const ADVANCED_FEATURES: FeatureName[] = ['aur', 'sbom', 'fleet', 'slsa', 'audit'];
 
-const ALL_FEATURES: FeatureName[] = ['daemon', 'parallel', 'sbom', 'fleet', 'aur', 'runtimes', 'audit', 'pgp', 'slsa', 'cache'];
+const ALL_FEATURES: FeatureName[] = [
+  'daemon',
+  'parallel',
+  'sbom',
+  'fleet',
+  'aur',
+  'runtimes',
+  'audit',
+  'pgp',
+  'slsa',
+  'cache',
+];
 
 // Industry average: 30 minutes saved per day for package management
 const DEFAULT_INDUSTRY_AVG_TIME_SAVED_MS = 30 * 60 * 1000;
@@ -197,7 +218,7 @@ function calculateCommandsTrendScore(usageDaily: UsageDailyRecord[]): number {
   const secondHalfAvg = secondHalf.reduce((sum, d) => sum + d.commandsRun, 0) / secondHalf.length;
 
   if (secondHalfAvg > firstHalfAvg * 1.1) return 10; // Growing (>10% increase)
-  if (secondHalfAvg < firstHalfAvg * 0.9) return 0;  // Declining (>10% decrease)
+  if (secondHalfAvg < firstHalfAvg * 0.9) return 0; // Declining (>10% decrease)
   return 5; // Stable
 }
 
@@ -287,7 +308,10 @@ function parseVersion(version: string): { major: number; minor: number; patch: n
 function calculateAdoptionScore(data: HealthDataInput): AdoptionScore {
   const featureBreadthScore = calculateFeatureBreadthScore(data.featureUsage);
   const advancedFeatureScore = calculateAdvancedFeatureScore(data.featureUsage);
-  const versionCurrencyScore = calculateVersionCurrencyScore(data.currentOmgVersion, data.latestOmgVersion);
+  const versionCurrencyScore = calculateVersionCurrencyScore(
+    data.currentOmgVersion,
+    data.latestOmgVersion
+  );
 
   // Normalize to 0-100
   const rawTotal = featureBreadthScore + advancedFeatureScore + versionCurrencyScore;
@@ -314,7 +338,7 @@ function calculateErrorRateScore(commandEvents: CommandEventRecord[]): number {
   const errorRate = failedCommands / commandEvents.length;
 
   // 0% errors = 40 points, 10%+ errors = 0 points
-  return Math.round(Math.max(0, 40 - (errorRate * 400)));
+  return Math.round(Math.max(0, 40 - errorRate * 400));
 }
 
 function calculateTimeSavedScore(usageDaily: UsageDailyRecord[], industryAvgMs: number): number {
@@ -368,7 +392,7 @@ function calculateSatisfactionScore(data: HealthDataInput): SatisfactionScore {
 
 function calculateTicketVolumeScore(tickets: SupportTicket[]): number {
   // Recent support tickets (last 30 days) - negative if many
-  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const recentTickets = tickets.filter(t => t.createdAt > thirtyDaysAgo);
 
   // 0 tickets = 40 points, 1 ticket = 30, 2 = 20, 3+ = 10
@@ -381,16 +405,15 @@ function calculateTicketVolumeScore(tickets: SupportTicket[]): number {
 
 function calculateResolutionSatisfactionScore(tickets: SupportTicket[]): number {
   // Average satisfaction rating of resolved tickets
-  const resolvedWithRating = tickets.filter(
-    t => t.status === 'resolved' || t.status === 'closed'
-  ).filter(t => t.satisfactionRating !== undefined);
+  const resolvedWithRating = tickets
+    .filter(t => t.status === 'resolved' || t.status === 'closed')
+    .filter(t => t.satisfactionRating !== undefined);
 
   if (resolvedWithRating.length === 0) return 30; // Default if no rated tickets
 
-  const avgRating = resolvedWithRating.reduce(
-    (sum, t) => sum + (t.satisfactionRating ?? 0),
-    0
-  ) / resolvedWithRating.length;
+  const avgRating =
+    resolvedWithRating.reduce((sum, t) => sum + (t.satisfactionRating ?? 0), 0) /
+    resolvedWithRating.length;
 
   // Rating is 1-5, scale to 0-30 points
   return Math.round(((avgRating - 1) / 4) * 30);
@@ -442,9 +465,9 @@ export function calculateHealthScore(data: HealthDataInput): HealthScoreResult {
   // Calculate weighted overall score
   const overallScore = Math.round(
     engagement.total * WEIGHTS.engagement +
-    adoption.total * WEIGHTS.adoption +
-    satisfaction.total * WEIGHTS.satisfaction +
-    supportHealth.total * WEIGHTS.supportHealth
+      adoption.total * WEIGHTS.adoption +
+      satisfaction.total * WEIGHTS.satisfaction +
+      supportHealth.total * WEIGHTS.supportHealth
   );
 
   // Determine churn risk based on overall score and specific signals
@@ -479,10 +502,7 @@ function determineChurnRisk(score: number, data: HealthDataInput): ChurnRisk {
  * @param trends - Historical health trends
  * @returns 'high', 'medium', or 'low' risk level
  */
-export function calculateChurnRisk(
-  score: HealthScoreResult,
-  trends: HealthTrends
-): ChurnRisk {
+export function calculateChurnRisk(score: HealthScoreResult, trends: HealthTrends): ChurnRisk {
   // Start with score-based risk
   let riskPoints = 0;
 
@@ -521,9 +541,7 @@ export function calculateChurnRisk(
  * @param healthData - Raw health data input
  * @returns Array of prioritized intervention suggestions
  */
-export function getInterventionSuggestions(
-  healthData: HealthDataInput
-): InterventionSuggestion[] {
+export function getInterventionSuggestions(healthData: HealthDataInput): InterventionSuggestion[] {
   const suggestions: InterventionSuggestion[] = [];
   const score = calculateHealthScore(healthData);
 
@@ -535,7 +553,8 @@ export function getInterventionSuggestions(
       category: 'engagement',
       title: 'Low Activity Detected',
       description: `Customer has only been active ${activeDays} days in the last 30 days.`,
-      suggestedAction: 'Schedule check-in call to understand usage barriers and provide onboarding support.',
+      suggestedAction:
+        'Schedule check-in call to understand usage barriers and provide onboarding support.',
       expectedImpact: 'Re-engagement can increase retention by 40%',
     });
   }
@@ -550,7 +569,8 @@ export function getInterventionSuggestions(
       category: 'adoption',
       title: 'Low Feature Adoption',
       description: 'Customer has not used any advanced features (AUR, SBOM, Fleet, SLSA, Audit).',
-      suggestedAction: 'Send targeted email showcasing advanced features relevant to their use case.',
+      suggestedAction:
+        'Send targeted email showcasing advanced features relevant to their use case.',
       expectedImpact: 'Feature adoption increases stickiness and reduces churn by 25%',
     });
   }
@@ -560,7 +580,10 @@ export function getInterventionSuggestions(
     const current = parseVersion(healthData.currentOmgVersion);
     const latest = parseVersion(healthData.latestOmgVersion);
 
-    if (latest.major > current.major || (latest.major === current.major && latest.minor - current.minor > 2)) {
+    if (
+      latest.major > current.major ||
+      (latest.major === current.major && latest.minor - current.minor > 2)
+    ) {
       suggestions.push({
         priority: 'low',
         category: 'adoption',
@@ -574,9 +597,8 @@ export function getInterventionSuggestions(
 
   // Check error rate
   const failedCommands = healthData.commandEvents.filter(e => !e.success).length;
-  const errorRate = healthData.commandEvents.length > 0
-    ? failedCommands / healthData.commandEvents.length
-    : 0;
+  const errorRate =
+    healthData.commandEvents.length > 0 ? failedCommands / healthData.commandEvents.length : 0;
 
   if (errorRate > 0.1) {
     suggestions.push({
@@ -584,14 +606,15 @@ export function getInterventionSuggestions(
       category: 'satisfaction',
       title: 'High Error Rate',
       description: `${Math.round(errorRate * 100)}% of commands are failing.`,
-      suggestedAction: 'Review error logs and proactively reach out with troubleshooting assistance.',
+      suggestedAction:
+        'Review error logs and proactively reach out with troubleshooting assistance.',
       expectedImpact: 'Resolving errors can prevent immediate churn',
     });
   }
 
   // Check support ticket volume
   const recentTickets = (healthData.supportTickets ?? []).filter(
-    t => t.createdAt > Date.now() - (30 * 24 * 60 * 60 * 1000)
+    t => t.createdAt > Date.now() - 30 * 24 * 60 * 60 * 1000
   );
 
   if (recentTickets.length >= 3) {
@@ -682,9 +705,7 @@ export interface ChurnHistoryRecord {
  * @param history - Historical data for the customer
  * @returns Churn prediction with probability, confidence, and risk factors
  */
-export function predictChurnProbability(
-  history: ChurnHistoryRecord[]
-): ChurnPrediction {
+export function predictChurnProbability(history: ChurnHistoryRecord[]): ChurnPrediction {
   if (history.length === 0) {
     return {
       probability: 0.5,
@@ -701,14 +722,14 @@ export function predictChurnProbability(
   // These would normally be trained on historical churn data
   const weights = {
     intercept: -0.5,
-    healthScore: -0.03,        // Lower health = higher churn
-    daysInactive: 0.08,        // More inactive days = higher churn
-    errorRate: 2.0,            // Higher error rate = higher churn
-    featuresUsed: -0.15,       // More features = lower churn
-    supportTickets: 0.2,       // More tickets = higher churn
-    tierFree: 0.5,             // Free tier more likely to churn
-    tierTeam: 0.1,             // Team tier slightly likely
-    tierEnterprise: -0.3,      // Enterprise least likely
+    healthScore: -0.03, // Lower health = higher churn
+    daysInactive: 0.08, // More inactive days = higher churn
+    errorRate: 2.0, // Higher error rate = higher churn
+    featuresUsed: -0.15, // More features = lower churn
+    supportTickets: 0.2, // More tickets = higher churn
+    tierFree: 0.5, // Free tier more likely to churn
+    tierTeam: 0.1, // Team tier slightly likely
+    tierEnterprise: -0.3, // Enterprise least likely
   };
 
   // Calculate logit (log-odds)
@@ -729,7 +750,7 @@ export function predictChurnProbability(
 
   // Calculate confidence based on data quality
   const dataPoints = history.length;
-  const confidence = Math.min(0.9, 0.3 + (dataPoints * 0.02));
+  const confidence = Math.min(0.9, 0.3 + dataPoints * 0.02);
 
   // Identify risk and protective factors
   const riskFactors: string[] = [];
@@ -811,8 +832,8 @@ export function calculateHealthTrends(
   usageDaily: UsageDailyRecord[]
 ): HealthTrends {
   const now = Date.now();
-  const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
-  const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
 
   // Calculate command velocity
   const last7Days = usageDaily.filter(d => new Date(d.date).getTime() > sevenDaysAgo);
@@ -882,9 +903,13 @@ export function getHealthScoreColor(score: number): string {
  */
 export function getChurnRiskColor(risk: ChurnRisk): string {
   switch (risk) {
-    case 'low': return '#10b981';     // Green
-    case 'medium': return '#f59e0b';  // Amber
-    case 'high': return '#ef4444';    // Red
-    case 'critical': return '#dc2626'; // Dark red
+    case 'low':
+      return '#10b981'; // Green
+    case 'medium':
+      return '#f59e0b'; // Amber
+    case 'high':
+      return '#ef4444'; // Red
+    case 'critical':
+      return '#dc2626'; // Dark red
   }
 }

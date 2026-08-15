@@ -6,13 +6,24 @@
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-import { Env, jsonResponse, errorResponse, generateId } from '../api';
+import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 
 // Analytics event from docs site
+interface DocsAnalyticsProperties {
+  readonly [key: string]: unknown;
+  readonly utm?: {
+    readonly source?: string;
+    readonly medium?: string;
+    readonly campaign?: string;
+  };
+  readonly referrer?: string;
+  readonly url?: string;
+}
+
 interface DocsAnalyticsEvent {
   event_type: 'pageview' | 'interaction' | 'navigation' | 'performance';
   event_name: string;
-  properties: Record<string, any>;
+  properties: DocsAnalyticsProperties;
   timestamp: string;
   session_id: string;
   duration_ms?: number;
@@ -28,7 +39,11 @@ interface DocsAnalyticsBatch {
  * Accept batch analytics events from docs site
  * Rate limited to 100 requests per minute per IP (prevents abuse)
  */
-export async function handleDocsAnalytics(request: Request, env: Env): Promise<Response> {
+export async function handleDocsAnalytics(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext
+): Promise<Response> {
   try {
     // Rate limiting (100 requests/min per IP)
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
@@ -60,7 +75,13 @@ export async function handleDocsAnalytics(request: Request, env: Env): Promise<R
 
     for (const event of body.events) {
       // Validate event structure
-      if (!event.event_type || !event.event_name || !event.properties || !event.timestamp || !event.session_id) {
+      if (
+        !event.event_type ||
+        !event.event_name ||
+        !event.properties ||
+        !event.timestamp ||
+        !event.session_id
+      ) {
         continue; // Skip malformed events
       }
 
@@ -126,7 +147,11 @@ export async function handleDocsAnalytics(request: Request, env: Env): Promise<R
     // Trigger async aggregation for the current day (fire-and-forget)
     // This updates daily rollups without blocking the response
     const today = new Date().toISOString().split('T')[0];
-    env.ctx?.waitUntil(aggregateDocsAnalytics(env.DB, today));
+    ctx.waitUntil(
+      aggregateDocsAnalytics(env.DB, today).catch(error => {
+        console.error('Docs analytics background aggregation failed:', error);
+      })
+    );
 
     return jsonResponse({
       success: true,
@@ -251,8 +276,14 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
     ]);
 
     // Calculate summary stats
-    const totalPageviews = pageviewsResult.results.reduce((sum: number, row: any) => sum + (row.views || 0), 0);
-    const totalSessions = pageviewsResult.results.reduce((sum: number, row: any) => sum + (row.sessions || 0), 0);
+    const totalPageviews = pageviewsResult.results.reduce(
+      (sum: number, row: any) => sum + (row.views || 0),
+      0
+    );
+    const totalSessions = pageviewsResult.results.reduce(
+      (sum: number, row: any) => sum + (row.sessions || 0),
+      0
+    );
 
     return jsonResponse({
       summary: {
@@ -410,7 +441,9 @@ export async function cleanupDocsAnalytics(db: D1Database): Promise<void> {
 
     // Clean up old sessions (>30 days)
     await db
-      .prepare(`DELETE FROM docs_analytics_sessions WHERE first_seen_at < datetime('now', '-30 days')`)
+      .prepare(
+        `DELETE FROM docs_analytics_sessions WHERE first_seen_at < datetime('now', '-30 days')`
+      )
       .run();
   } catch (error) {
     console.error('Docs analytics cleanup error:', error);

@@ -63,17 +63,83 @@ interface ReportConfig {
 }
 
 const AVAILABLE_METRICS: Metric[] = [
-  { id: 'dau', name: 'Daily Active Users', category: 'engagement', dataKey: 'engagement.dau', format: 'number' },
-  { id: 'wau', name: 'Weekly Active Users', category: 'engagement', dataKey: 'engagement.wau', format: 'number' },
-  { id: 'mau', name: 'Monthly Active Users', category: 'engagement', dataKey: 'engagement.mau', format: 'number' },
-  { id: 'mrr', name: 'Monthly Recurring Revenue', category: 'revenue', dataKey: 'revenue_metrics.current_mrr', format: 'currency' },
-  { id: 'arr', name: 'Annual Recurring Revenue', category: 'revenue', dataKey: 'revenue_metrics.projected_arr', format: 'currency' },
-  { id: 'expansion_mrr', name: 'Expansion MRR', category: 'revenue', dataKey: 'revenue_metrics.expansion_mrr_12m', format: 'currency' },
-  { id: 'churn_risk', name: 'Churn Risk Users', category: 'health', dataKey: 'churn_risk_segments', format: 'number' },
-  { id: 'activation_rate', name: 'Week 1 Activation Rate', category: 'users', dataKey: 'time_to_value.pct_activated_week1', format: 'percent' },
-  { id: 'install_adopters', name: 'Install Feature Adopters', category: 'features', dataKey: 'feature_adoption.install_adopters', format: 'number' },
-  { id: 'search_adopters', name: 'Search Feature Adopters', category: 'features', dataKey: 'feature_adoption.search_adopters', format: 'number' },
-  { id: 'runtime_adopters', name: 'Runtime Feature Adopters', category: 'features', dataKey: 'feature_adoption.runtime_adopters', format: 'number' },
+  {
+    id: 'dau',
+    name: 'Daily Active Users',
+    category: 'engagement',
+    dataKey: 'engagement.dau',
+    format: 'number',
+  },
+  {
+    id: 'wau',
+    name: 'Weekly Active Users',
+    category: 'engagement',
+    dataKey: 'engagement.wau',
+    format: 'number',
+  },
+  {
+    id: 'mau',
+    name: 'Monthly Active Users',
+    category: 'engagement',
+    dataKey: 'engagement.mau',
+    format: 'number',
+  },
+  {
+    id: 'mrr',
+    name: 'Monthly Recurring Revenue',
+    category: 'revenue',
+    dataKey: 'revenue_metrics.current_mrr',
+    format: 'currency',
+  },
+  {
+    id: 'arr',
+    name: 'Annual Recurring Revenue',
+    category: 'revenue',
+    dataKey: 'revenue_metrics.projected_arr',
+    format: 'currency',
+  },
+  {
+    id: 'expansion_mrr',
+    name: 'Expansion MRR',
+    category: 'revenue',
+    dataKey: 'revenue_metrics.expansion_mrr_12m',
+    format: 'currency',
+  },
+  {
+    id: 'churn_risk',
+    name: 'Churn Risk Users',
+    category: 'health',
+    dataKey: 'churn_risk_segments',
+    format: 'number',
+  },
+  {
+    id: 'activation_rate',
+    name: 'Week 1 Activation Rate',
+    category: 'users',
+    dataKey: 'time_to_value.pct_activated_week1',
+    format: 'percent',
+  },
+  {
+    id: 'install_adopters',
+    name: 'Install Feature Adopters',
+    category: 'features',
+    dataKey: 'feature_adoption.install_adopters',
+    format: 'number',
+  },
+  {
+    id: 'search_adopters',
+    name: 'Search Feature Adopters',
+    category: 'features',
+    dataKey: 'feature_adoption.search_adopters',
+    format: 'number',
+  },
+  {
+    id: 'runtime_adopters',
+    name: 'Runtime Feature Adopters',
+    category: 'features',
+    dataKey: 'feature_adoption.runtime_adopters',
+    format: 'number',
+  },
 ];
 
 const AVAILABLE_DIMENSIONS: Dimension[] = [
@@ -85,14 +151,15 @@ const AVAILABLE_DIMENSIONS: Dimension[] = [
   { id: 'month', name: 'Month', dataKey: 'month' },
 ];
 
-const VISUALIZATION_OPTIONS: { type: VisualizationType; icon: typeof BarChart3; label: string }[] = [
-  { type: 'bar', icon: BarChart3, label: 'Bar Chart' },
-  { type: 'line', icon: LineChart, label: 'Line Chart' },
-  { type: 'pie', icon: PieChart, label: 'Pie Chart' },
-  { type: 'table', icon: Table2, label: 'Data Table' },
-  { type: 'heatmap', icon: Grid3X3, label: 'Heatmap' },
-  { type: 'kpi', icon: Layers, label: 'KPI Cards' },
-];
+const VISUALIZATION_OPTIONS: { type: VisualizationType; icon: typeof BarChart3; label: string }[] =
+  [
+    { type: 'bar', icon: BarChart3, label: 'Bar Chart' },
+    { type: 'line', icon: LineChart, label: 'Line Chart' },
+    { type: 'pie', icon: PieChart, label: 'Pie Chart' },
+    { type: 'table', icon: Table2, label: 'Data Table' },
+    { type: 'heatmap', icon: Grid3X3, label: 'Heatmap' },
+    { type: 'kpi', icon: Layers, label: 'KPI Cards' },
+  ];
 
 const CATEGORY_COLORS: Record<MetricCategory, string> = {
   engagement: '#6366f1',
@@ -106,7 +173,7 @@ const MetricChip: Component<{
   metric: Metric;
   selected: boolean;
   onToggle: () => void;
-}> = (props) => {
+}> = props => {
   return (
     <button
       onClick={props.onToggle}
@@ -114,7 +181,7 @@ const MetricChip: Component<{
         'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition-all',
         props.selected
           ? 'border-white/20 bg-white/10 text-white'
-          : 'border-white/5 bg-void-850 text-nebula-400 hover:border-white/10 hover:text-white'
+          : 'bg-void-850 text-nebula-400 border-white/5 hover:border-white/10 hover:text-white'
       )}
     >
       <div
@@ -133,7 +200,7 @@ const DimensionChip: Component<{
   dimension: Dimension;
   selected: boolean;
   onToggle: () => void;
-}> = (props) => {
+}> = props => {
   return (
     <button
       onClick={props.onToggle}
@@ -141,7 +208,7 @@ const DimensionChip: Component<{
         'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition-all',
         props.selected
           ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-400'
-          : 'border-white/5 bg-void-850 text-nebula-400 hover:border-white/10 hover:text-white'
+          : 'bg-void-850 text-nebula-400 border-white/5 hover:border-white/10 hover:text-white'
       )}
     >
       <Grid3X3 size={12} />
@@ -158,24 +225,22 @@ const FilterRow: Component<{
   dimensions: Dimension[];
   onUpdate: (filter: ReportFilter) => void;
   onRemove: () => void;
-}> = (props) => {
+}> = props => {
   return (
-    <div class="flex items-center gap-2 rounded-lg border border-white/5 bg-void-850 p-2">
-      <GripVertical size={14} class="cursor-grab text-nebula-600" />
+    <div class="bg-void-850 flex items-center gap-2 rounded-lg border border-white/5 p-2">
+      <GripVertical size={14} class="text-nebula-600 cursor-grab" />
 
       <select
         value={props.filter.dimension}
-        onChange={(e) => props.onUpdate({ ...props.filter, dimension: e.currentTarget.value })}
+        onChange={e => props.onUpdate({ ...props.filter, dimension: e.currentTarget.value })}
         class="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white"
       >
-        <For each={props.dimensions}>
-          {(dim) => <option value={dim.id}>{dim.name}</option>}
-        </For>
+        <For each={props.dimensions}>{dim => <option value={dim.id}>{dim.name}</option>}</For>
       </select>
 
       <select
         value={props.filter.operator}
-        onChange={(e) =>
+        onChange={e =>
           props.onUpdate({
             ...props.filter,
             operator: e.currentTarget.value as ReportFilter['operator'],
@@ -192,14 +257,14 @@ const FilterRow: Component<{
       <input
         type="text"
         value={props.filter.value}
-        onInput={(e) => props.onUpdate({ ...props.filter, value: e.currentTarget.value })}
+        onInput={e => props.onUpdate({ ...props.filter, value: e.currentTarget.value })}
         placeholder="Value..."
-        class="flex-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white placeholder-nebula-500"
+        class="placeholder-nebula-500 flex-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white"
       />
 
       <button
         onClick={props.onRemove}
-        class="rounded-lg p-1.5 text-nebula-500 transition-colors hover:bg-flare-500/10 hover:text-flare-400"
+        class="text-nebula-500 hover:bg-flare-500/10 hover:text-flare-400 rounded-lg p-1.5 transition-colors"
       >
         <X size={14} />
       </button>
@@ -210,15 +275,15 @@ const FilterRow: Component<{
 const ReportPreview: Component<{
   config: ReportConfig;
   data: Record<string, unknown> | undefined;
-}> = (props) => {
+}> = props => {
   const selectedMetrics = createMemo(() =>
-    AVAILABLE_METRICS.filter((m) => props.config.metrics.includes(m.id))
+    AVAILABLE_METRICS.filter(m => props.config.metrics.includes(m.id))
   );
 
   const chartData = createMemo(() => {
     if (!props.data) return [];
     const metrics = selectedMetrics();
-    return metrics.map((metric) => ({
+    return metrics.map(metric => ({
       label: metric.name,
       value: Number(getNestedValue(props.data, metric.dataKey)) || 0,
       color: CATEGORY_COLORS[metric.category],
@@ -234,26 +299,26 @@ const ReportPreview: Component<{
   return (
     <div class="space-y-4">
       <div class="flex items-center justify-between">
-        <h4 class="text-sm font-black uppercase tracking-widest text-nebula-400">Preview</h4>
+        <h4 class="text-nebula-400 text-sm font-black tracking-widest uppercase">Preview</h4>
         <span class="text-2xs text-nebula-500">Live data</span>
       </div>
 
       <Show
         when={props.config.metrics.length > 0}
         fallback={
-          <div class="flex h-48 items-center justify-center rounded-xl border border-dashed border-white/10 bg-void-900">
-            <p class="text-sm text-nebula-500">Select metrics to see preview</p>
+          <div class="bg-void-900 flex h-48 items-center justify-center rounded-xl border border-dashed border-white/10">
+            <p class="text-nebula-500 text-sm">Select metrics to see preview</p>
           </div>
         }
       >
         <Show when={props.config.visualization === 'bar'}>
-          <div class="rounded-xl border border-white/5 bg-void-850 p-4">
+          <div class="bg-void-850 rounded-xl border border-white/5 p-4">
             <BarChart data={chartData()} height={200} showLabels showValues />
           </div>
         </Show>
 
         <Show when={props.config.visualization === 'pie'}>
-          <div class="flex justify-center rounded-xl border border-white/5 bg-void-850 p-4">
+          <div class="bg-void-850 flex justify-center rounded-xl border border-white/5 p-4">
             <DonutChart
               data={chartData()}
               size={200}
@@ -267,15 +332,15 @@ const ReportPreview: Component<{
         <Show when={props.config.visualization === 'kpi'}>
           <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <For each={selectedMetrics()}>
-              {(metric) => {
+              {metric => {
                 const value = Number(getNestedValue(props.data, metric.dataKey)) || 0;
                 return (
-                  <div class="rounded-xl border border-white/5 bg-void-850 p-4">
-                    <p class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+                  <div class="bg-void-850 rounded-xl border border-white/5 p-4">
+                    <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
                       {metric.name}
                     </p>
                     <p
-                      class="mt-1 font-display text-2xl font-black"
+                      class="font-display mt-1 text-2xl font-black"
                       style={{ color: CATEGORY_COLORS[metric.category] }}
                     >
                       {formatValue(value, metric.format)}
@@ -288,21 +353,21 @@ const ReportPreview: Component<{
         </Show>
 
         <Show when={props.config.visualization === 'table'}>
-          <div class="overflow-hidden rounded-xl border border-white/5 bg-void-850">
+          <div class="bg-void-850 overflow-hidden rounded-xl border border-white/5">
             <table class="w-full text-sm">
               <thead>
-                <tr class="border-b border-white/5 bg-void-800">
-                  <th class="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-nebula-500">
+                <tr class="bg-void-800 border-b border-white/5">
+                  <th class="text-nebula-500 px-4 py-2 text-left text-xs font-bold tracking-widest uppercase">
                     Metric
                   </th>
-                  <th class="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-nebula-500">
+                  <th class="text-nebula-500 px-4 py-2 text-right text-xs font-bold tracking-widest uppercase">
                     Value
                   </th>
                 </tr>
               </thead>
               <tbody>
                 <For each={selectedMetrics()}>
-                  {(metric) => {
+                  {metric => {
                     const value = Number(getNestedValue(props.data, metric.dataKey)) || 0;
                     return (
                       <tr class="border-b border-white/5">
@@ -320,13 +385,13 @@ const ReportPreview: Component<{
         </Show>
 
         <Show when={props.config.visualization === 'line'}>
-          <div class="rounded-xl border border-white/5 bg-void-850 p-4">
+          <div class="bg-void-850 rounded-xl border border-white/5 p-4">
             <div class="flex h-48 items-center justify-center">
               <div class="space-y-4">
                 <For each={selectedMetrics()}>
-                  {(metric) => (
+                  {metric => (
                     <div class="flex items-center gap-4">
-                      <span class="w-32 text-xs text-nebula-400">{metric.name}</span>
+                      <span class="text-nebula-400 w-32 text-xs">{metric.name}</span>
                       <Sparkline
                         data={generateSparklineData(8)}
                         width={200}
@@ -343,10 +408,10 @@ const ReportPreview: Component<{
         </Show>
 
         <Show when={props.config.visualization === 'heatmap'}>
-          <div class="flex h-48 items-center justify-center rounded-xl border border-white/5 bg-void-850">
+          <div class="bg-void-850 flex h-48 items-center justify-center rounded-xl border border-white/5">
             <div class="text-center">
-              <Grid3X3 size={32} class="mx-auto mb-2 text-nebula-600" />
-              <p class="text-sm text-nebula-500">Heatmap requires time dimension</p>
+              <Grid3X3 size={32} class="text-nebula-600 mx-auto mb-2" />
+              <p class="text-nebula-500 text-sm">Heatmap requires time dimension</p>
             </div>
           </div>
         </Show>
@@ -377,18 +442,19 @@ const SavedReportCard: Component<{
   report: ReportConfig;
   onLoad: () => void;
   onDelete: () => void;
-}> = (props) => {
+}> = props => {
   const vizOption = () =>
-    VISUALIZATION_OPTIONS.find((v) => v.type === props.report.visualization) || VISUALIZATION_OPTIONS[0];
+    VISUALIZATION_OPTIONS.find(v => v.type === props.report.visualization) ||
+    VISUALIZATION_OPTIONS[0];
   const IconComponent = vizOption().icon;
 
   return (
-    <div class="group flex items-center gap-4 rounded-xl border border-white/5 bg-void-850 p-4 transition-all hover:border-white/10">
+    <div class="group bg-void-850 flex items-center gap-4 rounded-xl border border-white/5 p-4 transition-all hover:border-white/10">
       <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10">
         <IconComponent size={18} class="text-indigo-400" />
       </div>
 
-      <div class="flex-1 min-w-0">
+      <div class="min-w-0 flex-1">
         <h4 class="truncate font-bold text-white">{props.report.name}</h4>
         <p class="text-2xs text-nebula-500">
           {props.report.metrics.length} metrics · {vizOption().label}
@@ -404,7 +470,7 @@ const SavedReportCard: Component<{
         </button>
         <button
           onClick={props.onDelete}
-          class="rounded-lg border border-white/10 p-1.5 text-nebula-400 transition-colors hover:bg-flare-500/10 hover:text-flare-400"
+          class="text-nebula-400 hover:bg-flare-500/10 hover:text-flare-400 rounded-lg border border-white/10 p-1.5 transition-colors"
         >
           <Trash2 size={14} />
         </button>
@@ -436,38 +502,41 @@ export const CustomReportBuilder: Component = () => {
     dimensions: selectedDimensions(),
     filters: filters(),
     schedule: schedule(),
-    recipients: recipients().split(',').map((r) => r.trim()).filter(Boolean),
+    recipients: recipients()
+      .split(',')
+      .map(r => r.trim())
+      .filter(Boolean),
   }));
 
   const toggleMetric = (metricId: string) => {
-    setSelectedMetrics((prev) =>
-      prev.includes(metricId) ? prev.filter((id) => id !== metricId) : [...prev, metricId]
+    setSelectedMetrics(prev =>
+      prev.includes(metricId) ? prev.filter(id => id !== metricId) : [...prev, metricId]
     );
   };
 
   const toggleDimension = (dimId: string) => {
-    setSelectedDimensions((prev) =>
-      prev.includes(dimId) ? prev.filter((id) => id !== dimId) : [...prev, dimId]
+    setSelectedDimensions(prev =>
+      prev.includes(dimId) ? prev.filter(id => id !== dimId) : [...prev, dimId]
     );
   };
 
   const addFilter = () => {
-    setFilters((prev) => [
+    setFilters(prev => [
       ...prev,
       { dimension: AVAILABLE_DIMENSIONS[0].id, operator: 'equals', value: '' },
     ]);
   };
 
   const updateFilter = (index: number, filter: ReportFilter) => {
-    setFilters((prev) => prev.map((f, i) => (i === index ? filter : f)));
+    setFilters(prev => prev.map((f, i) => (i === index ? filter : f)));
   };
 
   const removeFilter = (index: number) => {
-    setFilters((prev) => prev.filter((_, i) => i !== index));
+    setFilters(prev => prev.filter((_, i) => i !== index));
   };
 
   const saveReport = () => {
-    setSavedReports((prev) => [...prev, currentConfig()]);
+    setSavedReports(prev => [...prev, currentConfig()]);
     setShowSaveModal(false);
   };
 
@@ -483,7 +552,7 @@ export const CustomReportBuilder: Component = () => {
   };
 
   const deleteReport = (reportId: string) => {
-    setSavedReports((prev) => prev.filter((r) => r.id !== reportId));
+    setSavedReports(prev => prev.filter(r => r.id !== reportId));
   };
 
   const exportReport = () => {
@@ -505,7 +574,7 @@ export const CustomReportBuilder: Component = () => {
       features: [],
       health: [],
     };
-    AVAILABLE_METRICS.forEach((m) => grouped[m.category].push(m));
+    AVAILABLE_METRICS.forEach(m => grouped[m.category].push(m));
     return grouped;
   });
 
@@ -519,7 +588,7 @@ export const CustomReportBuilder: Component = () => {
             </div>
             Custom Report Builder
           </h2>
-          <p class="mt-2 text-sm text-nebula-500">
+          <p class="text-nebula-500 mt-2 text-sm">
             Build custom reports with drag-and-drop metrics and visualizations
           </p>
         </div>
@@ -547,47 +616,47 @@ export const CustomReportBuilder: Component = () => {
 
       <div class="grid gap-8 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
-          <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-            <h3 class="mb-4 text-sm font-black uppercase tracking-widest text-white">
+          <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+            <h3 class="mb-4 text-sm font-black tracking-widest text-white uppercase">
               Report Details
             </h3>
             <div class="space-y-4">
               <div>
-                <label class="mb-1 block text-xs font-bold text-nebula-400">Report Name</label>
+                <label class="text-nebula-400 mb-1 block text-xs font-bold">Report Name</label>
                 <input
                   type="text"
                   value={reportName()}
-                  onInput={(e) => setReportName(e.currentTarget.value)}
-                  class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-nebula-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  onInput={e => setReportName(e.currentTarget.value)}
+                  class="placeholder-nebula-500 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
                 />
               </div>
               <div>
-                <label class="mb-1 block text-xs font-bold text-nebula-400">Description</label>
+                <label class="text-nebula-400 mb-1 block text-xs font-bold">Description</label>
                 <textarea
                   value={reportDescription()}
-                  onInput={(e) => setReportDescription(e.currentTarget.value)}
+                  onInput={e => setReportDescription(e.currentTarget.value)}
                   placeholder="What does this report show?"
                   rows={2}
-                  class="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-nebula-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  class="placeholder-nebula-500 w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
                 />
               </div>
             </div>
           </div>
 
-          <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-            <h3 class="mb-4 text-sm font-black uppercase tracking-widest text-white">
+          <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+            <h3 class="mb-4 text-sm font-black tracking-widest text-white uppercase">
               Visualization Type
             </h3>
             <div class="grid grid-cols-3 gap-3 md:grid-cols-6">
               <For each={VISUALIZATION_OPTIONS}>
-                {(option) => (
+                {option => (
                   <button
                     onClick={() => setSelectedViz(option.type)}
                     class={cn(
                       'flex flex-col items-center gap-2 rounded-xl border p-4 transition-all',
                       selectedViz() === option.type
                         ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-400'
-                        : 'border-white/5 bg-void-800 text-nebula-400 hover:border-white/10 hover:text-white'
+                        : 'bg-void-800 text-nebula-400 border-white/5 hover:border-white/10 hover:text-white'
                     )}
                   >
                     <option.icon size={24} />
@@ -598,8 +667,8 @@ export const CustomReportBuilder: Component = () => {
             </div>
           </div>
 
-          <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-            <h3 class="mb-4 text-sm font-black uppercase tracking-widest text-white">
+          <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+            <h3 class="mb-4 text-sm font-black tracking-widest text-white uppercase">
               Select Metrics
             </h3>
             <div class="space-y-4">
@@ -608,14 +677,14 @@ export const CustomReportBuilder: Component = () => {
                   <Show when={metrics.length > 0}>
                     <div>
                       <p
-                        class="mb-2 text-2xs font-bold uppercase tracking-widest"
+                        class="text-2xs mb-2 font-bold tracking-widest uppercase"
                         style={{ color: CATEGORY_COLORS[category as MetricCategory] }}
                       >
                         {category}
                       </p>
                       <div class="flex flex-wrap gap-2">
                         <For each={metrics}>
-                          {(metric) => (
+                          {metric => (
                             <MetricChip
                               metric={metric}
                               selected={selectedMetrics().includes(metric.id)}
@@ -631,13 +700,13 @@ export const CustomReportBuilder: Component = () => {
             </div>
           </div>
 
-          <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-            <h3 class="mb-4 text-sm font-black uppercase tracking-widest text-white">
+          <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+            <h3 class="mb-4 text-sm font-black tracking-widest text-white uppercase">
               Group By (Dimensions)
             </h3>
             <div class="flex flex-wrap gap-2">
               <For each={AVAILABLE_DIMENSIONS}>
-                {(dim) => (
+                {dim => (
                   <DimensionChip
                     dimension={dim}
                     selected={selectedDimensions().includes(dim.id)}
@@ -648,9 +717,9 @@ export const CustomReportBuilder: Component = () => {
             </div>
           </div>
 
-          <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
+          <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
             <div class="mb-4 flex items-center justify-between">
-              <h3 class="text-sm font-black uppercase tracking-widest text-white">Filters</h3>
+              <h3 class="text-sm font-black tracking-widest text-white uppercase">Filters</h3>
               <button
                 onClick={addFilter}
                 class="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-white/10"
@@ -663,9 +732,9 @@ export const CustomReportBuilder: Component = () => {
             <Show
               when={filters().length > 0}
               fallback={
-                <div class="rounded-xl border border-dashed border-white/10 bg-void-900 p-6 text-center">
-                  <Filter size={24} class="mx-auto mb-2 text-nebula-600" />
-                  <p class="text-sm text-nebula-500">No filters applied</p>
+                <div class="bg-void-900 rounded-xl border border-dashed border-white/10 p-6 text-center">
+                  <Filter size={24} class="text-nebula-600 mx-auto mb-2" />
+                  <p class="text-nebula-500 text-sm">No filters applied</p>
                 </div>
               }
             >
@@ -675,7 +744,7 @@ export const CustomReportBuilder: Component = () => {
                     <FilterRow
                       filter={filter}
                       dimensions={AVAILABLE_DIMENSIONS}
-                      onUpdate={(f) => updateFilter(i(), f)}
+                      onUpdate={f => updateFilter(i(), f)}
                       onRemove={() => removeFilter(i())}
                     />
                   )}
@@ -684,16 +753,16 @@ export const CustomReportBuilder: Component = () => {
             </Show>
           </div>
 
-          <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-            <h3 class="mb-4 text-sm font-black uppercase tracking-widest text-white">
+          <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+            <h3 class="mb-4 text-sm font-black tracking-widest text-white uppercase">
               Schedule Delivery
             </h3>
             <div class="grid gap-4 md:grid-cols-2">
               <div>
-                <label class="mb-1 block text-xs font-bold text-nebula-400">Frequency</label>
+                <label class="text-nebula-400 mb-1 block text-xs font-bold">Frequency</label>
                 <select
                   value={schedule()}
-                  onChange={(e) => setSchedule(e.currentTarget.value as ScheduleFrequency)}
+                  onChange={e => setSchedule(e.currentTarget.value as ScheduleFrequency)}
                   class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white focus:outline-none"
                 >
                   <option value="none">Don't schedule</option>
@@ -703,14 +772,14 @@ export const CustomReportBuilder: Component = () => {
                 </select>
               </div>
               <div>
-                <label class="mb-1 block text-xs font-bold text-nebula-400">Recipients</label>
+                <label class="text-nebula-400 mb-1 block text-xs font-bold">Recipients</label>
                 <input
                   type="text"
                   value={recipients()}
-                  onInput={(e) => setRecipients(e.currentTarget.value)}
+                  onInput={e => setRecipients(e.currentTarget.value)}
                   placeholder="email@example.com, team@example.com"
                   disabled={schedule() === 'none'}
-                  class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-nebula-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  class="placeholder-nebula-500 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
             </div>
@@ -723,27 +792,30 @@ export const CustomReportBuilder: Component = () => {
           </Show>
 
           <Show when={metricsQuery.isSuccess}>
-            <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-              <ReportPreview config={currentConfig()} data={metricsQuery.data as unknown as Record<string, unknown>} />
+            <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+              <ReportPreview
+                config={currentConfig()}
+                data={metricsQuery.data as unknown as Record<string, unknown>}
+              />
             </div>
           </Show>
 
-          <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-            <h3 class="mb-4 text-sm font-black uppercase tracking-widest text-white">
+          <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+            <h3 class="mb-4 text-sm font-black tracking-widest text-white uppercase">
               Saved Reports
             </h3>
             <Show
               when={savedReports().length > 0}
               fallback={
-                <div class="rounded-xl border border-dashed border-white/10 bg-void-900 p-6 text-center">
-                  <Save size={24} class="mx-auto mb-2 text-nebula-600" />
-                  <p class="text-sm text-nebula-500">No saved reports yet</p>
+                <div class="bg-void-900 rounded-xl border border-dashed border-white/10 p-6 text-center">
+                  <Save size={24} class="text-nebula-600 mx-auto mb-2" />
+                  <p class="text-nebula-500 text-sm">No saved reports yet</p>
                 </div>
               }
             >
               <div class="space-y-3">
                 <For each={savedReports()}>
-                  {(report) => (
+                  {report => (
                     <SavedReportCard
                       report={report}
                       onLoad={() => loadReport(report)}
@@ -759,9 +831,9 @@ export const CustomReportBuilder: Component = () => {
 
       <Show when={showSaveModal()}>
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div class="w-full max-w-md rounded-2xl border border-white/10 bg-void-900 p-6 shadow-2xl">
+          <div class="bg-void-900 w-full max-w-md rounded-2xl border border-white/10 p-6 shadow-2xl">
             <h3 class="mb-4 text-lg font-black text-white">Save Report</h3>
-            <p class="mb-6 text-sm text-nebula-400">
+            <p class="text-nebula-400 mb-6 text-sm">
               Save "{reportName()}" with {selectedMetrics().length} metrics?
             </p>
             <div class="flex justify-end gap-3">

@@ -49,12 +49,15 @@ const POSITIVE_JOURNEY: LifecycleStage[] = [
   'power_user',
 ];
 
-const LIFECYCLE_CONFIG: Record<LifecycleStage, { 
-  icon: typeof Sparkles; 
-  label: string; 
-  color: string;
-  bg: string;
-}> = {
+const LIFECYCLE_CONFIG: Record<
+  LifecycleStage,
+  {
+    icon: typeof Sparkles;
+    label: string;
+    color: string;
+    bg: string;
+  }
+> = {
   new: { icon: Sparkles, label: 'New', color: 'text-plasma-400', bg: 'bg-plasma-500' },
   onboarding: { icon: Rocket, label: 'Onboarding', color: 'text-photon-400', bg: 'bg-photon-500' },
   activated: { icon: Zap, label: 'Activated', color: 'text-electric-400', bg: 'bg-electric-500' },
@@ -63,7 +66,12 @@ const LIFECYCLE_CONFIG: Record<LifecycleStage, {
   at_risk: { icon: AlertTriangle, label: 'At Risk', color: 'text-flare-400', bg: 'bg-flare-500' },
   churning: { icon: TrendingDown, label: 'Churning', color: 'text-flare-500', bg: 'bg-flare-600' },
   churned: { icon: XCircle, label: 'Churned', color: 'text-nebula-500', bg: 'bg-nebula-600' },
-  reactivated: { icon: RefreshCw, label: 'Reactivated', color: 'text-aurora-400', bg: 'bg-aurora-500' },
+  reactivated: {
+    icon: RefreshCw,
+    label: 'Reactivated',
+    color: 'text-aurora-400',
+    bg: 'bg-aurora-500',
+  },
 };
 
 const getScoreColor = (score: number): string => {
@@ -78,7 +86,7 @@ interface RadarChartProps {
   size?: number;
 }
 
-const RadarChart: Component<RadarChartProps> = (props) => {
+const RadarChart: Component<RadarChartProps> = props => {
   const size = () => props.size || 200;
   const center = () => size() / 2;
   const radius = () => (size() - 40) / 2;
@@ -86,7 +94,7 @@ const RadarChart: Component<RadarChartProps> = (props) => {
   const points = createMemo(() => {
     const data = props.data;
     const angleStep = (2 * Math.PI) / data.length;
-    
+
     return data.map((item, i) => {
       const angle = i * angleStep - Math.PI / 2;
       const normalizedValue = item.value / item.maxValue;
@@ -127,7 +135,7 @@ const RadarChart: Component<RadarChartProps> = (props) => {
       </defs>
 
       <For each={gridLevels}>
-        {(level) => {
+        {level => {
           const r = radius() * level;
           const pts = props.data.map((_, i) => {
             const angle = (i * 2 * Math.PI) / props.data.length - Math.PI / 2;
@@ -137,14 +145,7 @@ const RadarChart: Component<RadarChartProps> = (props) => {
             };
           });
           const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
-          return (
-            <path
-              d={d}
-              fill="none"
-              stroke="rgba(255,255,255,0.08)"
-              stroke-width="1"
-            />
-          );
+          return <path d={d} fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" />;
         }}
       </For>
 
@@ -174,7 +175,7 @@ const RadarChart: Component<RadarChartProps> = (props) => {
       />
 
       <For each={points()}>
-        {(point) => (
+        {point => (
           <>
             <circle
               cx={point.x}
@@ -190,7 +191,7 @@ const RadarChart: Component<RadarChartProps> = (props) => {
               y={point.labelY}
               text-anchor="middle"
               dominant-baseline="middle"
-              class="fill-nebula-400 text-2xs font-bold uppercase tracking-wider"
+              class="fill-nebula-400 text-2xs font-bold tracking-wider uppercase"
             >
               {point.label}
             </text>
@@ -204,17 +205,34 @@ const RadarChart: Component<RadarChartProps> = (props) => {
 const VelocityIndicator: Component<{
   velocity: number;
   trend: 'growing' | 'stable' | 'declining';
-}> = (props) => {
+}> = props => {
   const trendConfig = {
-    growing: { icon: TrendingUp, color: 'text-aurora-400', bg: 'bg-aurora-500/10', label: 'Growing' },
-    stable: { icon: Activity, color: 'text-electric-400', bg: 'bg-electric-500/10', label: 'Stable' },
-    declining: { icon: TrendingDown, color: 'text-flare-400', bg: 'bg-flare-500/10', label: 'Declining' },
+    growing: {
+      icon: TrendingUp,
+      color: 'text-aurora-400',
+      bg: 'bg-aurora-500/10',
+      label: 'Growing',
+    },
+    stable: {
+      icon: Activity,
+      color: 'text-electric-400',
+      bg: 'bg-electric-500/10',
+      label: 'Stable',
+    },
+    declining: {
+      icon: TrendingDown,
+      color: 'text-flare-400',
+      bg: 'bg-flare-500/10',
+      label: 'Declining',
+    },
   };
 
   const config = () => trendConfig[props.trend];
 
   return (
-    <div class={cn('flex items-center gap-3 rounded-2xl border border-white/5 px-4 py-3', config().bg)}>
+    <div
+      class={cn('flex items-center gap-3 rounded-2xl border border-white/5 px-4 py-3', config().bg)}
+    >
       <div class={cn('rounded-xl p-2', config().bg)}>
         {(() => {
           const Icon = config().icon;
@@ -223,8 +241,10 @@ const VelocityIndicator: Component<{
       </div>
       <div>
         <div class="flex items-baseline gap-2">
-          <span class="font-display text-2xl font-black text-white">{props.velocity.toLocaleString()}</span>
-          <span class="text-xs font-bold uppercase text-nebula-500">cmds/7d</span>
+          <span class="font-display text-2xl font-black text-white">
+            {props.velocity.toLocaleString()}
+          </span>
+          <span class="text-nebula-500 text-xs font-bold uppercase">cmds/7d</span>
         </div>
         <span class={cn('text-xs font-bold', config().color)}>{config().label}</span>
       </div>
@@ -236,7 +256,7 @@ interface LifecycleJourneyProps {
   currentStage: LifecycleStage;
 }
 
-const LifecycleJourney: Component<LifecycleJourneyProps> = (props) => {
+const LifecycleJourney: Component<LifecycleJourneyProps> = props => {
   const currentIndex = createMemo(() => {
     const idx = POSITIVE_JOURNEY.indexOf(props.currentStage);
     return idx >= 0 ? idx : -1;
@@ -251,27 +271,27 @@ const LifecycleJourney: Component<LifecycleJourneyProps> = (props) => {
   return (
     <div class="relative">
       <Show when={isNegativeStage()}>
-        <div class="mb-4 flex items-center gap-2 rounded-xl border border-flare-500/20 bg-flare-500/10 px-4 py-2">
+        <div class="border-flare-500/20 bg-flare-500/10 mb-4 flex items-center gap-2 rounded-xl border px-4 py-2">
           <AlertTriangle size={16} class="text-flare-400" />
-          <span class="text-sm font-bold text-flare-400">
+          <span class="text-flare-400 text-sm font-bold">
             {LIFECYCLE_CONFIG[props.currentStage].label}
           </span>
         </div>
       </Show>
 
       <Show when={isReactivated()}>
-        <div class="mb-4 flex items-center gap-2 rounded-xl border border-aurora-500/20 bg-aurora-500/10 px-4 py-2">
+        <div class="border-aurora-500/20 bg-aurora-500/10 mb-4 flex items-center gap-2 rounded-xl border px-4 py-2">
           <RefreshCw size={16} class="text-aurora-400" />
-          <span class="text-sm font-bold text-aurora-400">Reactivated</span>
+          <span class="text-aurora-400 text-sm font-bold">Reactivated</span>
         </div>
       </Show>
 
       <div class="relative flex items-center justify-between">
-        <div class="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 bg-void-700" />
+        <div class="bg-void-700 absolute top-1/2 right-0 left-0 h-1 -translate-y-1/2" />
 
         <Show when={currentIndex() >= 0}>
           <div
-            class="absolute left-0 top-1/2 h-1 -translate-y-1/2 rounded-full transition-all duration-700"
+            class="absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-700"
             style={{
               width: `${Math.max(0, (currentIndex() / (POSITIVE_JOURNEY.length - 1)) * 100)}%`,
               background: `linear-gradient(90deg, var(--stage-new, #5a9ae8), ${getScoreColor(80)})`,
@@ -298,13 +318,28 @@ const LifecycleJourney: Component<LifecycleJourneyProps> = (props) => {
                         : 'border-void-600 bg-void-850'
                   )}
                   style={{
-                    'background-color': isCompleted() || isCurrent() ? `var(--stage-${stage.replace('_', '-')}, ${config.bg.replace('bg-', '')})` : undefined,
-                    'box-shadow': isCurrent() ? `0 0 20px var(--stage-${stage.replace('_', '-')}, currentColor)` : undefined,
+                    'background-color':
+                      isCompleted() || isCurrent()
+                        ? `var(--stage-${stage.replace('_', '-')}, ${config.bg.replace('bg-', '')})`
+                        : undefined,
+                    'box-shadow': isCurrent()
+                      ? `0 0 20px var(--stage-${stage.replace('_', '-')}, currentColor)`
+                      : undefined,
                   }}
                 >
                   <Show when={isCompleted()}>
-                    <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                    <svg
+                      class="h-4 w-4 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="3"
+                        d="M5 13l4 4L19 7"
+                      />
                     </svg>
                   </Show>
                   <Show when={isCurrent()}>
@@ -316,7 +351,7 @@ const LifecycleJourney: Component<LifecycleJourneyProps> = (props) => {
                 </div>
                 <span
                   class={cn(
-                    'mt-3 text-2xs font-bold uppercase tracking-wider transition-colors',
+                    'text-2xs mt-3 font-bold tracking-wider uppercase transition-colors',
                     isCurrent() ? 'text-white' : isCompleted() ? config.color : 'text-nebula-600'
                   )}
                 >
@@ -331,7 +366,7 @@ const LifecycleJourney: Component<LifecycleJourneyProps> = (props) => {
   );
 };
 
-export const CustomerHealthHub: Component<CustomerHealthHubProps> = (props) => {
+export const CustomerHealthHub: Component<CustomerHealthHubProps> = props => {
   const [isExpanded, setIsExpanded] = createSignal(props.showDetails ?? true);
 
   const radarData = createMemo(() => [
@@ -351,27 +386,29 @@ export const CustomerHealthHub: Component<CustomerHealthHubProps> = (props) => {
   });
 
   return (
-    <div class="relative overflow-hidden rounded-4xl border border-white/5 bg-void-850 shadow-2xl">
-      <div class="pointer-events-none absolute -right-32 -top-32 h-64 w-64 rounded-full bg-indigo-500/10 blur-[100px]" />
-      <div class="pointer-events-none absolute -bottom-32 -left-32 h-64 w-64 rounded-full bg-photon-500/10 blur-[100px]" />
+    <div class="bg-void-850 relative overflow-hidden rounded-4xl border border-white/5 shadow-2xl">
+      <div class="pointer-events-none absolute -top-32 -right-32 h-64 w-64 rounded-full bg-indigo-500/10 blur-[100px]" />
+      <div class="bg-photon-500/10 pointer-events-none absolute -bottom-32 -left-32 h-64 w-64 rounded-full blur-[100px]" />
 
       <div class="relative border-b border-white/5 bg-gradient-to-r from-white/[0.02] to-transparent p-8">
         <div class="flex items-start justify-between">
           <div>
             <div class="mb-2 flex items-center gap-3">
-              <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-photon-600">
+              <div class="to-photon-600 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500">
                 <Activity size={20} class="text-white" />
               </div>
-              <h2 class="font-display text-xl font-black tracking-tight text-white">Customer Health Hub</h2>
+              <h2 class="font-display text-xl font-black tracking-tight text-white">
+                Customer Health Hub
+              </h2>
             </div>
             <Show when={props.customerName}>
-              <p class="text-sm text-nebula-400">{props.customerName}</p>
+              <p class="text-nebula-400 text-sm">{props.customerName}</p>
             </Show>
           </div>
 
           <button
             onClick={() => setIsExpanded(!isExpanded())}
-            class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-nebula-400 transition-all hover:bg-white/10 hover:text-white"
+            class="text-nebula-400 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold transition-all hover:bg-white/10 hover:text-white"
           >
             {isExpanded() ? 'Collapse' : 'Expand'}
             <ArrowRight
@@ -399,8 +436,8 @@ export const CustomerHealthHub: Component<CustomerHealthHubProps> = (props) => {
                   {riskLevel().level} Risk
                 </span>
               </div>
-              <div class="rounded-full bg-void-700 px-3 py-1.5">
-                <span class="text-xs font-bold text-nebula-400">
+              <div class="bg-void-700 rounded-full px-3 py-1.5">
+                <span class="text-nebula-400 text-xs font-bold">
                   {(props.health.predicted_churn_probability * 100).toFixed(0)}% Churn
                 </span>
               </div>
@@ -413,13 +450,15 @@ export const CustomerHealthHub: Component<CustomerHealthHubProps> = (props) => {
 
           <div class="flex flex-col gap-4 lg:col-span-1">
             <div class="grid grid-cols-2 gap-3">
-              <For each={[
-                { label: 'Engagement', value: props.health.engagement_score, Icon: Zap },
-                { label: 'Activation', value: props.health.activation_score, Icon: Target },
-                { label: 'Growth', value: props.health.growth_score, Icon: TrendingUp },
-                { label: 'Stability', value: 100 - props.health.risk_score, Icon: Shield },
-              ]}>
-                {(metric) => {
+              <For
+                each={[
+                  { label: 'Engagement', value: props.health.engagement_score, Icon: Zap },
+                  { label: 'Activation', value: props.health.activation_score, Icon: Target },
+                  { label: 'Growth', value: props.health.growth_score, Icon: TrendingUp },
+                  { label: 'Stability', value: 100 - props.health.risk_score, Icon: Shield },
+                ]}
+              >
+                {metric => {
                   const IconComponent = metric.Icon;
                   return (
                     <div class="rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:bg-white/[0.04]">
@@ -432,10 +471,10 @@ export const CustomerHealthHub: Component<CustomerHealthHubProps> = (props) => {
                           {metric.value}
                         </span>
                       </div>
-                      <span class="text-2xs font-bold uppercase tracking-wider text-nebula-500">
+                      <span class="text-2xs text-nebula-500 font-bold tracking-wider uppercase">
                         {metric.label}
                       </span>
-                      <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-void-700">
+                      <div class="bg-void-700 mt-2 h-1.5 overflow-hidden rounded-full">
                         <div
                           class="h-full rounded-full transition-all duration-700"
                           style={{
@@ -459,26 +498,26 @@ export const CustomerHealthHub: Component<CustomerHealthHubProps> = (props) => {
 
         <Show when={isExpanded()}>
           <div class="mt-8 border-t border-white/5 pt-8">
-            <h3 class="mb-6 text-sm font-black uppercase tracking-widest text-nebula-500">
+            <h3 class="text-nebula-500 mb-6 text-sm font-black tracking-widest uppercase">
               Lifecycle Journey
             </h3>
             <LifecycleJourney currentStage={props.health.lifecycle_stage} />
 
             <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div class="rounded-2xl border border-aurora-500/20 bg-aurora-500/5 p-4">
-                <span class="text-2xs font-bold uppercase tracking-wider text-aurora-400/70">
+              <div class="border-aurora-500/20 bg-aurora-500/5 rounded-2xl border p-4">
+                <span class="text-2xs text-aurora-400/70 font-bold tracking-wider uppercase">
                   Upgrade Probability
                 </span>
                 <div class="mt-2 flex items-baseline gap-1">
-                  <span class="font-display text-3xl font-black text-aurora-400">
+                  <span class="font-display text-aurora-400 text-3xl font-black">
                     {(props.health.predicted_upgrade_probability * 100).toFixed(0)}
                   </span>
-                  <span class="text-sm font-bold text-aurora-400/50">%</span>
+                  <span class="text-aurora-400/50 text-sm font-bold">%</span>
                 </div>
               </div>
 
               <div class="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4">
-                <span class="text-2xs font-bold uppercase tracking-wider text-indigo-400/70">
+                <span class="text-2xs font-bold tracking-wider text-indigo-400/70 uppercase">
                   Expansion Ready
                 </span>
                 <div class="mt-2 flex items-baseline gap-1">
@@ -489,15 +528,15 @@ export const CustomerHealthHub: Component<CustomerHealthHubProps> = (props) => {
                 </div>
               </div>
 
-              <div class="rounded-2xl border border-electric-500/20 bg-electric-500/5 p-4">
-                <span class="text-2xs font-bold uppercase tracking-wider text-electric-400/70">
+              <div class="border-electric-500/20 bg-electric-500/5 rounded-2xl border p-4">
+                <span class="text-2xs text-electric-400/70 font-bold tracking-wider uppercase">
                   Velocity (7d)
                 </span>
                 <div class="mt-2 flex items-baseline gap-1">
-                  <span class="font-display text-3xl font-black text-electric-400">
+                  <span class="font-display text-electric-400 text-3xl font-black">
                     {props.health.command_velocity_7d.toLocaleString()}
                   </span>
-                  <span class="text-sm font-bold text-electric-400/50">cmds</span>
+                  <span class="text-electric-400/50 text-sm font-bold">cmds</span>
                 </div>
               </div>
 
@@ -511,7 +550,7 @@ export const CustomerHealthHub: Component<CustomerHealthHubProps> = (props) => {
               >
                 <span
                   class={cn(
-                    'text-2xs font-bold uppercase tracking-wider',
+                    'text-2xs font-bold tracking-wider uppercase',
                     props.health.risk_score > 50 ? 'text-flare-400/70' : 'text-solar-400/70'
                   )}
                 >

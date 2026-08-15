@@ -1,7 +1,7 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, gte, desc, eq } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import type { APIEvent } from '@solidjs/start/server';
+import { sql, gte, desc, eq } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
 
 export async function GET(event: APIEvent) {
   try {
@@ -11,9 +11,9 @@ export async function GET(event: APIEvent) {
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const days = parseInt(url.searchParams.get("days") || "30");
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const days = parseInt(url.searchParams.get('days') || '30');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+    const offset = parseInt(url.searchParams.get('offset') || '0');
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -29,7 +29,7 @@ export async function GET(event: APIEvent) {
         avgDurationMs: sql<number>`AVG(${schema.commandUsage.durationMs})`,
       })
       .from(schema.commandUsage)
-      .where(gte(schema.commandUsage.createdAt, startDate.getTime()))
+      .where(gte(schema.commandUsage.createdAt, startDate))
       .groupBy(schema.commandUsage.command)
       .orderBy(desc(sql`COUNT(*)`))
       .limit(limit)
@@ -60,7 +60,7 @@ export async function GET(event: APIEvent) {
         count: sql<number>`COUNT(*)`,
       })
       .from(schema.commandUsage)
-      .where(gte(schema.commandUsage.createdAt, startDate.getTime()))
+      .where(gte(schema.commandUsage.createdAt, startDate))
       .groupBy(
         sql`date(${schema.commandUsage.createdAt} / 1000, 'unixepoch')`,
         schema.commandUsage.command
@@ -116,7 +116,7 @@ export async function GET(event: APIEvent) {
     const totalCommands = await db
       .select({ count: sql<number>`COUNT(DISTINCT ${schema.commandUsage.command})` })
       .from(schema.commandUsage)
-      .where(gte(schema.commandUsage.createdAt, startDate.getTime()))
+      .where(gte(schema.commandUsage.createdAt, startDate))
       .get();
 
     return new Response(
@@ -126,9 +126,8 @@ export async function GET(event: APIEvent) {
           count: Number(c.count),
           successCount: Number(c.successCount),
           failureCount: Number(c.failureCount),
-          successRate: c.count > 0
-            ? Math.round((Number(c.successCount) / Number(c.count)) * 100)
-            : 0,
+          successRate:
+            c.count > 0 ? Math.round((Number(c.successCount) / Number(c.count)) * 100) : 0,
           avgDurationMs: Math.round(Number(c.avgDurationMs) || 0),
         })),
         popularPackages: popularPackages.map(p => ({
@@ -170,21 +169,21 @@ export async function GET(event: APIEvent) {
       {
         status: 200,
         headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "private, no-cache, no-store, must-revalidate",
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
         },
       }
     );
   } catch (error) {
-    console.error("[Admin Commands Analytics] Error:", error);
+    console.error('[Admin Commands Analytics] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

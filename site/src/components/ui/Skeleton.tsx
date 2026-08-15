@@ -7,7 +7,7 @@ interface SkeletonProps {
   circle?: boolean;
 }
 
-export const Skeleton: Component<SkeletonProps> = (props) => {
+export const Skeleton: Component<SkeletonProps> = props => {
   return (
     <div
       class={`animate-pulse bg-white/5 ${props.circle ? 'rounded-full' : 'rounded-lg'} ${props.class || ''}`}
@@ -27,7 +27,7 @@ export const CardSkeleton: Component = () => {
         <Skeleton width="24px" height="24px" />
       </div>
       <div class="space-y-4">
-        <div class="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.03]">
+        <div class="flex items-center justify-between rounded-2xl border border-white/[0.03] bg-white/[0.02] p-4">
           <div class="space-y-2">
             <div class="flex items-center gap-2">
               <Skeleton width="60px" height="20px" />
@@ -37,7 +37,7 @@ export const CardSkeleton: Component = () => {
           </div>
           <Skeleton width="24px" height="24px" />
         </div>
-        <div class="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.03]">
+        <div class="flex items-center justify-between rounded-2xl border border-white/[0.03] bg-white/[0.02] p-4">
           <div class="space-y-2">
             <div class="flex items-center gap-2">
               <Skeleton width="60px" height="20px" />
@@ -47,7 +47,7 @@ export const CardSkeleton: Component = () => {
           </div>
           <Skeleton width="24px" height="24px" />
         </div>
-        <div class="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.03]">
+        <div class="flex items-center justify-between rounded-2xl border border-white/[0.03] bg-white/[0.02] p-4">
           <div class="space-y-2">
             <div class="flex items-center gap-2">
               <Skeleton width="60px" height="20px" />

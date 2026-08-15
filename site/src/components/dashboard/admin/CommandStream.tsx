@@ -16,7 +16,7 @@ interface CommandStreamProps {
   events: CommandEvent[];
 }
 
-export const CommandStream: Component<CommandStreamProps> = (props) => {
+export const CommandStream: Component<CommandStreamProps> = props => {
   let terminalRef: HTMLDivElement | undefined;
   const [displayedEvents, setDisplayedEvents] = createSignal<CommandEvent[]>([]);
 
@@ -42,27 +42,35 @@ export const CommandStream: Component<CommandStreamProps> = (props) => {
   return (
     <div
       ref={terminalRef}
-      class="h-[400px] overflow-y-auto rounded-xl bg-black/40 p-4 font-mono text-[11px] leading-relaxed shadow-inner no-scrollbar border border-white/5"
+      class="no-scrollbar h-[400px] overflow-y-auto rounded-xl border border-white/5 bg-black/40 p-4 font-mono text-[11px] leading-relaxed shadow-inner"
     >
       <div class="space-y-1">
-        <div class="text-slate-500 mb-2 select-none">
+        <div class="mb-2 text-slate-500 select-none">
           # OMG System Command - Secure Telemetry Stream v1.0.0
-          <br />
-          # Listening for global events...
+          <br /># Listening for global events...
         </div>
 
         <For each={displayedEvents()}>
-          {(event) => (
-            <div class="group flex items-start gap-3 border-l border-white/5 pl-3 hover:bg-white/5 transition-colors animate-in fade-in slide-in-from-left-1 duration-300">
+          {event => (
+            <div class="group animate-in fade-in slide-in-from-left-1 flex items-start gap-3 border-l border-white/5 pl-3 transition-colors duration-300 hover:bg-white/5">
               <span class="shrink-0 text-slate-600 select-none">
-                [{new Date(event.created_at).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]
+                [
+                {new Date(event.created_at).toLocaleTimeString([], {
+                  hour12: false,
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                })}
+                ]
               </span>
 
-              <div class="flex items-center gap-2 shrink-0">
+              <div class="flex shrink-0 items-center gap-2">
                 {getEventIcon(event.event_name)}
-                <span class={`font-bold uppercase tracking-tighter ${
-                  event.event_name === 'command_run' ? 'text-indigo-400' : 'text-slate-400'
-                }`}>
+                <span
+                  class={`font-bold tracking-tighter uppercase ${
+                    event.event_name === 'command_run' ? 'text-indigo-400' : 'text-slate-400'
+                  }`}
+                >
                   {event.event_name.replace('_', '.')}
                 </span>
               </div>
@@ -70,17 +78,19 @@ export const CommandStream: Component<CommandStreamProps> = (props) => {
               <div class="flex-1 truncate">
                 <span class="text-slate-400">{event.platform}</span>
                 <span class="mx-2 text-slate-700">::</span>
-                <span class="text-white font-medium">{event.properties?.command || 'heartbeat'}</span>
+                <span class="font-medium text-white">
+                  {event.properties?.command || 'heartbeat'}
+                </span>
               </div>
 
-              <span class="shrink-0 text-[9px] font-black text-slate-700 uppercase group-hover:text-slate-500 transition-colors">
+              <span class="shrink-0 text-[9px] font-black text-slate-700 uppercase transition-colors group-hover:text-slate-500">
                 v{event.version}
               </span>
             </div>
           )}
         </For>
 
-        <div class="flex items-center gap-2 pt-2 animate-pulse">
+        <div class="flex animate-pulse items-center gap-2 pt-2">
           <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" />
           <span class="text-slate-600 italic">Streaming global telemetry...</span>
         </div>

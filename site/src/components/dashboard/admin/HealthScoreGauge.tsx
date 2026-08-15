@@ -1,7 +1,16 @@
-import { Component, Show, createSignal, createMemo, createEffect, onMount, onCleanup } from 'solid-js';
+import { type Component, Show, createSignal, createMemo, createEffect, onMount } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { TrendingUp, TrendingDown, Minus, Activity, Heart, Users, ThumbsUp, Info } from 'lucide-solid';
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Activity,
+  Heart,
+  Users,
+  ThumbsUp,
+  Info,
+} from 'lucide-solid';
 import type { HealthUpdate } from '../../../hooks/useRealtimeData';
 
 function cn(...inputs: ClassValue[]) {
@@ -36,17 +45,17 @@ type HealthZone = 'critical' | 'poor' | 'fair' | 'good' | 'excellent';
 const SIZE_CONFIG = {
   sm: { diameter: 120, strokeWidth: 8, fontSize: 'text-2xl', labelSize: 'text-xs', arrowSize: 14 },
   md: { diameter: 180, strokeWidth: 10, fontSize: 'text-4xl', labelSize: 'text-sm', arrowSize: 18 },
-  lg: { diameter: 240, strokeWidth: 12, fontSize: 'text-5xl', labelSize: 'text-base', arrowSize: 22 },
+  lg: {
+    diameter: 240,
+    strokeWidth: 12,
+    fontSize: 'text-5xl',
+    labelSize: 'text-base',
+    arrowSize: 22,
+  },
   xl: { diameter: 300, strokeWidth: 14, fontSize: 'text-6xl', labelSize: 'text-lg', arrowSize: 26 },
 };
 
-const HEALTH_ZONES: Record<HealthZone, {
-  label: string;
-  range: [number, number];
-  color: string;
-  bgColor: string;
-  glowColor: string;
-}> = {
+const HEALTH_ZONES = {
   critical: {
     label: 'Critical',
     range: [0, 20],
@@ -96,16 +105,6 @@ const getHealthZone = (score: number): HealthZone => {
   return 'excellent';
 };
 
-const getGradientStops = (): string => {
-  return `
-    <stop offset="0%" stop-color="${HEALTH_ZONES.critical.color}" />
-    <stop offset="20%" stop-color="${HEALTH_ZONES.poor.color}" />
-    <stop offset="50%" stop-color="${HEALTH_ZONES.fair.color}" />
-    <stop offset="75%" stop-color="${HEALTH_ZONES.good.color}" />
-    <stop offset="100%" stop-color="${HEALTH_ZONES.excellent.color}" />
-  `;
-};
-
 const getTrendDiff = (current: number, previous?: number): number | null => {
   if (previous === undefined) return null;
   return current - previous;
@@ -121,7 +120,7 @@ interface TrendArrowProps {
   size: number;
 }
 
-const TrendArrow: Component<TrendArrowProps> = (props) => {
+const TrendArrow: Component<TrendArrowProps> = props => {
   const color = createMemo(() => {
     switch (props.trend) {
       case 'up':
@@ -152,7 +151,8 @@ const TrendArrow: Component<TrendArrowProps> = (props) => {
       })()}
       <Show when={props.diff !== null}>
         <span class="font-mono text-xs font-bold tabular-nums">
-          {props.diff! > 0 ? '+' : ''}{props.diff!.toFixed(0)}
+          {props.diff! > 0 ? '+' : ''}
+          {props.diff!.toFixed(0)}
         </span>
       </Show>
     </div>
@@ -167,7 +167,7 @@ interface BreakdownTooltipProps {
   position: { x: number; y: number };
 }
 
-const BreakdownTooltip: Component<BreakdownTooltipProps> = (props) => {
+const BreakdownTooltip: Component<BreakdownTooltipProps> = props => {
   const subScores: SubScore[] = [
     { label: 'Engagement', value: props.engagement, icon: Activity, color: 'text-electric-400' },
     { label: 'Adoption', value: props.adoption, icon: Users, color: 'text-photon-400' },
@@ -177,7 +177,7 @@ const BreakdownTooltip: Component<BreakdownTooltipProps> = (props) => {
   return (
     <Show when={props.visible}>
       <div
-        class="pointer-events-none absolute z-50 min-w-[180px] rounded-xl border border-white/10 bg-void-900/95 p-4 shadow-2xl backdrop-blur-xl"
+        class="bg-void-900/95 pointer-events-none absolute z-50 min-w-[180px] rounded-xl border border-white/10 p-4 shadow-2xl backdrop-blur-xl"
         style={{
           left: `${props.position.x}px`,
           top: `${props.position.y}px`,
@@ -186,23 +186,23 @@ const BreakdownTooltip: Component<BreakdownTooltipProps> = (props) => {
       >
         <div class="mb-3 flex items-center gap-2">
           <Heart size={14} class="text-flare-400" />
-          <span class="text-xs font-bold uppercase tracking-wider text-nebula-400">
+          <span class="text-nebula-400 text-xs font-bold tracking-wider uppercase">
             Health Breakdown
           </span>
         </div>
         <div class="space-y-3">
-          {subScores.map((sub) => (
+          {subScores.map(sub => (
             <div>
               <div class="mb-1 flex items-center justify-between">
                 <div class="flex items-center gap-1.5">
                   <sub.icon size={12} class={sub.color} />
-                  <span class="text-xs font-medium text-nebula-300">{sub.label}</span>
+                  <span class="text-nebula-300 text-xs font-medium">{sub.label}</span>
                 </div>
                 <span class={cn('font-mono text-xs font-bold tabular-nums', sub.color)}>
                   {sub.value}
                 </span>
               </div>
-              <div class="h-1.5 overflow-hidden rounded-full bg-void-700">
+              <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
                 <div
                   class="h-full rounded-full transition-all duration-500"
                   style={{
@@ -223,9 +223,7 @@ const BreakdownTooltip: Component<BreakdownTooltipProps> = (props) => {
 // Main Component
 // ============================================================================
 
-export const HealthScoreGauge: Component<HealthScoreGaugeProps> = (props) => {
-  let gaugeRef: HTMLDivElement | undefined;
-
+export const HealthScoreGauge: Component<HealthScoreGaugeProps> = props => {
   const [displayScore, setDisplayScore] = createSignal(0);
   const [showTooltip, setShowTooltip] = createSignal(false);
   const [tooltipPos, setTooltipPos] = createSignal({ x: 0, y: 0 });
@@ -263,7 +261,7 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = (props) => {
       const progress = Math.min(elapsed / duration, 1);
 
       // Ease out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const eased = 1 - (1 - progress) ** 3;
       const current = Math.round(start + (target - start) * eased);
 
       setDisplayScore(current);
@@ -282,7 +280,8 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = (props) => {
 
   const handleMouseEnter = (e: MouseEvent) => {
     if (!props.showBreakdown || !props.health) return;
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    if (!(e.currentTarget instanceof HTMLElement)) return;
+    const rect = e.currentTarget.getBoundingClientRect();
     setTooltipPos({
       x: rect.left + rect.width / 2,
       y: rect.bottom,
@@ -300,17 +299,12 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = (props) => {
 
   return (
     <div
-      ref={gaugeRef}
       class={cn('relative inline-flex flex-col items-center', props.class)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {/* SVG Gauge */}
-      <svg
-        width={config().diameter}
-        height={config().diameter / 2 + 20}
-        class="overflow-visible"
-      >
+      <svg width={config().diameter} height={config().diameter / 2 + 20} class="overflow-visible">
         <defs>
           {/* Gradient for the arc */}
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -356,8 +350,8 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = (props) => {
           stroke={zoneConfig().color}
           stroke-width={config().strokeWidth}
           stroke-linecap="round"
-          stroke-dasharray={circumference()}
-          stroke-dashoffset={mounted() ? offset() : circumference()}
+          stroke-dasharray={String(circumference())}
+          stroke-dashoffset={String(mounted() ? offset() : circumference())}
           filter={`url(#${glowId})`}
           class="transition-all duration-1000 ease-out"
           style={{
@@ -366,7 +360,7 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = (props) => {
         />
 
         {/* Tick marks */}
-        {[0, 25, 50, 75, 100].map((tick) => {
+        {[0, 25, 50, 75, 100].map(tick => {
           const angle = Math.PI * (1 - tick / 100);
           const innerR = radius() - config().strokeWidth - 4;
           const outerR = radius() - config().strokeWidth + 2;
@@ -424,10 +418,13 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = (props) => {
       </svg>
 
       {/* Score Display */}
-      <div class="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
+      <div class="absolute bottom-0 left-1/2 flex -translate-x-1/2 flex-col items-center">
         <div class="flex items-center gap-2">
           <span
-            class={cn('font-display font-black tabular-nums transition-colors duration-500', config().fontSize)}
+            class={cn(
+              'font-display font-black tabular-nums transition-colors duration-500',
+              config().fontSize
+            )}
             style={{ color: zoneConfig().color }}
           >
             {displayScore()}
@@ -436,7 +433,7 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = (props) => {
         </div>
         <span
           class={cn(
-            'font-bold uppercase tracking-wider transition-colors duration-500',
+            'font-bold tracking-wider uppercase transition-colors duration-500',
             config().labelSize
           )}
           style={{ color: zoneConfig().color }}
@@ -447,8 +444,11 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = (props) => {
 
       {/* Info Icon for breakdown hint */}
       <Show when={props.showBreakdown && props.health}>
-        <div class="absolute right-0 top-0">
-          <Info size={14} class="text-nebula-500 hover:text-nebula-300 transition-colors cursor-help" />
+        <div class="absolute top-0 right-0">
+          <Info
+            size={14}
+            class="text-nebula-500 hover:text-nebula-300 cursor-help transition-colors"
+          />
         </div>
       </Show>
 
@@ -467,8 +467,8 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = (props) => {
       <Show when={!props.health}>
         <div class="absolute inset-0 flex items-center justify-center">
           <div class="text-center">
-            <Heart size={24} class="mx-auto mb-2 text-nebula-600" />
-            <p class="text-xs text-nebula-500">No health data</p>
+            <Heart size={24} class="text-nebula-600 mx-auto mb-2" />
+            <p class="text-nebula-500 text-xs">No health data</p>
           </div>
         </div>
       </Show>

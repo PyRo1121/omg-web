@@ -1,19 +1,19 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, desc, eq } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import { APIEvent } from '@solidjs/start/server';
+import { sql, desc, eq } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
 
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
     if (adminCheck instanceof Response) return adminCheck;
-    
+
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const limit = parseInt(url.searchParams.get("limit") || "20");
-    const search = url.searchParams.get("search") || "";
+    const page = parseInt(url.searchParams.get('page') || '1');
+    const limit = parseInt(url.searchParams.get('limit') || '20');
+    const search = url.searchParams.get('search') || '';
     const offset = (page - 1) * limit;
 
     let query = db
@@ -34,7 +34,7 @@ export async function GET(event: APIEvent) {
     const users = await query.all();
 
     const usersWithLicenses = await Promise.all(
-      users.map(async (user) => {
+      users.map(async user => {
         const license = await db
           .select()
           .from(schema.license)
@@ -45,7 +45,7 @@ export async function GET(event: APIEvent) {
         const machineCount = await db
           .select({ count: sql<number>`COUNT(*)` })
           .from(schema.machine)
-          .where(eq(schema.machine.licenseId, license?.id || ""))
+          .where(eq(schema.machine.licenseId, license?.id || ''))
           .get();
 
         const usageStats = await db
@@ -54,19 +54,21 @@ export async function GET(event: APIEvent) {
             totalPackages: sql<number>`COALESCE(SUM(${schema.usageDaily.packagesInstalled}), 0)`,
           })
           .from(schema.usageDaily)
-          .where(eq(schema.usageDaily.licenseId, license?.id || ""))
+          .where(eq(schema.usageDaily.licenseId, license?.id || ''))
           .get();
 
         return {
           ...user,
-          license: license ? {
-            id: license.id,
-            key: license.licenseKey,
-            tier: license.tier,
-            status: license.status,
-            maxMachines: license.maxMachines,
-            expiresAt: license.expiresAt?.toISOString() || null,
-          } : null,
+          license: license
+            ? {
+                id: license.id,
+                key: license.licenseKey,
+                tier: license.tier,
+                status: license.status,
+                maxMachines: license.maxMachines,
+                expiresAt: license.expiresAt?.toISOString() || null,
+              }
+            : null,
           machines: machineCount?.count || 0,
           totalCommands: Number(usageStats?.totalCommands || 0),
           totalPackages: Number(usageStats?.totalPackages || 0),
@@ -92,21 +94,21 @@ export async function GET(event: APIEvent) {
       {
         status: 200,
         headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "private, no-cache, no-store, must-revalidate",
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
         },
       }
     );
   } catch (error) {
-    console.error("[Admin Users API] Error:", error);
+    console.error('[Admin Users API] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

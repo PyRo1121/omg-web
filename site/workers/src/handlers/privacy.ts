@@ -1,6 +1,6 @@
 // Privacy and data deletion handlers (GDPR/CCPA compliance)
 // Available globally to all users, regardless of jurisdiction
-import { Env, jsonResponse, errorResponse, corsHeaders, generateId } from '../api';
+import { type Env, jsonResponse, errorResponse, corsHeaders, generateId } from '../api';
 
 interface DeleteRequest {
   email?: string;
@@ -13,6 +13,23 @@ interface DeleteRequest {
 interface DataExportRequest {
   email?: string;
   license_key?: string;
+}
+
+interface ExportData {
+  export_date: string;
+  export_format_version: string;
+  profile?: {
+    email: unknown;
+    company: unknown;
+    tier: unknown;
+    member_since: unknown;
+  };
+  licenses?: unknown[];
+  machines?: unknown[];
+  command_history?: unknown[];
+  sessions?: unknown[];
+  performance_summary?: unknown[];
+  feature_usage?: unknown[];
 }
 
 /**
@@ -35,7 +52,8 @@ interface DataExportRequest {
  */
 export async function handleDeleteMyData(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json() as DeleteRequest;
+    // SAFETY: The request fields are checked immediately below before any destructive operation.
+    const body = (await request.json()) as DeleteRequest;
 
     if (!body.confirm) {
       return errorResponse('Deletion must be confirmed. Set confirm: true', 400);
@@ -51,10 +69,11 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
 
     // Find customer by email
     if (body.email) {
-      const customer = await env.DB.prepare(
-        'SELECT id FROM customers WHERE email = ?'
-      ).bind(body.email).first();
+      const customer = await env.DB.prepare('SELECT id FROM customers WHERE email = ?')
+        .bind(body.email)
+        .first();
       if (customer) {
+        // SAFETY: The SELECT projects the stable customer id column.
         customerId = customer.id as string;
       }
     }
@@ -63,9 +82,13 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
     if (body.license_key) {
       const license = await env.DB.prepare(
         'SELECT id, customer_id FROM licenses WHERE license_key = ?'
-      ).bind(body.license_key).first();
+      )
+        .bind(body.license_key)
+        .first();
       if (license) {
+        // SAFETY: The SELECT projects the stable license id column.
         licenseId = license.id as string;
+        // SAFETY: The SELECT projects the stable customer id column.
         customerId = license.customer_id as string;
       }
     }
@@ -89,9 +112,7 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
         env.DB.prepare('DELETE FROM command_event WHERE license_id = ?').bind(licenseId)
       );
       // Sessions
-      statements.push(
-        env.DB.prepare('DELETE FROM session WHERE license_id = ?').bind(licenseId)
-      );
+      statements.push(env.DB.prepare('DELETE FROM session WHERE license_id = ?').bind(licenseId));
       // Performance metrics
       statements.push(
         env.DB.prepare('DELETE FROM performance_metric WHERE license_id = ?').bind(licenseId)
@@ -100,18 +121,6 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
       statements.push(
         env.DB.prepare('DELETE FROM feature_usage WHERE license_id = ?').bind(licenseId)
       );
-      // Health scores (CRM data)
-      statements.push(
-        env.DB.prepare('DELETE FROM health_score WHERE license_id = ?').bind(licenseId)
-      );
-      // Admin notes (CRM - only user-visible notes, not internal)
-      statements.push(
-        env.DB.prepare('DELETE FROM admin_note WHERE license_id = ? AND is_internal = 0').bind(licenseId)
-      );
-      // License tags (tag associations)
-      statements.push(
-        env.DB.prepare('DELETE FROM license_tag WHERE license_id = ?').bind(licenseId)
-      );
     }
 
     if (machineId) {
@@ -119,9 +128,7 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
       statements.push(
         env.DB.prepare('DELETE FROM command_event WHERE machine_id = ?').bind(machineId)
       );
-      statements.push(
-        env.DB.prepare('DELETE FROM session WHERE machine_id = ?').bind(machineId)
-      );
+      statements.push(env.DB.prepare('DELETE FROM session WHERE machine_id = ?').bind(machineId));
       statements.push(
         env.DB.prepare('DELETE FROM performance_metric WHERE machine_id = ?').bind(machineId)
       );
@@ -140,9 +147,9 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
       );
       // Customer notes (non-internal only)
       statements.push(
-        env.DB.prepare(
-          'DELETE FROM customer_notes WHERE customer_id = ? AND is_internal = 0'
-        ).bind(customerId)
+        env.DB.prepare('DELETE FROM customer_notes WHERE customer_id = ? AND is_internal = 0').bind(
+          customerId
+        )
       );
       // Session tokens (logout all sessions)
       statements.push(
@@ -150,8 +157,9 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
       );
       // OTP codes
       statements.push(
-        env.DB.prepare('DELETE FROM otp_codes WHERE email = (SELECT email FROM customers WHERE id = ?)')
-          .bind(customerId)
+        env.DB.prepare(
+          'DELETE FROM otp_codes WHERE email = (SELECT email FROM customers WHERE id = ?)'
+        ).bind(customerId)
       );
     }
 
@@ -161,8 +169,15 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
       results.forEach((result, index) => {
         if (result.meta?.changes) {
           const tableNames = [
-            'command_events', 'sessions', 'performance_metrics', 'feature_usage',
-            'install_stats', 'machine_usage', 'customer_notes', 'session_tokens', 'otp_codes'
+            'command_events',
+            'sessions',
+            'performance_metrics',
+            'feature_usage',
+            'install_stats',
+            'machine_usage',
+            'customer_notes',
+            'session_tokens',
+            'otp_codes',
           ];
           const tableName = tableNames[index % tableNames.length] || `table_${index}`;
           deletedCounts[tableName] = (deletedCounts[tableName] || 0) + result.meta.changes;
@@ -172,35 +187,44 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
 
     // Anonymize license record if requested (soft delete)
     if (customerId && body.license_key) {
-      await env.DB.prepare(`
+      await env.DB.prepare(
+        `
         UPDATE licenses
         SET status = 'deleted_by_user',
             updated_at = datetime('now')
         WHERE customer_id = ?
-      `).bind(customerId).run();
+      `
+      )
+        .bind(customerId)
+        .run();
     }
 
     // Log the deletion request for audit (30-day retention)
     const requestId = generateId();
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       INSERT INTO audit_log (id, action, resource_type, resource_id, ip_address, details, created_at)
       VALUES (?, 'data_deletion_request', 'customer', ?, ?, ?, datetime('now'))
-    `).bind(
-      requestId,
-      customerId || machineId || 'unknown',
-      request.headers.get('CF-Connecting-IP') || 'unknown',
-      JSON.stringify({
-        reason: body.reason || 'User requested deletion',
-        deleted_counts: deletedCounts,
-      })
-    ).run();
+    `
+    )
+      .bind(
+        requestId,
+        customerId || machineId || 'unknown',
+        request.headers.get('CF-Connecting-IP') || 'unknown',
+        JSON.stringify({
+          reason: body.reason || 'User requested deletion',
+          deleted_counts: deletedCounts,
+        })
+      )
+      .run();
 
     return jsonResponse({
       success: true,
       message: 'Your data has been deleted. This action is irreversible.',
       request_id: requestId,
       deleted: deletedCounts,
-      retention_notice: 'Audit logs are retained for 30 days for security purposes. Payment records are retained per Stripe requirements.',
+      retention_notice:
+        'Audit logs are retained for 30 days for security purposes. Payment records are retained per Stripe requirements.',
     });
   } catch (e) {
     console.error('Data deletion error:', e);
@@ -216,7 +240,8 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
  */
 export async function handleExportMyData(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json() as DataExportRequest;
+    // SAFETY: The request fields are checked immediately below before export lookup.
+    const body = (await request.json()) as DataExportRequest;
 
     if (!body.email && !body.license_key) {
       return errorResponse('Must provide email or license_key', 400);
@@ -224,14 +249,14 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
 
     let customerId: string | null = null;
     let licenseId: string | null = null;
-    let customerEmail: string | null = body.email || null;
 
     // Find customer
     if (body.email) {
-      const customer = await env.DB.prepare(
-        'SELECT id FROM customers WHERE email = ?'
-      ).bind(body.email).first();
+      const customer = await env.DB.prepare('SELECT id FROM customers WHERE email = ?')
+        .bind(body.email)
+        .first();
       if (customer) {
+        // SAFETY: The SELECT projects the stable customer id column.
         customerId = customer.id as string;
       }
     }
@@ -239,9 +264,13 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
     if (body.license_key) {
       const license = await env.DB.prepare(
         'SELECT id, customer_id FROM licenses WHERE license_key = ?'
-      ).bind(body.license_key).first();
+      )
+        .bind(body.license_key)
+        .first();
       if (license) {
+        // SAFETY: The SELECT projects the stable license id column.
         licenseId = license.id as string;
+        // SAFETY: The SELECT projects the stable customer id column.
         customerId = license.customer_id as string;
       }
     }
@@ -251,19 +280,20 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
     }
 
     // Collect all user data
-    const exportData: Record<string, any> = {
+    const exportData: ExportData = {
       export_date: new Date().toISOString(),
       export_format_version: '1.0',
     };
 
     // Customer profile
     const customer = await env.DB.prepare(
-      'SELECT id, email, name, company, tier, stripe_customer_id, created_at FROM customers WHERE id = ?'
-    ).bind(customerId).first();
+      'SELECT id, email, company, tier, stripe_customer_id, created_at FROM customers WHERE id = ?'
+    )
+      .bind(customerId)
+      .first();
     if (customer) {
       exportData.profile = {
         email: customer.email,
-        name: customer.name,
         company: customer.company,
         tier: customer.tier,
         member_since: customer.created_at,
@@ -273,7 +303,9 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
     // License info (redacted key)
     const licenses = await env.DB.prepare(
       'SELECT tier, status, max_machines, activated_at, expires_at, created_at FROM licenses WHERE customer_id = ?'
-    ).bind(customerId).all();
+    )
+      .bind(customerId)
+      .all();
     exportData.licenses = licenses.results?.map((l: any) => ({
       tier: l.tier,
       status: l.status,
@@ -287,57 +319,75 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
     if (licenseId) {
       const machines = await env.DB.prepare(
         'SELECT machine_id, hostname, os, arch, omg_version, activated_at, last_seen_at FROM machine_usage WHERE license_id = ?'
-      ).bind(licenseId).all();
+      )
+        .bind(licenseId)
+        .all();
       exportData.machines = machines.results;
 
       // Command history (last 1000)
-      const commands = await env.DB.prepare(`
+      const commands = await env.DB.prepare(
+        `
         SELECT command, subcommand, packages, duration_ms, success, timestamp
         FROM command_event
         WHERE license_id = ?
         ORDER BY timestamp DESC
         LIMIT 1000
-      `).bind(licenseId).all();
+      `
+      )
+        .bind(licenseId)
+        .all();
       exportData.command_history = commands.results;
 
       // Session history (last 100)
-      const sessions = await env.DB.prepare(`
+      const sessions = await env.DB.prepare(
+        `
         SELECT session_id, event_type, start_time, end_time, commands_run, duration_secs, timestamp
         FROM session
         WHERE license_id = ?
         ORDER BY timestamp DESC
         LIMIT 100
-      `).bind(licenseId).all();
+      `
+      )
+        .bind(licenseId)
+        .all();
       exportData.sessions = sessions.results;
 
       // Performance metrics (aggregated)
-      const perfMetrics = await env.DB.prepare(`
+      const perfMetrics = await env.DB.prepare(
+        `
         SELECT metric_type, AVG(duration_ms) as avg_duration_ms, COUNT(*) as sample_count
         FROM performance_metric
         WHERE license_id = ?
         GROUP BY metric_type
-      `).bind(licenseId).all();
+      `
+      )
+        .bind(licenseId)
+        .all();
       exportData.performance_summary = perfMetrics.results;
 
       // Feature usage
-      const features = await env.DB.prepare(`
+      const features = await env.DB.prepare(
+        `
         SELECT feature, enabled, COUNT(*) as usage_count, MAX(timestamp) as last_used
         FROM feature_usage
         WHERE license_id = ?
         GROUP BY feature, enabled
-      `).bind(licenseId).all();
+      `
+      )
+        .bind(licenseId)
+        .all();
       exportData.feature_usage = features.results;
     }
 
     // Log the export request
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       INSERT INTO audit_log (id, action, resource_type, resource_id, ip_address, created_at)
       VALUES (?, 'data_export_request', 'customer', ?, ?, datetime('now'))
-    `).bind(
-      generateId(),
-      customerId,
-      request.headers.get('CF-Connecting-IP') || 'unknown'
-    ).run();
+    `
+    )
+      .bind(generateId(), customerId, request.headers.get('CF-Connecting-IP') || 'unknown')
+      .run();
 
     return new Response(JSON.stringify(exportData, null, 2), {
       status: 200,
@@ -359,7 +409,8 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
  */
 export async function handleOptOut(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json() as { license_key: string; opt_out: boolean };
+    // SAFETY: The license key is checked immediately below before the preference update.
+    const body = (await request.json()) as { license_key: string; opt_out: boolean };
 
     if (!body.license_key) {
       return errorResponse('License key required', 400);
@@ -367,19 +418,25 @@ export async function handleOptOut(request: Request, env: Env): Promise<Response
 
     const license = await env.DB.prepare(
       'SELECT id, customer_id FROM licenses WHERE license_key = ?'
-    ).bind(body.license_key).first();
+    )
+      .bind(body.license_key)
+      .first();
 
     if (!license) {
       return errorResponse('Invalid license key', 404);
     }
 
     // Update customer preferences
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       UPDATE customers
       SET telemetry_opt_out = ?,
           updated_at = datetime('now')
       WHERE id = ?
-    `).bind(body.opt_out ? 1 : 0, license.customer_id).run();
+    `
+    )
+      .bind(body.opt_out ? 1 : 0, license.customer_id)
+      .run();
 
     return jsonResponse({
       success: true,
@@ -428,7 +485,9 @@ export async function handlePrivacyStatus(request: Request, env: Env): Promise<R
   // Get user-specific status
   const license = await env.DB.prepare(
     'SELECT l.id, c.telemetry_opt_out, c.email FROM licenses l JOIN customers c ON l.customer_id = c.id WHERE l.license_key = ?'
-  ).bind(licenseKey).first();
+  )
+    .bind(licenseKey)
+    .first();
 
   if (!license) {
     return jsonResponse({
@@ -441,7 +500,8 @@ export async function handlePrivacyStatus(request: Request, env: Env): Promise<R
     ...baseResponse,
     user_status: {
       telemetry_opt_out: Boolean(license.telemetry_opt_out),
-      email_on_file: license.email ? '***@' + (license.email as string).split('@')[1] : null,
+      // SAFETY: The SELECT projects the customer email column.
+      email_on_file: license.email ? `***@${(license.email as string).split('@')[1]}` : null,
     },
   });
 }

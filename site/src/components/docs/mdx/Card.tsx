@@ -1,6 +1,6 @@
-import { ParentProps, Show, JSX } from "solid-js";
-import { A } from "@solidjs/router";
-import { ArrowRight } from "lucide-solid";
+import { ParentProps, Show, JSX } from 'solid-js';
+import { A } from '@solidjs/router';
+import { ArrowRight } from 'lucide-solid';
 
 interface CardProps extends ParentProps {
   title: string;
@@ -47,9 +47,9 @@ export function CardGrid(props: CardGridProps) {
     <div
       class="my-6 grid gap-4"
       classList={{
-        "grid-cols-1 md:grid-cols-2": cols() === 2,
-        "grid-cols-1 md:grid-cols-2 lg:grid-cols-3": cols() === 3,
-        "grid-cols-1 md:grid-cols-2 lg:grid-cols-4": cols() === 4,
+        'grid-cols-1 md:grid-cols-2': cols() === 2,
+        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3': cols() === 3,
+        'grid-cols-1 md:grid-cols-2 lg:grid-cols-4': cols() === 4,
       }}
     >
       {props.children}

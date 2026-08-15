@@ -3,17 +3,17 @@ import { Env, jsonResponse, errorResponse, generateId, logAudit } from '../api';
 export async function handleCreateAdminSession(request: Request, env: Env): Promise<Response> {
   try {
     const adminSecret = request.headers.get('X-Admin-Secret');
-    
+
     if (!adminSecret || adminSecret !== env.ADMIN_API_SECRET) {
       return errorResponse('Unauthorized', 401);
     }
 
-    const body = await request.json() as { 
-      email: string; 
+    const body = (await request.json()) as {
+      email: string;
       name?: string;
       betterAuthUserId?: string;
     };
-    
+
     if (!body.email) {
       return errorResponse('Email required', 400);
     }
@@ -24,19 +24,23 @@ export async function handleCreateAdminSession(request: Request, env: Env): Prom
 
     if (!customer) {
       const customerId = generateId();
-      
+
       await env.DB.prepare(
         `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', 1)`
-      ).bind(customerId, body.email, body.name || null).run();
+      )
+        .bind(customerId, body.email, body.name || null)
+        .run();
 
       const licenseKey = crypto.randomUUID();
       await env.DB.prepare(
         `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
          VALUES (?, ?, ?, 'free', 'active', 1)`
-      ).bind(generateId(), customerId, licenseKey).run();
+      )
+        .bind(generateId(), customerId, licenseKey)
+        .run();
 
       customer = { id: customerId, email: body.email, admin: 1 };
-      
+
       await logAudit(env.DB, customerId, 'admin.session_created', 'customer', customerId, request);
     }
 
@@ -46,7 +50,9 @@ export async function handleCreateAdminSession(request: Request, env: Env): Prom
 
     const existingSession = await env.DB.prepare(
       `SELECT * FROM sessions WHERE customer_id = ? AND expires_at > datetime('now') ORDER BY created_at DESC LIMIT 1`
-    ).bind(customer.id).first();
+    )
+      .bind(customer.id)
+      .first();
 
     if (existingSession) {
       return jsonResponse({
@@ -62,9 +68,18 @@ export async function handleCreateAdminSession(request: Request, env: Env): Prom
 
     await env.DB.prepare(
       `INSERT INTO sessions (id, customer_id, token, expires_at) VALUES (?, ?, ?, ?)`
-    ).bind(sessionId, customer.id, token, expiresAt).run();
+    )
+      .bind(sessionId, customer.id, token, expiresAt)
+      .run();
 
-    await logAudit(env.DB, customer.id as string, 'admin.session_created', 'session', sessionId, request);
+    await logAudit(
+      env.DB,
+      customer.id as string,
+      'admin.session_created',
+      'session',
+      sessionId,
+      request
+    );
 
     return jsonResponse({
       token,

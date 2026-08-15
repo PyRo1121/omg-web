@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal, createMemo, createEffect, onMount, onCleanup } from 'solid-js';
+import { type Component, For, Show, createSignal, createMemo, onMount } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Globe, MapPin, Users, Activity, Laptop, Server, Clock } from 'lucide-solid';
@@ -38,7 +38,7 @@ interface TooltipData {
 // ============================================================================
 
 // Approximate center points for countries (normalized to 0-100 scale for SVG)
-const COUNTRY_COORDINATES: Record<string, { x: number; y: number }> = {
+const COUNTRY_COORDINATES = {
   // North America
   US: { x: 22, y: 42 },
   CA: { x: 20, y: 32 },
@@ -98,14 +98,14 @@ const COUNTRY_COORDINATES: Record<string, { x: number; y: number }> = {
 
   // Default for unknown
   UNKNOWN: { x: 50, y: 50 },
-};
+} satisfies Record<string, { x: number; y: number }>;
 
-const TIER_COLORS: Record<string, string> = {
+const TIER_COLORS = {
   free: 'var(--color-nebula-400)',
   pro: 'var(--color-electric-400)',
   team: 'var(--color-photon-400)',
   enterprise: 'var(--color-solar-400)',
-};
+} satisfies Record<string, string>;
 
 const RECENT_THRESHOLD_MS = 30000; // 30 seconds
 
@@ -115,8 +115,14 @@ const RECENT_THRESHOLD_MS = 30000; // 30 seconds
 
 const getCountryCoords = (countryCode?: string): { x: number; y: number } => {
   if (!countryCode) return COUNTRY_COORDINATES.UNKNOWN;
-  return COUNTRY_COORDINATES[countryCode.toUpperCase()] || COUNTRY_COORDINATES.UNKNOWN;
+  return (
+    Object.entries(COUNTRY_COORDINATES).find(([key]) => key === countryCode.toUpperCase())?.[1] ??
+    COUNTRY_COORDINATES.UNKNOWN
+  );
 };
+
+const getTierColor = (tier: string): string =>
+  Object.entries(TIER_COLORS).find(([key]) => key === tier)?.[1] ?? TIER_COLORS.free;
 
 const isRecentActivity = (lastActivity: string): boolean => {
   const now = Date.now();
@@ -140,7 +146,7 @@ const getCountryFlag = (code?: string): string => {
   const codePoints = code
     .toUpperCase()
     .split('')
-    .map((char) => 127397 + char.charCodeAt(0));
+    .map(char => 127397 + char.charCodeAt(0));
   return String.fromCodePoint(...codePoints);
 };
 
@@ -152,72 +158,81 @@ interface SessionTooltipProps {
   data: TooltipData | null;
 }
 
-const SessionTooltip: Component<SessionTooltipProps> = (props) => {
+const SessionTooltip: Component<SessionTooltipProps> = props => {
   return (
     <Show when={props.data}>
-      {(data) => (
-        <div
-          class="pointer-events-none absolute z-50 min-w-[200px] rounded-xl border border-white/10 bg-void-900/95 p-3 shadow-2xl backdrop-blur-xl"
-          style={{
-            left: `${data().x}%`,
-            top: `${data().y}%`,
-            transform: 'translate(-50%, -110%)',
-          }}
-        >
-          {/* Header */}
-          <div class="mb-2 flex items-center gap-2">
-            <div class="text-lg">{getCountryFlag(data().session.geo?.country_code)}</div>
-            <div>
-              <div class="text-xs font-bold text-white">
-                {data().session.geo?.city || data().session.geo?.country || 'Unknown Location'}
+      {data => {
+        const region = data().session.geo?.region;
+        return (
+          <div
+            class="bg-void-900/95 pointer-events-none absolute z-50 min-w-[200px] rounded-xl border border-white/10 p-3 shadow-2xl backdrop-blur-xl"
+            style={{
+              left: `${data().x}%`,
+              top: `${data().y}%`,
+              transform: 'translate(-50%, -110%)',
+            }}
+          >
+            {/* Header */}
+            <div class="mb-2 flex items-center gap-2">
+              <div class="text-lg">{getCountryFlag(data().session.geo?.country_code)}</div>
+              <div>
+                <div class="text-xs font-bold text-white">
+                  {data().session.geo?.city || data().session.geo?.country || 'Unknown Location'}
+                </div>
+                <div class="text-2xs text-nebula-500">
+                  {region ? `${region}, ` : ''}
+                  {data().session.geo?.country}
+                </div>
               </div>
-              <div class="text-2xs text-nebula-500">
-                {data().session.geo?.region && `${data().session.geo.region}, `}
-                {data().session.geo?.country}
+            </div>
+
+            {/* Session Details */}
+            <div class="space-y-1.5 border-t border-white/5 pt-2">
+              <div class="text-2xs flex items-center gap-2">
+                <Laptop size={10} class="text-nebula-500" />
+                <span class="text-nebula-400">
+                  {data().session.hostname || data().session.machine_id?.slice(0, 8) || 'unknown'}
+                </span>
+              </div>
+              <div class="text-2xs flex items-center gap-2">
+                <Server size={10} class="text-nebula-500" />
+                <span class="text-nebula-400">
+                  {data().session.platform} v{data().session.version}
+                </span>
+              </div>
+              <div class="text-2xs flex items-center gap-2">
+                <Activity size={10} class="text-nebula-500" />
+                <span class="text-nebula-400">{data().session.command_count} commands</span>
+              </div>
+              <div class="text-2xs flex items-center gap-2">
+                <Clock size={10} class="text-nebula-500" />
+                <span class="text-nebula-400">
+                  Last active: {formatLastSeen(data().session.last_activity_at)}
+                </span>
               </div>
             </div>
-          </div>
 
-          {/* Session Details */}
-          <div class="space-y-1.5 border-t border-white/5 pt-2">
-            <div class="flex items-center gap-2 text-2xs">
-              <Laptop size={10} class="text-nebula-500" />
-              <span class="text-nebula-400">{data().session.hostname || data().session.machine_id.slice(0, 8)}</span>
-            </div>
-            <div class="flex items-center gap-2 text-2xs">
-              <Server size={10} class="text-nebula-500" />
-              <span class="text-nebula-400">{data().session.platform} v{data().session.version}</span>
-            </div>
-            <div class="flex items-center gap-2 text-2xs">
-              <Activity size={10} class="text-nebula-500" />
-              <span class="text-nebula-400">{data().session.command_count} commands</span>
-            </div>
-            <div class="flex items-center gap-2 text-2xs">
-              <Clock size={10} class="text-nebula-500" />
-              <span class="text-nebula-400">Last active: {formatLastSeen(data().session.last_activity_at)}</span>
-            </div>
-          </div>
-
-          {/* Tier Badge */}
-          <div class="mt-2 flex items-center justify-between">
-            <span
-              class="rounded-full px-2 py-0.5 text-2xs font-bold uppercase"
-              style={{
-                background: `color-mix(in srgb, ${TIER_COLORS[data().session.license_tier]} 15%, transparent)`,
-                color: TIER_COLORS[data().session.license_tier],
-              }}
-            >
-              {data().session.license_tier}
-            </span>
-            <Show when={isRecentActivity(data().session.last_activity_at)}>
-              <span class="flex items-center gap-1 text-2xs text-aurora-400">
-                <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-aurora-500" />
-                Active
+            {/* Tier Badge */}
+            <div class="mt-2 flex items-center justify-between">
+              <span
+                class="text-2xs rounded-full px-2 py-0.5 font-bold uppercase"
+                style={{
+                  background: `color-mix(in srgb, ${TIER_COLORS[data().session.license_tier]} 15%, transparent)`,
+                  color: TIER_COLORS[data().session.license_tier],
+                }}
+              >
+                {data().session.license_tier}
               </span>
-            </Show>
+              <Show when={isRecentActivity(data().session.last_activity_at)}>
+                <span class="text-2xs text-aurora-400 flex items-center gap-1">
+                  <span class="bg-aurora-500 h-1.5 w-1.5 animate-pulse rounded-full" />
+                  Active
+                </span>
+              </Show>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      }}
     </Show>
   );
 };
@@ -231,7 +246,7 @@ interface WorldMapProps {
   onHover: (data: TooltipData | null) => void;
 }
 
-const WorldMap: Component<WorldMapProps> = (props) => {
+const WorldMap: Component<WorldMapProps> = props => {
   // Simple world map outline paths (simplified for performance)
   const continentPaths = `
     M 10,35 Q 15,30 25,32 L 30,40 Q 35,55 28,65 Q 20,75 28,80 L 26,82 Q 20,78 22,70 Q 18,55 15,50 Q 8,42 10,35 Z
@@ -246,11 +261,18 @@ const WorldMap: Component<WorldMapProps> = (props) => {
       viewBox="0 0 100 90"
       class="h-full w-full"
       preserveAspectRatio="xMidYMid meet"
+      aria-label="Active sessions world map"
+      role="img"
     >
       {/* Grid lines */}
       <defs>
         <pattern id="map-grid" width="10" height="10" patternUnits="userSpaceOnUse">
-          <path d="M 10 0 L 0 0 0 10" fill="none" stroke="var(--color-void-700)" stroke-width="0.1" />
+          <path
+            d="M 10 0 L 0 0 0 10"
+            fill="none"
+            stroke="var(--color-void-700)"
+            stroke-width="0.1"
+          />
         </pattern>
         <radialGradient id="point-glow">
           <stop offset="0%" stop-color="currentColor" stop-opacity="0.8" />
@@ -272,9 +294,11 @@ const WorldMap: Component<WorldMapProps> = (props) => {
 
       {/* Session points */}
       <For each={props.points}>
-        {(point) => (
+        {point => (
           <g
             class="cursor-pointer transition-all duration-300"
+            role="button"
+            tabindex="0"
             onMouseEnter={() => props.onHover({ session: point.session, x: point.x, y: point.y })}
             onMouseLeave={() => props.onHover(null)}
           >
@@ -306,9 +330,11 @@ const WorldMap: Component<WorldMapProps> = (props) => {
               cy={point.y}
               r={point.isRecent ? 1.2 : 0.8}
               fill={TIER_COLORS[point.session.license_tier]}
-              class="transition-all duration-300 hover:r-[1.5]"
+              class="hover:r-[1.5] transition-all duration-300"
               style={{
-                filter: point.isRecent ? `drop-shadow(0 0 2px ${TIER_COLORS[point.session.license_tier]})` : undefined,
+                filter: point.isRecent
+                  ? `drop-shadow(0 0 2px ${TIER_COLORS[point.session.license_tier]})`
+                  : undefined,
               }}
             />
           </g>
@@ -327,7 +353,7 @@ interface StatsPanelProps {
   sessionsByCountry: Map<string, SessionEvent[]>;
 }
 
-const StatsPanel: Component<StatsPanelProps> = (props) => {
+const StatsPanel: Component<StatsPanelProps> = props => {
   const topCountries = createMemo(() => {
     const sorted = Array.from(props.sessionsByCountry.entries())
       .sort((a, b) => b[1].length - a[1].length)
@@ -338,79 +364,79 @@ const StatsPanel: Component<StatsPanelProps> = (props) => {
   const tierCounts = createMemo(() => {
     const counts = { free: 0, pro: 0, team: 0, enterprise: 0 };
     for (const session of props.sessions) {
-      counts[session.license_tier as keyof typeof counts]++;
+      switch (session.license_tier) {
+        case 'free':
+          counts.free++;
+          break;
+        case 'pro':
+          counts.pro++;
+          break;
+        case 'team':
+          counts.team++;
+          break;
+        case 'enterprise':
+          counts.enterprise++;
+          break;
+      }
     }
     return counts;
   });
 
-  const activeCount = createMemo(() =>
-    props.sessions.filter((s) => isRecentActivity(s.last_activity_at)).length
+  const activeCount = createMemo(
+    () => props.sessions.filter(s => isRecentActivity(s.last_activity_at)).length
   );
 
   return (
     <div class="space-y-4">
       {/* Summary Stats */}
       <div class="grid grid-cols-2 gap-3">
-        <div class="rounded-xl border border-white/5 bg-void-800/50 p-3">
+        <div class="bg-void-800/50 rounded-xl border border-white/5 p-3">
           <div class="flex items-center gap-2">
             <Users size={14} class="text-indigo-400" />
-            <span class="text-2xs font-bold uppercase text-nebula-500">Total Sessions</span>
+            <span class="text-2xs text-nebula-500 font-bold uppercase">Total Sessions</span>
           </div>
-          <div class="mt-1 font-display text-2xl font-black text-white">
+          <div class="font-display mt-1 text-2xl font-black text-white">
             {props.sessions.length}
           </div>
         </div>
-        <div class="rounded-xl border border-white/5 bg-void-800/50 p-3">
+        <div class="bg-void-800/50 rounded-xl border border-white/5 p-3">
           <div class="flex items-center gap-2">
             <Activity size={14} class="text-aurora-400" />
-            <span class="text-2xs font-bold uppercase text-nebula-500">Active Now</span>
+            <span class="text-2xs text-nebula-500 font-bold uppercase">Active Now</span>
           </div>
-          <div class="mt-1 font-display text-2xl font-black text-aurora-400">
-            {activeCount()}
-          </div>
+          <div class="font-display text-aurora-400 mt-1 text-2xl font-black">{activeCount()}</div>
         </div>
       </div>
 
       {/* Top Countries */}
-      <div class="rounded-xl border border-white/5 bg-void-800/50 p-3">
-        <div class="mb-2 text-2xs font-bold uppercase text-nebula-500">Top Regions</div>
+      <div class="bg-void-800/50 rounded-xl border border-white/5 p-3">
+        <div class="text-2xs text-nebula-500 mb-2 font-bold uppercase">Top Regions</div>
         <div class="space-y-2">
           <For each={topCountries()}>
             {([countryCode, sessions]) => (
               <div class="flex items-center gap-2">
                 <span class="text-sm">{getCountryFlag(countryCode)}</span>
-                <span class="flex-1 text-xs font-medium text-nebula-300">
-                  {countryCode}
-                </span>
-                <span class="font-mono text-xs font-bold text-white">
-                  {sessions.length}
-                </span>
+                <span class="text-nebula-300 flex-1 text-xs font-medium">{countryCode}</span>
+                <span class="font-mono text-xs font-bold text-white">{sessions.length}</span>
               </div>
             )}
           </For>
           <Show when={topCountries().length === 0}>
-            <div class="text-center text-xs text-nebula-500 italic">
-              No regional data yet
-            </div>
+            <div class="text-nebula-500 text-center text-xs italic">No regional data yet</div>
           </Show>
         </div>
       </div>
 
       {/* Tier Breakdown */}
-      <div class="rounded-xl border border-white/5 bg-void-800/50 p-3">
-        <div class="mb-2 text-2xs font-bold uppercase text-nebula-500">By Tier</div>
+      <div class="bg-void-800/50 rounded-xl border border-white/5 p-3">
+        <div class="text-2xs text-nebula-500 mb-2 font-bold uppercase">By Tier</div>
         <div class="space-y-2">
-          <For each={Object.entries(tierCounts()) as [string, number][]}>
+          <For each={Object.entries(tierCounts())}>
             {([tier, count]) => (
               <Show when={count > 0}>
                 <div class="flex items-center gap-2">
-                  <div
-                    class="h-2 w-2 rounded-full"
-                    style={{ background: TIER_COLORS[tier] }}
-                  />
-                  <span class="flex-1 text-xs font-medium capitalize text-nebula-300">
-                    {tier}
-                  </span>
+                  <div class="h-2 w-2 rounded-full" style={{ background: getTierColor(tier) }} />
+                  <span class="text-nebula-300 flex-1 text-xs font-medium capitalize">{tier}</span>
                   <span class="font-mono text-xs font-bold text-white">{count}</span>
                 </div>
               </Show>
@@ -426,7 +452,7 @@ const StatsPanel: Component<StatsPanelProps> = (props) => {
 // Main Component
 // ============================================================================
 
-export const ActiveSessionsMap: Component<ActiveSessionsMapProps> = (props) => {
+export const ActiveSessionsMap: Component<ActiveSessionsMapProps> = props => {
   const [tooltipData, setTooltipData] = createSignal<TooltipData | null>(null);
   const [mounted, setMounted] = createSignal(false);
 
@@ -478,19 +504,19 @@ export const ActiveSessionsMap: Component<ActiveSessionsMapProps> = (props) => {
   return (
     <div
       class={cn(
-        'relative overflow-hidden rounded-2xl border border-white/[0.06] bg-void-900 shadow-2xl',
+        'bg-void-900 relative overflow-hidden rounded-2xl border border-white/[0.06] shadow-2xl',
         props.class
       )}
     >
       {/* Ambient glow effects */}
-      <div class="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-indigo-500/10 blur-[80px]" />
-      <div class="pointer-events-none absolute -bottom-20 -left-20 h-48 w-48 rounded-full bg-photon-500/10 blur-[80px]" />
+      <div class="pointer-events-none absolute -top-20 -right-20 h-48 w-48 rounded-full bg-indigo-500/10 blur-[80px]" />
+      <div class="bg-photon-500/10 pointer-events-none absolute -bottom-20 -left-20 h-48 w-48 rounded-full blur-[80px]" />
 
       {/* Header */}
       <div class="relative border-b border-white/5 bg-gradient-to-r from-white/[0.02] to-transparent p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-electric-600">
+            <div class="to-electric-600 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500">
               <Globe size={20} class="text-white" />
             </div>
             <div>
@@ -518,7 +544,7 @@ export const ActiveSessionsMap: Component<ActiveSessionsMapProps> = (props) => {
         <div class="relative flex-1 p-4">
           <div
             class={cn(
-              'relative aspect-[16/9] overflow-hidden rounded-xl border border-white/5 bg-void-850',
+              'bg-void-850 relative aspect-[16/9] overflow-hidden rounded-xl border border-white/5',
               'transition-opacity duration-500',
               mounted() ? 'opacity-100' : 'opacity-0'
             )}
@@ -527,30 +553,32 @@ export const ActiveSessionsMap: Component<ActiveSessionsMapProps> = (props) => {
             <SessionTooltip data={tooltipData()} />
 
             {/* Legend */}
-            <div class="absolute bottom-3 left-3 flex items-center gap-3 rounded-lg bg-void-900/80 px-3 py-2 backdrop-blur-sm">
+            <div class="bg-void-900/80 absolute bottom-3 left-3 flex items-center gap-3 rounded-lg px-3 py-2 backdrop-blur-sm">
               <div class="flex items-center gap-1.5">
-                <span class="h-2 w-2 animate-pulse rounded-full bg-aurora-500" />
+                <span class="bg-aurora-500 h-2 w-2 animate-pulse rounded-full" />
                 <span class="text-2xs text-nebula-400">Active</span>
               </div>
               <div class="flex items-center gap-1.5">
-                <span class="h-2 w-2 rounded-full bg-nebula-500" />
+                <span class="bg-nebula-500 h-2 w-2 rounded-full" />
                 <span class="text-2xs text-nebula-400">Idle</span>
               </div>
             </div>
 
             {/* Empty State */}
             <Show when={props.sessions.length === 0}>
-              <div class="absolute inset-0 flex flex-col items-center justify-center bg-void-850/80">
-                <MapPin size={32} class="mb-3 text-nebula-600" />
-                <p class="text-sm font-bold text-nebula-400">No Active Sessions</p>
-                <p class="mt-1 text-xs text-nebula-600">Sessions will appear here as users connect</p>
+              <div class="bg-void-850/80 absolute inset-0 flex flex-col items-center justify-center">
+                <MapPin size={32} class="text-nebula-600 mb-3" />
+                <p class="text-nebula-400 text-sm font-bold">No Active Sessions</p>
+                <p class="text-nebula-600 mt-1 text-xs">
+                  Sessions will appear here as users connect
+                </p>
               </div>
             </Show>
           </div>
         </div>
 
         {/* Stats Sidebar */}
-        <div class="w-full border-t border-white/5 p-4 lg:w-64 lg:border-l lg:border-t-0">
+        <div class="w-full border-t border-white/5 p-4 lg:w-64 lg:border-t-0 lg:border-l">
           <StatsPanel sessions={props.sessions} sessionsByCountry={sessionsByCountry()} />
         </div>
       </div>
