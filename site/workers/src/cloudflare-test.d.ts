@@ -1,3 +1,8 @@
+declare module '*?raw' {
+  const content: string;
+  export default content;
+}
+
 declare module 'cloudflare:test' {
   import type { Env } from './api';
 

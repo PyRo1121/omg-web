@@ -1,5 +1,4 @@
-/// <reference path="../src/cloudflare-test.d.ts" />
-
+import '../src/cloudflare-test.d.ts';
 /**
  * Privacy API Tests (GDPR/CCPA Compliance)
  * Tests for:

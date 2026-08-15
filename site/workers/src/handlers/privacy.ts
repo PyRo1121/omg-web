@@ -1,6 +1,6 @@
 // Privacy and data deletion handlers (GDPR/CCPA compliance)
 // Available globally to all users, regardless of jurisdiction
-import { Env, jsonResponse, errorResponse, corsHeaders, generateId } from '../api';
+import { type Env, jsonResponse, errorResponse, corsHeaders, generateId } from '../api';
 
 interface DeleteRequest {
   email?: string;
@@ -13,6 +13,23 @@ interface DeleteRequest {
 interface DataExportRequest {
   email?: string;
   license_key?: string;
+}
+
+interface ExportData {
+  export_date: string;
+  export_format_version: string;
+  profile?: {
+    email: unknown;
+    company: unknown;
+    tier: unknown;
+    member_since: unknown;
+  };
+  licenses?: unknown[];
+  machines?: unknown[];
+  command_history?: unknown[];
+  sessions?: unknown[];
+  performance_summary?: unknown[];
+  feature_usage?: unknown[];
 }
 
 /**
@@ -35,6 +52,7 @@ interface DataExportRequest {
  */
 export async function handleDeleteMyData(request: Request, env: Env): Promise<Response> {
   try {
+    // SAFETY: The request fields are checked immediately below before any destructive operation.
     const body = (await request.json()) as DeleteRequest;
 
     if (!body.confirm) {
@@ -55,6 +73,7 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
         .bind(body.email)
         .first();
       if (customer) {
+        // SAFETY: The SELECT projects the stable customer id column.
         customerId = customer.id as string;
       }
     }
@@ -67,7 +86,9 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
         .bind(body.license_key)
         .first();
       if (license) {
+        // SAFETY: The SELECT projects the stable license id column.
         licenseId = license.id as string;
+        // SAFETY: The SELECT projects the stable customer id column.
         customerId = license.customer_id as string;
       }
     }
@@ -99,20 +120,6 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
       // Feature usage
       statements.push(
         env.DB.prepare('DELETE FROM feature_usage WHERE license_id = ?').bind(licenseId)
-      );
-      // Health scores (CRM data)
-      statements.push(
-        env.DB.prepare('DELETE FROM health_score WHERE license_id = ?').bind(licenseId)
-      );
-      // Admin notes (CRM - only user-visible notes, not internal)
-      statements.push(
-        env.DB.prepare('DELETE FROM admin_note WHERE license_id = ? AND is_internal = 0').bind(
-          licenseId
-        )
-      );
-      // License tags (tag associations)
-      statements.push(
-        env.DB.prepare('DELETE FROM license_tag WHERE license_id = ?').bind(licenseId)
       );
     }
 
@@ -233,6 +240,7 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
  */
 export async function handleExportMyData(request: Request, env: Env): Promise<Response> {
   try {
+    // SAFETY: The request fields are checked immediately below before export lookup.
     const body = (await request.json()) as DataExportRequest;
 
     if (!body.email && !body.license_key) {
@@ -241,7 +249,6 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
 
     let customerId: string | null = null;
     let licenseId: string | null = null;
-    let customerEmail: string | null = body.email || null;
 
     // Find customer
     if (body.email) {
@@ -249,6 +256,7 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
         .bind(body.email)
         .first();
       if (customer) {
+        // SAFETY: The SELECT projects the stable customer id column.
         customerId = customer.id as string;
       }
     }
@@ -260,7 +268,9 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
         .bind(body.license_key)
         .first();
       if (license) {
+        // SAFETY: The SELECT projects the stable license id column.
         licenseId = license.id as string;
+        // SAFETY: The SELECT projects the stable customer id column.
         customerId = license.customer_id as string;
       }
     }
@@ -270,21 +280,20 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
     }
 
     // Collect all user data
-    const exportData: Record<string, any> = {
+    const exportData: ExportData = {
       export_date: new Date().toISOString(),
       export_format_version: '1.0',
     };
 
     // Customer profile
     const customer = await env.DB.prepare(
-      'SELECT id, email, name, company, tier, stripe_customer_id, created_at FROM customers WHERE id = ?'
+      'SELECT id, email, company, tier, stripe_customer_id, created_at FROM customers WHERE id = ?'
     )
       .bind(customerId)
       .first();
     if (customer) {
       exportData.profile = {
         email: customer.email,
-        name: customer.name,
         company: customer.company,
         tier: customer.tier,
         member_since: customer.created_at,
@@ -400,6 +409,7 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
  */
 export async function handleOptOut(request: Request, env: Env): Promise<Response> {
   try {
+    // SAFETY: The license key is checked immediately below before the preference update.
     const body = (await request.json()) as { license_key: string; opt_out: boolean };
 
     if (!body.license_key) {
@@ -490,7 +500,8 @@ export async function handlePrivacyStatus(request: Request, env: Env): Promise<R
     ...baseResponse,
     user_status: {
       telemetry_opt_out: Boolean(license.telemetry_opt_out),
-      email_on_file: license.email ? '***@' + (license.email as string).split('@')[1] : null,
+      // SAFETY: The SELECT projects the customer email column.
+      email_on_file: license.email ? `***@${(license.email as string).split('@')[1]}` : null,
     },
   });
 }

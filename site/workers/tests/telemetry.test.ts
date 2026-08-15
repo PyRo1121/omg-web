@@ -1,5 +1,4 @@
-/// <reference path="../src/cloudflare-test.d.ts" />
-
+import '../src/cloudflare-test.d.ts';
 /**
  * Telemetry API Tests
  * Tests for POST /api/cli/event and POST /api/cli/batch endpoints
