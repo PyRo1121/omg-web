@@ -1,4 +1,12 @@
-import { Component, createMemo, createSignal, createEffect, Show, splitProps, JSX } from 'solid-js';
+import {
+  type Component,
+  createMemo,
+  createSignal,
+  createEffect,
+  Show,
+  splitProps,
+  type JSX,
+} from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -37,16 +45,17 @@ interface KPICardProps {
   class?: string;
 }
 
-const variantConfig: Record<
-  KPIVariant,
-  {
+type VariantConfig = {
+  [K in KPIVariant]: {
     iconBg: string;
     iconColor: string;
     sparklineColor: string;
     glowColor: string;
     defaultIcon: typeof DollarSign;
-  }
-> = {
+  };
+};
+
+const variantConfig: VariantConfig = {
   revenue: {
     iconBg: 'bg-aurora-500/10',
     iconColor: 'text-aurora-400',
@@ -77,9 +86,8 @@ const variantConfig: Record<
   },
 };
 
-const sizeConfig: Record<
-  KPISize,
-  {
+type SizeConfig = {
+  [K in KPISize]: {
     padding: string;
     titleSize: string;
     valueSize: string;
@@ -87,8 +95,10 @@ const sizeConfig: Record<
     iconSize: number;
     iconPadding: string;
     sparklineHeight: number;
-  }
-> = {
+  };
+};
+
+const sizeConfig: SizeConfig = {
   sm: {
     padding: 'p-4',
     titleSize: 'text-2xs',
@@ -142,7 +152,7 @@ const AnimatedCounter: Component<{
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+      const easeOutQuart = 1 - (1 - progress) ** 4;
       const current = startValue + (target - startValue) * easeOutQuart;
 
       setDisplayValue(current);
