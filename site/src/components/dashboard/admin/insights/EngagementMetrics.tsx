@@ -1,5 +1,5 @@
 import {
-  Component,
+  type Component,
   createMemo,
   createEffect,
   createSignal,
@@ -15,7 +15,6 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
-  Activity,
   BarChart3,
 } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
@@ -57,7 +56,7 @@ const AnimatedCounter: Component<AnimatedCounterProps> = props => {
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration(), 1);
-      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+      const easeOutQuart = 1 - (1 - progress) ** 4;
       const current = startValue + (target - startValue) * easeOutQuart;
       setDisplayValue(current);
 
@@ -86,7 +85,7 @@ interface MetricCardProps {
   delay?: number;
 }
 
-const accentConfig: Record<AccentType, { color: string; gradient: string; glow: string }> = {
+const accentConfig = {
   plasma: {
     color: 'var(--color-plasma-400)',
     gradient: 'linear-gradient(135deg, var(--color-plasma-600), var(--color-plasma-400))',
@@ -107,7 +106,7 @@ const accentConfig: Record<AccentType, { color: string; gradient: string; glow: 
     gradient: 'linear-gradient(135deg, var(--color-aurora-600), var(--color-aurora-400))',
     glow: 'rgba(16, 185, 129, 0.3)',
   },
-};
+} satisfies Record<AccentType, { color: string; gradient: string; glow: string }>;
 
 const MetricCard: Component<MetricCardProps> = props => {
   const [mounted, setMounted] = createSignal(false);
