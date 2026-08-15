@@ -1,4 +1,4 @@
-import { Component, For, Show, createMemo, splitProps, JSX } from 'solid-js';
+import { type Component, For, Show, createMemo, splitProps } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -6,7 +6,6 @@ import {
   Package,
   Users,
   RefreshCw,
-  DollarSign,
   Zap,
   Target,
   ArrowRight,
@@ -54,16 +53,7 @@ interface OpportunityCardProps {
   class?: string;
 }
 
-const typeConfig: Record<
-  OpportunityType,
-  {
-    icon: typeof TrendingUp;
-    label: string;
-    color: string;
-    bgClass: string;
-    borderClass: string;
-  }
-> = {
+const typeConfig = {
   upsell: {
     icon: TrendingUp,
     label: 'Upsell',
@@ -94,16 +84,7 @@ const typeConfig: Record<
   },
 };
 
-const confidenceConfig: Record<
-  ConfidenceLevel,
-  {
-    label: string;
-    color: string;
-    bgClass: string;
-    borderClass: string;
-    glowClass: string;
-  }
-> = {
+const confidenceConfig = {
   low: {
     label: 'Low',
     color: 'var(--opportunity-low, #71717a)',
@@ -132,31 +113,25 @@ const confidenceConfig: Record<
     borderClass: 'border-aurora-500/35',
     glowClass: 'shadow-[0_0_25px_rgba(16,185,129,0.3)]',
   },
-};
-
-const revenueConfig: Record<
-  RevenueImpact,
+} satisfies Record<
+  ConfidenceLevel,
   {
     label: string;
     color: string;
+    bgClass: string;
+    borderClass: string;
+    glowClass: string;
   }
-> = {
+>;
+
+const revenueConfig = {
   low: { label: 'Low', color: 'var(--opportunity-revenue-low, #a1a1aa)' },
   medium: { label: 'Medium', color: 'var(--opportunity-revenue-medium, #2ee8e8)' },
   high: { label: 'High', color: 'var(--opportunity-revenue-high, #34d399)' },
   critical: { label: 'Critical', color: 'var(--opportunity-revenue-critical, #fbbf24)' },
-};
+} satisfies Record<RevenueImpact, { label: string; color: string }>;
 
-const sizeConfig: Record<
-  OpportunitySize,
-  {
-    padding: string;
-    titleSize: string;
-    valueSize: string;
-    iconSize: number;
-    iconPadding: string;
-  }
-> = {
+const sizeConfig = {
   sm: {
     padding: 'p-4',
     titleSize: 'text-sm',
@@ -178,7 +153,16 @@ const sizeConfig: Record<
     iconSize: 24,
     iconPadding: 'p-3',
   },
-};
+} satisfies Record<
+  OpportunitySize,
+  {
+    padding: string;
+    titleSize: string;
+    valueSize: string;
+    iconSize: number;
+    iconPadding: string;
+  }
+>;
 
 const formatCurrency = (value: number): string => {
   if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
@@ -221,8 +205,11 @@ export const OpportunityCard: Component<OpportunityCardProps> = props => {
         local.class
       )}
       onClick={() => local.onClick?.(opp())}
-      role={local.onClick ? 'button' : undefined}
+      onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') local.onClick?.(opp());
+      }}
       tabIndex={local.onClick ? 0 : undefined}
+      role={local.onClick ? 'button' : undefined}
       {...others}
     >
       <div
@@ -346,6 +333,7 @@ export const OpportunityCard: Component<OpportunityCardProps> = props => {
             Dismiss
           </button>
           <button
+            type="button"
             class="flex items-center gap-1.5 rounded-lg bg-indigo-500/10 px-3 py-1.5 text-xs font-bold text-indigo-400 transition-colors hover:bg-indigo-500/20"
             onClick={e => {
               e.stopPropagation();
@@ -385,12 +373,12 @@ export const OpportunityList: Component<OpportunityListProps> = props => {
     items.sort((a, b) => {
       if (sortBy === 'value') return b.estimatedValue - a.estimatedValue;
       if (sortBy === 'confidence') {
-        const order: Record<ConfidenceLevel, number> = {
+        const order = {
           'very-high': 4,
           high: 3,
           medium: 2,
           low: 1,
-        };
+        } satisfies Record<ConfidenceLevel, number>;
         return order[b.confidence] - order[a.confidence];
       }
       if (sortBy === 'daysToClose') {
@@ -413,7 +401,7 @@ export const OpportunityList: Component<OpportunityListProps> = props => {
         </div>
       </Show>
       <For each={sortedOpportunities()}>
-        {(opportunity, index) => (
+        {opportunity => (
           <OpportunityCard
             opportunity={opportunity}
             showSignals={props.showSignals}
@@ -448,7 +436,12 @@ export const OpportunitySummary: Component<OpportunitySummaryProps> = props => {
         acc[o.type] = (acc[o.type] || 0) + 1;
         return acc;
       },
-      {} as Record<OpportunityType, number>
+      {
+        upsell: 0,
+        'cross-sell': 0,
+        expansion: 0,
+        renewal: 0,
+      } satisfies Record<OpportunityType, number>
     );
 
     return { total, totalValue, highConfidence, avgProbability, byType };
@@ -490,17 +483,21 @@ export const OpportunitySummary: Component<OpportunitySummaryProps> = props => {
         <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">By Type</div>
         <div class="mt-2 flex gap-2">
           <For each={Object.entries(stats().byType)}>
-            {([type, count]) => (
-              <div
-                class="rounded-lg px-2 py-1 text-xs font-bold tabular-nums"
-                style={{
-                  color: typeConfig[type as OpportunityType].color,
-                  'background-color': `${typeConfig[type as OpportunityType].color}20`,
-                }}
-              >
-                {count}
-              </div>
-            )}
+            {([type, count]) => {
+              const config =
+                Object.entries(typeConfig).find(([key]) => key === type)?.[1] ?? typeConfig.upsell;
+              return (
+                <div
+                  class="rounded-lg px-2 py-1 text-xs font-bold tabular-nums"
+                  style={{
+                    color: config.color,
+                    'background-color': `${config.color}20`,
+                  }}
+                >
+                  {count}
+                </div>
+              );
+            }}
           </For>
         </div>
       </div>
