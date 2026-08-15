@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal } from 'solid-js';
+import { type Component, For, Show, createSignal } from 'solid-js';
 import {
   Shield,
   User,
@@ -16,7 +16,7 @@ import { useAdminAuditLog } from '../../../lib/api-hooks';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { formatRelativeTime } from '../../../lib/api';
 
-const ACTION_ICONS: Record<string, typeof Shield> = {
+const ACTION_ICONS = {
   'auth.login': User,
   'auth.logout': User,
   'billing.checkout_created': CreditCard,
@@ -24,9 +24,9 @@ const ACTION_ICONS: Record<string, typeof Shield> = {
   'license.regenerated': Key,
   'admin.user_updated': Settings,
   'admin.rate_limited': AlertTriangle,
-};
+} satisfies Record<string, typeof Shield>;
 
-const ACTION_COLORS: Record<string, string> = {
+const ACTION_COLORS = {
   'auth.login': 'text-emerald-400 bg-emerald-500/10',
   'auth.logout': 'text-slate-400 bg-slate-500/10',
   'billing.checkout_created': 'text-indigo-400 bg-indigo-500/10',
@@ -34,7 +34,7 @@ const ACTION_COLORS: Record<string, string> = {
   'license.regenerated': 'text-amber-400 bg-amber-500/10',
   'admin.user_updated': 'text-violet-400 bg-violet-500/10',
   'admin.rate_limited': 'text-rose-400 bg-rose-500/10',
-};
+} satisfies Record<string, string>;
 
 const formatAction = (action: string) => {
   return action
@@ -79,11 +79,14 @@ export const AuditLogTab: Component = () => {
   };
 
   const getIcon = (action: string) => {
-    return ACTION_ICONS[action] || Shield;
+    return Object.entries(ACTION_ICONS).find(([key]) => key === action)?.[1] || Shield;
   };
 
   const getColor = (action: string) => {
-    return ACTION_COLORS[action] || 'text-slate-400 bg-slate-500/10';
+    return (
+      Object.entries(ACTION_COLORS).find(([key]) => key === action)?.[1] ||
+      'text-slate-400 bg-slate-500/10'
+    );
   };
 
   const uniqueActions = [
@@ -242,9 +245,7 @@ export const AuditLogTab: Component = () => {
                       <Show when={entry.metadata}>
                         <div class="mt-3 rounded-xl bg-black/20 p-3">
                           <pre class="overflow-x-auto font-mono text-[10px] text-slate-500">
-                            {typeof entry.metadata === 'string'
-                              ? entry.metadata
-                              : JSON.stringify(entry.metadata, null, 2)}
+                            {JSON.stringify(entry.metadata, null, 2)}
                           </pre>
                         </div>
                       </Show>
