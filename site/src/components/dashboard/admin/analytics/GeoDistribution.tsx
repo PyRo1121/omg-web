@@ -1,5 +1,5 @@
-import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
-import { Globe, MapPin, TrendingUp, ChevronDown, ChevronUp } from 'lucide-solid';
+import { type Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
+import { Globe, TrendingUp, ChevronDown, ChevronUp } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -19,7 +19,7 @@ interface GeoDistributionProps {
   maxItems?: number;
 }
 
-const COUNTRY_NAMES: Record<string, string> = {
+const COUNTRY_NAMES = {
   US: 'United States',
   GB: 'United Kingdom',
   DE: 'Germany',
@@ -65,9 +65,9 @@ const COUNTRY_NAMES: Record<string, string> = {
   CL: 'Chile',
   CO: 'Colombia',
   PE: 'Peru',
-};
+} satisfies Record<string, string>;
 
-const COUNTRY_FLAGS: Record<string, string> = {
+const COUNTRY_FLAGS = {
   US: '🇺🇸',
   GB: '🇬🇧',
   DE: '🇩🇪',
@@ -113,7 +113,7 @@ const COUNTRY_FLAGS: Record<string, string> = {
   CL: '🇨🇱',
   CO: '🇨🇴',
   PE: '🇵🇪',
-};
+} satisfies Record<string, string>;
 
 const REGION_COLORS = [
   {
@@ -159,9 +159,11 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
 
   const maxUsers = createMemo(() => Math.max(...props.data.map(d => d.user_count), 1));
 
-  const getCountryName = (code: string) => COUNTRY_NAMES[code] || code;
+  const getCountryName = (code: string) =>
+    Object.entries(COUNTRY_NAMES).find(([key]) => key === code)?.[1] || code;
 
-  const getFlag = (code: string) => COUNTRY_FLAGS[code] || '🌍';
+  const getFlag = (code: string) =>
+    Object.entries(COUNTRY_FLAGS).find(([key]) => key === code)?.[1] || '🌍';
 
   const getPercentage = (count: number) =>
     totalUsers() > 0 ? ((count / totalUsers()) * 100).toFixed(1) : '0';
