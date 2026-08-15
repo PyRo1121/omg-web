@@ -1,12 +1,9 @@
-import { Component, createSignal, Show, For } from 'solid-js';
+import { type Component, createSignal, Show, For } from 'solid-js';
 import { Search, Users } from 'lucide-solid';
 import { debounce } from '@solid-primitives/scheduled';
 import { CardSkeleton } from '../../../ui/Skeleton';
 import ErrorCard from '../shared/ErrorCard';
-import {
-  CRMProfileCard,
-  CRMProfileCardTableRow,
-} from '../../premium';
+import { CRMProfileCard, CRMProfileCardTableRow } from '../../premium';
 import type { CRMCustomer } from '../../premium/types';
 
 interface CRMTabProps {
@@ -21,12 +18,18 @@ interface CRMTabProps {
   onRetry?: () => void;
 }
 
-export const CRMTab: Component<CRMTabProps> = (props) => {
+export const CRMTab: Component<CRMTabProps> = props => {
   const [viewMode, setViewMode] = createSignal<'table' | 'cards'>('cards');
   const [search, setSearch] = createSignal('');
 
-  const isMobile = () => typeof window !== 'undefined' && window.innerWidth < 768;
-  const effectiveViewMode = () => isMobile() ? 'cards' : viewMode();
+  const isMobile = () => {
+    if (!('window' in globalThis)) return false;
+    return globalThis.window.innerWidth < 768;
+  };
+  const effectiveViewMode = () => {
+    if (isMobile()) return 'cards';
+    return viewMode();
+  };
 
   const debouncedSearch = debounce((value: string) => {
     props.onSearchChange(value);
@@ -52,9 +55,7 @@ export const CRMTab: Component<CRMTabProps> = (props) => {
             <button
               onClick={() => setViewMode('table')}
               class={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
-                viewMode() === 'table'
-                  ? 'bg-white text-black'
-                  : 'text-slate-400 hover:text-white'
+                viewMode() === 'table' ? 'bg-white text-black' : 'text-slate-400 hover:text-white'
               }`}
             >
               Table
@@ -62,9 +63,7 @@ export const CRMTab: Component<CRMTabProps> = (props) => {
             <button
               onClick={() => setViewMode('cards')}
               class={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
-                viewMode() === 'cards'
-                  ? 'bg-white text-black'
-                  : 'text-slate-400 hover:text-white'
+                viewMode() === 'cards' ? 'bg-white text-black' : 'text-slate-400 hover:text-white'
               }`}
             >
               Cards
@@ -72,13 +71,13 @@ export const CRMTab: Component<CRMTabProps> = (props) => {
           </div>
 
           <div class="relative w-full sm:max-w-md">
-            <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+            <Search class="absolute top-1/2 left-4 -translate-y-1/2 text-slate-500" size={18} />
             <input
               type="text"
               placeholder="Search by email, company or ID..."
               value={search()}
-              onInput={(e) => handleSearchInput(e.currentTarget.value)}
-              class="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-12 pr-4 text-white placeholder-slate-500 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              onInput={e => handleSearchInput(e.currentTarget.value)}
+              class="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pr-4 pl-12 text-white placeholder-slate-500 transition-all focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
             />
           </div>
         </div>
@@ -113,7 +112,7 @@ export const CRMTab: Component<CRMTabProps> = (props) => {
                 >
                   <CRMProfileCard
                     customer={customer}
-                    onViewDetail={(customerId) => props.onViewDetail(customerId)}
+                    onViewDetail={customerId => props.onViewDetail(customerId)}
                     onQuickAction={(action, _customerId) => {
                       if (action === 'email') {
                         window.open(`mailto:${customer.email}`);
@@ -131,7 +130,7 @@ export const CRMTab: Component<CRMTabProps> = (props) => {
             <div class="overflow-x-auto">
               <table class="w-full text-left">
                 <thead>
-                  <tr class="border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <tr class="border-b border-white/5 text-[10px] font-black tracking-widest text-slate-500 uppercase">
                     <th class="px-6 py-4">User</th>
                     <th class="px-6 py-4">Tier</th>
                     <th class="px-6 py-4">Status</th>
@@ -144,10 +143,10 @@ export const CRMTab: Component<CRMTabProps> = (props) => {
                 </thead>
                 <tbody class="divide-y divide-white/5">
                   <For each={props.customers}>
-                    {(customer) => (
+                    {customer => (
                       <CRMProfileCardTableRow
                         customer={customer}
-                        onViewDetail={(customerId) => props.onViewDetail(customerId)}
+                        onViewDetail={customerId => props.onViewDetail(customerId)}
                         onQuickAction={(action, _customerId) => {
                           if (action === 'email') {
                             window.open(`mailto:${customer.email}`);
@@ -177,14 +176,20 @@ export const CRMTab: Component<CRMTabProps> = (props) => {
                 </p>
                 <div class="flex items-center gap-2">
                   <button
-                    onClick={() => props.onPageChange(Math.max(1, (props.pagination?.page || 1) - 1))}
+                    onClick={() =>
+                      props.onPageChange(Math.max(1, (props.pagination?.page || 1) - 1))
+                    }
                     disabled={(props.pagination?.page || 1) === 1}
                     class="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm font-bold text-white transition-all hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     Previous
                   </button>
                   <button
-                    onClick={() => props.onPageChange(Math.min(props.pagination?.pages || 1, (props.pagination?.page || 1) + 1))}
+                    onClick={() =>
+                      props.onPageChange(
+                        Math.min(props.pagination?.pages || 1, (props.pagination?.page || 1) + 1)
+                      )
+                    }
                     disabled={(props.pagination?.page || 1) === (props.pagination?.pages || 1)}
                     class="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm font-bold text-white transition-all hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-30"
                   >
