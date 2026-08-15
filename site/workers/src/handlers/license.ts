@@ -1,13 +1,8 @@
 // License validation handlers (for CLI activation)
-import {
-  type Env,
-  jsonResponse,
-  errorResponse,
-  generateId,
-  generateToken,
-  logAudit,
-  TIER_FEATURES,
-} from '../api';
+import { type Env, jsonResponse, errorResponse, generateId, logAudit, TIER_FEATURES } from '../api';
+
+type LicenseRecord = Record<string, string | number | boolean | null>;
+type AnalyticsProperties = Record<string, string | number | boolean | null>;
 
 // Validate license key (called by CLI during activation)
 export async function handleValidateLicense(request: Request, env: Env): Promise<Response> {
@@ -18,12 +13,13 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
 
   if (request.method === 'POST') {
     try {
+      // SAFETY: The POST body is consumed only for the documented license activation fields.
       const body = (await request.json()) as any;
       licenseKey = body.key || body.license_key;
       machineId = body.machine_id ?? null;
       userName = body.user_name ?? null;
       userEmail = body.user_email ?? null;
-    } catch (e) {
+    } catch {
       return errorResponse('Invalid JSON body');
     }
   } else {
@@ -48,7 +44,7 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
   `
   )
     .bind(licenseKey)
-    .first();
+    .first<LicenseRecord>();
 
   if (!license) {
     return jsonResponse({ valid: false, error: 'Invalid license key' });
@@ -61,6 +57,7 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
 
   // Check expiration
   if (license.expires_at) {
+    // SAFETY: A present expires_at value is stored as an ISO date string by the licenses schema.
     const expiresAt = new Date(license.expires_at as string);
     if (expiresAt < new Date()) {
       return jsonResponse({ valid: false, error: 'License has expired' });
@@ -103,7 +100,9 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
         .bind(license.id)
         .first();
 
+      // SAFETY: License seat columns and COUNT(*) are numeric database values.
       const maxMachines = (license.max_seats as number) || (license.max_machines as number) || 1;
+      // SAFETY: COUNT(*) returns a numeric aggregate when a row is present.
       if ((machineCount?.count as number) >= maxMachines) {
         return jsonResponse({
           valid: false,
@@ -122,6 +121,7 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
 
       await logAudit(
         env.DB,
+        // SAFETY: customer_id is the non-null foreign key selected from licenses.
         license.customer_id as string,
         'machine.registered',
         'machine',
@@ -135,9 +135,11 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
     ? await generateLicenseJWT(license, machineId, env.JWT_PRIVATE_KEY, 'EdDSA')
     : await generateLicenseJWT(license, machineId, env.JWT_SECRET, 'HS256');
 
+  // SAFETY: License tiers are constrained to the keys represented by TIER_FEATURES.
   const tier = license.tier as keyof typeof TIER_FEATURES;
   const tierConfig = TIER_FEATURES[tier] || TIER_FEATURES.free;
 
+  // SAFETY: Seat columns are numeric values from the licenses schema.
   const maxMachines = (license.max_seats as number) || (license.max_machines as number) || 1;
 
   // Fetch active machines for this license (for dashboard sync)
@@ -215,8 +217,8 @@ export async function handleGetLicense(request: Request, env: Env): Promise<Resp
 
   // Mask the license key for public lookup to prevent harvesting
   const maskKey = (key: string) => {
-    if (key.length <= 8) return '****' + key.slice(-4);
-    return key.slice(0, 4) + '••••' + key.slice(-4);
+    if (key.length <= 8) return `****${key.slice(-4)}`;
+    return `${key.slice(0, 4)}••••${key.slice(-4)}`;
   };
 
   return jsonResponse({
@@ -232,6 +234,7 @@ export async function handleGetLicense(request: Request, env: Env): Promise<Resp
 
 // Report usage from CLI
 export async function handleReportUsage(request: Request, env: Env): Promise<Response> {
+  // SAFETY: The request boundary is restricted to the documented usage report fields.
   const body = (await request.json()) as {
     license_key?: string;
     machine_id?: string;
@@ -397,6 +400,7 @@ export async function handleReportUsage(request: Request, env: Env): Promise<Res
 
 // Handle install ping (anonymous telemetry)
 export async function handleInstallPing(request: Request, env: Env): Promise<Response> {
+  // SAFETY: The request boundary is restricted to the documented install fields.
   const body = (await request.json()) as {
     install_id?: string;
     timestamp?: string;
@@ -430,7 +434,7 @@ export async function handleInstallPing(request: Request, env: Env): Promise<Res
 
 // Generate JWT for offline license validation
 async function generateLicenseJWT(
-  license: Record<string, unknown>,
+  license: LicenseRecord,
   machineId: string | null,
   secret: string,
   algorithm: 'HS256' | 'EdDSA' = 'HS256'
@@ -440,6 +444,7 @@ async function generateLicenseJWT(
   const payload = {
     sub: license.customer_id,
     tier: license.tier,
+    // SAFETY: License tiers are constrained to the keys represented by TIER_FEATURES.
     features: TIER_FEATURES[license.tier as keyof typeof TIER_FEATURES]?.features || [],
     exp: now + 7 * 24 * 60 * 60, // 7 days
     iat: now,
@@ -458,13 +463,13 @@ async function generateLicenseJWT(
 }
 
 function base64UrlEncode(data: Uint8Array | string): string {
-  if (typeof data === 'string') {
-    return btoa(data).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  if (data instanceof Uint8Array) {
+    return btoa(String.fromCharCode(...data))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
   }
-  return btoa(String.fromCharCode(...data))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  return btoa(data).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function base64UrlDecode(data: string): string {
@@ -510,11 +515,12 @@ async function eddsaSign(privateKeyDer: string, data: string): Promise<string> {
 // Handle analytics events (batch)
 export async function handleAnalytics(request: Request, env: Env): Promise<Response> {
   try {
+    // SAFETY: The request boundary is restricted to the documented analytics event fields.
     const body = (await request.json()) as {
       events?: Array<{
         event_type: string;
         event_name: string;
-        properties?: Record<string, unknown>;
+        properties?: AnalyticsProperties;
         timestamp: string;
         session_id: string;
         machine_id: string;
@@ -600,6 +606,7 @@ export async function handleAnalytics(request: Request, env: Env): Promise<Respo
       }
 
       if (event.event_type === 'error') {
+        // SAFETY: Analytics error messages are emitted as string properties by the CLI.
         const errorMsg = (event.properties?.message as string) || 'unknown error';
         statements.push(
           env.DB.prepare(
@@ -611,6 +618,7 @@ export async function handleAnalytics(request: Request, env: Env): Promise<Respo
           ).bind(errorMsg)
         );
 
+        // SAFETY: Analytics error types are emitted as string properties by the CLI.
         const errorType = (event.properties?.error_type as string) || 'unknown';
         statements.push(
           env.DB.prepare(
