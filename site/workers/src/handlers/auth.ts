@@ -1,6 +1,6 @@
 // Authentication handlers
 import {
-  Env,
+  type Env,
   jsonResponse,
   errorResponse,
   generateId,
@@ -50,6 +50,7 @@ async function sendOTPEmail(
     });
 
     if (!response.ok) {
+      // SAFETY: Resend error responses are expected to contain an optional string message.
       const errorData = (await response.json()) as { message?: string };
       return { success: false, error: errorData.message || 'Email send failed' };
     }
@@ -61,6 +62,7 @@ async function sendOTPEmail(
 
 // Send OTP code to email
 export async function handleSendCode(request: Request, env: Env): Promise<Response> {
+  // SAFETY: The request boundary is restricted to the documented optional auth fields.
   const body = (await request.json()) as { email?: string; turnstileToken?: string };
   const email = body.email?.toLowerCase().trim();
   const turnstileToken = body.turnstileToken;
@@ -97,6 +99,7 @@ export async function handleSendCode(request: Request, env: Env): Promise<Respon
     .bind(email)
     .first();
 
+  // SAFETY: COUNT(*) returns a numeric aggregate when a row is present.
   if ((recentCodes?.count as number) >= 3) {
     return errorResponse('Too many requests. Please wait a few minutes.', 429);
   }
@@ -131,6 +134,7 @@ export async function handleSendCode(request: Request, env: Env): Promise<Respon
 // Verify OTP and create session
 export async function handleVerifyCode(request: Request, env: Env): Promise<Response> {
   try {
+    // SAFETY: The request boundary is restricted to the documented optional auth fields.
     const body = (await request.json()) as { email?: string; code?: string };
     const email = body.email?.toLowerCase().trim();
     const code = body.code?.trim();
@@ -219,6 +223,7 @@ export async function handleVerifyCode(request: Request, env: Env): Promise<Resp
       .bind(customer.id, customer.id)
       .run();
 
+    // SAFETY: Existing customers and newly created customers both receive a generated string id.
     await logAudit(env.DB, customer.id as string, 'auth.login', 'session', null, request);
 
     return jsonResponse({
@@ -239,6 +244,7 @@ export async function handleVerifyCode(request: Request, env: Env): Promise<Resp
 
 // Verify session token
 export async function handleVerifySession(request: Request, env: Env): Promise<Response> {
+  // SAFETY: The request boundary is restricted to the documented optional token field.
   const body = (await request.json()) as { token?: string };
   const token = body.token;
 
@@ -260,6 +266,7 @@ export async function handleVerifySession(request: Request, env: Env): Promise<R
 
 // Logout (invalidate session)
 export async function handleLogout(request: Request, env: Env): Promise<Response> {
+  // SAFETY: The request boundary is restricted to the documented optional token field.
   const body = (await request.json()) as { token?: string };
   const token = body.token;
 
