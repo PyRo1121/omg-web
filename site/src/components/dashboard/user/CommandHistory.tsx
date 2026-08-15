@@ -1,4 +1,4 @@
-import { Component, createSignal, createResource, For, Show } from 'solid-js';
+import { type Component, createSignal, createResource, For, Show } from 'solid-js';
 import GlassCard from '../../ui/GlassCard';
 import {
   Terminal,
@@ -87,7 +87,7 @@ const getCommandIcon = (command: string) => {
 };
 
 const getCommandColor = (command: string) => {
-  const colors: Record<string, string> = {
+  const colors = {
     install: 'text-indigo-400',
     search: 'text-cyan-400',
     update: 'text-emerald-400',
@@ -97,8 +97,8 @@ const getCommandColor = (command: string) => {
     list: 'text-blue-400',
     sbom: 'text-green-400',
     audit: 'text-orange-400',
-  };
-  return colors[command] || 'text-slate-400';
+  } satisfies Record<string, string>;
+  return Object.entries(colors).find(([key]) => key === command)?.[1] || 'text-slate-400';
 };
 
 const formatDuration = (ms: number | null): string => {
