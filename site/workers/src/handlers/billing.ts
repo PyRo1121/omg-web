@@ -460,7 +460,7 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       url.searchParams.set('limit', '100');
       if (startingAfter) url.searchParams.set('starting_after', startingAfter);
 
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
       });
       // SAFETY: Stripe customer list responses contain a data array and pagination flag.
@@ -504,7 +504,7 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       url.searchParams.set('status', 'all');
       if (startingAfter) url.searchParams.set('starting_after', startingAfter);
 
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
       });
       // SAFETY: Stripe subscription list responses contain a data array and pagination flag.
@@ -556,7 +556,7 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       url.searchParams.set('created[gte]', twelveMonthsAgo.toString());
       if (startingAfter) url.searchParams.set('starting_after', startingAfter);
 
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
       });
       // SAFETY: Stripe invoice list responses contain a data array and pagination flag.
