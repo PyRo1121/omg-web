@@ -34,12 +34,13 @@ const STORAGE_KEY = 'omg-dashboard-state';
 const STORAGE_VERSION = 1;
 
 function getInitialState(): DashboardState {
-  if (typeof window === 'undefined') {
+  const browserWindow = 'window' in globalThis ? globalThis.window : undefined;
+  if (!browserWindow) {
     return createDefaultState();
   }
 
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = browserWindow.localStorage.getItem(STORAGE_KEY);
     if (!stored) return createDefaultState();
 
     const parsed = JSON.parse(stored);
@@ -56,7 +57,7 @@ function getInitialState(): DashboardState {
       },
       filters: {
         ...createDefaultState().filters,
-        ...(parsed.state.filters || {}),
+        ...parsed.state.filters,
       },
       views: {
         ...createDefaultState().views,
@@ -121,10 +122,11 @@ export function createDashboardStore() {
     },
   });
 
-  if (typeof window !== 'undefined') {
+  const browserWindow = 'window' in globalThis ? globalThis.window : undefined;
+  if (browserWindow) {
     const debouncedPersist = debounce((state: ReturnType<typeof persistableState>) => {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        browserWindow.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch (error) {
         console.error('[DashboardStore] Failed to persist state:', error);
       }
