@@ -1,4 +1,4 @@
-import { Component, For, Show, createMemo, createSignal, splitProps } from 'solid-js';
+import { type Component, For, Show, createMemo, createSignal, splitProps } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Calendar, TrendingUp, TrendingDown, Users } from 'lucide-solid';
@@ -39,7 +39,10 @@ interface CohortHeatmapProps {
 
 type RetentionLevel = 0 | 10 | 20 | 30 | 40 | 50 | 60 | 70 | 80 | 90 | 100;
 
-const retentionColors: Record<RetentionLevel, string> = {
+type RetentionColors = { [K in RetentionLevel]: string };
+const retentionLegendLevels = [0, 20, 40, 60, 80, 100] satisfies RetentionLevel[];
+
+const retentionColors: RetentionColors = {
   0: 'bg-[rgba(239,68,68,0.15)]',
   10: 'bg-[rgba(239,68,68,0.25)]',
   20: 'bg-[rgba(249,115,22,0.3)]',
@@ -53,7 +56,7 @@ const retentionColors: Record<RetentionLevel, string> = {
   100: 'bg-[rgba(5,150,105,0.85)]',
 };
 
-const churnColors: Record<RetentionLevel, string> = {
+const churnColors: RetentionColors = {
   0: 'bg-[rgba(5,150,105,0.85)]',
   10: 'bg-[rgba(16,185,129,0.75)]',
   20: 'bg-[rgba(16,185,129,0.6)]',
@@ -154,7 +157,7 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = props => {
 
   const periodLabels = createMemo(() => {
     if (local.periodLabels) return local.periodLabels;
-    const prefix = local.periodType === 'day' ? 'D' : local.periodType === 'week' ? 'W' : 'M';
+    const prefix = { day: 'D', week: 'W', month: 'M' }[local.periodType || 'month'];
     return Array.from({ length: maxPeriods() }, (_, i) => `${prefix}${i}`);
   });
 
@@ -279,7 +282,8 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = props => {
 
                       return (
                         <td>
-                          <div
+                          <button
+                            type="button"
                             class={cn(
                               'flex cursor-pointer items-center justify-center rounded font-bold tabular-nums',
                               'transition-all duration-200',
@@ -302,8 +306,6 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = props => {
                             onMouseEnter={e => handleMouseEnter(e, cohort, period)}
                             onMouseLeave={handleMouseLeave}
                             onClick={() => handleCellClick(cohort, period)}
-                            role="button"
-                            tabIndex={0}
                             aria-label={`${cohort.cohortLabel} ${periodLabels()[periodIndex()]}: ${period.retentionRate.toFixed(1)}% retention`}
                           >
                             <Show
@@ -314,7 +316,7 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = props => {
                             >
                               {period.retentionRate.toFixed(0)}%
                             </Show>
-                          </div>
+                          </button>
                         </td>
                       );
                     }}
@@ -374,7 +376,7 @@ export const CohortHeatmap: Component<CohortHeatmapProps> = props => {
         <div class="text-2xs text-nebula-500 flex items-center gap-2">
           <span>0%</span>
           <div class="flex gap-0.5">
-            <For each={[0, 20, 40, 60, 80, 100] as RetentionLevel[]}>
+            <For each={retentionLegendLevels}>
               {level => <div class={cn('h-3 w-6 rounded-sm', colors()[level])} />}
             </For>
           </div>
