@@ -1,6 +1,7 @@
-import { Component } from 'solid-js';
+import type { Component } from 'solid-js';
 
-type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'pro' | 'team' | 'enterprise';
+type BadgeVariant =
+  'success' | 'warning' | 'error' | 'info' | 'neutral' | 'pro' | 'team' | 'enterprise';
 
 interface BadgeProps {
   variant?: BadgeVariant;
@@ -9,7 +10,7 @@ interface BadgeProps {
   pulse?: boolean;
 }
 
-const variantClasses: Record<BadgeVariant, string> = {
+const variantClasses = {
   success: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   warning: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   error: 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -17,8 +18,9 @@ const variantClasses: Record<BadgeVariant, string> = {
   neutral: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
   pro: 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-300 border-indigo-500/30',
   team: 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border-cyan-500/30',
-  enterprise: 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border-amber-500/30',
-};
+  enterprise:
+    'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border-amber-500/30',
+} satisfies Readonly<Record<BadgeVariant, string>>;
 
 const sizeClasses = {
   sm: 'px-2 py-0.5 text-xs',
