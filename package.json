@@ -12,7 +12,7 @@
     "typecheck:tools": "tsc --project tsconfig.json --noEmit",
     "typecheck:site": "tsc --project site/tsconfig.json --noEmit",
     "typecheck:workers": "tsc --project site/workers/tsconfig.json --noEmit",
-    "typecheck:router": "tsc --project workers/router/tsconfig.json --noEmit",
+    "typecheck:router": "wrangler types workers/router/worker-configuration.d.ts --config workers/router/wrangler.toml --check && tsc --project workers/router/tsconfig.json --noEmit",
     "typecheck:releases": "tsc --project workers/releases/tsconfig.json --noEmit",
     "lint:anti-slop": "oxlint --config oxlint.config.ts site/src site/workers/src site/workers/tests workers/router/src workers/releases/src",
     "lint:typed": "eslint site/src site/workers/src site/workers/tests workers/router/src workers/releases/src --max-warnings 0",
@@ -33,6 +33,7 @@
     "prettier": "3.9.6",
     "prettier-plugin-tailwindcss": "0.8.1",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.67.0"
+    "typescript-eslint": "8.67.0",
+    "wrangler": "4.123.0"
   }
 }
