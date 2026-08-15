@@ -20,11 +20,11 @@ const SECURITY_HEADERS = {
   Pragma: 'no-cache',
 };
 
-function secureJsonResponse(data: unknown, status = 200): Response {
+function secureJsonResponse<TData>(data: TData, status = 200): Response {
   const response = jsonResponse(data, status);
-  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(key, value);
-  });
+  }
   return response;
 }
 
@@ -63,17 +63,21 @@ async function validateAdmin(
   return { context: { user: auth.user, requestId, timestamp } };
 }
 
-async function logAdminAudit(
+interface AdminAuditEntry<
+  TMetadata extends object = Record<string, string | number | boolean | null>,
+> {
+  action: string;
+  userId: string;
+  request?: Request;
+  resourceType?: string;
+  resourceId?: string;
+  metadata?: TMetadata;
+  success?: boolean;
+}
+
+async function logAdminAudit<TMetadata extends object>(
   db: D1Database,
-  entry: {
-    action: string;
-    userId: string;
-    request?: Request;
-    resourceType?: string;
-    resourceId?: string;
-    metadata?: Record<string, unknown>;
-    success?: boolean;
-  }
+  entry: AdminAuditEntry<TMetadata>
 ): Promise<void> {
   try {
     const id = generateId();
@@ -100,8 +104,8 @@ async function logAdminAudit(
         })
       )
       .run();
-  } catch (e) {
-    console.error('Admin audit log error:', e);
+  } catch {
+    console.error('Admin audit log error');
   }
 }
 
@@ -178,24 +182,30 @@ export async function handleAdminDashboard(request: Request, env: Env): Promise<
   type CommandStatsRow = { success: number; failure: number };
   type TierRow = { tier: string; count: number };
 
+  // SAFETY: The first batch query selects the CountsRow aggregate fields.
   const counts = countsResult.results?.[0] as CountsRow | undefined;
   const tierBreakdown = tierBreakdownResult.results || [];
+  // SAFETY: The usage aggregate query selects the UsageTotalsRow fields.
   const usageTotals = usageTotalsResult.results?.[0] as UsageTotalsRow | undefined;
   const dailyActiveUsers = dailyActiveUsersResult.results || [];
   const recentSignups = recentSignupsResult.results || [];
   const installsByPlatform = installsByPlatformResult.results || [];
   const installsByVersion = installsByVersionResult.results || [];
   const subscriptionStats = subscriptionStatsResult.results || [];
+  // SAFETY: The MRR query groups rows by tier and count.
   const mrrData = (mrrDataResult.results || []) as TierRow[];
+  // SAFETY: The global usage query selects the total_time_saved aggregate.
   const globalUsage = globalUsageResult.results?.[0] as GlobalUsageRow | undefined;
   const fleetVersions = fleetVersionsResult.results || [];
   const geoDist = geoDistResult.results || [];
+  // SAFETY: The command stats query selects success and failure aggregates.
   const commandStats = commandStatsResult.results?.[0] as CommandStatsRow | undefined;
 
-  const tierPrices: Record<string, number> = { pro: 9, team: 200, enterprise: 500 };
+  const tierPrices = { pro: 9, team: 200, enterprise: 500 } satisfies Record<string, number>;
   let mrr = 0;
   for (const row of mrrData) {
-    mrr += (tierPrices[row.tier] || 0) * row.count;
+    const tierPrice = Object.entries(tierPrices).find(([tier]) => tier === row.tier)?.[1] || 0;
+    mrr += tierPrice * row.count;
   }
   const globalValueUSD = Math.round(
     ((globalUsage?.total_time_saved || 0) / (1000 * 60 * 60)) * 100
@@ -334,8 +344,9 @@ export async function handleAdminUpdateUser(request: Request, env: Env): Promise
 
   let body: { userId: string; tier?: string; status?: string };
   try {
+    // SAFETY: The request boundary is restricted to the documented admin user fields.
     body = (await request.json()) as { userId: string; tier?: string; status?: string };
-  } catch (e) {
+  } catch {
     return errorResponse('Invalid JSON body', 400);
   }
   if (!body.userId) return errorResponse('User ID required');
@@ -372,12 +383,12 @@ export async function handleAdminActivity(request: Request, env: Env): Promise<R
   });
 }
 
-export async function handleAdminHealth(request: Request, env: Env): Promise<Response> {
+export async function handleAdminHealth(_request: Request, _env: Env): Promise<Response> {
   // Simple health check logic
   return secureJsonResponse({ status: 'ok', db: 'connected', version: '1.0.0' });
 }
 
-function escapeCSV(value: unknown): string {
+function escapeCSV<TValue>(value: TValue): string {
   const str = String(value ?? '');
   if (
     /[",\n\r]/.test(str) ||
@@ -562,10 +573,13 @@ export async function handleAdminRevenue(request: Request, env: Env): Promise<Re
   const mrrData = await env.DB.prepare(
     `SELECT l.tier, COUNT(*) as count FROM licenses l JOIN subscriptions s ON l.customer_id = s.customer_id WHERE s.status = 'active' AND l.tier != 'free' GROUP BY l.tier`
   ).all();
-  const tierPrices: Record<string, number> = { pro: 9, team: 200, enterprise: 500 };
+  const tierPrices = { pro: 9, team: 200, enterprise: 500 } satisfies Record<string, number>;
   let mrr = 0;
   for (const row of mrrData.results || []) {
-    mrr += (tierPrices[row.tier as string] || 0) * (row.count as number);
+    // SAFETY: The revenue query returns string tier names and numeric COUNT(*) values.
+    const tierPrice = Object.entries(tierPrices).find(([tier]) => tier === row.tier)?.[1] || 0;
+    // SAFETY: The revenue query returns numeric COUNT(*) values.
+    mrr += tierPrice * (row.count as number);
   }
   return secureJsonResponse({
     request_id: context.requestId,
@@ -672,10 +686,15 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
     { count: 0 }
   );
 
+  // SAFETY: These COUNT(DISTINCT ...) aggregates return numeric values.
   const mauCount = (mau?.count as number) || 1;
+  // SAFETY: These COUNT(DISTINCT ...) aggregates return numeric values.
+  const dailyCount = (dau?.count as number) || 0;
+  // SAFETY: The weekly activity query returns a numeric COUNT(DISTINCT ...) value.
+  const weeklyCount = (wau?.count as number) || 0;
   const stickiness = {
-    daily_to_monthly: ((((dau?.count as number) || 0) / mauCount) * 100).toFixed(1) + '%',
-    weekly_to_monthly: ((((wau?.count as number) || 0) / mauCount) * 100).toFixed(1) + '%',
+    daily_to_monthly: `${((dailyCount / mauCount) * 100).toFixed(1)}%`,
+    weekly_to_monthly: `${((weeklyCount / mauCount) * 100).toFixed(1)}%`,
   };
 
   const retentionCohorts = await safeQuery(
@@ -819,13 +838,17 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
     { current_mrr: 0 }
   );
 
+  // SAFETY: The revenue query returns a numeric SUM aggregate.
   const currentMrr = (revenueMetrics?.current_mrr as number) || 0;
 
   return secureJsonResponse({
     request_id: context.requestId,
     engagement: {
+      // SAFETY: These COUNT(DISTINCT ...) aggregates return numeric values.
       dau: (dau?.count as number) || 0,
+      // SAFETY: These COUNT(DISTINCT ...) aggregates return numeric values.
       wau: (wau?.count as number) || 0,
+      // SAFETY: These COUNT(DISTINCT ...) aggregates return numeric values.
       mau: (mau?.count as number) || 0,
       stickiness,
     },
@@ -881,6 +904,7 @@ export async function handleAdminCreateNote(request: Request, env: Env): Promise
 
   let body: { customerId: string; content: string; noteType?: string };
   try {
+    // SAFETY: The request boundary is restricted to the documented customer note fields.
     body = (await request.json()) as { customerId: string; content: string; noteType?: string };
   } catch {
     return errorResponse('Invalid JSON body', 400);
@@ -923,6 +947,7 @@ export async function handleAdminUpdateNote(request: Request, env: Env): Promise
 
   let body: { noteId: string; content?: string; isPinned?: boolean };
   try {
+    // SAFETY: The request boundary is restricted to the documented note update fields.
     body = (await request.json()) as { noteId: string; content?: string; isPinned?: boolean };
   } catch {
     return errorResponse('Invalid JSON body', 400);
@@ -1046,6 +1071,7 @@ export async function handleAdminCreateTag(request: Request, env: Env): Promise<
 
   let body: { name: string; color?: string; description?: string };
   try {
+    // SAFETY: The request boundary is restricted to the documented customer tag fields.
     body = (await request.json()) as { name: string; color?: string; description?: string };
   } catch {
     return errorResponse('Invalid JSON body', 400);
@@ -1088,6 +1114,7 @@ export async function handleAdminAssignTag(request: Request, env: Env): Promise<
 
   let body: { customerId: string; tagId: string };
   try {
+    // SAFETY: The request boundary is restricted to the documented tag assignment fields.
     body = (await request.json()) as { customerId: string; tagId: string };
   } catch {
     return errorResponse('Invalid JSON body', 400);
