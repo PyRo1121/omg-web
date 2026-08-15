@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal, createMemo } from 'solid-js';
+import { type Component, For, Show, createSignal, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -19,6 +19,7 @@ import {
   FileText,
 } from 'lucide-solid';
 import { useAdminAdvancedMetrics } from '../../../lib/api-hooks';
+import type { AdminAdvancedMetrics } from '../../../lib/api';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { BarChart, DonutChart, Sparkline } from '../../../design-system/components/Charts';
 
@@ -161,13 +162,13 @@ const VISUALIZATION_OPTIONS: { type: VisualizationType; icon: typeof BarChart3; 
     { type: 'kpi', icon: Layers, label: 'KPI Cards' },
   ];
 
-const CATEGORY_COLORS: Record<MetricCategory, string> = {
+const CATEGORY_COLORS = {
   engagement: '#6366f1',
   revenue: '#10b981',
   users: '#8b5cf6',
   features: '#f59e0b',
   health: '#ef4444',
-};
+} satisfies Record<MetricCategory, string>;
 
 const MetricChip: Component<{
   metric: Metric;
@@ -243,6 +244,7 @@ const FilterRow: Component<{
         onChange={e =>
           props.onUpdate({
             ...props.filter,
+            // SAFETY: The select options are exactly the ReportFilter operator literals.
             operator: e.currentTarget.value as ReportFilter['operator'],
           })
         }
@@ -272,9 +274,13 @@ const FilterRow: Component<{
   );
 };
 
+type ReportDataValue =
+  string | number | boolean | null | ReportDataValue[] | { [key: string]: ReportDataValue };
+type ReportData = AdminAdvancedMetrics & Record<string, ReportDataValue>;
+
 const ReportPreview: Component<{
   config: ReportConfig;
-  data: Record<string, unknown> | undefined;
+  data: ReportData | undefined;
 }> = props => {
   const selectedMetrics = createMemo(() =>
     AVAILABLE_METRICS.filter(m => props.config.metrics.includes(m.id))
@@ -420,14 +426,18 @@ const ReportPreview: Component<{
   );
 };
 
-function getNestedValue(obj: Record<string, unknown> | undefined, path: string): unknown {
+function isReportObject(value: ReportDataValue | undefined): value is ReportData {
+  return value instanceof Object && !Array.isArray(value);
+}
+
+function getNestedValue(obj: ReportData | undefined, path: string): ReportDataValue | undefined {
   if (!obj) return undefined;
-  return path.split('.').reduce((curr: unknown, key: string) => {
-    if (curr && typeof curr === 'object' && key in curr) {
-      return (curr as Record<string, unknown>)[key];
-    }
-    return undefined;
-  }, obj);
+  let current: ReportDataValue | undefined = obj;
+  for (const key of path.split('.')) {
+    if (!isReportObject(current)) return undefined;
+    current = current[key];
+  }
+  return current;
 }
 
 function generateSparklineData(points: number): number[] {
@@ -478,6 +488,10 @@ const SavedReportCard: Component<{
     </div>
   );
 };
+
+function createMetricBucket(): Metric[] {
+  return [];
+}
 
 export const CustomReportBuilder: Component = () => {
   const [reportName, setReportName] = createSignal('Untitled Report');
@@ -567,14 +581,16 @@ export const CustomReportBuilder: Component = () => {
   };
 
   const metricsByCategory = createMemo(() => {
-    const grouped: Record<MetricCategory, Metric[]> = {
-      engagement: [],
-      revenue: [],
-      users: [],
-      features: [],
-      health: [],
-    };
-    AVAILABLE_METRICS.forEach(m => grouped[m.category].push(m));
+    const grouped = {
+      engagement: createMetricBucket(),
+      revenue: createMetricBucket(),
+      users: createMetricBucket(),
+      features: createMetricBucket(),
+      health: createMetricBucket(),
+    } satisfies Record<MetricCategory, Metric[]>;
+    for (const metric of AVAILABLE_METRICS) {
+      grouped[metric.category].push(metric);
+    }
     return grouped;
   });
 
@@ -678,7 +694,10 @@ export const CustomReportBuilder: Component = () => {
                     <div>
                       <p
                         class="text-2xs mb-2 font-bold tracking-widest uppercase"
-                        style={{ color: CATEGORY_COLORS[category as MetricCategory] }}
+                        style={{
+                          // SAFETY: category comes from the MetricCategory-keyed grouped map.
+                          color: CATEGORY_COLORS[category as MetricCategory],
+                        }}
                       >
                         {category}
                       </p>
@@ -762,7 +781,10 @@ export const CustomReportBuilder: Component = () => {
                 <label class="text-nebula-400 mb-1 block text-xs font-bold">Frequency</label>
                 <select
                   value={schedule()}
-                  onChange={e => setSchedule(e.currentTarget.value as ScheduleFrequency)}
+                  onChange={e => {
+                    // SAFETY: The select options are exactly the ScheduleFrequency literals.
+                    setSchedule(e.currentTarget.value as ScheduleFrequency);
+                  }}
                   class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white focus:outline-none"
                 >
                   <option value="none">Don't schedule</option>
@@ -795,7 +817,8 @@ export const CustomReportBuilder: Component = () => {
             <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
               <ReportPreview
                 config={currentConfig()}
-                data={metricsQuery.data as unknown as Record<string, unknown>}
+                // SAFETY: useAdminAdvancedMetrics parses the API response as AdminAdvancedMetrics.
+                data={metricsQuery.data as ReportData}
               />
             </div>
           </Show>
