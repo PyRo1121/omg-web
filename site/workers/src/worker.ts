@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/cloudflare';
-import { type Env, corsHeaders, jsonResponse, errorResponse, sendEmail } from './api';
+import { type Env, corsHeaders, jsonResponse, errorResponse } from './api';
 import {
   handleSendCode,
   handleVerifyCode,
@@ -77,7 +77,6 @@ import {
   handleGetGeoAnalytics,
   handleGetRealtimeAnalytics,
   handleGetAnalyticsOverview,
-  cleanupOldAnalytics,
 } from './handlers/site-analytics';
 import { handleCliEvent, handleCliBatch } from './handlers/telemetry';
 import {
@@ -494,6 +493,7 @@ export default Sentry.withSentry(
             const result = await env.DB.prepare(
               `SELECT COUNT(DISTINCT install_id) as total FROM install_stats`
             ).first();
+            // SAFETY: The badge query returns a numeric COUNT aggregate.
             const total = (result?.total as number) || 0;
             return new Response(
               JSON.stringify({
@@ -511,7 +511,7 @@ export default Sentry.withSentry(
                 },
               }
             );
-          } catch (err) {
+          } catch {
             // If table doesn't exist or query fails, return 0
             return new Response(
               JSON.stringify({

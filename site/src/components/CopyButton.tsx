@@ -1,4 +1,4 @@
-import { Component, createSignal, Show, JSX } from 'solid-js';
+import { type Component, createSignal, Show } from 'solid-js';
 import { Copy, Check } from 'lucide-solid';
 
 export interface CopyButtonProps {
@@ -21,7 +21,8 @@ const CopyButton: Component<CopyButtonProps> = props => {
   let rippleId = 0;
 
   const handleCopy = async (e: MouseEvent) => {
-    const button = e.currentTarget as HTMLButtonElement;
+    if (!(e.currentTarget instanceof HTMLButtonElement)) return;
+    const button = e.currentTarget;
     const rect = button.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -36,7 +37,7 @@ const CopyButton: Component<CopyButtonProps> = props => {
       await navigator.clipboard.writeText(props.text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       const textarea = document.createElement('textarea');
       textarea.value = props.text;
       textarea.style.position = 'fixed';

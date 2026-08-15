@@ -1,6 +1,6 @@
 import type { APIEvent } from '@solidjs/start/server';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, desc, gte, sql, and, count } from 'drizzle-orm';
+import { eq, desc, gte, sql, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 

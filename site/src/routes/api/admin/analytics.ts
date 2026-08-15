@@ -1,5 +1,5 @@
 import type { APIEvent } from '@solidjs/start/server';
-import { sql, gte, and, eq } from 'drizzle-orm';
+import { sql, gte, eq } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
 
@@ -79,8 +79,6 @@ export async function GET(event: APIEvent) {
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const dateStr7 = sevenDaysAgo.toISOString().split('T')[0];
-
     const newUsersLast7Days = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(schema.user)
