@@ -1,13 +1,11 @@
-import { Env, jsonResponse, errorResponse, validateSession, getAuthToken, logAudit } from '../api';
-
-interface PolicyRule {
-  id: string;
-  scope: 'runtime' | 'package' | 'security' | 'network';
-  rule: string;
-  value: string;
-  enforced: boolean;
-  created_at: string;
-}
+import {
+  type Env,
+  jsonResponse,
+  errorResponse,
+  validateSession,
+  getAuthToken,
+  logAudit,
+} from '../api';
 
 interface NotificationSetting {
   type: string;
@@ -29,6 +27,7 @@ export async function handleGetPolicies(request: Request, env: Env): Promise<Res
     .bind(auth.user.id)
     .first();
 
+  // SAFETY: The license query provides the tier field used for authorization.
   if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
     return errorResponse('Policies require Team or Enterprise tier', 403);
   }
@@ -59,6 +58,7 @@ export async function handleCreatePolicy(request: Request, env: Env): Promise<Re
     return errorResponse('Policy management requires Enterprise tier', 403);
   }
 
+  // SAFETY: The enterprise policy endpoint consumes the documented policy fields.
   const body = (await request.json()) as {
     scope: string;
     rule: string;
@@ -109,6 +109,7 @@ export async function handleUpdatePolicy(request: Request, env: Env): Promise<Re
     return errorResponse('Policy management requires Enterprise tier', 403);
   }
 
+  // SAFETY: The policy update endpoint consumes the documented update fields.
   const body = (await request.json()) as { id: string; value?: string; enforced?: boolean };
   const { id, value, enforced } = body;
 
@@ -161,6 +162,7 @@ export async function handleDeletePolicy(request: Request, env: Env): Promise<Re
     return errorResponse('Policy management requires Enterprise tier', 403);
   }
 
+  // SAFETY: The policy delete endpoint consumes the documented policy id.
   const body = (await request.json()) as { id: string };
   const { id } = body;
 
@@ -188,6 +190,7 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
     .bind(auth.user.id)
     .first();
 
+  // SAFETY: The license query provides the tier field used for authorization.
   if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
     return errorResponse('Notifications require Team or Enterprise tier', 403);
   }
@@ -215,6 +218,7 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
         ...def,
         enabled: !!existing.enabled,
         threshold: existing.threshold ?? def.threshold,
+        // SAFETY: Persisted notification channels are stored as JSON text.
         channels: existing.channels ? JSON.parse(existing.channels as string) : def.channels,
       };
     }
@@ -240,10 +244,12 @@ export async function handleUpdateNotificationSettings(
     .bind(auth.user.id)
     .first();
 
+  // SAFETY: The license query provides the tier field used for authorization.
   if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
     return errorResponse('Notifications require Team or Enterprise tier', 403);
   }
 
+  // SAFETY: The notification endpoint consumes the documented settings collection.
   const body = (await request.json()) as { settings: NotificationSetting[] };
   const { settings } = body;
 
@@ -289,10 +295,12 @@ export async function handleRevokeMember(request: Request, env: Env): Promise<Re
     .bind(auth.user.id)
     .first();
 
+  // SAFETY: The license query provides the tier field used for authorization.
   if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
     return errorResponse('Member management requires Team or Enterprise tier', 403);
   }
 
+  // SAFETY: The member revoke endpoint consumes the documented machine id.
   const body = (await request.json()) as { machine_id: string };
   const { machine_id } = body;
 
@@ -336,6 +344,7 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
     .bind(auth.user.id)
     .first();
 
+  // SAFETY: The license query provides the tier field used for authorization.
   if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
     return errorResponse('Audit logs require Team or Enterprise tier', 403);
   }
@@ -396,6 +405,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     .bind(auth.user.id)
     .first();
 
+  // SAFETY: The license query provides the tier field used for authorization.
   if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
     return errorResponse('Team members require Team or Enterprise tier', 403);
   }
@@ -446,10 +456,12 @@ export async function handleUpdateAlertThreshold(request: Request, env: Env): Pr
     .bind(auth.user.id)
     .first();
 
+  // SAFETY: The license query provides the tier field used for authorization.
   if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
     return errorResponse('Alert thresholds require Team or Enterprise tier', 403);
   }
 
+  // SAFETY: The alert endpoint consumes the documented threshold fields.
   const body = (await request.json()) as { threshold_type: string; value: number };
   const { threshold_type, value } = body;
 
