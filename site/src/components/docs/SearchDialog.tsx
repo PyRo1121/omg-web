@@ -3,6 +3,24 @@ import { useNavigate } from '@solidjs/router';
 import { Dialog } from '@kobalte/core';
 import { Search, FileText, ArrowRight, Command } from 'lucide-solid';
 
+interface PagefindDocument {
+  url: string;
+  meta?: { title?: string };
+  excerpt?: string;
+}
+
+interface PagefindApi {
+  search: (query: string) => Promise<{
+    results: Array<{ data: () => Promise<PagefindDocument> }>;
+  }>;
+}
+
+declare global {
+  var __pagefind: PagefindApi | undefined;
+}
+
+const PAGEFIND_URL = '/pagefind/pagefind.js';
+
 interface SearchResult {
   url: string;
   title: string;
@@ -21,21 +39,13 @@ export function SearchDialog(props: SearchDialogProps) {
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const navigate = useNavigate();
 
-  let pagefind: {
-    search?: (query: string) => Promise<{
-      results: Array<{
-        data: () => Promise<{ url: string; meta?: { title?: string }; excerpt?: string }>;
-      }>;
-    }>;
-  } | null = null;
+  let pagefind: PagefindApi | null = null;
   let inputRef: HTMLInputElement | undefined;
 
   onMount(async () => {
     try {
       // Pagefind is generated at build time and served as a static asset
-      pagefind =
-        (await (globalThis as Record<string, unknown>).__pagefind) ??
-        (await import(/* @vite-ignore */ '/pagefind/pagefind.js' as string));
+      pagefind = globalThis.__pagefind ?? (await import(/* @vite-ignore */ PAGEFIND_URL));
     } catch {
       console.warn('Pagefind not available - search disabled');
     }
@@ -65,12 +75,12 @@ export function SearchDialog(props: SearchDialogProps) {
       if (!pagefind?.search) return;
       const search = await pagefind.search(term);
       const data = await Promise.all(
-        search.results.slice(0, 8).map(async (r: any) => {
+        search.results.slice(0, 8).map(async r => {
           const d = await r.data();
           return {
             url: d.url,
             title: d.meta?.title || d.url,
-            excerpt: d.excerpt,
+            excerpt: d.excerpt || '',
           };
         })
       );
@@ -96,7 +106,7 @@ export function SearchDialog(props: SearchDialogProps) {
         e.preventDefault();
         setSelectedIndex(i => (i - 1 + len) % len);
         break;
-      case 'Enter':
+      case 'Enter': {
         e.preventDefault();
         const result = results()[selectedIndex()];
         if (result) {
@@ -104,6 +114,7 @@ export function SearchDialog(props: SearchDialogProps) {
           props.onClose();
         }
         break;
+      }
     }
   };
 
@@ -123,7 +134,7 @@ export function SearchDialog(props: SearchDialogProps) {
             <div class="flex items-center gap-3 border-b border-slate-800 px-4 py-3">
               <Search size={20} class="text-slate-500" />
               <input
-                ref={inputRef}
+                ref={element => (inputRef = element)}
                 type="text"
                 value={query()}
                 onInput={e => handleSearch(e.currentTarget.value)}

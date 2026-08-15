@@ -1,5 +1,5 @@
-import { APIEvent } from '@solidjs/start/server';
-import { sql, gte, desc, eq } from 'drizzle-orm';
+import type { APIEvent } from '@solidjs/start/server';
+import { gte, desc, eq } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
 

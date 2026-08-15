@@ -1,5 +1,5 @@
-import { APIEvent } from '@solidjs/start/server';
-import { sql, gte, desc, eq } from 'drizzle-orm';
+import type { APIEvent } from '@solidjs/start/server';
+import { sql, desc, eq } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
 
@@ -12,9 +12,6 @@ export async function GET(event: APIEvent) {
 
     const url = new URL(event.request.url);
     const format = url.searchParams.get('format') || 'csv';
-    const includeHistory = url.searchParams.get('includeHistory') === 'true';
-    const historyDays = parseInt(url.searchParams.get('historyDays') || '30');
-
     // Get latest health scores for all users with their info
     const healthData = await db
       .select({

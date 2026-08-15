@@ -1,4 +1,4 @@
-import { Component, createMemo, For, Show } from 'solid-js';
+import { type Component, createMemo, Show } from 'solid-js';
 import { Title, Meta as SolidMeta, Link } from '@solidjs/meta';
 
 // ============================================================================

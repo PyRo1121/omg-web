@@ -1,4 +1,4 @@
-import { Env, jsonResponse, errorResponse } from '../api';
+import { type Env, errorResponse, getCorsHeaders } from '../api';
 
 interface GitHubCommitActivity {
   days: number[];
@@ -17,7 +17,7 @@ export async function handleGitHubProxy(
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        ...getCorsHeaders(request.headers.get('Origin')),
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Max-Age': '86400',
@@ -32,7 +32,7 @@ export async function handleGitHubProxy(
   const cache = caches.default;
   const cacheKey = new Request(request.url, request);
 
-  let cachedResponse = await cache.match(cacheKey);
+  const cachedResponse = await cache.match(cacheKey);
 
   if (cachedResponse) {
     const age = parseInt(cachedResponse.headers.get('Age') || '0');
@@ -43,7 +43,7 @@ export async function handleGitHubProxy(
           ...Object.fromEntries(cachedResponse.headers),
           'X-Cache': 'HIT',
           'X-Cache-Age': age.toString(),
-          'Access-Control-Allow-Origin': '*',
+          ...getCorsHeaders(request.headers.get('Origin')),
         },
       });
     }
@@ -51,7 +51,7 @@ export async function handleGitHubProxy(
     if (age < STALE_TTL) {
       // Never let background refresh failures bubble as uncaught Worker exceptions.
       ctx.waitUntil(
-        refreshCache(env, cache, cacheKey).catch(error => {
+        refreshCache(env, cache, cacheKey, request.headers.get('Origin')).catch(error => {
           console.error('GitHub cache background refresh failed:', error);
         })
       );
@@ -61,16 +61,21 @@ export async function handleGitHubProxy(
           ...Object.fromEntries(cachedResponse.headers),
           'X-Cache': 'STALE',
           'X-Cache-Age': age.toString(),
-          'Access-Control-Allow-Origin': '*',
+          ...getCorsHeaders(request.headers.get('Origin')),
         },
       });
     }
   }
 
-  return await refreshCache(env, cache, cacheKey);
+  return await refreshCache(env, cache, cacheKey, request.headers.get('Origin'));
 }
 
-async function refreshCache(env: Env, cache: Cache, cacheKey: Request): Promise<Response> {
+async function refreshCache(
+  env: Env,
+  cache: Cache,
+  cacheKey: Request,
+  origin: string | null
+): Promise<Response> {
   let ghResponse: Response;
   try {
     ghResponse = await fetch('https://api.github.com/repos/PyRo1121/omg/stats/commit_activity', {
@@ -101,7 +106,7 @@ async function refreshCache(env: Env, cache: Cache, cacheKey: Request): Promise<
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
           'Retry-After': '60',
-          'Access-Control-Allow-Origin': '*',
+          ...getCorsHeaders(origin),
           'X-GitHub-Status': 'computing',
         },
       }
@@ -120,7 +125,7 @@ async function refreshCache(env: Env, cache: Cache, cacheKey: Request): Promise<
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': `public, max-age=${CACHE_TTL}, stale-while-revalidate=${STALE_TTL}`,
-      'Access-Control-Allow-Origin': '*',
+      ...getCorsHeaders(origin),
       'X-Cache': 'MISS',
       'X-RateLimit-Remaining': remaining || 'unknown',
     },
