@@ -295,7 +295,13 @@ function calculateVersionCurrencyScore(currentVersion: string, latestVersion: st
   return 5; // Major version behind
 }
 
-function parseVersion(version: string): { major: number; minor: number; patch: number } {
+interface VersionParts {
+  major: number;
+  minor: number;
+  patch: number;
+}
+
+function parseVersion(version: string): VersionParts {
   const match = version.match(/(\d+)\.(\d+)\.(\d+)/);
   if (!match) return { major: 0, minor: 0, patch: 0 };
   return {
@@ -471,7 +477,7 @@ export function calculateHealthScore(data: HealthDataInput): HealthScoreResult {
   );
 
   // Determine churn risk based on overall score and specific signals
-  const churnRisk = determineChurnRisk(overallScore, data);
+  const churnRisk = determineChurnRisk(overallScore);
 
   return {
     overallScore,
@@ -484,7 +490,7 @@ export function calculateHealthScore(data: HealthDataInput): HealthScoreResult {
   };
 }
 
-function determineChurnRisk(score: number, data: HealthDataInput): ChurnRisk {
+function determineChurnRisk(score: number): ChurnRisk {
   // Primary assessment based on score
   if (score >= 75) return 'low';
   if (score >= 50) return 'medium';
@@ -668,7 +674,12 @@ export function getInterventionSuggestions(healthData: HealthDataInput): Interve
   }
 
   // Sort by priority
-  const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+  const priorityOrder = {
+    urgent: 0,
+    high: 1,
+    medium: 2,
+    low: 3,
+  } satisfies Record<InterventionSuggestion['priority'], number>;
   suggestions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
   return suggestions;
