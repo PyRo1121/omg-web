@@ -1,4 +1,4 @@
-import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
+import { type Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import {
   AlertTriangle,
   AlertCircle,
@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Mail,
   Phone,
-  Users,
   TrendingDown,
 } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
@@ -42,7 +41,7 @@ interface RiskConfig {
   priority: number;
 }
 
-const RISK_CONFIG: Record<RiskLevel, RiskConfig> = {
+const RISK_CONFIG = {
   critical: {
     icon: AlertTriangle,
     color: 'var(--color-flare-400)',
@@ -93,7 +92,7 @@ const RISK_CONFIG: Record<RiskLevel, RiskConfig> = {
     label: 'Healthy',
     priority: 1,
   },
-};
+} satisfies Record<RiskLevel, RiskConfig>;
 
 function getRiskLevel(segment: string): RiskLevel {
   const lower = segment.toLowerCase();
