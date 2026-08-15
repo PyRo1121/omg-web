@@ -1,16 +1,9 @@
-import {
-  Env,
-  jsonResponse,
-  errorResponse,
-  generateId,
-  getAuthToken,
-  validateSession,
-} from '../api';
+import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 
 interface TrackingEvent {
   event_type: 'pageview' | 'click' | 'form' | 'error' | 'performance';
   event_name: string;
-  properties: Record<string, unknown>;
+  properties: TrackingProperties;
   timestamp: number;
   session_id: string;
   duration_ms?: number;
@@ -20,7 +13,15 @@ interface TrackingBatch {
   events: TrackingEvent[];
 }
 
-const SALT_ROTATION_MS = 90 * 1000;
+type TrackingProperty =
+  string | number | boolean | null | TrackingProperty[] | { [key: string]: TrackingProperty };
+type TrackingProperties = Record<string, TrackingProperty>;
+
+interface ParsedUserAgent {
+  device: string;
+  browser: string;
+  os: string;
+}
 
 async function getCurrentSalt(db: D1Database): Promise<Uint8Array> {
   const result = await db
@@ -72,7 +73,7 @@ async function generateVisitorId(
   );
 }
 
-function parseUserAgent(ua: string): { device: string; browser: string; os: string } {
+function parseUserAgent(ua: string): ParsedUserAgent {
   let device = 'desktop';
   let browser = 'Unknown';
   let os = 'Unknown';
@@ -134,6 +135,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
 
       const eventId = generateId();
       const props = event.properties || {};
+      // SAFETY: Analytics clients send referrer as a string when present; absent values map to direct.
       const referrerDomain = extractReferrerDomain(props.referrer as string);
 
       statements.push(
@@ -254,6 +256,7 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
       }
     >();
 
+    // SAFETY: The query selects one aggregate row shape per country.
     for (const row of siteGeo.results as any[]) {
       combined.set(row.country_code, {
         country_code: row.country_code,
@@ -267,6 +270,7 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
       });
     }
 
+    // SAFETY: The query selects one aggregate row shape per country.
     for (const row of docsGeo.results as any[]) {
       const existing = combined.get(row.country_code);
       if (existing) {
@@ -287,6 +291,7 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
       }
     }
 
+    // SAFETY: The query selects one aggregate row shape per country.
     for (const row of cliGeo.results as any[]) {
       const existing = combined.get(row.country_code);
       if (existing) {
@@ -340,7 +345,7 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
   }
 }
 
-export async function handleGetRealtimeAnalytics(request: Request, env: Env): Promise<Response> {
+export async function handleGetRealtimeAnalytics(_request: Request, env: Env): Promise<Response> {
   try {
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
@@ -406,10 +411,14 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
          WHERE date >= ?`
       )
         .bind(startDateStr)
-        .first(),
+        .first<{
+          total_pageviews: number | null;
+          total_visitors: number | null;
+          total_sessions: number | null;
+        }>(),
 
       env.DB.prepare(
-        `SELECT date, SUM(pageviews) as pageviews, SUM(visitors) as visitors
+        `SELECT date, SUM(pageviews), as pageviews, SUM(visitors) as visitors
          FROM site_analytics_geo_daily
          WHERE date >= ?
          GROUP BY date
@@ -454,9 +463,9 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
     return jsonResponse({
       period_days: days,
       summary: {
-        total_pageviews: (totalStats as any)?.total_pageviews || 0,
-        total_visitors: (totalStats as any)?.total_visitors || 0,
-        total_sessions: (totalStats as any)?.total_sessions || 0,
+        total_pageviews: totalStats?.total_pageviews || 0,
+        total_visitors: totalStats?.total_visitors || 0,
+        total_sessions: totalStats?.total_sessions || 0,
       },
       daily_trend: dailyTrend.results,
       top_pages: topPages.results,
