@@ -13,6 +13,13 @@ declare module '/pagefind/pagefind.js' {
     excerpt: string;
   }
 
+  export interface PagefindSearchOptions {
+    filters?: Record<string, string>;
+    sort?: string;
+    include?: string;
+    exclude?: string;
+  }
+
   export interface PagefindSearchResults {
     results: { id: string; data: () => Promise<PagefindResult> }[];
     unfilteredResultCount: number;
@@ -24,11 +31,11 @@ declare module '/pagefind/pagefind.js' {
   export function init(): Promise<void>;
   export function search(
     query: string,
-    options?: Record<string, unknown>
+    options?: PagefindSearchOptions
   ): Promise<PagefindSearchResults>;
   export function debouncedSearch(
     query: string,
-    options?: Record<string, unknown>
+    options?: PagefindSearchOptions
   ): Promise<PagefindSearchResults | null>;
   export function preload(query: string): Promise<void>;
 }
