@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal, createMemo, onMount } from 'solid-js';
+import { type Component, For, Show, createSignal, createMemo, onMount } from 'solid-js';
 import { Repeat, Users, Activity, Clock, Zap, Trophy } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -18,7 +18,7 @@ interface RuntimeAdoptionChartProps {
   data: RuntimeData[];
 }
 
-const runtimeColors: Record<string, { gradient: string; glow: string; accent: string }> = {
+const runtimeColors = {
   node: {
     gradient: 'linear-gradient(135deg, #5FA04E, #8CC84B)',
     glow: 'rgba(95, 160, 78, 0.5)',
@@ -64,11 +64,11 @@ const runtimeColors: Record<string, { gradient: string; glow: string; accent: st
     glow: 'var(--color-photon-500)',
     accent: 'var(--color-photon-400)',
   },
-};
+} satisfies Record<string, { gradient: string; glow: string; accent: string }>;
 
 const getColorForRuntime = (runtime: string) => {
   const key = runtime.toLowerCase();
-  return runtimeColors[key] || runtimeColors.default;
+  return Object.entries(runtimeColors).find(([name]) => name === key)?.[1] ?? runtimeColors.default;
 };
 
 export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props => {
