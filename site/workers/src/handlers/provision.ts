@@ -1,7 +1,8 @@
-import { Env, jsonResponse, errorResponse, generateId, logAudit } from '../api';
+import { type Env, jsonResponse, errorResponse, generateId, logAudit } from '../api';
 
 export async function handleProvisionUser(request: Request, env: Env): Promise<Response> {
   try {
+    // SAFETY: The provisioning endpoint consumes the documented identity fields.
     const body = (await request.json()) as { email: string; name?: string };
 
     if (!body.email) {

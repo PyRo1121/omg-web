@@ -1,4 +1,11 @@
-import { Env, jsonResponse, errorResponse, validateSession, getAuthToken, License } from '../api';
+import {
+  type Env,
+  jsonResponse,
+  errorResponse,
+  validateSession,
+  getAuthToken,
+  type License,
+} from '../api';
 
 export async function handleFleetPush(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
@@ -24,6 +31,7 @@ export async function handleFleetPush(request: Request, env: Env): Promise<Respo
   }
 
   try {
+    // SAFETY: The fleet endpoint consumes the documented push payload fields.
     const body = (await request.json()) as {
       team: string;
       message: string;

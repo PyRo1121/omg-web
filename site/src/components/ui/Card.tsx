@@ -1,4 +1,4 @@
-import { Component, JSX, Show } from 'solid-js';
+import { type Component, type JSX, Show } from 'solid-js';
 import { Sparkline, TrendIndicator } from './Sparkline';
 
 interface CardProps {
@@ -42,6 +42,10 @@ export const Card: Component<CardProps> = props => {
           : ''
       } ${props.onClick ? 'cursor-pointer' : ''} ${props.class || ''}`}
       onClick={props.onClick}
+      onKeyDown={e => {
+        if (props.onClick && (e.key === 'Enter' || e.key === ' ')) props.onClick();
+      }}
+      tabIndex={props.onClick ? 0 : undefined}
     >
       {props.children}
     </div>
@@ -61,7 +65,7 @@ interface StatCardProps {
 
 export const StatCard: Component<StatCardProps> = props => {
   const sparklineColor = () => {
-    const colors: Record<string, string> = {
+    const colors = {
       emerald: '#10b981',
       cyan: '#06b6d4',
       indigo: '#6366f1',
@@ -70,7 +74,7 @@ export const StatCard: Component<StatCardProps> = props => {
       pink: '#ec4899',
       red: '#ef4444',
       none: '#6366f1',
-    };
+    } satisfies Record<NonNullable<CardProps['gradient']>, string>;
     return colors[props.gradient || 'none'];
   };
 
@@ -142,6 +146,10 @@ export const MetricCard: Component<MetricCardProps> = props => {
         props.onClick ? 'cursor-pointer' : ''
       }`}
       onClick={props.onClick}
+      onKeyDown={e => {
+        if (props.onClick && (e.key === 'Enter' || e.key === ' ')) props.onClick();
+      }}
+      tabIndex={props.onClick ? 0 : undefined}
     >
       <div class="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
 
@@ -183,11 +191,7 @@ export const MetricCard: Component<MetricCardProps> = props => {
             <div
               class={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-inner transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 ${props.iconBg || 'bg-white/[0.03]'}`}
             >
-              {typeof props.icon === 'string' ? (
-                <span class="text-2xl">{props.icon}</span>
-              ) : (
-                props.icon
-              )}
+              {props.icon}
             </div>
           </Show>
 

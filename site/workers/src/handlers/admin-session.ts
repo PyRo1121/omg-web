@@ -1,4 +1,4 @@
-import { Env, jsonResponse, errorResponse, generateId, logAudit } from '../api';
+import { type Env, jsonResponse, errorResponse, generateId, logAudit } from '../api';
 
 export async function handleCreateAdminSession(request: Request, env: Env): Promise<Response> {
   try {
@@ -8,6 +8,7 @@ export async function handleCreateAdminSession(request: Request, env: Env): Prom
       return errorResponse('Unauthorized', 401);
     }
 
+    // SAFETY: The admin session endpoint consumes the documented identity fields.
     const body = (await request.json()) as {
       email: string;
       name?: string;
@@ -72,6 +73,7 @@ export async function handleCreateAdminSession(request: Request, env: Env): Prom
       .bind(sessionId, customer.id, token, expiresAt)
       .run();
 
+    // SAFETY: The customer row exists after the lookup or creation branch.
     await logAudit(
       env.DB,
       customer.id as string,

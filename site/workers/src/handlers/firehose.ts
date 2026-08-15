@@ -1,5 +1,5 @@
 // Firehose Handler - Streaming real-time events to Admin Dashboard
-import { Env, jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
+import { type Env, jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
 
 export async function handleGetFirehose(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
@@ -52,6 +52,7 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
     // Parse properties JSON for frontend convenience
     const events = results.map((event: any) => ({
       ...event,
+      // SAFETY: The analytics schema stores properties as JSON text.
       properties: event.properties ? JSON.parse(event.properties as string) : {},
     }));
 
