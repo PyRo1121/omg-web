@@ -1,13 +1,13 @@
-import { ParentProps, Show, createSignal, createEffect } from "solid-js";
-import { A, useLocation } from "@solidjs/router";
-import { Menu, X, Search, ChevronLeft, ChevronRight } from "lucide-solid";
-import { createShortcut } from "@solid-primitives/keyboard";
-import { Sidebar } from "./Sidebar";
-import { TableOfContents } from "./TableOfContents";
-import { Breadcrumbs } from "./Breadcrumbs";
-import { SearchDialog } from "./SearchDialog";
-import Header from "../Header";
-import { ReadingProgress } from "../ReadingProgress";
+import { ParentProps, Show, createSignal, createEffect } from 'solid-js';
+import { A, useLocation } from '@solidjs/router';
+import { Menu, X, Search, ChevronLeft, ChevronRight } from 'lucide-solid';
+import { createShortcut } from '@solid-primitives/keyboard';
+import { Sidebar } from './Sidebar';
+import { TableOfContents } from './TableOfContents';
+import { Breadcrumbs } from './Breadcrumbs';
+import { SearchDialog } from './SearchDialog';
+import Header from '../Header';
+import { ReadingProgress } from '../ReadingProgress';
 
 export interface DocFrontmatter {
   title: string;
@@ -37,8 +37,8 @@ export function DocsLayout(props: DocsLayoutProps) {
   const [searchOpen, setSearchOpen] = createSignal(false);
   const location = useLocation();
 
-  createShortcut(["Meta", "K"], () => setSearchOpen(true));
-  createShortcut(["Control", "K"], () => setSearchOpen(true));
+  createShortcut(['Meta', 'K'], () => setSearchOpen(true));
+  createShortcut(['Control', 'K'], () => setSearchOpen(true));
 
   createEffect(() => {
     location.pathname;
@@ -80,9 +80,7 @@ export function DocsLayout(props: DocsLayoutProps) {
             >
               <Search size={16} />
               <span>Search docs...</span>
-              <kbd class="ml-auto rounded bg-slate-700 px-1.5 py-0.5 text-xs">
-                ⌘K
-              </kbd>
+              <kbd class="ml-auto rounded bg-slate-700 px-1.5 py-0.5 text-xs">⌘K</kbd>
             </button>
           </div>
           <Sidebar />
@@ -106,9 +104,7 @@ export function DocsLayout(props: DocsLayoutProps) {
               </h1>
             </Show>
             <Show when={props.frontmatter?.description}>
-              <p class="mt-2 text-lg text-slate-400">
-                {props.frontmatter!.description}
-              </p>
+              <p class="mt-2 text-lg text-slate-400">{props.frontmatter!.description}</p>
             </Show>
 
             <div class="markdown-content">{props.children}</div>
@@ -121,12 +117,9 @@ export function DocsLayout(props: DocsLayoutProps) {
                   href={props.nav!.prev!.link}
                   class="group flex items-center gap-2 text-slate-400 transition-colors hover:text-white"
                 >
-                  <ChevronLeft
-                    size={20}
-                    class="transition-transform group-hover:-translate-x-1"
-                  />
+                  <ChevronLeft size={20} class="transition-transform group-hover:-translate-x-1" />
                   <div>
-                    <div class="text-xs uppercase tracking-wide">Previous</div>
+                    <div class="text-xs tracking-wide uppercase">Previous</div>
                     <div class="font-medium">{props.nav!.prev!.title}</div>
                   </div>
                 </A>
@@ -138,13 +131,10 @@ export function DocsLayout(props: DocsLayoutProps) {
                   class="group flex items-center gap-2 text-right text-slate-400 transition-colors hover:text-white"
                 >
                   <div>
-                    <div class="text-xs uppercase tracking-wide">Next</div>
+                    <div class="text-xs tracking-wide uppercase">Next</div>
                     <div class="font-medium">{props.nav!.next!.title}</div>
                   </div>
-                  <ChevronRight
-                    size={20}
-                    class="transition-transform group-hover:translate-x-1"
-                  />
+                  <ChevronRight size={20} class="transition-transform group-hover:translate-x-1" />
                 </A>
               </Show>
             </nav>

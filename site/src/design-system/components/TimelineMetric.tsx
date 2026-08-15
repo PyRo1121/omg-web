@@ -55,13 +55,16 @@ interface TTVProgressProps {
   class?: string;
 }
 
-const statusConfig: Record<MilestoneStatus, {
-  icon: typeof Check;
-  color: string;
-  bgClass: string;
-  borderClass: string;
-  label: string;
-}> = {
+const statusConfig: Record<
+  MilestoneStatus,
+  {
+    icon: typeof Check;
+    color: string;
+    bgClass: string;
+    borderClass: string;
+    label: string;
+  }
+> = {
   pending: {
     icon: Clock,
     color: 'var(--ttv-stage-pending, #52525a)',
@@ -99,12 +102,15 @@ const statusConfig: Record<MilestoneStatus, {
   },
 };
 
-const speedConfig: Record<TTVSpeed, {
-  label: string;
-  color: string;
-  bgClass: string;
-  icon: typeof Zap;
-}> = {
+const speedConfig: Record<
+  TTVSpeed,
+  {
+    label: string;
+    color: string;
+    bgClass: string;
+    icon: typeof Zap;
+  }
+> = {
   slow: {
     label: 'Slow',
     color: 'var(--ttv-speed-slow, #f87171)',
@@ -131,10 +137,13 @@ const speedConfig: Record<TTVSpeed, {
   },
 };
 
-const scheduleConfig: Record<ScheduleStatus, {
-  label: string;
-  color: string;
-}> = {
+const scheduleConfig: Record<
+  ScheduleStatus,
+  {
+    label: string;
+    color: string;
+  }
+> = {
   ahead: { label: 'Ahead of Schedule', color: 'var(--ttv-ahead-of-schedule, #10b981)' },
   'on-schedule': { label: 'On Schedule', color: 'var(--ttv-on-schedule, #22d3d3)' },
   behind: { label: 'Behind Schedule', color: 'var(--ttv-behind-schedule, #f59e0b)' },
@@ -157,7 +166,7 @@ const getScheduleStatus = (currentDays: number, benchmarkDays: number): Schedule
   return 'at-risk';
 };
 
-const MilestoneIcon: Component<{ status: MilestoneStatus; size?: number }> = (props) => {
+const MilestoneIcon: Component<{ status: MilestoneStatus; size?: number }> = props => {
   const config = () => statusConfig[props.status];
   const Icon = config().icon;
   const isActive = () => props.status === 'active';
@@ -182,16 +191,26 @@ const MilestoneIcon: Component<{ status: MilestoneStatus; size?: number }> = (pr
   );
 };
 
-export const TimelineMetric: Component<TimelineMetricProps> = (props) => {
+export const TimelineMetric: Component<TimelineMetricProps> = props => {
   const [local, others] = splitProps(props, [
-    'milestones', 'title', 'currentDays', 'benchmarkDays', 'variant',
-    'showProgress', 'showBenchmark', 'animated', 'compact', 'class'
+    'milestones',
+    'title',
+    'currentDays',
+    'benchmarkDays',
+    'variant',
+    'showProgress',
+    'showBenchmark',
+    'animated',
+    'compact',
+    'class',
   ]);
 
   const variant = () => local.variant || 'horizontal';
-  const completedCount = createMemo(() => local.milestones.filter(m => m.status === 'completed').length);
+  const completedCount = createMemo(
+    () => local.milestones.filter(m => m.status === 'completed').length
+  );
   const progress = createMemo(() => (completedCount() / local.milestones.length) * 100);
-  
+
   const speed = createMemo(() => {
     if (local.currentDays === undefined || local.benchmarkDays === undefined) return null;
     return getSpeed(local.currentDays, local.benchmarkDays);
@@ -211,14 +230,14 @@ export const TimelineMetric: Component<TimelineMetricProps> = (props) => {
           </Show>
           <Show when={local.showProgress}>
             <div class="flex items-center gap-3">
-              <div class="flex items-center gap-1.5 text-xs text-nebula-400">
+              <div class="text-nebula-400 flex items-center gap-1.5 text-xs">
                 <Target size={14} />
                 <span class="font-medium tabular-nums">
                   {completedCount()}/{local.milestones.length} complete
                 </span>
               </div>
               <Show when={speed()}>
-                {(s) => {
+                {s => {
                   const SpeedIcon = speedConfig[s()].icon;
                   return (
                     <div
@@ -241,15 +260,16 @@ export const TimelineMetric: Component<TimelineMetricProps> = (props) => {
 
       <Show when={variant() === 'horizontal'}>
         <div class="relative">
-          <div class="absolute inset-x-0 top-5 h-0.5 bg-void-700" />
+          <div class="bg-void-700 absolute inset-x-0 top-5 h-0.5" />
           <div
             class={cn(
-              'absolute left-0 top-5 h-0.5 transition-all duration-1000 ease-smooth',
+              'ease-smooth absolute top-5 left-0 h-0.5 transition-all duration-1000',
               local.animated && 'animate-[score-fill_1s_ease-out_forwards]'
             )}
             style={{
               width: `${progress()}%`,
-              background: 'linear-gradient(90deg, var(--color-indigo-600), var(--color-indigo-500), var(--color-electric-500))',
+              background:
+                'linear-gradient(90deg, var(--color-indigo-600), var(--color-indigo-500), var(--color-electric-500))',
               'box-shadow': '0 0 10px rgba(99, 102, 241, 0.3)',
             }}
           />
@@ -257,35 +277,41 @@ export const TimelineMetric: Component<TimelineMetricProps> = (props) => {
           <div class="relative flex justify-between">
             <For each={local.milestones}>
               {(milestone, index) => {
-                const statusColor = milestone.status === 'completed' ? 'text-aurora-400' :
-                  milestone.status === 'active' ? 'text-indigo-400' :
-                  milestone.status === 'blocked' ? 'text-flare-400' :
-                  'text-nebula-400';
-                
-                const daysColor = milestone.estimatedDays && (milestone.actualDays ?? 0) <= milestone.estimatedDays
-                  ? 'text-aurora-400'
-                  : 'text-solar-400';
+                const statusColor =
+                  milestone.status === 'completed'
+                    ? 'text-aurora-400'
+                    : milestone.status === 'active'
+                      ? 'text-indigo-400'
+                      : milestone.status === 'blocked'
+                        ? 'text-flare-400'
+                        : 'text-nebula-400';
+
+                const daysColor =
+                  milestone.estimatedDays && (milestone.actualDays ?? 0) <= milestone.estimatedDays
+                    ? 'text-aurora-400'
+                    : 'text-solar-400';
 
                 return (
                   <div
-                    class={cn(
-                      'flex flex-col items-center',
-                      local.animated && 'animate-fade-up'
-                    )}
+                    class={cn('flex flex-col items-center', local.animated && 'animate-fade-up')}
                     style={local.animated ? { 'animation-delay': `${index() * 100}ms` } : {}}
                   >
                     <MilestoneIcon status={milestone.status} size={local.compact ? 14 : 16} />
                     <div class="mt-3 text-center">
-                      <div class={cn('font-medium', local.compact ? 'text-2xs' : 'text-xs', statusColor)}>
+                      <div
+                        class={cn(
+                          'font-medium',
+                          local.compact ? 'text-2xs' : 'text-xs',
+                          statusColor
+                        )}
+                      >
                         {milestone.label}
                       </div>
                       <Show when={!local.compact && milestone.completedAt}>
-                        <div class="mt-0.5 text-2xs text-nebula-500">
-                          {milestone.completedAt}
-                        </div>
+                        <div class="text-2xs text-nebula-500 mt-0.5">{milestone.completedAt}</div>
                       </Show>
                       <Show when={!local.compact && milestone.actualDays !== undefined}>
-                        <div class={cn('mt-0.5 text-2xs font-medium tabular-nums', daysColor)}>
+                        <div class={cn('text-2xs mt-0.5 font-medium tabular-nums', daysColor)}>
                           {milestone.actualDays}d
                           <Show when={milestone.estimatedDays}>
                             <span class="text-nebula-500"> / {milestone.estimatedDays}d</span>
@@ -301,7 +327,13 @@ export const TimelineMetric: Component<TimelineMetricProps> = (props) => {
         </div>
       </Show>
 
-      <Show when={local.showBenchmark && local.currentDays !== undefined && local.benchmarkDays !== undefined}>
+      <Show
+        when={
+          local.showBenchmark &&
+          local.currentDays !== undefined &&
+          local.benchmarkDays !== undefined
+        }
+      >
         <TTVProgress
           currentDays={local.currentDays!}
           benchmarkDays={local.benchmarkDays!}
@@ -313,15 +345,24 @@ export const TimelineMetric: Component<TimelineMetricProps> = (props) => {
   );
 };
 
-export const TTVProgress: Component<TTVProgressProps> = (props) => {
+export const TTVProgress: Component<TTVProgressProps> = props => {
   const [local, others] = splitProps(props, [
-    'currentDays', 'benchmarkDays', 'targetDays', 'showLabels', 'animated', 'class'
+    'currentDays',
+    'benchmarkDays',
+    'targetDays',
+    'showLabels',
+    'animated',
+    'class',
   ]);
 
-  const maxDays = createMemo(() => Math.max(local.currentDays, local.benchmarkDays, local.targetDays ?? 0) * 1.2);
+  const maxDays = createMemo(
+    () => Math.max(local.currentDays, local.benchmarkDays, local.targetDays ?? 0) * 1.2
+  );
   const currentPercent = createMemo(() => (local.currentDays / maxDays()) * 100);
   const benchmarkPercent = createMemo(() => (local.benchmarkDays / maxDays()) * 100);
-  const targetPercent = createMemo(() => local.targetDays ? (local.targetDays / maxDays()) * 100 : null);
+  const targetPercent = createMemo(() =>
+    local.targetDays ? (local.targetDays / maxDays()) * 100 : null
+  );
 
   const schedule = createMemo(() => getScheduleStatus(local.currentDays, local.benchmarkDays));
   const scheduleConf = createMemo(() => scheduleConfig[schedule()]);
@@ -332,7 +373,7 @@ export const TTVProgress: Component<TTVProgressProps> = (props) => {
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <Timer size={14} class="text-nebula-500" />
-            <span class="text-xs font-medium text-nebula-400">Time to Value</span>
+            <span class="text-nebula-400 text-xs font-medium">Time to Value</span>
           </div>
           <div
             class="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold"
@@ -343,10 +384,10 @@ export const TTVProgress: Component<TTVProgressProps> = (props) => {
         </div>
       </Show>
 
-      <div class="relative h-6 rounded-full bg-void-700 overflow-hidden">
+      <div class="bg-void-700 relative h-6 overflow-hidden rounded-full">
         <div
           class={cn(
-            'absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ease-smooth',
+            'ease-smooth absolute inset-y-0 left-0 rounded-full transition-all duration-1000',
             local.animated && 'animate-[score-fill_1s_ease-out_forwards]'
           )}
           style={{
@@ -357,11 +398,11 @@ export const TTVProgress: Component<TTVProgressProps> = (props) => {
         />
 
         <div
-          class="absolute inset-y-1 w-0.5 bg-nebula-400"
+          class="bg-nebula-400 absolute inset-y-1 w-0.5"
           style={{ left: `${benchmarkPercent()}%` }}
         />
         <div
-          class="absolute -top-6 text-2xs font-medium text-nebula-400"
+          class="text-2xs text-nebula-400 absolute -top-6 font-medium"
           style={{ left: `${benchmarkPercent()}%`, transform: 'translateX(-50%)' }}
         >
           Benchmark
@@ -375,7 +416,7 @@ export const TTVProgress: Component<TTVProgressProps> = (props) => {
         </Show>
 
         <div class="absolute inset-0 flex items-center justify-center">
-          <span class="font-display text-sm font-bold tabular-nums text-white">
+          <span class="font-display text-sm font-bold text-white tabular-nums">
             {local.currentDays}d
             <span class="text-nebula-500 font-normal"> / {local.benchmarkDays}d</span>
           </span>
@@ -383,11 +424,11 @@ export const TTVProgress: Component<TTVProgressProps> = (props) => {
       </div>
 
       <Show when={local.showLabels}>
-        <div class="flex items-center justify-between text-2xs">
+        <div class="text-2xs flex items-center justify-between">
           <span class="text-nebula-500">0 days</span>
           <div class="flex items-center gap-4">
             <div class="flex items-center gap-1.5">
-              <div class="h-2 w-2 rounded-full bg-nebula-400" />
+              <div class="bg-nebula-400 h-2 w-2 rounded-full" />
               <span class="text-nebula-400">Benchmark ({local.benchmarkDays}d)</span>
             </div>
             <Show when={local.targetDays}>
@@ -410,7 +451,7 @@ export interface TTVSummaryProps {
   class?: string;
 }
 
-export const TTVSummary: Component<TTVSummaryProps> = (props) => {
+export const TTVSummary: Component<TTVSummaryProps> = props => {
   const completed = createMemo(() => props.milestones.filter(m => m.status === 'completed').length);
   const blocked = createMemo(() => props.milestones.filter(m => m.status === 'blocked').length);
   const speed = createMemo(() => getSpeed(props.currentDays, props.benchmarkDays));
@@ -418,60 +459,58 @@ export const TTVSummary: Component<TTVSummaryProps> = (props) => {
   const SpeedIcon = speedConf().icon;
 
   const avgDaysPerMilestone = createMemo(() => {
-    const completedMilestones = props.milestones.filter(m => m.status === 'completed' && m.actualDays);
+    const completedMilestones = props.milestones.filter(
+      m => m.status === 'completed' && m.actualDays
+    );
     if (completedMilestones.length === 0) return 0;
-    return completedMilestones.reduce((sum, m) => sum + (m.actualDays || 0), 0) / completedMilestones.length;
+    return (
+      completedMilestones.reduce((sum, m) => sum + (m.actualDays || 0), 0) /
+      completedMilestones.length
+    );
   });
 
   return (
     <div class={cn('grid grid-cols-4 gap-4', props.class)}>
-      <div class="rounded-xl border border-white/5 bg-void-850 p-4">
-        <div class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
-          Progress
-        </div>
-        <div class="mt-2 font-display text-2xl font-black text-white tabular-nums">
+      <div class="bg-void-850 rounded-xl border border-white/5 p-4">
+        <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Progress</div>
+        <div class="font-display mt-2 text-2xl font-black text-white tabular-nums">
           {completed()}/{props.milestones.length}
         </div>
-        <div class="mt-1 text-xs text-nebula-500">
-          milestones complete
-        </div>
+        <div class="text-nebula-500 mt-1 text-xs">milestones complete</div>
       </div>
-      <div class="rounded-xl border border-white/5 bg-void-850 p-4">
-        <div class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
-          Time Elapsed
-        </div>
-        <div class="mt-2 font-display text-2xl font-black text-indigo-400 tabular-nums">
+      <div class="bg-void-850 rounded-xl border border-white/5 p-4">
+        <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Time Elapsed</div>
+        <div class="font-display mt-2 text-2xl font-black text-indigo-400 tabular-nums">
           {props.currentDays}d
         </div>
-        <div class="mt-1 text-xs text-nebula-500">
-          of {props.benchmarkDays}d benchmark
-        </div>
+        <div class="text-nebula-500 mt-1 text-xs">of {props.benchmarkDays}d benchmark</div>
       </div>
-      <div class="rounded-xl border border-white/5 bg-void-850 p-4">
-        <div class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
-          Velocity
-        </div>
+      <div class="bg-void-850 rounded-xl border border-white/5 p-4">
+        <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Velocity</div>
         <div class="mt-2 flex items-center gap-2">
           <SpeedIcon size={20} style={{ color: speedConf().color }} />
-          <span class="font-display text-2xl font-black tabular-nums" style={{ color: speedConf().color }}>
+          <span
+            class="font-display text-2xl font-black tabular-nums"
+            style={{ color: speedConf().color }}
+          >
             {speedConf().label}
           </span>
         </div>
-        <div class="mt-1 text-xs text-nebula-500">
+        <div class="text-nebula-500 mt-1 text-xs">
           {avgDaysPerMilestone().toFixed(1)}d avg per milestone
         </div>
       </div>
-      <div class="rounded-xl border border-white/5 bg-void-850 p-4">
-        <div class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
-          Blockers
-        </div>
-        <div class={cn(
-          'mt-2 font-display text-2xl font-black tabular-nums',
-          blocked() > 0 ? 'text-flare-400' : 'text-aurora-400'
-        )}>
+      <div class="bg-void-850 rounded-xl border border-white/5 p-4">
+        <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Blockers</div>
+        <div
+          class={cn(
+            'font-display mt-2 text-2xl font-black tabular-nums',
+            blocked() > 0 ? 'text-flare-400' : 'text-aurora-400'
+          )}
+        >
           {blocked()}
         </div>
-        <div class="mt-1 text-xs text-nebula-500">
+        <div class="text-nebula-500 mt-1 text-xs">
           {blocked() > 0 ? 'needs attention' : 'all clear'}
         </div>
       </div>

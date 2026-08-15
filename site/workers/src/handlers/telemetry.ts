@@ -20,7 +20,10 @@ const RATE_LIMIT_WINDOW_SECONDS = 60;
 /**
  * Check Content-Length header before parsing JSON
  */
-function validateContentLength(request: Request, maxBytes: number): { valid: boolean; error?: Response } {
+function validateContentLength(
+  request: Request,
+  maxBytes: number
+): { valid: boolean; error?: Response } {
   const contentLength = request.headers.get('Content-Length');
 
   if (!contentLength) {
@@ -112,7 +115,7 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
       return lengthCheck.error!;
     }
 
-    const body = await request.json() as {
+    const body = (await request.json()) as {
       event: {
         type: 'command' | 'session' | 'performance' | 'feature';
         [key: string]: any;
@@ -157,13 +160,15 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
     switch (body.event.type) {
       case 'command': {
         const cmd = sanitizeEvent(body.event as any);
-        await env.DB.prepare(`
+        await env.DB.prepare(
+          `
           INSERT INTO command_event (
             id, license_id, machine_id, session_id, command, subcommand,
             packages, duration_ms, success, error, result_count, updated_count, timestamp
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `)
+        `
+        )
           .bind(
             eventId,
             license.id,
@@ -185,13 +190,15 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
 
       case 'session': {
         const sess = sanitizeEvent(body.event as any);
-        await env.DB.prepare(`
+        await env.DB.prepare(
+          `
           INSERT INTO session (
             id, license_id, machine_id, session_id, event_type,
             start_time, end_time, commands_run, duration_secs, timestamp
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `)
+        `
+        )
           .bind(
             eventId,
             license.id,
@@ -210,12 +217,14 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
 
       case 'performance': {
         const perf = sanitizeEvent(body.event as any);
-        await env.DB.prepare(`
+        await env.DB.prepare(
+          `
           INSERT INTO performance_metric (
             id, license_id, machine_id, metric_type, duration_ms, context, timestamp
           )
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `)
+        `
+        )
           .bind(
             eventId,
             license.id,
@@ -231,12 +240,14 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
 
       case 'feature': {
         const feat = sanitizeEvent(body.event as any);
-        await env.DB.prepare(`
+        await env.DB.prepare(
+          `
           INSERT INTO feature_usage (
             id, license_id, machine_id, feature, enabled, metadata, timestamp
           )
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `)
+        `
+        )
           .bind(
             eventId,
             license.id,
@@ -270,7 +281,7 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
       return lengthCheck.error!;
     }
 
-    const body = await request.json() as {
+    const body = (await request.json()) as {
       events: Array<{
         event: {
           type: 'command' | 'session' | 'performance' | 'feature';
@@ -333,13 +344,15 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
         case 'command': {
           const cmd = sanitizeEvent(item.event as any);
           statements.push(
-            env.DB.prepare(`
+            env.DB.prepare(
+              `
               INSERT INTO command_event (
                 id, license_id, machine_id, session_id, command, subcommand,
                 packages, duration_ms, success, error, result_count, updated_count, timestamp
               )
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).bind(
+            `
+            ).bind(
               eventId,
               license.id,
               truncateString(item.machine_id, MAX_STRING_LENGTH),
@@ -361,13 +374,15 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
         case 'session': {
           const sess = sanitizeEvent(item.event as any);
           statements.push(
-            env.DB.prepare(`
+            env.DB.prepare(
+              `
               INSERT INTO session (
                 id, license_id, machine_id, session_id, event_type,
                 start_time, end_time, commands_run, duration_secs, timestamp
               )
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).bind(
+            `
+            ).bind(
               eventId,
               license.id,
               truncateString(item.machine_id, MAX_STRING_LENGTH),
@@ -386,12 +401,14 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
         case 'performance': {
           const perf = sanitizeEvent(item.event as any);
           statements.push(
-            env.DB.prepare(`
+            env.DB.prepare(
+              `
               INSERT INTO performance_metric (
                 id, license_id, machine_id, metric_type, duration_ms, context, timestamp
               )
               VALUES (?, ?, ?, ?, ?, ?, ?)
-            `).bind(
+            `
+            ).bind(
               eventId,
               license.id,
               truncateString(item.machine_id, MAX_STRING_LENGTH),
@@ -407,12 +424,14 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
         case 'feature': {
           const feat = sanitizeEvent(item.event as any);
           statements.push(
-            env.DB.prepare(`
+            env.DB.prepare(
+              `
               INSERT INTO feature_usage (
                 id, license_id, machine_id, feature, enabled, metadata, timestamp
               )
               VALUES (?, ?, ?, ?, ?, ?, ?)
-            `).bind(
+            `
+            ).bind(
               eventId,
               license.id,
               truncateString(item.machine_id, MAX_STRING_LENGTH),

@@ -7,7 +7,7 @@ interface TabErrorBoundaryProps {
   children: JSX.Element;
 }
 
-export const TabErrorBoundary: Component<TabErrorBoundaryProps> = (props) => {
+export const TabErrorBoundary: Component<TabErrorBoundaryProps> = props => {
   return (
     <ErrorBoundary
       fallback={(err, reset) => (
@@ -18,11 +18,9 @@ export const TabErrorBoundary: Component<TabErrorBoundaryProps> = (props) => {
                 <AlertCircle class="h-16 w-16 text-red-400" />
               </div>
             </div>
-            <h3 class="mb-3 text-2xl font-black text-white">
-              Failed to load {props.tab} tab
-            </h3>
+            <h3 class="mb-3 text-2xl font-black text-white">Failed to load {props.tab} tab</h3>
             <p class="mb-2 text-sm text-red-400">{err.message}</p>
-            <p class="mb-6 text-xs text-nebula-500">
+            <p class="text-nebula-500 mb-6 text-xs">
               The error has been logged. Try refreshing or contact support if the issue persists.
             </p>
             <button

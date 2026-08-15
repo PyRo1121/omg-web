@@ -1,14 +1,7 @@
 import { Component, For, Show, createSignal, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Minus,
-  LineChart,
-  Info,
-  ChevronDown
-} from 'lucide-solid';
+import { TrendingUp, TrendingDown, Minus, LineChart, Info, ChevronDown } from 'lucide-solid';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -57,12 +50,15 @@ export interface ForecastWidgetProps {
   class?: string;
 }
 
-const SCENARIO_CONFIG: Record<ForecastScenario, {
-  label: string;
-  color: string;
-  bgColor: string;
-  description: string;
-}> = {
+const SCENARIO_CONFIG: Record<
+  ForecastScenario,
+  {
+    label: string;
+    color: string;
+    bgColor: string;
+    description: string;
+  }
+> = {
   conservative: {
     label: 'Conservative',
     color: 'var(--color-plasma-500)',
@@ -98,26 +94,30 @@ const formatValue = (value: number, prefix?: string, unit?: string): string => {
 const ScenarioSelector: Component<{
   value: ForecastScenario;
   onChange: (scenario: ForecastScenario) => void;
-}> = (props) => {
+}> = props => {
   const scenarios: ForecastScenario[] = ['conservative', 'moderate', 'aggressive'];
 
   return (
-    <div class="flex items-center gap-1 p-1 rounded-xl bg-void-800 border border-white/5">
+    <div class="bg-void-800 flex items-center gap-1 rounded-xl border border-white/5 p-1">
       <For each={scenarios}>
-        {(scenario) => (
+        {scenario => (
           <button
             type="button"
             class={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest',
+              'rounded-lg px-3 py-1.5 text-xs font-bold tracking-widest uppercase',
               'transition-all duration-300',
               props.value === scenario
                 ? 'text-white'
                 : 'text-nebula-500 hover:text-nebula-300 hover:bg-white/5'
             )}
-            style={props.value === scenario ? {
-              'background-color': SCENARIO_CONFIG[scenario].bgColor,
-              'color': SCENARIO_CONFIG[scenario].color,
-            } : {}}
+            style={
+              props.value === scenario
+                ? {
+                    'background-color': SCENARIO_CONFIG[scenario].bgColor,
+                    color: SCENARIO_CONFIG[scenario].color,
+                  }
+                : {}
+            }
             onClick={() => props.onChange(scenario)}
           >
             {SCENARIO_CONFIG[scenario].label}
@@ -134,7 +134,7 @@ const ForecastChart: Component<{
   scenario: ForecastScenario;
   height: number;
   showConfidenceBands: boolean;
-}> = (props) => {
+}> = props => {
   const chartWidth = 600;
   const chartHeight = () => props.height - 40;
   const padding = { top: 20, right: 20, bottom: 30, left: 20 };
@@ -163,45 +163,47 @@ const ForecastChart: Component<{
   };
 
   const historicalPath = createMemo(() => {
-    return props.historical.map((point, i) => {
-      const x = getX(i);
-      const y = getY(point.value);
-      return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
-    }).join(' ');
+    return props.historical
+      .map((point, i) => {
+        const x = getX(i);
+        const y = getY(point.value);
+        return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+      })
+      .join(' ');
   });
 
   const projectedPath = createMemo(() => {
     const startIndex = props.historical.length - 1;
     const lastHistorical = props.historical[startIndex];
     let path = `M ${getX(startIndex)},${getY(lastHistorical.value)}`;
-    
+
     props.projections.forEach((proj, i) => {
       const x = getX(startIndex + i + 1);
       const y = getY(proj.point.value);
       path += ` L ${x},${y}`;
     });
-    
+
     return path;
   });
 
   const confidenceAreaPath = createMemo(() => {
     if (!props.showConfidenceBands) return '';
-    
+
     const startIndex = props.historical.length - 1;
     const lastHistorical = props.historical[startIndex];
-    
+
     let upperPath = `M ${getX(startIndex)},${getY(lastHistorical.value)}`;
     const lowerPoints: string[] = [];
-    
+
     props.projections.forEach((proj, i) => {
       const x = getX(startIndex + i + 1);
       upperPath += ` L ${x},${getY(proj.confidence.upper)}`;
       lowerPoints.unshift(`L ${x},${getY(proj.confidence.lower)}`);
     });
-    
+
     const lastX = getX(startIndex + props.projections.length);
     upperPath += ` L ${lastX},${getY(props.projections[props.projections.length - 1].confidence.lower)}`;
-    
+
     return upperPath + ' ' + lowerPoints.join(' ') + ' Z';
   });
 
@@ -209,13 +211,24 @@ const ForecastChart: Component<{
 
   return (
     <div style={{ height: `${props.height}px` }}>
-      <svg width="100%" height={chartHeight()} viewBox={`0 0 ${chartWidth} ${chartHeight()}`} preserveAspectRatio="xMidYMid meet">
+      <svg
+        width="100%"
+        height={chartHeight()}
+        viewBox={`0 0 ${chartWidth} ${chartHeight()}`}
+        preserveAspectRatio="xMidYMid meet"
+      >
         <defs>
           <linearGradient id="forecast-historical-gradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="var(--forecast-historical)" stop-opacity="0.2" />
             <stop offset="100%" stop-color="var(--forecast-historical)" stop-opacity="0" />
           </linearGradient>
-          <linearGradient id={`forecast-projected-gradient-${props.scenario}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient
+            id={`forecast-projected-gradient-${props.scenario}`}
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
+          >
             <stop offset="0%" stop-color={scenarioConfig().color} stop-opacity="0.15" />
             <stop offset="100%" stop-color={scenarioConfig().color} stop-opacity="0" />
           </linearGradient>
@@ -275,7 +288,7 @@ const ForecastChart: Component<{
               fill="var(--color-void-850)"
               stroke="var(--forecast-historical)"
               stroke-width="2"
-              class="opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+              class="cursor-pointer opacity-0 transition-opacity hover:opacity-100"
             />
           )}
         </For>
@@ -316,26 +329,26 @@ const ForecastChart: Component<{
         />
       </svg>
 
-      <div class="flex items-center justify-center gap-6 mt-2 text-2xs">
+      <div class="text-2xs mt-2 flex items-center justify-center gap-6">
         <div class="flex items-center gap-2">
-          <div class="w-4 h-0.5 rounded bg-forecast-historical" />
+          <div class="bg-forecast-historical h-0.5 w-4 rounded" />
           <span class="text-nebula-400">Historical</span>
         </div>
         <div class="flex items-center gap-2">
-          <div 
-            class="w-4 h-0.5 rounded" 
-            style={{ 
+          <div
+            class="h-0.5 w-4 rounded"
+            style={{
               'background-color': scenarioConfig().color,
-              'background': `repeating-linear-gradient(90deg, ${scenarioConfig().color} 0px, ${scenarioConfig().color} 4px, transparent 4px, transparent 7px)`
-            }} 
+              background: `repeating-linear-gradient(90deg, ${scenarioConfig().color} 0px, ${scenarioConfig().color} 4px, transparent 4px, transparent 7px)`,
+            }}
           />
           <span class="text-nebula-400">Projected</span>
         </div>
         <Show when={props.showConfidenceBands}>
           <div class="flex items-center gap-2">
-            <div 
-              class="w-4 h-3 rounded opacity-30" 
-              style={{ 'background-color': scenarioConfig().color }} 
+            <div
+              class="h-3 w-4 rounded opacity-30"
+              style={{ 'background-color': scenarioConfig().color }}
             />
             <span class="text-nebula-500">Confidence Band</span>
           </div>
@@ -348,7 +361,7 @@ const ForecastChart: Component<{
 const AssumptionsList: Component<{
   assumptions: ForecastAssumption[];
   scenario: ForecastScenario;
-}> = (props) => {
+}> = props => {
   const [isExpanded, setIsExpanded] = createSignal(false);
 
   return (
@@ -356,10 +369,10 @@ const AssumptionsList: Component<{
       <button
         type="button"
         class={cn(
-          'w-full px-6 py-4 flex items-center justify-between',
-          'text-sm text-nebula-400',
+          'flex w-full items-center justify-between px-6 py-4',
+          'text-nebula-400 text-sm',
           'transition-all duration-300',
-          'hover:bg-white/[0.02] hover:text-nebula-300'
+          'hover:text-nebula-300 hover:bg-white/[0.02]'
         )}
         onClick={() => setIsExpanded(!isExpanded())}
       >
@@ -367,31 +380,31 @@ const AssumptionsList: Component<{
           <Info size={14} />
           <span>Key Assumptions ({props.assumptions.length})</span>
         </span>
-        <ChevronDown 
-          size={14} 
-          class={cn('transition-transform duration-300', isExpanded() && 'rotate-180')} 
+        <ChevronDown
+          size={14}
+          class={cn('transition-transform duration-300', isExpanded() && 'rotate-180')}
         />
       </button>
 
       <Show when={isExpanded()}>
-        <div class="px-6 pb-4 space-y-3">
+        <div class="space-y-3 px-6 pb-4">
           <For each={props.assumptions}>
-            {(assumption) => (
-              <div class="flex items-center justify-between p-3 rounded-xl bg-void-900/50">
+            {assumption => (
+              <div class="bg-void-900/50 flex items-center justify-between rounded-xl p-3">
                 <div class="flex items-center gap-3">
                   <div
                     class={cn(
-                      'w-1.5 h-1.5 rounded-full',
+                      'h-1.5 w-1.5 rounded-full',
                       assumption.impact === 'positive' && 'bg-aurora-500',
                       assumption.impact === 'negative' && 'bg-flare-500',
                       assumption.impact === 'neutral' && 'bg-nebula-500'
                     )}
                   />
-                  <span class="text-sm text-nebula-300">{assumption.label}</span>
+                  <span class="text-nebula-300 text-sm">{assumption.label}</span>
                 </div>
-                <span 
+                <span
                   class={cn(
-                    'text-sm font-mono font-bold tabular-nums',
+                    'font-mono text-sm font-bold tabular-nums',
                     assumption.impact === 'positive' && 'text-aurora-400',
                     assumption.impact === 'negative' && 'text-flare-400',
                     assumption.impact === 'neutral' && 'text-nebula-400'
@@ -408,8 +421,10 @@ const AssumptionsList: Component<{
   );
 };
 
-export const ForecastWidget: Component<ForecastWidgetProps> = (props) => {
-  const [scenario, setScenario] = createSignal<ForecastScenario>(props.defaultScenario || 'moderate');
+export const ForecastWidget: Component<ForecastWidgetProps> = props => {
+  const [scenario, setScenario] = createSignal<ForecastScenario>(
+    props.defaultScenario || 'moderate'
+  );
   const height = () => props.height || 200;
   const showConfidenceBands = () => props.showConfidenceBands !== false;
   const showAssumptions = () => props.showAssumptions !== false;
@@ -438,36 +453,29 @@ export const ForecastWidget: Component<ForecastWidgetProps> = (props) => {
   return (
     <div
       class={cn(
-        'rounded-3xl border border-white/5 bg-void-850',
+        'bg-void-850 rounded-3xl border border-white/5',
         'transition-all duration-300',
         'hover:border-white/10',
         props.class
       )}
     >
       <div class="p-6">
-        <div class="flex items-start justify-between mb-6">
+        <div class="mb-6 flex items-start justify-between">
           <div class="flex items-start gap-3">
-            <div class="p-2.5 rounded-xl bg-forecast-projected/10">
+            <div class="bg-forecast-projected/10 rounded-xl p-2.5">
               <LineChart size={20} class="text-forecast-projected" />
             </div>
             <div>
-              <h3 class="font-display font-bold text-white text-lg">
-                {props.title}
-              </h3>
-              <p class="text-sm text-nebula-500 mt-1">
-                {SCENARIO_CONFIG[scenario()].description}
-              </p>
+              <h3 class="font-display text-lg font-bold text-white">{props.title}</h3>
+              <p class="text-nebula-500 mt-1 text-sm">{SCENARIO_CONFIG[scenario()].description}</p>
             </div>
           </div>
-          <ScenarioSelector
-            value={scenario()}
-            onChange={handleScenarioChange}
-          />
+          <ScenarioSelector value={scenario()} onChange={handleScenarioChange} />
         </div>
 
-        <div class="grid grid-cols-3 gap-6 mb-6">
+        <div class="mb-6 grid grid-cols-3 gap-6">
           <div>
-            <span class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+            <span class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
               Current
             </span>
             <div class="mt-1">
@@ -478,11 +486,11 @@ export const ForecastWidget: Component<ForecastWidgetProps> = (props) => {
           </div>
 
           <div>
-            <span class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+            <span class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
               Projected
             </span>
             <div class="mt-1">
-              <span 
+              <span
                 class="font-mono text-2xl font-black tabular-nums transition-colors duration-500"
                 style={{ color: SCENARIO_CONFIG[scenario()].color }}
               >
@@ -490,16 +498,15 @@ export const ForecastWidget: Component<ForecastWidgetProps> = (props) => {
               </span>
             </div>
             <Show when={showConfidenceBands()}>
-              <div class="text-2xs text-nebula-500 font-mono mt-1 tabular-nums">
-                {formatValue(lastProjection().confidence.lower, props.prefix, props.unit)} – {formatValue(lastProjection().confidence.upper, props.prefix, props.unit)}
+              <div class="text-2xs text-nebula-500 mt-1 font-mono tabular-nums">
+                {formatValue(lastProjection().confidence.lower, props.prefix, props.unit)} –{' '}
+                {formatValue(lastProjection().confidence.upper, props.prefix, props.unit)}
               </div>
             </Show>
           </div>
 
           <div>
-            <span class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
-              Change
-            </span>
+            <span class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Change</span>
             <div class="mt-1 flex items-center gap-2">
               <span
                 class={cn(
@@ -509,7 +516,8 @@ export const ForecastWidget: Component<ForecastWidgetProps> = (props) => {
                   isNeutral() && 'text-nebula-400'
                 )}
               >
-                {isPositive() ? '+' : ''}{projectedChange().toFixed(1)}%
+                {isPositive() ? '+' : ''}
+                {projectedChange().toFixed(1)}%
               </span>
               <Show when={isPositive()}>
                 <TrendingUp size={20} class="text-aurora-400" />
@@ -534,10 +542,7 @@ export const ForecastWidget: Component<ForecastWidgetProps> = (props) => {
       </div>
 
       <Show when={showAssumptions() && currentAssumptions().length > 0}>
-        <AssumptionsList
-          assumptions={currentAssumptions()}
-          scenario={scenario()}
-        />
+        <AssumptionsList assumptions={currentAssumptions()} scenario={scenario()} />
       </Show>
     </div>
   );

@@ -151,7 +151,7 @@ const sizeClasses = {
   },
 };
 
-export const LifecycleBadge: Component<LifecycleBadgeProps> = (props) => {
+export const LifecycleBadge: Component<LifecycleBadgeProps> = props => {
   const config = createMemo(() => stageConfig[props.stage]);
   const sizes = createMemo(() => sizeClasses[props.size || 'md']);
   const showIcon = () => props.showIcon !== false;
@@ -165,11 +165,7 @@ export const LifecycleBadge: Component<LifecycleBadgeProps> = (props) => {
       fallback={
         <div class={cn('flex items-center gap-2', props.class)}>
           <div
-            class={cn(
-              'rounded-full',
-              sizes().dot,
-              props.animated && 'animate-pulse'
-            )}
+            class={cn('rounded-full', sizes().dot, props.animated && 'animate-pulse')}
             style={{ 'background-color': `var(--stage-${props.stage}, currentColor)` }}
           />
           <Show when={showLabel()}>
@@ -180,7 +176,7 @@ export const LifecycleBadge: Component<LifecycleBadgeProps> = (props) => {
     >
       <div
         class={cn(
-          'inline-flex items-center rounded-full border font-bold uppercase tracking-wide transition-all',
+          'inline-flex items-center rounded-full border font-bold tracking-wide uppercase transition-all',
           config().bg,
           config().border,
           config().color,
@@ -219,7 +215,7 @@ const progressStages: LifecycleStage[] = [
   'power_user',
 ];
 
-export const LifecycleProgress: Component<LifecycleProgressProps> = (props) => {
+export const LifecycleProgress: Component<LifecycleProgressProps> = props => {
   const currentOrder = createMemo(() => stageConfig[props.currentStage]?.order || 0);
   const size = () => props.size || 'md';
 
@@ -249,25 +245,24 @@ export const LifecycleProgress: Component<LifecycleProgressProps> = (props) => {
               <div class="flex flex-col items-center gap-1">
                 <div
                   class={cn(
-                    'rounded-full flex items-center justify-center transition-all',
+                    'flex items-center justify-center rounded-full transition-all',
                     dotSizes[size()],
-                    isActive
-                      ? cn(config.bg, 'ring-2', config.border)
-                      : 'bg-void-700',
+                    isActive ? cn(config.bg, 'ring-2', config.border) : 'bg-void-700',
                     isCurrent && config.glow
                   )}
                   style={isActive ? { 'border-color': `var(--stage-${stage})` } : undefined}
                 >
                   <Show when={isCurrent}>
-                    <div class="h-1/2 w-1/2 rounded-full animate-pulse" 
-                      style={{ 'background-color': `var(--stage-${stage})` }} 
+                    <div
+                      class="h-1/2 w-1/2 animate-pulse rounded-full"
+                      style={{ 'background-color': `var(--stage-${stage})` }}
                     />
                   </Show>
                 </div>
                 <Show when={props.showLabels}>
                   <span
                     class={cn(
-                      'text-2xs font-medium uppercase tracking-wider',
+                      'text-2xs font-medium tracking-wider uppercase',
                       isActive ? config.color : 'text-nebula-600'
                     )}
                   >
@@ -278,7 +273,7 @@ export const LifecycleProgress: Component<LifecycleProgressProps> = (props) => {
               <Show when={!isLast}>
                 <div
                   class={cn(
-                    'flex-1 min-w-[20px] rounded-full transition-all',
+                    'min-w-[20px] flex-1 rounded-full transition-all',
                     lineSizes[size()],
                     isActive && currentOrder() > config.order
                       ? 'bg-gradient-to-r from-indigo-500/50 to-indigo-500/20'
@@ -300,7 +295,7 @@ interface LifecycleTimelineProps {
   class?: string;
 }
 
-export const LifecycleTimeline: Component<LifecycleTimelineProps> = (props) => {
+export const LifecycleTimeline: Component<LifecycleTimelineProps> = props => {
   return (
     <div class={cn('space-y-3', props.class)}>
       <For each={props.stageHistory || []}>
@@ -323,12 +318,12 @@ export const LifecycleTimeline: Component<LifecycleTimelineProps> = (props) => {
                   <IconComponent size={14} class={config.color} />
                 </div>
                 <Show when={index() < (props.stageHistory?.length || 0) - 1}>
-                  <div class="absolute top-8 h-8 w-px bg-void-600" />
+                  <div class="bg-void-600 absolute top-8 h-8 w-px" />
                 </Show>
               </div>
               <div class="flex-1 pt-1">
                 <p class={cn('text-sm font-bold', config.color)}>{config.label}</p>
-                <p class="text-xs text-nebula-500">{item.date}</p>
+                <p class="text-nebula-500 text-xs">{item.date}</p>
               </div>
             </div>
           );

@@ -137,7 +137,7 @@ export function createDashboardStore() {
 
   const actions = {
     setTab(tab: AdminTab) {
-      setState('navigation', (prev) => ({
+      setState('navigation', prev => ({
         activeTab: tab,
         tabHistory: [...prev.tabHistory.slice(-9), prev.activeTab],
       }));
@@ -154,7 +154,7 @@ export function createDashboardStore() {
     },
 
     updateFilters(filters: Partial<DashboardState['filters']>) {
-      setState('filters', (prev) => ({ ...prev, ...filters }));
+      setState('filters', prev => ({ ...prev, ...filters }));
     },
 
     setDateRange(dateRange: DateRange) {
@@ -166,7 +166,7 @@ export function createDashboardStore() {
     },
 
     toggleCompare() {
-      setState('filters', 'compareEnabled', (prev) => !prev);
+      setState('filters', 'compareEnabled', prev => !prev);
     },
 
     saveView() {
@@ -182,7 +182,7 @@ export function createDashboardStore() {
         compareEnabled: state.filters.compareEnabled,
       };
 
-      setState('views', 'saved', (prev) => [...prev, newView]);
+      setState('views', 'saved', prev => [...prev, newView]);
       setState('views', {
         showSaveModal: false,
         newViewName: '',
@@ -199,7 +199,7 @@ export function createDashboardStore() {
     },
 
     deleteView(viewId: string) {
-      setState('views', 'saved', (prev) => prev.filter((v) => v.id !== viewId));
+      setState('views', 'saved', prev => prev.filter(v => v.id !== viewId));
     },
 
     showSaveViewModal() {
@@ -218,7 +218,7 @@ export function createDashboardStore() {
     },
 
     toggleExportMenu() {
-      setState('ui', 'exportMenuOpen', (prev) => !prev);
+      setState('ui', 'exportMenuOpen', prev => !prev);
     },
 
     closeExportMenu() {

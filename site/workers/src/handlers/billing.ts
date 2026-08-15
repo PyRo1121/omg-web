@@ -330,7 +330,11 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
           `INSERT INTO audit_log (id, customer_id, action, metadata, created_at)
            VALUES (?, ?, 'billing.payment_failed', ?, CURRENT_TIMESTAMP)`
         )
-          .bind(crypto.randomUUID(), customer.id, JSON.stringify({ invoice_id: invoice.id, amount: invoice.amount_due }))
+          .bind(
+            crypto.randomUUID(),
+            customer.id,
+            JSON.stringify({ invoice_id: invoice.id, amount: invoice.amount_due })
+          )
           .run();
       }
       break;
@@ -338,9 +342,11 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
 
     case 'customer.created': {
       const stripeCustomer = event.data.object;
-      
+
       // Check if customer already exists
-      const existing = await env.DB.prepare('SELECT * FROM customers WHERE stripe_customer_id = ? OR email = ?')
+      const existing = await env.DB.prepare(
+        'SELECT * FROM customers WHERE stripe_customer_id = ? OR email = ?'
+      )
         .bind(stripeCustomer.id, stripeCustomer.email)
         .first();
 
@@ -419,8 +425,13 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
              VALUES (COALESCE((SELECT id FROM customers WHERE stripe_customer_id = ? OR email = ?), ?), ?, ?, ?, ?, CURRENT_TIMESTAMP)`
           )
             .bind(
-              customer.id, customer.email, crypto.randomUUID(),
-              customer.id, customer.email, customer.name, customer.metadata?.company
+              customer.id,
+              customer.email,
+              crypto.randomUUID(),
+              customer.id,
+              customer.email,
+              customer.name,
+              customer.metadata?.company
             )
             .run();
           results.customers_synced++;
@@ -452,7 +463,9 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
 
       for (const sub of data.data) {
         try {
-          const customer = await env.DB.prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
+          const customer = await env.DB.prepare(
+            'SELECT id FROM customers WHERE stripe_customer_id = ?'
+          )
             .bind(sub.customer)
             .first();
 
@@ -461,7 +474,14 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
               `INSERT OR REPLACE INTO subscriptions (id, customer_id, stripe_subscription_id, status, current_period_end, created_at)
                VALUES (COALESCE((SELECT id FROM subscriptions WHERE stripe_subscription_id = ?), ?), ?, ?, ?, datetime(?, 'unixepoch'), CURRENT_TIMESTAMP)`
             )
-              .bind(sub.id, crypto.randomUUID(), customer.id, sub.id, sub.status, sub.current_period_end)
+              .bind(
+                sub.id,
+                crypto.randomUUID(),
+                customer.id,
+                sub.id,
+                sub.status,
+                sub.current_period_end
+              )
               .run();
             results.subscriptions_synced++;
           }
@@ -479,7 +499,7 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
     // Sync invoices (last 12 months)
     hasMore = true;
     startingAfter = undefined;
-    const twelveMonthsAgo = Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60);
+    const twelveMonthsAgo = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
 
     while (hasMore) {
       const url = new URL('https://api.stripe.com/v1/invoices');
@@ -496,7 +516,9 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
         if (invoice.status !== 'paid') continue;
 
         try {
-          const customer = await env.DB.prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
+          const customer = await env.DB.prepare(
+            'SELECT id FROM customers WHERE stripe_customer_id = ?'
+          )
             .bind(invoice.customer)
             .first();
 
@@ -506,9 +528,18 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
                VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), datetime(?, 'unixepoch'))`
             )
               .bind(
-                invoice.id, crypto.randomUUID(),
-                customer.id, invoice.id, invoice.amount_paid, invoice.currency, invoice.status,
-                invoice.hosted_invoice_url, invoice.invoice_pdf, invoice.period_start, invoice.period_end, invoice.created
+                invoice.id,
+                crypto.randomUUID(),
+                customer.id,
+                invoice.id,
+                invoice.amount_paid,
+                invoice.currency,
+                invoice.status,
+                invoice.hosted_invoice_url,
+                invoice.invoice_pdf,
+                invoice.period_start,
+                invoice.period_end,
+                invoice.created
               )
               .run();
             results.invoices_synced++;
@@ -523,7 +554,6 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
         startingAfter = data.data[data.data.length - 1].id;
       }
     }
-
   } catch (error) {
     results.errors.push(`Sync error: ${error}`);
   }
@@ -553,9 +583,12 @@ export async function handleAdminStripeMetrics(request: Request, env: Env): Prom
   }
 
   // Fetch active subscriptions from Stripe for accurate MRR
-  const subsResponse = await fetch('https://api.stripe.com/v1/subscriptions?status=active&limit=100', {
-    headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
-  });
+  const subsResponse = await fetch(
+    'https://api.stripe.com/v1/subscriptions?status=active&limit=100',
+    {
+      headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+    }
+  );
   const subsData = (await subsResponse.json()) as { data: any[] };
 
   let mrr = 0;

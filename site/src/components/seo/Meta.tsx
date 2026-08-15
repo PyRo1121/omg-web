@@ -39,7 +39,8 @@ interface BreadcrumbItem {
   url: string;
 }
 
-type StructuredData = OrganizationSchema | SoftwareApplicationSchema | BreadcrumbListSchema | WebPageSchema;
+type StructuredData =
+  OrganizationSchema | SoftwareApplicationSchema | BreadcrumbListSchema | WebPageSchema;
 
 interface OrganizationSchema {
   '@type': 'Organization';
@@ -125,7 +126,7 @@ const SOFTWARE_SCHEMA: SoftwareApplicationSchema = {
 // Component
 // ============================================================================
 
-const SeoMeta: Component<SeoMetaProps> = (props) => {
+const SeoMeta: Component<SeoMetaProps> = props => {
   // Build full title with site name
   const fullTitle = createMemo(() => {
     if (props.title === SITE_NAME) {
@@ -207,7 +208,10 @@ const SeoMeta: Component<SeoMetaProps> = (props) => {
         <SolidMeta name="robots" content="noindex, nofollow" />
       </Show>
       <Show when={!props.noindex}>
-        <SolidMeta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+        <SolidMeta
+          name="robots"
+          content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        />
       </Show>
 
       {/* Canonical URL */}
@@ -297,7 +301,7 @@ export function createBreadcrumbsFromPath(
       customLabels?.[segment] ||
       segment
         .split('-')
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
     breadcrumbs.push({ name: label, url: currentPath });
   }

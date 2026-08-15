@@ -71,7 +71,7 @@ const getColorForRuntime = (runtime: string) => {
   return runtimeColors[key] || runtimeColors.default;
 };
 
-export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = (props) => {
+export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [hoveredIndex, setHoveredIndex] = createSignal<number | null>(null);
   const [showAll, setShowAll] = createSignal(false);
@@ -88,7 +88,9 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = (props
     showAll() ? sortedRuntimes() : sortedRuntimes().slice(0, 6)
   );
 
-  const maxUsers = createMemo(() => Math.max(...(props.data || []).map((r) => r.unique_users ?? 0), 1));
+  const maxUsers = createMemo(() =>
+    Math.max(...(props.data || []).map(r => r.unique_users ?? 0), 1)
+  );
 
   const formatDuration = (ms: number | undefined | null) => {
     const val = ms ?? 0;
@@ -96,8 +98,12 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = (props
     return `${(val / 1000).toFixed(1)}s`;
   };
 
-  const totalUsers = createMemo(() => (props.data || []).reduce((sum, r) => sum + (r.unique_users ?? 0), 0));
-  const totalSwitches = createMemo(() => (props.data || []).reduce((sum, r) => sum + (r.total_uses ?? 0), 0));
+  const totalUsers = createMemo(() =>
+    (props.data || []).reduce((sum, r) => sum + (r.unique_users ?? 0), 0)
+  );
+  const totalSwitches = createMemo(() =>
+    (props.data || []).reduce((sum, r) => sum + (r.total_uses ?? 0), 0)
+  );
 
   const avgSwitchesPerUser = createMemo(() => {
     if (totalUsers() === 0) return 0;
@@ -105,23 +111,24 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = (props
   });
 
   return (
-    <div class="rounded-2xl border border-white/[0.06] bg-void-900 p-6 shadow-2xl relative overflow-hidden">
+    <div class="bg-void-900 relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 shadow-2xl">
       <div
-        class="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-3xl opacity-15 transition-all duration-500"
+        class="absolute -top-20 -right-20 h-40 w-40 rounded-full opacity-15 blur-3xl transition-all duration-500"
         style={{
-          background: hoveredIndex() !== null 
-            ? getColorForRuntime(displayedRuntimes()[hoveredIndex()!]?.runtime ?? '').glow 
-            : 'var(--color-photon-500)',
+          background:
+            hoveredIndex() !== null
+              ? getColorForRuntime(displayedRuntimes()[hoveredIndex()!]?.runtime ?? '').glow
+              : 'var(--color-photon-500)',
         }}
       />
 
       <div class="mb-6 flex items-start justify-between">
         <div>
-          <div class="flex items-center gap-2 mb-1">
+          <div class="mb-1 flex items-center gap-2">
             <Repeat size={20} class="text-photon-400" />
-            <h3 class="text-lg font-bold tracking-tight text-nebula-100">Runtime Adoption</h3>
+            <h3 class="text-nebula-100 text-lg font-bold tracking-tight">Runtime Adoption</h3>
           </div>
-          <p class="text-xs text-nebula-500">
+          <p class="text-nebula-500 text-xs">
             <span class="text-nebula-300 font-medium tabular-nums">
               {totalSwitches().toLocaleString()}
             </span>{' '}
@@ -135,14 +142,14 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = (props
 
         <div class="flex items-center gap-2">
           <div
-            class="px-3 py-1.5 rounded-full text-xs font-bold tabular-nums border"
+            class="rounded-full border px-3 py-1.5 text-xs font-bold tabular-nums"
             style={{
               color: 'var(--color-photon-400)',
               'background-color': 'rgba(176, 109, 232, 0.1)',
               'border-color': 'rgba(176, 109, 232, 0.2)',
             }}
           >
-            <Zap size={12} class="inline mr-1" />
+            <Zap size={12} class="mr-1 inline" />
             {avgSwitchesPerUser().toFixed(1)} avg/user
           </div>
         </div>
@@ -150,11 +157,13 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = (props
 
       <Show when={sortedRuntimes().length === 0}>
         <div class="py-12 text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-void-800 flex items-center justify-center">
+          <div class="bg-void-800 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
             <Repeat size={24} class="text-nebula-600" />
           </div>
           <p class="text-nebula-400 font-medium">No runtime data available</p>
-          <p class="text-nebula-600 text-sm mt-1">Runtime adoption will appear here once users start switching</p>
+          <p class="text-nebula-600 mt-1 text-sm">
+            Runtime adoption will appear here once users start switching
+          </p>
         </div>
       </Show>
 
@@ -169,44 +178,46 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = (props
             return (
               <div
                 class={cn(
-                  'relative rounded-xl border bg-void-800/40 p-4',
-                  'transition-all duration-300 cursor-default',
+                  'bg-void-800/40 relative rounded-xl border p-4',
+                  'cursor-default transition-all duration-300',
                   'hover:bg-void-750/60',
                   isHovered() && 'border-white/15'
                 )}
                 style={{
-                  'border-color': isHovered() ? `color-mix(in srgb, ${colors.accent} 30%, transparent)` : 'rgba(255,255,255,0.04)',
-                  'box-shadow': isHovered() ? `0 0 20px ${colors.glow}, inset 0 1px 0 rgba(255,255,255,0.03)` : undefined,
+                  'border-color': isHovered()
+                    ? `color-mix(in srgb, ${colors.accent} 30%, transparent)`
+                    : 'rgba(255,255,255,0.04)',
+                  'box-shadow': isHovered()
+                    ? `0 0 20px ${colors.glow}, inset 0 1px 0 rgba(255,255,255,0.03)`
+                    : undefined,
                 }}
                 onMouseEnter={() => setHoveredIndex(index())}
                 onMouseLeave={() => setHoveredIndex(null)}
               >
-                <div class="flex items-center justify-between mb-3">
+                <div class="mb-3 flex items-center justify-between">
                   <div class="flex items-center gap-3">
                     <div
                       class={cn(
-                        'w-9 h-9 rounded-lg flex items-center justify-center text-xs font-black',
+                        'flex h-9 w-9 items-center justify-center rounded-lg text-xs font-black',
                         'transition-all duration-300',
                         isHovered() && 'scale-110'
                       )}
                       style={{
                         background: colors.gradient,
                         color: runtime.runtime.toLowerCase() === 'bun' ? '#1A1A1A' : 'white',
-                        'box-shadow': isHovered() ? `0 0 16px ${colors.glow}` : `0 0 8px ${colors.glow}`,
+                        'box-shadow': isHovered()
+                          ? `0 0 16px ${colors.glow}`
+                          : `0 0 8px ${colors.glow}`,
                       }}
                     >
-                      {isTop3() ? (
-                        <Trophy size={16} />
-                      ) : (
-                        index() + 1
-                      )}
+                      {isTop3() ? <Trophy size={16} /> : index() + 1}
                     </div>
                     <div>
-                      <p class="text-sm font-semibold text-nebula-200 capitalize flex items-center gap-2">
+                      <p class="text-nebula-200 flex items-center gap-2 text-sm font-semibold capitalize">
                         {runtime.runtime}
                         <Show when={isTop3()}>
                           <span
-                            class="text-2xs px-1.5 py-0.5 rounded-full"
+                            class="text-2xs rounded-full px-1.5 py-0.5"
                             style={{
                               background: colors.glow,
                               color: runtime.runtime.toLowerCase() === 'bun' ? '#1A1A1A' : 'white',
@@ -216,7 +227,7 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = (props
                           </span>
                         </Show>
                       </p>
-                      <div class="flex items-center gap-3 mt-0.5 text-2xs text-nebula-500">
+                      <div class="text-2xs text-nebula-500 mt-0.5 flex items-center gap-3">
                         <span class="flex items-center gap-1">
                           <Users size={10} />
                           {runtime.unique_users.toLocaleString()} users
@@ -246,11 +257,11 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = (props
                   </div>
                 </div>
 
-                <div class="h-1.5 rounded-full bg-void-700 overflow-hidden">
+                <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
                   <div
                     class={cn(
                       'h-full rounded-full transition-all duration-1000 ease-out',
-                      mounted() ? 'opacity-100' : 'opacity-0 w-0'
+                      mounted() ? 'opacity-100' : 'w-0 opacity-0'
                     )}
                     style={{
                       width: mounted() ? `${percentage}%` : '0%',
@@ -268,17 +279,14 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = (props
       <Show when={sortedRuntimes().length > 6}>
         <button
           class={cn(
-            'mt-4 w-full py-2 text-sm font-medium rounded-lg',
-            'border border-white/[0.06] bg-void-800/30',
+            'mt-4 w-full rounded-lg py-2 text-sm font-medium',
+            'bg-void-800/30 border border-white/[0.06]',
             'text-nebula-400 hover:text-nebula-200',
-            'transition-all duration-200 hover:bg-void-750/50'
+            'hover:bg-void-750/50 transition-all duration-200'
           )}
           onClick={() => setShowAll(!showAll())}
         >
-          {showAll() 
-            ? 'Show less' 
-            : `Show all ${sortedRuntimes().length} runtimes`
-          }
+          {showAll() ? 'Show less' : `Show all ${sortedRuntimes().length} runtimes`}
         </button>
       </Show>
     </div>

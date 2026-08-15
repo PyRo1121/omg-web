@@ -44,7 +44,7 @@ interface AnimatedCounterProps {
   decimals?: number;
 }
 
-const AnimatedCounter: Component<AnimatedCounterProps> = (props) => {
+const AnimatedCounter: Component<AnimatedCounterProps> = props => {
   const [displayValue, setDisplayValue] = createSignal(0);
   const duration = () => props.duration || 1200;
   const decimals = () => props.decimals || 0;
@@ -93,14 +93,14 @@ interface TrendBadgeProps {
   inverted?: boolean;
 }
 
-const TrendBadge: Component<TrendBadgeProps> = (props) => {
+const TrendBadge: Component<TrendBadgeProps> = props => {
   const isPositive = createMemo(() => (props.inverted ? props.value < 0 : props.value > 0));
   const isNeutral = createMemo(() => Math.abs(props.value) < 0.1);
 
   return (
     <div
       class={cn(
-        'inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-2xs font-bold transition-all',
+        'text-2xs inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-bold transition-all',
         isNeutral()
           ? 'bg-nebula-600/10 text-nebula-400'
           : isPositive()
@@ -117,7 +117,8 @@ const TrendBadge: Component<TrendBadgeProps> = (props) => {
       )}
       <span class="font-mono tabular-nums">
         {isPositive() && !isNeutral() ? '+' : ''}
-        {Math.abs(props.value).toFixed(1)}{props.suffix || '%'}
+        {Math.abs(props.value).toFixed(1)}
+        {props.suffix || '%'}
       </span>
     </div>
   );
@@ -182,7 +183,7 @@ const accentClasses = {
   },
 };
 
-const KPICard: Component<KPICardProps> = (props) => {
+const KPICard: Component<KPICardProps> = props => {
   const [expanded, setExpanded] = createSignal(false);
   const accent = createMemo(() => accentClasses[props.accent]);
   const IconComponent = props.icon;
@@ -204,7 +205,7 @@ const KPICard: Component<KPICardProps> = (props) => {
   return (
     <div
       class={cn(
-        'group relative overflow-hidden rounded-3xl border border-white/5 bg-void-850 shadow-card transition-all duration-300 hover:border-white/10 hover:shadow-card-hover',
+        'group bg-void-850 shadow-card hover:shadow-card-hover relative overflow-hidden rounded-3xl border border-white/5 transition-all duration-300 hover:border-white/10',
         props.onClick || props.expandable ? 'cursor-pointer' : '',
         expanded() ? 'row-span-2' : ''
       )}
@@ -212,19 +213,22 @@ const KPICard: Component<KPICardProps> = (props) => {
     >
       <div class="p-6">
         <div
-          class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-100"
+          class="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-100"
           style={{ 'background-color': accent().glow }}
         />
 
         <div class="relative flex items-start justify-between">
           <div class="flex-1">
             <div class="flex items-center gap-2">
-              <span class="text-2xs font-black uppercase tracking-widest text-nebula-500">
+              <span class="text-2xs text-nebula-500 font-black tracking-widest uppercase">
                 {props.title}
               </span>
               <Show when={props.tooltip}>
                 <Tooltip content={props.tooltip!} position="top">
-                  <HelpCircle size={12} class="text-nebula-600 hover:text-nebula-400 transition-colors cursor-help" />
+                  <HelpCircle
+                    size={12}
+                    class="text-nebula-600 hover:text-nebula-400 cursor-help transition-colors"
+                  />
                 </Tooltip>
               </Show>
               <Show when={props.change !== undefined}>
@@ -235,9 +239,7 @@ const KPICard: Component<KPICardProps> = (props) => {
             <div class="mt-3">
               <Show
                 when={!props.loading}
-                fallback={
-                  <div class="h-10 w-32 animate-pulse rounded-lg bg-white/5" />
-                }
+                fallback={<div class="h-10 w-32 animate-pulse rounded-lg bg-white/5" />}
               >
                 <span class="font-display text-4xl font-black tracking-tight text-white">
                   <AnimatedCounter
@@ -251,13 +253,15 @@ const KPICard: Component<KPICardProps> = (props) => {
             </div>
 
             <Show when={props.previousValue !== undefined}>
-              <p class="mt-1 text-2xs text-nebula-500">
-                vs {props.prefix}{props.previousValue?.toLocaleString()}{props.suffix} prev period
+              <p class="text-2xs text-nebula-500 mt-1">
+                vs {props.prefix}
+                {props.previousValue?.toLocaleString()}
+                {props.suffix} prev period
               </p>
             </Show>
 
             <Show when={props.subtitle}>
-              <p class="mt-2 text-xs font-medium text-nebula-500">{props.subtitle}</p>
+              <p class="text-nebula-500 mt-2 text-xs font-medium">{props.subtitle}</p>
             </Show>
           </div>
 
@@ -287,11 +291,11 @@ const KPICard: Component<KPICardProps> = (props) => {
 
         <Show when={targetProgress() !== null}>
           <div class="mt-4 space-y-1">
-            <div class="flex items-center justify-between text-2xs">
+            <div class="text-2xs flex items-center justify-between">
               <span class="text-nebula-500">Goal Progress</span>
               <span class="font-bold text-white">{targetProgress()!.toFixed(0)}%</span>
             </div>
-            <div class="h-1.5 overflow-hidden rounded-full bg-void-700">
+            <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
               <div
                 class="h-full rounded-full transition-all duration-700"
                 style={{
@@ -307,7 +311,9 @@ const KPICard: Component<KPICardProps> = (props) => {
           <div class="mt-3 flex items-center gap-2 rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-1.5">
             <BarChart3 size={12} class="text-indigo-400" />
             <span class="text-2xs text-indigo-400">
-              Forecast: {props.prefix}{props.forecast?.toLocaleString()}{props.suffix}
+              Forecast: {props.prefix}
+              {props.forecast?.toLocaleString()}
+              {props.suffix}
             </span>
           </div>
         </Show>
@@ -319,19 +325,25 @@ const KPICard: Component<KPICardProps> = (props) => {
             <div class="flex items-center justify-between text-xs">
               <span class="text-nebula-500">7-day avg</span>
               <span class="font-bold text-white">
-                {props.prefix}{Math.round(props.value * 0.95).toLocaleString()}{props.suffix}
+                {props.prefix}
+                {Math.round(props.value * 0.95).toLocaleString()}
+                {props.suffix}
               </span>
             </div>
             <div class="flex items-center justify-between text-xs">
               <span class="text-nebula-500">30-day avg</span>
               <span class="font-bold text-white">
-                {props.prefix}{Math.round(props.value * 0.88).toLocaleString()}{props.suffix}
+                {props.prefix}
+                {Math.round(props.value * 0.88).toLocaleString()}
+                {props.suffix}
               </span>
             </div>
             <div class="flex items-center justify-between text-xs">
               <span class="text-nebula-500">90-day avg</span>
               <span class="font-bold text-white">
-                {props.prefix}{Math.round(props.value * 0.82).toLocaleString()}{props.suffix}
+                {props.prefix}
+                {Math.round(props.value * 0.82).toLocaleString()}
+                {props.suffix}
               </span>
             </div>
           </div>
@@ -339,7 +351,7 @@ const KPICard: Component<KPICardProps> = (props) => {
       </Show>
 
       <Show when={props.expandable}>
-        <div class="absolute bottom-2 right-2">
+        <div class="absolute right-2 bottom-2">
           <ChevronDown
             size={14}
             class={cn(
@@ -360,75 +372,90 @@ interface StickinessMeterProps {
   stickinessRatio?: string;
 }
 
-const StickinessMeter: Component<StickinessMeterProps> = (props) => {
+const StickinessMeter: Component<StickinessMeterProps> = props => {
   const dailyToMonthly = createMemo(() => {
     if (props.stickinessRatio) {
-      return parseFloat(props.stickinessRatio) || (props.mau > 0 ? (props.dau / props.mau) * 100 : 0);
+      return (
+        parseFloat(props.stickinessRatio) || (props.mau > 0 ? (props.dau / props.mau) * 100 : 0)
+      );
     }
     return props.mau > 0 ? (props.dau / props.mau) * 100 : 0;
   });
-  
-  const dailyToWeekly = createMemo(() => props.wau > 0 ? (props.dau / props.wau) * 100 : 0);
+
+  const dailyToWeekly = createMemo(() => (props.wau > 0 ? (props.dau / props.wau) * 100 : 0));
 
   const getHealthLabel = (stickiness: number): { label: string; color: string; bg: string } => {
-    if (stickiness >= 25) return { label: 'Excellent', color: 'text-aurora-400', bg: 'bg-aurora-500/10' };
-    if (stickiness >= 15) return { label: 'Good', color: 'text-electric-400', bg: 'bg-electric-500/10' };
-    if (stickiness >= 10) return { label: 'Average', color: 'text-solar-400', bg: 'bg-solar-500/10' };
+    if (stickiness >= 25)
+      return { label: 'Excellent', color: 'text-aurora-400', bg: 'bg-aurora-500/10' };
+    if (stickiness >= 15)
+      return { label: 'Good', color: 'text-electric-400', bg: 'bg-electric-500/10' };
+    if (stickiness >= 10)
+      return { label: 'Average', color: 'text-solar-400', bg: 'bg-solar-500/10' };
     return { label: 'Needs Work', color: 'text-flare-400', bg: 'bg-flare-500/10' };
   };
 
   const health = createMemo(() => getHealthLabel(dailyToMonthly()));
 
   return (
-    <div class="relative overflow-hidden rounded-3xl border border-white/5 bg-void-850 p-6 shadow-card">
-      <div class="pointer-events-none absolute -left-16 -top-16 h-32 w-32 rounded-full bg-electric-500/10 blur-[60px]" />
+    <div class="bg-void-850 shadow-card relative overflow-hidden rounded-3xl border border-white/5 p-6">
+      <div class="bg-electric-500/10 pointer-events-none absolute -top-16 -left-16 h-32 w-32 rounded-full blur-[60px]" />
 
       <div class="relative">
         <div class="mb-4 flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-electric-500/10">
+            <div class="bg-electric-500/10 flex h-10 w-10 items-center justify-center rounded-xl">
               <Activity size={20} class="text-electric-400" />
             </div>
             <div>
-              <h3 class="text-sm font-black uppercase tracking-wider text-white">User Stickiness</h3>
+              <h3 class="text-sm font-black tracking-wider text-white uppercase">
+                User Stickiness
+              </h3>
               <p class="text-2xs text-nebula-500">DAU/WAU/MAU engagement ratio</p>
             </div>
           </div>
-          <span class={cn('rounded-full px-2.5 py-1 text-2xs font-black uppercase', health().bg, health().color)}>
+          <span
+            class={cn(
+              'text-2xs rounded-full px-2.5 py-1 font-black uppercase',
+              health().bg,
+              health().color
+            )}
+          >
             {health().label}
           </span>
         </div>
 
         <div class="grid grid-cols-3 gap-4">
           <div class="rounded-xl bg-white/[0.03] p-4 text-center">
-            <p class="font-display text-2xl font-black tabular-nums text-white">
+            <p class="font-display text-2xl font-black text-white tabular-nums">
               {props.dau.toLocaleString()}
             </p>
-            <p class="mt-1 text-2xs font-bold uppercase tracking-wider text-nebula-500">DAU</p>
+            <p class="text-2xs text-nebula-500 mt-1 font-bold tracking-wider uppercase">DAU</p>
           </div>
           <div class="rounded-xl bg-white/[0.03] p-4 text-center">
-            <p class="font-display text-2xl font-black tabular-nums text-white">
+            <p class="font-display text-2xl font-black text-white tabular-nums">
               {props.wau.toLocaleString()}
             </p>
-            <p class="mt-1 text-2xs font-bold uppercase tracking-wider text-nebula-500">WAU</p>
+            <p class="text-2xs text-nebula-500 mt-1 font-bold tracking-wider uppercase">WAU</p>
           </div>
           <div class="rounded-xl bg-white/[0.03] p-4 text-center">
-            <p class="font-display text-2xl font-black tabular-nums text-white">
+            <p class="font-display text-2xl font-black text-white tabular-nums">
               {props.mau.toLocaleString()}
             </p>
-            <p class="mt-1 text-2xs font-bold uppercase tracking-wider text-nebula-500">MAU</p>
+            <p class="text-2xs text-nebula-500 mt-1 font-bold tracking-wider uppercase">MAU</p>
           </div>
         </div>
 
         <div class="mt-4 space-y-3">
           <div>
             <div class="mb-1 flex items-center justify-between text-xs">
-              <span class="font-medium text-nebula-400">DAU/MAU</span>
-              <span class="font-mono font-black text-electric-400">{dailyToMonthly().toFixed(1)}%</span>
+              <span class="text-nebula-400 font-medium">DAU/MAU</span>
+              <span class="text-electric-400 font-mono font-black">
+                {dailyToMonthly().toFixed(1)}%
+              </span>
             </div>
-            <div class="h-2 overflow-hidden rounded-full bg-void-700">
+            <div class="bg-void-700 h-2 overflow-hidden rounded-full">
               <div
-                class="h-full rounded-full bg-gradient-to-r from-electric-600 to-electric-400 transition-all duration-1000"
+                class="from-electric-600 to-electric-400 h-full rounded-full bg-gradient-to-r transition-all duration-1000"
                 style={{ width: `${Math.min(dailyToMonthly() * 4, 100)}%` }}
               />
             </div>
@@ -436,21 +463,24 @@ const StickinessMeter: Component<StickinessMeterProps> = (props) => {
 
           <div>
             <div class="mb-1 flex items-center justify-between text-xs">
-              <span class="font-medium text-nebula-400">DAU/WAU</span>
-              <span class="font-mono font-black text-indigo-400">{dailyToWeekly().toFixed(1)}%</span>
+              <span class="text-nebula-400 font-medium">DAU/WAU</span>
+              <span class="font-mono font-black text-indigo-400">
+                {dailyToWeekly().toFixed(1)}%
+              </span>
             </div>
-            <div class="h-2 overflow-hidden rounded-full bg-void-700">
+            <div class="bg-void-700 h-2 overflow-hidden rounded-full">
               <div
-                class="h-full rounded-full bg-gradient-to-r from-indigo-600 to-photon-500 transition-all duration-1000"
+                class="to-photon-500 h-full rounded-full bg-gradient-to-r from-indigo-600 transition-all duration-1000"
                 style={{ width: `${Math.min(dailyToWeekly(), 100)}%` }}
               />
             </div>
           </div>
         </div>
 
-        <div class="mt-4 rounded-xl border border-electric-500/20 bg-electric-500/5 p-3">
+        <div class="border-electric-500/20 bg-electric-500/5 mt-4 rounded-xl border p-3">
           <p class="text-2xs text-electric-400/70">
-            <span class="font-bold">Industry benchmark:</span> 20-25% DAU/MAU is excellent for B2B SaaS
+            <span class="font-bold">Industry benchmark:</span> 20-25% DAU/MAU is excellent for B2B
+            SaaS
           </p>
         </div>
       </div>
@@ -464,9 +494,9 @@ interface ChurnRiskOverviewProps {
   segments?: Array<{ risk_segment: string; user_count: number; tier?: string }>;
 }
 
-const ChurnRiskOverview: Component<ChurnRiskOverviewProps> = (props) => {
-  const totalAtRisk = createMemo(() =>
-    props.segments?.reduce((sum, s) => sum + s.user_count, 0) || props.atRiskCount
+const ChurnRiskOverview: Component<ChurnRiskOverviewProps> = props => {
+  const totalAtRisk = createMemo(
+    () => props.segments?.reduce((sum, s) => sum + s.user_count, 0) || props.atRiskCount
   );
 
   const riskColors: Record<string, { color: string; bg: string }> = {
@@ -477,53 +507,54 @@ const ChurnRiskOverview: Component<ChurnRiskOverviewProps> = (props) => {
   };
 
   return (
-    <div class="relative overflow-hidden rounded-3xl border border-white/5 bg-void-850 p-6 shadow-card">
-      <div class="pointer-events-none absolute -right-16 -top-16 h-32 w-32 rounded-full bg-flare-500/10 blur-[60px]" />
+    <div class="bg-void-850 shadow-card relative overflow-hidden rounded-3xl border border-white/5 p-6">
+      <div class="bg-flare-500/10 pointer-events-none absolute -top-16 -right-16 h-32 w-32 rounded-full blur-[60px]" />
 
       <div class="relative">
         <div class="mb-4 flex items-center gap-3">
-          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-flare-500/10">
+          <div class="bg-flare-500/10 flex h-10 w-10 items-center justify-center rounded-xl">
             <AlertTriangle size={20} class="text-flare-400" />
           </div>
           <div>
-            <h3 class="text-sm font-black uppercase tracking-wider text-white">Churn Risk</h3>
+            <h3 class="text-sm font-black tracking-wider text-white uppercase">Churn Risk</h3>
             <p class="text-2xs text-nebula-500">At-risk customer segments</p>
           </div>
         </div>
 
         <div class="mb-4 grid grid-cols-2 gap-4">
-          <div class="rounded-xl border border-flare-500/20 bg-flare-500/5 p-4">
-            <p class="font-display text-3xl font-black tabular-nums text-flare-400">
+          <div class="border-flare-500/20 bg-flare-500/5 rounded-xl border p-4">
+            <p class="font-display text-flare-400 text-3xl font-black tabular-nums">
               {props.churnRate.toFixed(1)}%
             </p>
-            <p class="mt-1 text-2xs font-bold uppercase tracking-wider text-nebula-500">
+            <p class="text-2xs text-nebula-500 mt-1 font-bold tracking-wider uppercase">
               Churn Rate
             </p>
           </div>
-          <div class="rounded-xl border border-solar-500/20 bg-solar-500/5 p-4">
-            <p class="font-display text-3xl font-black tabular-nums text-solar-400">{totalAtRisk()}</p>
-            <p class="mt-1 text-2xs font-bold uppercase tracking-wider text-nebula-500">
-              At Risk
+          <div class="border-solar-500/20 bg-solar-500/5 rounded-xl border p-4">
+            <p class="font-display text-solar-400 text-3xl font-black tabular-nums">
+              {totalAtRisk()}
             </p>
+            <p class="text-2xs text-nebula-500 mt-1 font-bold tracking-wider uppercase">At Risk</p>
           </div>
         </div>
 
         <Show when={props.segments && props.segments.length > 0}>
           <div class="space-y-2">
             <For each={props.segments}>
-              {(segment) => {
-                const percentage = totalAtRisk() > 0 ? (segment.user_count / totalAtRisk()) * 100 : 0;
+              {segment => {
+                const percentage =
+                  totalAtRisk() > 0 ? (segment.user_count / totalAtRisk()) * 100 : 0;
                 const config = riskColors[segment.risk_segment] || riskColors.medium;
                 return (
                   <div class="flex items-center gap-3">
                     <div class={cn('h-2 w-2 rounded-full', config.bg)} />
-                    <span class="flex-1 text-xs font-medium capitalize text-nebula-400">
+                    <span class="text-nebula-400 flex-1 text-xs font-medium capitalize">
                       {segment.risk_segment}
                     </span>
-                    <span class="font-mono text-xs font-black tabular-nums text-white">
+                    <span class="font-mono text-xs font-black text-white tabular-nums">
                       {segment.user_count}
                     </span>
-                    <div class="w-16 overflow-hidden rounded-full bg-void-700">
+                    <div class="bg-void-700 w-16 overflow-hidden rounded-full">
                       <div
                         class={cn('h-1.5 rounded-full transition-all duration-500', config.bg)}
                         style={{ width: `${percentage}%` }}
@@ -552,9 +583,9 @@ interface ExpansionPipelineProps {
   expansionMRR12m?: number;
 }
 
-const ExpansionPipeline: Component<ExpansionPipelineProps> = (props) => {
-  const totalPotentialARR = createMemo(() =>
-    props.opportunities?.reduce((sum, o) => sum + (o.potential_arr || 0), 0) || props.value
+const ExpansionPipeline: Component<ExpansionPipelineProps> = props => {
+  const totalPotentialARR = createMemo(
+    () => props.opportunities?.reduce((sum, o) => sum + (o.potential_arr || 0), 0) || props.value
   );
 
   const opportunityCount = createMemo(() => props.opportunities?.length || 0);
@@ -574,30 +605,36 @@ const ExpansionPipeline: Component<ExpansionPipelineProps> = (props) => {
   });
 
   return (
-    <div class="relative overflow-hidden rounded-3xl border border-white/5 bg-void-850 p-6 shadow-card">
-      <div class="pointer-events-none absolute -bottom-16 -left-16 h-32 w-32 rounded-full bg-aurora-500/10 blur-[60px]" />
+    <div class="bg-void-850 shadow-card relative overflow-hidden rounded-3xl border border-white/5 p-6">
+      <div class="bg-aurora-500/10 pointer-events-none absolute -bottom-16 -left-16 h-32 w-32 rounded-full blur-[60px]" />
 
       <div class="relative">
         <div class="mb-4 flex items-center gap-3">
-          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-aurora-500/10">
+          <div class="bg-aurora-500/10 flex h-10 w-10 items-center justify-center rounded-xl">
             <Target size={20} class="text-aurora-400" />
           </div>
           <div>
-            <h3 class="text-sm font-black uppercase tracking-wider text-white">Expansion Pipeline</h3>
+            <h3 class="text-sm font-black tracking-wider text-white uppercase">
+              Expansion Pipeline
+            </h3>
             <p class="text-2xs text-nebula-500">Upsell & cross-sell opportunities</p>
           </div>
         </div>
 
         <div class="text-center">
-          <p class="font-display text-4xl font-black text-aurora-400">
+          <p class="font-display text-aurora-400 text-4xl font-black">
             <AnimatedCounter value={totalPotentialARR()} prefix="$" decimals={0} />
           </p>
-          <p class="mt-2 text-xs text-nebula-500">Potential ARR from expansion</p>
+          <p class="text-nebula-500 mt-2 text-xs">Potential ARR from expansion</p>
 
           <Show when={opportunityCount() > 0}>
-            <div class="mt-4 rounded-xl bg-aurora-500/10 p-3">
-              <span class="font-display text-2xl font-black text-aurora-400">{opportunityCount()}</span>
-              <span class="ml-2 text-xs font-medium text-aurora-400/70">qualified opportunities</span>
+            <div class="bg-aurora-500/10 mt-4 rounded-xl p-3">
+              <span class="font-display text-aurora-400 text-2xl font-black">
+                {opportunityCount()}
+              </span>
+              <span class="text-aurora-400/70 ml-2 text-xs font-medium">
+                qualified opportunities
+              </span>
             </div>
           </Show>
 
@@ -605,20 +642,24 @@ const ExpansionPipeline: Component<ExpansionPipelineProps> = (props) => {
             <div class="mt-4 flex items-center justify-center gap-4">
               <Show when={priorityCounts().high > 0}>
                 <div class="flex items-center gap-1.5">
-                  <div class="h-2 w-2 rounded-full bg-flare-500" />
-                  <span class="text-2xs font-bold text-nebula-400">{priorityCounts().high} high</span>
+                  <div class="bg-flare-500 h-2 w-2 rounded-full" />
+                  <span class="text-2xs text-nebula-400 font-bold">
+                    {priorityCounts().high} high
+                  </span>
                 </div>
               </Show>
               <Show when={priorityCounts().medium > 0}>
                 <div class="flex items-center gap-1.5">
-                  <div class="h-2 w-2 rounded-full bg-solar-500" />
-                  <span class="text-2xs font-bold text-nebula-400">{priorityCounts().medium} med</span>
+                  <div class="bg-solar-500 h-2 w-2 rounded-full" />
+                  <span class="text-2xs text-nebula-400 font-bold">
+                    {priorityCounts().medium} med
+                  </span>
                 </div>
               </Show>
               <Show when={priorityCounts().low > 0}>
                 <div class="flex items-center gap-1.5">
-                  <div class="h-2 w-2 rounded-full bg-aurora-500" />
-                  <span class="text-2xs font-bold text-nebula-400">{priorityCounts().low} low</span>
+                  <div class="bg-aurora-500 h-2 w-2 rounded-full" />
+                  <span class="text-2xs text-nebula-400 font-bold">{priorityCounts().low} low</span>
                 </div>
               </Show>
             </div>
@@ -630,7 +671,7 @@ const ExpansionPipeline: Component<ExpansionPipelineProps> = (props) => {
 };
 
 const CardSkeleton: Component = () => (
-  <div class="rounded-3xl border border-white/5 bg-void-850 p-6 shadow-card">
+  <div class="bg-void-850 shadow-card rounded-3xl border border-white/5 p-6">
     <div class="animate-pulse space-y-4">
       <div class="flex items-start justify-between">
         <div class="space-y-2">
@@ -644,18 +685,25 @@ const CardSkeleton: Component = () => (
   </div>
 );
 
-export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = (props) => {
+export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = props => {
   const generateHistoricalData = (currentValue: number, points: number = 12): number[] => {
     let value = currentValue * 0.85;
     return Array.from({ length: points }, (_, i) => {
       const progress = i / (points - 1);
-      value = currentValue * 0.85 + (currentValue * 0.15 * progress) + (currentValue * 0.02 * (i % 3 === 0 ? 1 : -1));
+      value =
+        currentValue * 0.85 +
+        currentValue * 0.15 * progress +
+        currentValue * 0.02 * (i % 3 === 0 ? 1 : -1);
       return Math.max(0, value);
     });
   };
 
-  const mrrSparkline = createMemo(() => props.mrrHistory?.length ? props.mrrHistory : generateHistoricalData(props.kpi.mrr));
-  const dauSparkline = createMemo(() => props.dauHistory?.length ? props.dauHistory : generateHistoricalData(props.kpi.dau));
+  const mrrSparkline = createMemo(() =>
+    props.mrrHistory?.length ? props.mrrHistory : generateHistoricalData(props.kpi.mrr)
+  );
+  const dauSparkline = createMemo(() =>
+    props.dauHistory?.length ? props.dauHistory : generateHistoricalData(props.kpi.dau)
+  );
   const stickinessRatio = createMemo(() => props.metrics?.engagement?.stickiness?.daily_to_monthly);
 
   const mrrForecast = createMemo(() => Math.round(props.kpi.mrr * 1.08));
@@ -663,14 +711,17 @@ export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = (pro
 
   return (
     <div class="space-y-6">
-      <Show when={!props.isLoading} fallback={
-        <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-        </div>
-      }>
+      <Show
+        when={!props.isLoading}
+        fallback={
+          <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+        }
+      >
         <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           <KPICard
             title="Monthly Recurring Revenue"
@@ -693,7 +744,7 @@ export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = (pro
           <KPICard
             title="Daily Active Users"
             value={props.kpi.dau}
-            change={props.kpi.mau > 0 ? ((props.kpi.dau / props.kpi.mau) * 100 - 15) : 0}
+            change={props.kpi.mau > 0 ? (props.kpi.dau / props.kpi.mau) * 100 - 15 : 0}
             icon={Users}
             accent="indigo"
             sparklineData={dauSparkline()}
@@ -740,13 +791,16 @@ export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = (pro
         </div>
       </Show>
 
-      <Show when={!props.isLoading} fallback={
-        <div class="grid gap-6 lg:grid-cols-3">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-        </div>
-      }>
+      <Show
+        when={!props.isLoading}
+        fallback={
+          <div class="grid gap-6 lg:grid-cols-3">
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+        }
+      >
         <div class="grid gap-6 lg:grid-cols-3">
           <StickinessMeter
             dau={props.kpi.dau}

@@ -156,36 +156,37 @@ export const CommandHistory: Component = () => {
     <div class="space-y-6">
       <GlassCard class="p-6">
         {/* Header */}
-        <div class="flex items-center justify-between mb-6">
+        <div class="mb-6 flex items-center justify-between">
           <div>
             <h2 class="text-xl font-bold text-white">Command History</h2>
             <p class="text-sm text-slate-400">
               Your recent CLI activity
               <Show when={history()?.pagination}>
-                {' '}- {history()!.pagination.total.toLocaleString()} total commands
+                {' '}
+                - {history()!.pagination.total.toLocaleString()} total commands
               </Show>
             </p>
           </div>
           <div class="flex items-center gap-2">
             <button
               onClick={() => refetch()}
-              class="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white transition-all"
+              class="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 transition-all hover:text-white"
               title="Refresh"
             >
               <RefreshCw size={16} class={history.loading ? 'animate-spin' : ''} />
             </button>
             <button
               onClick={() => setShowFilters(!showFilters())}
-              class={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+              class={`flex items-center gap-2 rounded-lg border px-3 py-2 transition-all ${
                 hasActiveFilters()
-                  ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400'
-                  : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                  ? 'border-indigo-500/30 bg-indigo-500/20 text-indigo-400'
+                  : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
               }`}
             >
               <Filter size={16} />
               <span class="text-sm">Filters</span>
               <Show when={hasActiveFilters()}>
-                <span class="px-1.5 py-0.5 rounded bg-indigo-500/30 text-xs">
+                <span class="rounded bg-indigo-500/30 px-1.5 py-0.5 text-xs">
                   {Object.values(filters()).filter(Boolean).length}
                 </span>
               </Show>
@@ -198,58 +199,48 @@ export const CommandHistory: Component = () => {
 
         {/* Filters Panel */}
         <Show when={showFilters()}>
-          <div class="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="mb-6 rounded-xl border border-white/10 bg-white/5 p-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
               <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1.5">
-                  Command Type
-                </label>
+                <label class="mb-1.5 block text-xs font-medium text-slate-400">Command Type</label>
                 <select
                   value={filters().command}
-                  onChange={(e) => updateFilter('command', e.currentTarget.value)}
-                  class="w-full px-3 py-2 rounded-lg bg-slate-900/50 border border-white/10 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                  onChange={e => updateFilter('command', e.currentTarget.value)}
+                  class="w-full rounded-lg border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
                 >
                   <option value="">All commands</option>
                   <For each={history()?.filters.availableCommands || []}>
-                    {(cmd) => (
-                      <option value={cmd}>{cmd}</option>
-                    )}
+                    {cmd => <option value={cmd}>{cmd}</option>}
                   </For>
                 </select>
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1.5">
-                  From Date
-                </label>
+                <label class="mb-1.5 block text-xs font-medium text-slate-400">From Date</label>
                 <input
                   type="date"
                   value={filters().startDate}
-                  onChange={(e) => updateFilter('startDate', e.currentTarget.value)}
-                  class="w-full px-3 py-2 rounded-lg bg-slate-900/50 border border-white/10 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                  onChange={e => updateFilter('startDate', e.currentTarget.value)}
+                  class="w-full rounded-lg border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1.5">
-                  To Date
-                </label>
+                <label class="mb-1.5 block text-xs font-medium text-slate-400">To Date</label>
                 <input
                   type="date"
                   value={filters().endDate}
-                  onChange={(e) => updateFilter('endDate', e.currentTarget.value)}
-                  class="w-full px-3 py-2 rounded-lg bg-slate-900/50 border border-white/10 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                  onChange={e => updateFilter('endDate', e.currentTarget.value)}
+                  class="w-full rounded-lg border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1.5">
-                  Status
-                </label>
+                <label class="mb-1.5 block text-xs font-medium text-slate-400">Status</label>
                 <select
                   value={filters().success}
-                  onChange={(e) => updateFilter('success', e.currentTarget.value)}
-                  class="w-full px-3 py-2 rounded-lg bg-slate-900/50 border border-white/10 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                  onChange={e => updateFilter('success', e.currentTarget.value)}
+                  class="w-full rounded-lg border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
                 >
                   <option value="">All</option>
                   <option value="true">Success</option>
@@ -262,7 +253,7 @@ export const CommandHistory: Component = () => {
               <div class="mt-4 flex justify-end">
                 <button
                   onClick={clearFilters}
-                  class="text-sm text-slate-400 hover:text-white transition-colors"
+                  class="text-sm text-slate-400 transition-colors hover:text-white"
                 >
                   Clear all filters
                 </button>
@@ -280,7 +271,7 @@ export const CommandHistory: Component = () => {
 
         {/* Error State */}
         <Show when={history.error}>
-          <div class="flex items-center gap-3 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+          <div class="flex items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-rose-400">
             <AlertCircle size={20} />
             <span>Failed to load command history. Please try again.</span>
           </div>
@@ -289,8 +280,8 @@ export const CommandHistory: Component = () => {
         {/* Command List */}
         <Show when={history() && !history.loading}>
           <Show when={history()!.commands.length === 0}>
-            <div class="text-center py-12">
-              <Terminal size={48} class="mx-auto text-slate-600 mb-4" />
+            <div class="py-12 text-center">
+              <Terminal size={48} class="mx-auto mb-4 text-slate-600" />
               <p class="text-slate-400">No commands found</p>
               <Show when={hasActiveFilters()}>
                 <button
@@ -308,30 +299,30 @@ export const CommandHistory: Component = () => {
               <table class="w-full">
                 <thead>
                   <tr class="border-b border-white/10">
-                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                    <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
                       Command
                     </th>
-                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                    <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
                       Target
                     </th>
-                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                    <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
                       Status
                     </th>
-                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                    <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
                       Duration
                     </th>
-                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                    <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
                       Time
                     </th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-white/5">
                   <For each={history()!.commands}>
-                    {(cmd) => {
+                    {cmd => {
                       const Icon = getCommandIcon(cmd.command);
                       const colorClass = getCommandColor(cmd.command);
                       return (
-                        <tr class="hover:bg-white/5 transition-colors">
+                        <tr class="transition-colors hover:bg-white/5">
                           <td class="px-4 py-3">
                             <div class="flex items-center gap-2">
                               <Icon size={16} class={colorClass} />
@@ -341,17 +332,20 @@ export const CommandHistory: Component = () => {
                             </div>
                           </td>
                           <td class="px-4 py-3">
-                            <span class="text-sm text-slate-300 font-mono">
+                            <span class="font-mono text-sm text-slate-300">
                               {cmd.packageName || cmd.runtimeName || '-'}
                             </span>
                           </td>
                           <td class="px-4 py-3">
-                            <Show when={cmd.success} fallback={
-                              <div class="flex items-center gap-1.5 text-rose-400">
-                                <XCircle size={14} />
-                                <span class="text-xs font-medium">Failed</span>
-                              </div>
-                            }>
+                            <Show
+                              when={cmd.success}
+                              fallback={
+                                <div class="flex items-center gap-1.5 text-rose-400">
+                                  <XCircle size={14} />
+                                  <span class="text-xs font-medium">Failed</span>
+                                </div>
+                              }
+                            >
                               <div class="flex items-center gap-1.5 text-emerald-400">
                                 <CheckCircle size={14} />
                                 <span class="text-xs font-medium">Success</span>
@@ -361,7 +355,7 @@ export const CommandHistory: Component = () => {
                           <td class="px-4 py-3">
                             <div class="flex items-center gap-1.5 text-slate-400">
                               <Clock size={12} />
-                              <span class="text-sm font-mono">
+                              <span class="font-mono text-sm">
                                 {formatDuration(cmd.durationMs)}
                               </span>
                             </div>
@@ -383,7 +377,8 @@ export const CommandHistory: Component = () => {
             <Show when={history()!.pagination.hasMore}>
               <div class="mt-4 text-center">
                 <p class="text-sm text-slate-500">
-                  Showing {history()!.commands.length} of {history()!.pagination.total.toLocaleString()} commands
+                  Showing {history()!.commands.length} of{' '}
+                  {history()!.pagination.total.toLocaleString()} commands
                 </p>
               </div>
             </Show>

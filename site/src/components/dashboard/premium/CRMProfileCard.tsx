@@ -52,19 +52,16 @@ const formatRelativeTime = (date: string): string => {
   return `${Math.floor(diffDays / 30)}mo ago`;
 };
 
-const TagBadge: Component<{ tag: CustomerTag }> = (props) => (
+const TagBadge: Component<{ tag: CustomerTag }> = props => (
   <span
-    class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-bold"
+    class="text-2xs inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold"
     style={{
       'background-color': `${props.tag.color}15`,
       color: props.tag.color,
       border: `1px solid ${props.tag.color}30`,
     }}
   >
-    <span
-      class="h-1.5 w-1.5 rounded-full"
-      style={{ 'background-color': props.tag.color }}
-    />
+    <span class="h-1.5 w-1.5 rounded-full" style={{ 'background-color': props.tag.color }} />
     {props.tag.name}
   </span>
 );
@@ -76,7 +73,7 @@ interface QuickActionButtonProps {
   variant?: 'default' | 'primary' | 'danger';
 }
 
-const QuickActionButton: Component<QuickActionButtonProps> = (props) => {
+const QuickActionButton: Component<QuickActionButtonProps> = props => {
   const variants = {
     default: 'text-nebula-400 hover:text-white hover:bg-white/10',
     primary: 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10',
@@ -112,11 +109,13 @@ const handleNote = (customerId: string, onQuickAction?: (action: string, id: str
   onQuickAction?.('note', customerId);
 };
 
-export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
+export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
   const [isHovered, setIsHovered] = createSignal(false);
   const [showActions, setShowActions] = createSignal(false);
 
-  const statusConfig = createMemo(() => STATUS_CONFIG[props.customer.status] || STATUS_CONFIG.active);
+  const statusConfig = createMemo(
+    () => STATUS_CONFIG[props.customer.status] || STATUS_CONFIG.active
+  );
 
   const tierValue = createMemo(() => {
     const tier = props.customer.tier.toLowerCase();
@@ -141,7 +140,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-photon-500/20 text-sm font-black text-white">
+        <div class="to-photon-500/20 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 text-sm font-black text-white">
           {props.customer.email.charAt(0).toUpperCase()}
         </div>
 
@@ -150,8 +149,10 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
             <span class="truncate text-sm font-bold text-white">{props.customer.email}</span>
             <TierBadge tier={tierValue()} size="sm" showIcon={false} />
           </div>
-          <div class="mt-0.5 flex items-center gap-2 text-2xs text-nebula-500">
-            <span class="font-mono tabular-nums">{props.customer.total_commands.toLocaleString()} cmds</span>
+          <div class="text-2xs text-nebula-500 mt-0.5 flex items-center gap-2">
+            <span class="font-mono tabular-nums">
+              {props.customer.total_commands.toLocaleString()} cmds
+            </span>
             <span>•</span>
             <span>{formatRelativeTime(props.customer.last_activity_at)}</span>
           </div>
@@ -162,7 +163,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
         <Show when={isHovered()}>
           <button
             onClick={() => props.onViewDetail?.(props.customer.id)}
-            class="rounded-lg bg-white/5 p-2 text-nebula-400 transition-all hover:bg-white/10 hover:text-white"
+            class="text-nebula-400 rounded-lg bg-white/5 p-2 transition-all hover:bg-white/10 hover:text-white"
           >
             <Eye size={16} />
           </button>
@@ -173,21 +174,21 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
 
   return (
     <div
-      class="group relative overflow-hidden rounded-3xl border border-white/5 bg-void-850 shadow-card transition-all duration-300 hover:border-white/10 hover:shadow-card-hover"
+      class="group bg-void-850 shadow-card hover:shadow-card-hover relative overflow-hidden rounded-3xl border border-white/5 transition-all duration-300 hover:border-white/10"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => {
         setIsHovered(false);
         setShowActions(false);
       }}
     >
-      <div class="pointer-events-none absolute -right-16 -top-16 h-32 w-32 rounded-full bg-indigo-500/5 opacity-0 blur-[60px] transition-opacity duration-500 group-hover:opacity-100" />
+      <div class="pointer-events-none absolute -top-16 -right-16 h-32 w-32 rounded-full bg-indigo-500/5 opacity-0 blur-[60px] transition-opacity duration-500 group-hover:opacity-100" />
 
       <Show when={isAtRisk()}>
-        <div class="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-flare-500 to-flare-400" />
+        <div class="from-flare-500 to-flare-400 absolute top-0 left-0 h-1 w-full bg-gradient-to-r" />
       </Show>
 
       <Show when={isPowerUser()}>
-        <div class="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-solar-500 to-solar-400" />
+        <div class="from-solar-500 to-solar-400 absolute top-0 left-0 h-1 w-full bg-gradient-to-r" />
       </Show>
 
       <div class="relative p-6">
@@ -200,20 +201,20 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
                   ? 'from-flare-500/30 to-flare-600/30'
                   : isPowerUser()
                     ? 'from-solar-500/30 to-solar-600/30'
-                    : 'from-indigo-500/30 to-photon-500/30'
+                    : 'to-photon-500/30 from-indigo-500/30'
               )}
             >
               {props.customer.email.charAt(0).toUpperCase()}
             </div>
 
             <Show when={isPowerUser()}>
-              <div class="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-solar-500 text-2xs">
+              <div class="bg-solar-500 text-2xs absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full">
                 <Star size={12} class="text-white" />
               </div>
             </Show>
 
             <Show when={isAtRisk()}>
-              <div class="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-flare-500">
+              <div class="bg-flare-500 absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full">
                 <AlertTriangle size={10} class="text-white" />
               </div>
             </Show>
@@ -225,7 +226,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
             </div>
 
             <Show when={props.customer.company}>
-              <p class="mt-0.5 truncate text-xs text-nebula-400">{props.customer.company}</p>
+              <p class="text-nebula-400 mt-0.5 truncate text-xs">{props.customer.company}</p>
             </Show>
 
             <div class="mt-2 flex flex-wrap items-center gap-2">
@@ -233,7 +234,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
 
               <span
                 class={cn(
-                  'rounded-full px-2 py-0.5 text-2xs font-black uppercase',
+                  'text-2xs rounded-full px-2 py-0.5 font-black uppercase',
                   statusConfig().bg,
                   statusConfig().color
                 )}
@@ -242,7 +243,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
               </span>
 
               <Show when={props.customer.mrr > 0}>
-                <span class="rounded-full bg-aurora-500/10 px-2 py-0.5 font-mono text-2xs font-black text-aurora-400">
+                <span class="bg-aurora-500/10 text-2xs text-aurora-400 rounded-full px-2 py-0.5 font-mono font-black">
                   ${props.customer.mrr}/mo
                 </span>
               </Show>
@@ -250,16 +251,16 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
           </div>
 
           <div class="flex flex-col items-end gap-2">
-            <HealthScore 
-              score={props.customer.health.overall_score} 
-              size="sm" 
-              variant="ring" 
-              showLabel 
+            <HealthScore
+              score={props.customer.health.overall_score}
+              size="sm"
+              variant="ring"
+              showLabel
             />
 
             <button
               onClick={() => setShowActions(!showActions())}
-              class="rounded-lg p-1.5 text-nebula-500 transition-all hover:bg-white/5 hover:text-white"
+              class="text-nebula-500 rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
             >
               <MoreHorizontal size={16} />
             </button>
@@ -268,11 +269,9 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
 
         <Show when={props.customer.tags.length > 0}>
           <div class="mt-4 flex flex-wrap gap-1.5">
-            <For each={props.customer.tags.slice(0, 4)}>
-              {(tag) => <TagBadge tag={tag} />}
-            </For>
+            <For each={props.customer.tags.slice(0, 4)}>{tag => <TagBadge tag={tag} />}</For>
             <Show when={props.customer.tags.length > 4}>
-              <span class="rounded-full bg-void-700 px-2 py-0.5 text-2xs font-bold text-nebula-500">
+              <span class="bg-void-700 text-2xs text-nebula-500 rounded-full px-2 py-0.5 font-bold">
                 +{props.customer.tags.length - 4}
               </span>
             </Show>
@@ -281,22 +280,24 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
 
         <div class="mt-4 grid grid-cols-4 gap-3">
           <div class="rounded-xl bg-white/[0.03] p-3 text-center">
-            <p class="font-display text-lg font-black tabular-nums text-white">
+            <p class="font-display text-lg font-black text-white tabular-nums">
               {props.customer.total_commands >= 1000
                 ? `${(props.customer.total_commands / 1000).toFixed(1)}k`
                 : props.customer.total_commands}
             </p>
-            <p class="text-2xs font-bold uppercase tracking-wider text-nebula-500">Commands</p>
+            <p class="text-2xs text-nebula-500 font-bold tracking-wider uppercase">Commands</p>
           </div>
 
           <div class="rounded-xl bg-white/[0.03] p-3 text-center">
-            <p class="font-display text-lg font-black tabular-nums text-white">{props.customer.machine_count}</p>
-            <p class="text-2xs font-bold uppercase tracking-wider text-nebula-500">Machines</p>
+            <p class="font-display text-lg font-black text-white tabular-nums">
+              {props.customer.machine_count}
+            </p>
+            <p class="text-2xs text-nebula-500 font-bold tracking-wider uppercase">Machines</p>
           </div>
 
           <div class="rounded-xl bg-white/[0.03] p-3 text-center">
             <HealthScore score={props.customer.health.overall_score} size="sm" variant="compact" />
-            <p class="mt-1 text-2xs font-bold uppercase tracking-wider text-nebula-500">Health</p>
+            <p class="text-2xs text-nebula-500 mt-1 font-bold tracking-wider uppercase">Health</p>
           </div>
 
           <div class="rounded-xl bg-white/[0.03] p-3 text-center">
@@ -306,17 +307,17 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
               ) : props.customer.health.command_velocity_trend === 'declining' ? (
                 <TrendingDown size={14} class="text-flare-400" />
               ) : (
-                <span class="font-display text-lg font-black text-electric-400">—</span>
+                <span class="font-display text-electric-400 text-lg font-black">—</span>
               )}
             </div>
-            <p class="text-2xs font-bold uppercase tracking-wider text-nebula-500">Trend</p>
+            <p class="text-2xs text-nebula-500 font-bold tracking-wider uppercase">Trend</p>
           </div>
         </div>
 
         <div class="mt-4 flex items-center justify-between border-t border-white/5 pt-4">
           <div class="text-2xs text-nebula-500">
             <span>Last active </span>
-            <span class="font-bold text-nebula-400">
+            <span class="text-nebula-400 font-bold">
               {formatRelativeTime(props.customer.last_activity_at)}
             </span>
           </div>
@@ -357,7 +358,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
           <div class="grid grid-cols-3 gap-2">
             <button
               onClick={() => props.onQuickAction?.('edit', props.customer.id)}
-              class="flex items-center justify-center gap-2 rounded-xl bg-white/5 py-2 text-xs font-bold text-nebula-400 transition-all hover:bg-white/10 hover:text-white"
+              class="text-nebula-400 flex items-center justify-center gap-2 rounded-xl bg-white/5 py-2 text-xs font-bold transition-all hover:bg-white/10 hover:text-white"
             >
               <Edit size={14} />
               Edit
@@ -371,7 +372,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = (props) => {
             </button>
             <button
               onClick={() => props.onQuickAction?.('suspend', props.customer.id)}
-              class="flex items-center justify-center gap-2 rounded-xl bg-flare-500/10 py-2 text-xs font-bold text-flare-400 transition-all hover:bg-flare-500/20"
+              class="bg-flare-500/10 text-flare-400 hover:bg-flare-500/20 flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition-all"
             >
               <AlertTriangle size={14} />
               Suspend
@@ -389,9 +390,9 @@ interface CRMProfileCardTableRowProps {
   onQuickAction?: (action: string, customerId: string) => void;
 }
 
-export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = (props) => {
+export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = props => {
   const [_isHovered, setIsHovered] = createSignal(false);
-  
+
   const tierValue = createMemo(() => {
     const tier = props.customer.tier.toLowerCase();
     if (['free', 'pro', 'team', 'enterprise'].includes(tier)) {
@@ -400,7 +401,9 @@ export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = (p
     return 'free' as Tier;
   });
 
-  const statusConfig = createMemo(() => STATUS_CONFIG[props.customer.status] || STATUS_CONFIG.active);
+  const statusConfig = createMemo(
+    () => STATUS_CONFIG[props.customer.status] || STATUS_CONFIG.active
+  );
 
   const isAtRisk = createMemo(() =>
     ['at_risk', 'churning'].includes(props.customer.health.lifecycle_stage)
@@ -424,7 +427,9 @@ export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = (p
           </div>
           <div>
             <p class="text-sm font-bold text-white">{props.customer.email}</p>
-            <p class="text-2xs text-nebula-500">{props.customer.company || props.customer.id.slice(0, 8)}</p>
+            <p class="text-2xs text-nebula-500">
+              {props.customer.company || props.customer.id.slice(0, 8)}
+            </p>
           </div>
         </div>
       </td>
@@ -434,24 +439,35 @@ export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = (p
       </td>
 
       <td class="px-4 py-3">
-        <span class={cn('rounded-full px-2 py-0.5 text-2xs font-black uppercase', statusConfig().bg, statusConfig().color)}>
+        <span
+          class={cn(
+            'text-2xs rounded-full px-2 py-0.5 font-black uppercase',
+            statusConfig().bg,
+            statusConfig().color
+          )}
+        >
           {statusConfig().label}
         </span>
       </td>
 
       <td class="px-4 py-3">
-        <HealthScore score={props.customer.health.overall_score} size="sm" variant="badge" showLabel />
+        <HealthScore
+          score={props.customer.health.overall_score}
+          size="sm"
+          variant="badge"
+          showLabel
+        />
       </td>
 
-      <td class="px-4 py-3 font-mono text-sm tabular-nums text-nebula-300">
+      <td class="text-nebula-300 px-4 py-3 font-mono text-sm tabular-nums">
         {props.customer.machine_count}
       </td>
 
-      <td class="px-4 py-3 font-mono text-sm tabular-nums text-nebula-300">
+      <td class="text-nebula-300 px-4 py-3 font-mono text-sm tabular-nums">
         {props.customer.total_commands.toLocaleString()}
       </td>
 
-      <td class="px-4 py-3 text-xs text-nebula-500">
+      <td class="text-nebula-500 px-4 py-3 text-xs">
         {formatRelativeTime(props.customer.last_activity_at)}
       </td>
 
@@ -459,14 +475,14 @@ export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = (p
         <div class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             onClick={() => handleEmail(props.customer.email)}
-            class="rounded-lg p-1.5 text-nebula-500 transition-all hover:bg-white/5 hover:text-white"
+            class="text-nebula-500 rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
             title="Send Email"
           >
             <Mail size={14} />
           </button>
           <button
             onClick={() => props.onViewDetail?.(props.customer.id)}
-            class="rounded-lg p-1.5 text-nebula-500 transition-all hover:bg-white/5 hover:text-white"
+            class="text-nebula-500 rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
             title="View Details"
           >
             <Eye size={14} />

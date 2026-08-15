@@ -1,5 +1,18 @@
 import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
-import { TrendingUp, ArrowUpCircle, Users, Clock, DollarSign, Mail, ChevronRight, Target, Crown, Zap, Star, Sparkles } from 'lucide-solid';
+import {
+  TrendingUp,
+  ArrowUpCircle,
+  Users,
+  Clock,
+  DollarSign,
+  Mail,
+  ChevronRight,
+  Target,
+  Crown,
+  Zap,
+  Star,
+  Sparkles,
+} from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -76,7 +89,8 @@ const PRIORITY_CONFIG: Record<PriorityLevel, PriorityConfig> = {
   },
 };
 
-type OpportunityType = 'upsell_to_pro' | 'upsell_to_team' | 'upsell_to_enterprise' | 'seat_expansion';
+type OpportunityType =
+  'upsell_to_pro' | 'upsell_to_team' | 'upsell_to_enterprise' | 'seat_expansion';
 
 interface OpportunityConfig {
   icon: typeof TrendingUp;
@@ -129,9 +143,7 @@ function getOpportunityTypeConfig(type: string): OpportunityConfig {
   return (
     OPPORTUNITY_TYPE_CONFIG[type as OpportunityType] || {
       icon: TrendingUp,
-      label: type
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase()),
+      label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
       potentialMRR: 0,
       color: 'var(--color-aurora-400)',
       gradient: 'linear-gradient(135deg, var(--color-aurora-600), var(--color-aurora-400))',
@@ -139,7 +151,7 @@ function getOpportunityTypeConfig(type: string): OpportunityConfig {
   );
 }
 
-export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (props) => {
+export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [hoveredId, setHoveredId] = createSignal<string | null>(null);
   const [showAll, setShowAll] = createSignal(false);
@@ -150,13 +162,20 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
 
   const sortedOpportunities = createMemo(() =>
     [...props.data].sort((a, b) => {
-      return (PRIORITY_CONFIG[getPriorityLevel(b.priority)]?.rank || 0) - (PRIORITY_CONFIG[getPriorityLevel(a.priority)]?.rank || 0);
+      return (
+        (PRIORITY_CONFIG[getPriorityLevel(b.priority)]?.rank || 0) -
+        (PRIORITY_CONFIG[getPriorityLevel(a.priority)]?.rank || 0)
+      );
     })
   );
 
-  const displayedOpportunities = createMemo(() => (showAll() ? sortedOpportunities() : sortedOpportunities().slice(0, 6)));
+  const displayedOpportunities = createMemo(() =>
+    showAll() ? sortedOpportunities() : sortedOpportunities().slice(0, 6)
+  );
 
-  const highPriorityCount = createMemo(() => props.data.filter((o) => ['high', 'urgent'].includes(getPriorityLevel(o.priority))).length);
+  const highPriorityCount = createMemo(
+    () => props.data.filter(o => ['high', 'urgent'].includes(getPriorityLevel(o.priority))).length
+  );
 
   const totalPotentialMRR = createMemo(() =>
     props.data.reduce((sum, opp) => {
@@ -168,28 +187,29 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
   const totalPotentialARR = createMemo(() => totalPotentialMRR() * 12);
 
   return (
-    <div class="rounded-2xl border border-white/[0.06] bg-void-900 p-6 shadow-2xl relative overflow-hidden">
+    <div class="bg-void-900 relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 shadow-2xl">
       <div
-        class="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-3xl opacity-15 transition-opacity duration-500"
+        class="absolute -top-20 -right-20 h-40 w-40 rounded-full opacity-15 blur-3xl transition-opacity duration-500"
         style={{ background: 'var(--color-aurora-500)' }}
       />
 
-      <div class="mb-6 flex items-start justify-between relative">
+      <div class="relative mb-6 flex items-start justify-between">
         <div>
-          <div class="flex items-center gap-3 mb-1">
+          <div class="mb-1 flex items-center gap-3">
             <div
-              class="w-10 h-10 rounded-xl flex items-center justify-center"
+              class="flex h-10 w-10 items-center justify-center rounded-xl"
               style={{
-                background: 'linear-gradient(135deg, var(--color-aurora-600), var(--color-aurora-400))',
+                background:
+                  'linear-gradient(135deg, var(--color-aurora-600), var(--color-aurora-400))',
                 'box-shadow': '0 0 15px rgba(16, 185, 129, 0.3)',
               }}
             >
               <Target size={20} class="text-white" />
             </div>
             <div>
-              <h3 class="text-lg font-bold tracking-tight text-nebula-100">Expansion Pipeline</h3>
-              <p class="text-xs text-nebula-500">
-                <span class="font-bold text-nebula-300">{props.data.length}</span> opportunities
+              <h3 class="text-nebula-100 text-lg font-bold tracking-tight">Expansion Pipeline</h3>
+              <p class="text-nebula-500 text-xs">
+                <span class="text-nebula-300 font-bold">{props.data.length}</span> opportunities
                 <Show when={highPriorityCount() > 0}>
                   {' '}
                   •{' '}
@@ -213,14 +233,19 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
           >
             <div class="flex items-center gap-3">
               <div
-                class="w-8 h-8 rounded-lg flex items-center justify-center"
+                class="flex h-8 w-8 items-center justify-center rounded-lg"
                 style={{ background: 'rgba(16, 185, 129, 0.2)' }}
               >
                 <DollarSign size={14} style={{ color: 'var(--color-aurora-400)' }} />
               </div>
               <div>
-                <p class="text-2xs font-bold uppercase tracking-wider text-nebula-500">Potential ARR</p>
-                <p class="text-xl font-black tabular-nums" style={{ color: 'var(--color-aurora-400)' }}>
+                <p class="text-2xs text-nebula-500 font-bold tracking-wider uppercase">
+                  Potential ARR
+                </p>
+                <p
+                  class="text-xl font-black tabular-nums"
+                  style={{ color: 'var(--color-aurora-400)' }}
+                >
                   ${totalPotentialARR().toLocaleString()}
                 </p>
               </div>
@@ -231,11 +256,13 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
 
       <Show when={props.data.length === 0}>
         <div class="flex flex-col items-center justify-center py-12">
-          <div class="w-16 h-16 rounded-full bg-void-800 flex items-center justify-center mb-4">
+          <div class="bg-void-800 mb-4 flex h-16 w-16 items-center justify-center rounded-full">
             <ArrowUpCircle size={32} class="text-nebula-600" />
           </div>
-          <p class="text-lg font-bold text-nebula-200">No Opportunities Yet</p>
-          <p class="mt-1 text-sm text-nebula-500">Expansion opportunities will appear as customers grow</p>
+          <p class="text-nebula-200 text-lg font-bold">No Opportunities Yet</p>
+          <p class="text-nebula-500 mt-1 text-sm">
+            Expansion opportunities will appear as customers grow
+          </p>
         </div>
       </Show>
 
@@ -248,7 +275,8 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
             const IconComponent = typeConfig.icon;
             const isHovered = () => hoveredId() === opp.customer_id;
             const isHighPriority = priorityLevel === 'high' || priorityLevel === 'urgent';
-            const seatUtilization = opp.max_seats > 0 ? (opp.active_machines / opp.max_seats) * 100 : 0;
+            const seatUtilization =
+              opp.max_seats > 0 ? (opp.active_machines / opp.max_seats) * 100 : 0;
 
             return (
               <div
@@ -256,12 +284,17 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
                   'group relative cursor-pointer overflow-hidden rounded-xl border p-4',
                   'transition-all duration-300',
                   isHighPriority && isHovered() && 'scale-[1.01]',
-                  mounted() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                  mounted() ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
                 )}
                 style={{
                   background: 'rgba(255, 255, 255, 0.02)',
-                  'border-color': isHovered() ? priorityConfig.borderColor : 'rgba(255, 255, 255, 0.04)',
-                  'box-shadow': isHovered() && isHighPriority ? `0 0 20px ${priorityConfig.glowColor}` : undefined,
+                  'border-color': isHovered()
+                    ? priorityConfig.borderColor
+                    : 'rgba(255, 255, 255, 0.04)',
+                  'box-shadow':
+                    isHovered() && isHighPriority
+                      ? `0 0 20px ${priorityConfig.glowColor}`
+                      : undefined,
                   'animation-delay': `${index() * 50}ms`,
                 }}
                 onMouseEnter={() => setHoveredId(opp.customer_id)}
@@ -273,7 +306,7 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
                     <div class="flex items-center gap-2">
                       <div
                         class={cn(
-                          'w-9 h-9 rounded-lg flex items-center justify-center text-xs font-black text-white',
+                          'flex h-9 w-9 items-center justify-center rounded-lg text-xs font-black text-white',
                           'transition-transform duration-300',
                           isHovered() && 'scale-110'
                         )}
@@ -285,13 +318,13 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
                         {opp.email.charAt(0).toUpperCase()}
                       </div>
                       <div class="min-w-0 flex-1">
-                        <p class="truncate text-sm font-semibold text-nebula-200">{opp.email}</p>
+                        <p class="text-nebula-200 truncate text-sm font-semibold">{opp.email}</p>
                         <Show when={opp.company}>
-                          <p class="truncate text-2xs text-nebula-500">{opp.company}</p>
+                          <p class="text-2xs text-nebula-500 truncate">{opp.company}</p>
                         </Show>
                       </div>
                       <span
-                        class="shrink-0 rounded-full border px-2 py-0.5 text-2xs font-black uppercase"
+                        class="text-2xs shrink-0 rounded-full border px-2 py-0.5 font-black uppercase"
                         style={{
                           color: priorityConfig.color,
                           background: priorityConfig.bgColor,
@@ -314,18 +347,18 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
                         <span class="font-bold">{typeConfig.label}</span>
                       </div>
 
-                      <div class="flex items-center gap-1 text-nebula-500">
+                      <div class="text-nebula-500 flex items-center gap-1">
                         <span class="capitalize">{opp.tier}</span>
                       </div>
 
-                      <div class="flex items-center gap-1 text-nebula-500">
+                      <div class="text-nebula-500 flex items-center gap-1">
                         <Users size={12} />
                         <span class="font-mono tabular-nums">
                           {opp.active_machines}/{opp.max_seats}
                         </span>
                         <Show when={seatUtilization >= 80}>
                           <span
-                            class="ml-1 rounded px-1 text-2xs font-bold"
+                            class="text-2xs ml-1 rounded px-1 font-bold"
                             style={{
                               background: 'rgba(245, 158, 11, 0.1)',
                               color: 'var(--color-solar-400)',
@@ -336,12 +369,14 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
                         </Show>
                       </div>
 
-                      <div class="flex items-center gap-1 text-nebula-500">
-                        <span class="font-mono tabular-nums">{(opp.total_commands_30d ?? 0).toLocaleString()}</span>
+                      <div class="text-nebula-500 flex items-center gap-1">
+                        <span class="font-mono tabular-nums">
+                          {(opp.total_commands_30d ?? 0).toLocaleString()}
+                        </span>
                         <span>cmds</span>
                       </div>
 
-                      <div class="flex items-center gap-1 text-nebula-500">
+                      <div class="text-nebula-500 flex items-center gap-1">
                         <Clock size={12} />
                         <span class="font-mono tabular-nums">{opp.hours_saved_30d ?? 0}h</span>
                       </div>
@@ -351,12 +386,12 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
                   <div
                     class={cn(
                       'flex items-center gap-2 transition-all duration-200',
-                      isHovered() ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                      isHovered() ? 'translate-x-0 opacity-100' : 'translate-x-2 opacity-0'
                     )}
                   >
                     <button
-                      class="rounded-lg bg-void-700/50 p-2 text-nebula-400 transition-all hover:bg-void-600/50 hover:text-white hover:scale-110"
-                      onClick={(e) => {
+                      class="bg-void-700/50 text-nebula-400 hover:bg-void-600/50 rounded-lg p-2 transition-all hover:scale-110 hover:text-white"
+                      onClick={e => {
                         e.stopPropagation();
                         window.open(`mailto:${opp.email}`);
                       }}
@@ -374,7 +409,10 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
                     style={{ background: 'rgba(16, 185, 129, 0.05)' }}
                   >
                     <span class="text-2xs text-nebula-500">Potential MRR increase</span>
-                    <span class="font-mono text-sm font-bold" style={{ color: 'var(--color-aurora-400)' }}>
+                    <span
+                      class="font-mono text-sm font-bold"
+                      style={{ color: 'var(--color-aurora-400)' }}
+                    >
                       +${typeConfig.potentialMRR}/mo
                     </span>
                   </div>
@@ -389,10 +427,10 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
         <button
           onClick={() => setShowAll(!showAll())}
           class={cn(
-            'mt-4 w-full py-2.5 text-sm font-medium rounded-xl',
-            'border border-white/[0.06] bg-void-800/30',
+            'mt-4 w-full rounded-xl py-2.5 text-sm font-medium',
+            'bg-void-800/30 border border-white/[0.06]',
             'text-nebula-400 hover:text-nebula-200',
-            'transition-all duration-200 hover:bg-void-750/50'
+            'hover:bg-void-750/50 transition-all duration-200'
           )}
         >
           {showAll() ? 'Show Less' : `Show All ${props.data.length} Opportunities`}
@@ -403,32 +441,34 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = (p
         <div
           class={cn(
             'mt-6 rounded-xl border p-4 transition-all duration-500',
-            mounted() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            mounted() ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
           )}
           style={{
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(34, 211, 211, 0.05))',
+            background:
+              'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(34, 211, 211, 0.05))',
             'border-color': 'rgba(16, 185, 129, 0.25)',
           }}
         >
           <div class="flex items-center gap-3">
             <div
-              class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
               style={{ background: 'rgba(16, 185, 129, 0.2)' }}
             >
               <Sparkles size={18} style={{ color: 'var(--color-aurora-400)' }} />
             </div>
             <div class="flex-1">
-              <p class="text-sm font-semibold text-nebula-100">
+              <p class="text-nebula-100 text-sm font-semibold">
                 {highPriorityCount()} high-priority expansion opportunities identified
               </p>
-              <p class="mt-0.5 text-xs text-nebula-500">
+              <p class="text-nebula-500 mt-0.5 text-xs">
                 Estimated ${(totalPotentialMRR() * 0.6).toFixed(0)}/mo if 60% convert
               </p>
             </div>
             <button
-              class="rounded-xl px-4 py-2 text-sm font-bold text-white transition-all hover:brightness-110 hover:scale-105"
+              class="rounded-xl px-4 py-2 text-sm font-bold text-white transition-all hover:scale-105 hover:brightness-110"
               style={{
-                background: 'linear-gradient(135deg, var(--color-aurora-600), var(--color-aurora-400))',
+                background:
+                  'linear-gradient(135deg, var(--color-aurora-600), var(--color-aurora-400))',
                 'box-shadow': '0 0 15px rgba(16, 185, 129, 0.3)',
               }}
             >

@@ -9,13 +9,13 @@ interface MachinesViewProps {
   onRevoke: () => void;
 }
 
-export const MachinesView: Component<MachinesViewProps> = (props) => {
+export const MachinesView: Component<MachinesViewProps> = props => {
   const fleetQuery = useFleetStatus();
   const [error, setError] = createSignal<string | null>(null);
 
   const handleRevoke = async (machineIds: string[]) => {
     const isBulk = machineIds.length > 1;
-    const message = isBulk 
+    const message = isBulk
       ? `Are you sure you want to revoke access for ${machineIds.length} machines?`
       : 'Are you sure you want to revoke access for this machine?';
 
@@ -26,12 +26,10 @@ export const MachinesView: Component<MachinesViewProps> = (props) => {
     try {
       setError(null);
       // Execute all revocations in parallel
-      const results = await Promise.all(
-        machineIds.map(id => api.revokeMachine(id))
-      );
-      
+      const results = await Promise.all(machineIds.map(id => api.revokeMachine(id)));
+
       const allSuccessful = results.every(res => res.success);
-      
+
       if (allSuccessful) {
         fleetQuery.refetch();
         props.onRevoke();
@@ -46,44 +44,41 @@ export const MachinesView: Component<MachinesViewProps> = (props) => {
   };
 
   return (
-    <div class="space-y-6 animate-fade-in">
-      <div class="flex items-center justify-between mb-8">
+    <div class="animate-fade-in space-y-6">
+      <div class="mb-8 flex items-center justify-between">
         <div>
-          <h2 class="text-2xl font-bold text-white mb-2">Connected Machines</h2>
+          <h2 class="mb-2 text-2xl font-bold text-white">Connected Machines</h2>
           <p class="text-slate-400">Manage access for your CLI installations.</p>
         </div>
         <div class="flex items-center gap-4">
-          <button 
+          <button
             onClick={() => fleetQuery.refetch()}
-            class="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white transition-all"
+            class="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-400 transition-all hover:text-white"
             title="Refresh Fleet"
           >
             <RefreshCw size={18} class={fleetQuery.isFetching ? 'animate-spin' : ''} />
           </button>
-          <div class="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 font-mono text-sm">
+          <div class="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-2 font-mono text-sm text-blue-400">
             {fleetQuery.data?.length || 0} Active
           </div>
         </div>
       </div>
 
       <Show when={error() || fleetQuery.error}>
-        <div class="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center gap-3 mb-6">
-          <AlertCircle class="w-5 h-5" />
+        <div class="mb-6 flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-red-400">
+          <AlertCircle class="h-5 w-5" />
           {error() || 'Failed to load fleet data'}
         </div>
       </Show>
 
       <Show when={fleetQuery.isLoading}>
         <div class="flex items-center justify-center py-20">
-          <div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
         </div>
       </Show>
 
       <Show when={fleetQuery.isSuccess}>
-        <FleetTable 
-          data={fleetQuery.data || []} 
-          onRevoke={handleRevoke} 
-        />
+        <FleetTable data={fleetQuery.data || []} onRevoke={handleRevoke} />
       </Show>
     </div>
   );

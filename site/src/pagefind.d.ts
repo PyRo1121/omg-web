@@ -1,4 +1,4 @@
-declare module "/pagefind/pagefind.js" {
+declare module '/pagefind/pagefind.js' {
   export interface PagefindResult {
     id: string;
     url: string;
@@ -22,7 +22,13 @@ declare module "/pagefind/pagefind.js" {
   }
 
   export function init(): Promise<void>;
-  export function search(query: string, options?: Record<string, unknown>): Promise<PagefindSearchResults>;
-  export function debouncedSearch(query: string, options?: Record<string, unknown>): Promise<PagefindSearchResults | null>;
+  export function search(
+    query: string,
+    options?: Record<string, unknown>
+  ): Promise<PagefindSearchResults>;
+  export function debouncedSearch(
+    query: string,
+    options?: Record<string, unknown>
+  ): Promise<PagefindSearchResults | null>;
   export function preload(query: string): Promise<void>;
 }

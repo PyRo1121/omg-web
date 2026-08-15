@@ -11,11 +11,31 @@ interface BarChartProps {
 }
 
 const gradientColors = {
-  indigo: { from: 'from-indigo-600', to: 'to-indigo-400', hover: 'hover:from-indigo-500 hover:to-indigo-300' },
-  emerald: { from: 'from-emerald-600', to: 'to-emerald-400', hover: 'hover:from-emerald-500 hover:to-emerald-300' },
-  cyan: { from: 'from-cyan-600', to: 'to-cyan-400', hover: 'hover:from-cyan-500 hover:to-cyan-300' },
-  purple: { from: 'from-purple-600', to: 'to-purple-400', hover: 'hover:from-purple-500 hover:to-purple-300' },
-  orange: { from: 'from-orange-600', to: 'to-orange-400', hover: 'hover:from-orange-500 hover:to-orange-300' },
+  indigo: {
+    from: 'from-indigo-600',
+    to: 'to-indigo-400',
+    hover: 'hover:from-indigo-500 hover:to-indigo-300',
+  },
+  emerald: {
+    from: 'from-emerald-600',
+    to: 'to-emerald-400',
+    hover: 'hover:from-emerald-500 hover:to-emerald-300',
+  },
+  cyan: {
+    from: 'from-cyan-600',
+    to: 'to-cyan-400',
+    hover: 'hover:from-cyan-500 hover:to-cyan-300',
+  },
+  purple: {
+    from: 'from-purple-600',
+    to: 'to-purple-400',
+    hover: 'hover:from-purple-500 hover:to-purple-300',
+  },
+  orange: {
+    from: 'from-orange-600',
+    to: 'to-orange-400',
+    hover: 'hover:from-orange-500 hover:to-orange-300',
+  },
 };
 
 export const BarChart: Component<BarChartProps> = props => {
@@ -33,24 +53,31 @@ export const BarChart: Component<BarChartProps> = props => {
             <div class="group relative flex flex-1 flex-col items-center gap-2">
               <div
                 class={`w-full rounded-t-lg bg-gradient-to-t ${colors.from} ${colors.to} transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:brightness-125`}
-                style={{ 
-                  height: `${barHeight}%`, 
+                style={{
+                  height: `${barHeight}%`,
                   'min-height': '4px',
                   'animation-delay': delay,
-                  'box-shadow': item.value > 0 ? `0 0 20px -5px ${props.gradient === 'emerald' ? 'rgba(16,185,129,0.3)' : 'rgba(99,102,241,0.3)'}` : 'none'
+                  'box-shadow':
+                    item.value > 0
+                      ? `0 0 20px -5px ${props.gradient === 'emerald' ? 'rgba(16,185,129,0.3)' : 'rgba(99,102,241,0.3)'}`
+                      : 'none',
                 }}
               />
               <Show when={props.showLabels}>
-                <span class="w-full truncate text-center text-[9px] font-bold uppercase tracking-widest text-slate-600 group-hover:text-slate-400 transition-colors">
+                <span class="w-full truncate text-center text-[9px] font-bold tracking-widest text-slate-600 uppercase transition-colors group-hover:text-slate-400">
                   {item.label}
                 </span>
               </Show>
               <Show when={item.value > 0}>
-                <div class="pointer-events-none absolute bottom-full left-1/2 z-30 mb-3 -translate-x-1/2 scale-95 rounded-[1.25rem] border border-white/10 bg-[#0a0a0b]/95 p-3 text-xs whitespace-nowrap text-white opacity-0 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md ring-1 ring-white/5 transition-all duration-300 group-hover:scale-100 group-hover:opacity-100">
+                <div class="pointer-events-none absolute bottom-full left-1/2 z-30 mb-3 -translate-x-1/2 scale-95 rounded-[1.25rem] border border-white/10 bg-[#0a0a0b]/95 p-3 text-xs whitespace-nowrap text-white opacity-0 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5 backdrop-blur-md transition-all duration-300 group-hover:scale-100 group-hover:opacity-100">
                   <div class="flex flex-col gap-1">
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">{item.label}</div>
+                    <div class="text-[10px] font-bold tracking-widest text-slate-500 uppercase">
+                      {item.label}
+                    </div>
                     <div class="flex items-center gap-2">
-                      <div class={`h-2 w-2 rounded-full ${props.gradient === 'emerald' ? 'bg-emerald-500' : 'bg-indigo-500'}`} />
+                      <div
+                        class={`h-2 w-2 rounded-full ${props.gradient === 'emerald' ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                      />
                       <span class="text-sm font-black tabular-nums">
                         {props.tooltipFormatter
                           ? props.tooltipFormatter(item.value, item.label)
@@ -59,7 +86,7 @@ export const BarChart: Component<BarChartProps> = props => {
                     </div>
                   </div>
                   <Show when={item.secondaryValue !== undefined}>
-                    <div class="mt-2 flex items-center gap-2 border-t border-white/5 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <div class="mt-2 flex items-center gap-2 border-t border-white/5 pt-2 text-[10px] font-bold tracking-wider text-slate-500 uppercase">
                       <span>Volume:</span>
                       <span class="text-slate-300 tabular-nums">
                         {props.secondaryTooltipFormatter
@@ -215,7 +242,7 @@ export const DonutChart: Component<DonutChartProps> = props => {
         <div class="flex flex-col gap-2">
           <For each={props.data}>
             {(item, index) => (
-              <div 
+              <div
                 class={`flex items-center gap-2 rounded-lg px-2 py-1 transition-all ${
                   hoveredIndex() === index() ? 'bg-slate-800/50' : ''
                 }`}
@@ -248,10 +275,10 @@ export const AreaChart: Component<AreaChartProps> = props => {
   const width = 400;
   const padding = { top: 20, right: 20, bottom: 30, left: 40 };
   const color = props.color || '#6366f1';
-  
+
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
-  
+
   const maxValue = () => Math.max(...props.data.map(d => d.value), 1);
   const minValue = () => Math.min(...props.data.map(d => d.value), 0);
   const range = () => maxValue() - minValue() || 1;
@@ -274,7 +301,9 @@ export const AreaChart: Component<AreaChartProps> = props => {
     const pts = points();
     if (pts.length === 0) return '';
     let path = `M ${padding.left},${padding.top + chartHeight}`;
-    pts.forEach(p => { path += ` L ${p.x},${p.y}`; });
+    pts.forEach(p => {
+      path += ` L ${p.x},${p.y}`;
+    });
     path += ` L ${padding.left + chartWidth},${padding.top + chartHeight} Z`;
     return path;
   };
@@ -290,14 +319,19 @@ export const AreaChart: Component<AreaChartProps> = props => {
   };
 
   return (
-    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
+    <svg
+      width="100%"
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMidYMid meet"
+    >
       <defs>
         <linearGradient id="area-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color={color} stop-opacity="0.3" />
           <stop offset="100%" stop-color={color} stop-opacity="0" />
         </linearGradient>
       </defs>
-      
+
       <Show when={props.showGrid}>
         <For each={gridLines()}>
           {line => (
@@ -325,8 +359,15 @@ export const AreaChart: Component<AreaChartProps> = props => {
       </Show>
 
       <path d={areaPath()} fill="url(#area-gradient)" />
-      <path d={linePath()} fill="none" stroke={color} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-      
+      <path
+        d={linePath()}
+        fill="none"
+        stroke={color}
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+
       <For each={points()}>
         {(point, index) => (
           <g class="group">
@@ -345,21 +386,19 @@ export const AreaChart: Component<AreaChartProps> = props => {
               class="pointer-events-none opacity-0 transition-opacity group-hover:opacity-100"
             >
               <div class="flex flex-col items-center justify-center">
-                <div class="rounded-xl border border-white/10 bg-[#0a0a0b]/95 p-2 text-[10px] shadow-2xl backdrop-blur-md ring-1 ring-white/5">
-                  <div class="font-bold uppercase tracking-widest text-slate-500">{point.label}</div>
+                <div class="rounded-xl border border-white/10 bg-[#0a0a0b]/95 p-2 text-[10px] shadow-2xl ring-1 ring-white/5 backdrop-blur-md">
+                  <div class="font-bold tracking-widest text-slate-500 uppercase">
+                    {point.label}
+                  </div>
                   <div class="font-black text-white tabular-nums">
-                    {props.tooltipFormatter ? props.tooltipFormatter(point.value, point.label) : (point.value ?? 0).toLocaleString()}
+                    {props.tooltipFormatter
+                      ? props.tooltipFormatter(point.value, point.label)
+                      : (point.value ?? 0).toLocaleString()}
                   </div>
                 </div>
               </div>
             </foreignObject>
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r="12"
-              fill="transparent"
-              class="cursor-pointer"
-            />
+            <circle cx={point.x} cy={point.y} r="12" fill="transparent" class="cursor-pointer" />
             <Show when={props.showLabels && index() % Math.ceil(props.data.length / 7) === 0}>
               <text
                 x={point.x}

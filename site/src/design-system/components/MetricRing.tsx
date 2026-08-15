@@ -34,13 +34,16 @@ interface NestedMetricRingsProps {
   class?: string;
 }
 
-const sizeConfig: Record<RingSize, {
-  diameter: number;
-  strokeWidth: number;
-  fontSize: string;
-  labelSize: string;
-  gradeSize: string;
-}> = {
+const sizeConfig: Record<
+  RingSize,
+  {
+    diameter: number;
+    strokeWidth: number;
+    fontSize: string;
+    labelSize: string;
+    gradeSize: string;
+  }
+> = {
   sm: {
     diameter: 48,
     strokeWidth: 4,
@@ -73,37 +76,40 @@ const getGradeFromScore = (score: number): HealthGrade => {
   return 'F';
 };
 
-const gradeColors: Record<HealthGrade, {
-  color: string;
-  glow: string;
-  textClass: string;
-}> = {
+const gradeColors: Record<
+  HealthGrade,
+  {
+    color: string;
+    glow: string;
+    textClass: string;
+  }
+> = {
   'A+': {
     color: 'var(--grade-a-plus, #059669)',
     glow: 'var(--grade-a-plus-glow)',
     textClass: 'text-aurora-600',
   },
-  'A': {
+  A: {
     color: 'var(--grade-a, var(--color-aurora-500))',
     glow: 'var(--grade-a-glow)',
     textClass: 'text-aurora-400',
   },
-  'B': {
+  B: {
     color: 'var(--grade-b, var(--color-electric-500))',
     glow: 'var(--grade-b-glow)',
     textClass: 'text-electric-400',
   },
-  'C': {
+  C: {
     color: 'var(--grade-c, var(--color-solar-500))',
     glow: 'var(--grade-c-glow)',
     textClass: 'text-solar-400',
   },
-  'D': {
+  D: {
     color: 'var(--grade-d, #f97316)',
     glow: 'var(--grade-d-glow)',
     textClass: 'text-orange-400',
   },
-  'F': {
+  F: {
     color: 'var(--grade-f, var(--color-flare-500))',
     glow: 'var(--grade-f-glow)',
     textClass: 'text-flare-400',
@@ -116,9 +122,17 @@ const getScoreColor = (score: number, customColor?: string): string => {
   return gradeColors[grade].color;
 };
 
-export const MetricRing: Component<MetricRingProps> = (props) => {
+export const MetricRing: Component<MetricRingProps> = props => {
   const [local, others] = splitProps(props, [
-    'value', 'label', 'size', 'showGrade', 'color', 'animated', 'showValue', 'trackColor', 'class'
+    'value',
+    'label',
+    'size',
+    'showGrade',
+    'color',
+    'animated',
+    'showValue',
+    'trackColor',
+    'class',
   ]);
 
   const config = createMemo(() => sizeConfig[local.size || 'md']);
@@ -144,11 +158,7 @@ export const MetricRing: Component<MetricRingProps> = (props) => {
       aria-label={local.label ? `${local.label}: ${normalizedValue()}%` : `${normalizedValue()}%`}
       {...others}
     >
-      <svg
-        width={config().diameter}
-        height={config().diameter}
-        class="rotate-[-90deg]"
-      >
+      <svg width={config().diameter} height={config().diameter} class="rotate-[-90deg]">
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stop-color={strokeColor()} stop-opacity="1" />
@@ -185,7 +195,7 @@ export const MetricRing: Component<MetricRingProps> = (props) => {
           stroke-dashoffset={local.animated ? circumference() : offset()}
           filter={`url(#ring-glow-${gradientId})`}
           class={cn(
-            'transition-all duration-1000 ease-smooth',
+            'ease-smooth transition-all duration-1000',
             local.animated && 'animate-gauge-fill'
           )}
           style={{
@@ -203,7 +213,7 @@ export const MetricRing: Component<MetricRingProps> = (props) => {
         </Show>
 
         <Show when={showValue() && !local.showGrade}>
-          <span 
+          <span
             class={cn('font-display font-black tabular-nums', config().fontSize)}
             style={{ color: strokeColor() }}
           >
@@ -212,19 +222,26 @@ export const MetricRing: Component<MetricRingProps> = (props) => {
         </Show>
 
         <Show when={showValue() && local.showGrade}>
-          <span 
+          <span
             class={cn('font-display font-black tabular-nums', config().fontSize)}
             style={{ color: strokeColor() }}
           >
             {Math.round(normalizedValue())}
           </span>
-          <span class={cn('font-bold uppercase tracking-wider text-nebula-500', config().labelSize)}>
+          <span
+            class={cn('text-nebula-500 font-bold tracking-wider uppercase', config().labelSize)}
+          >
             {grade()}
           </span>
         </Show>
 
         <Show when={local.label && !local.showGrade}>
-          <span class={cn('font-medium text-nebula-500 uppercase tracking-wider mt-0.5', config().labelSize)}>
+          <span
+            class={cn(
+              'text-nebula-500 mt-0.5 font-medium tracking-wider uppercase',
+              config().labelSize
+            )}
+          >
             {local.label}
           </span>
         </Show>
@@ -233,7 +250,7 @@ export const MetricRing: Component<MetricRingProps> = (props) => {
   );
 };
 
-export const NestedMetricRings: Component<NestedMetricRingsProps> = (props) => {
+export const NestedMetricRings: Component<NestedMetricRingsProps> = props => {
   const [local, others] = splitProps(props, ['rings', 'size', 'animated', 'class']);
 
   const baseSize = createMemo(() => sizeConfig[local.size || 'lg'].diameter);
@@ -248,11 +265,7 @@ export const NestedMetricRings: Component<NestedMetricRingsProps> = (props) => {
       aria-label="Nested metric rings"
       {...others}
     >
-      <svg
-        width={baseSize()}
-        height={baseSize()}
-        class="rotate-[-90deg]"
-      >
+      <svg width={baseSize()} height={baseSize()} class="rotate-[-90deg]">
         <For each={local.rings}>
           {(ring, index) => {
             const ringRadius = createMemo(() => {
@@ -262,7 +275,9 @@ export const NestedMetricRings: Component<NestedMetricRingsProps> = (props) => {
 
             const circumference = createMemo(() => 2 * Math.PI * ringRadius());
             const normalizedValue = createMemo(() => Math.max(0, Math.min(100, ring.value)));
-            const offset = createMemo(() => circumference() - (normalizedValue() / 100) * circumference());
+            const offset = createMemo(
+              () => circumference() - (normalizedValue() / 100) * circumference()
+            );
             const color = createMemo(() => getScoreColor(normalizedValue(), ring.color));
             const gradientId = `nested-ring-${index()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -296,7 +311,7 @@ export const NestedMetricRings: Component<NestedMetricRingsProps> = (props) => {
                   stroke-dasharray={`${circumference()}`}
                   stroke-dashoffset={local.animated ? circumference() : offset()}
                   class={cn(
-                    'transition-all duration-1000 ease-smooth',
+                    'ease-smooth transition-all duration-1000',
                     local.animated && 'animate-gauge-fill'
                   )}
                   style={{
@@ -313,12 +328,10 @@ export const NestedMetricRings: Component<NestedMetricRingsProps> = (props) => {
 
       <div class="absolute inset-0 flex flex-col items-center justify-center">
         <Show when={local.rings.length > 0}>
-          <span class="font-display font-black text-lg tabular-nums text-white">
+          <span class="font-display text-lg font-black text-white tabular-nums">
             {Math.round(local.rings.reduce((sum, r) => sum + r.value, 0) / local.rings.length)}
           </span>
-          <span class="text-2xs font-medium text-nebula-500 uppercase tracking-wider">
-            avg
-          </span>
+          <span class="text-2xs text-nebula-500 font-medium tracking-wider uppercase">avg</span>
         </Show>
       </div>
     </div>
@@ -328,25 +341,17 @@ export const NestedMetricRings: Component<NestedMetricRingsProps> = (props) => {
 export const MetricRingLegend: Component<{
   rings: NestedRingData[];
   class?: string;
-}> = (props) => {
+}> = props => {
   return (
     <div class={cn('flex flex-col gap-2', props.class)}>
       <For each={props.rings}>
-        {(ring) => {
+        {ring => {
           const color = getScoreColor(ring.value, ring.color);
           return (
             <div class="flex items-center gap-2">
-              <div
-                class="h-2 w-2 rounded-full"
-                style={{ 'background-color': color }}
-              />
-              <span class="text-xs font-medium text-nebula-400 flex-1">
-                {ring.label}
-              </span>
-              <span 
-                class="text-xs font-bold tabular-nums"
-                style={{ color }}
-              >
+              <div class="h-2 w-2 rounded-full" style={{ 'background-color': color }} />
+              <span class="text-nebula-400 flex-1 text-xs font-medium">{ring.label}</span>
+              <span class="text-xs font-bold tabular-nums" style={{ color }}>
                 {Math.round(ring.value)}%
               </span>
             </div>

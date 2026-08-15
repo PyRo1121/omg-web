@@ -27,9 +27,7 @@ export async function handleGetDashboard(request: Request, env: Env): Promise<Re
   const { user } = auth;
 
   // Check if user is admin (query the admin column from customers table)
-  const adminCheck = await env.DB.prepare(
-    `SELECT admin FROM customers WHERE id = ?`
-  )
+  const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
     .bind(user.id)
     .first();
   const isAdmin = adminCheck?.admin === 1;
@@ -96,11 +94,14 @@ export async function handleGetDashboard(request: Request, env: Env): Promise<Re
     .bind(user.id)
     .all();
 
-  const achievementIds = new Set(unlockedAchievements.results?.map((a: any) => a.achievement_id) || []);
+  const achievementIds = new Set(
+    unlockedAchievements.results?.map((a: any) => a.achievement_id) || []
+  );
   const achievements = ACHIEVEMENTS.map(a => ({
     ...a,
     unlocked: achievementIds.has(a.id),
-    unlocked_at: unlockedAchievements.results?.find((ua: any) => ua.achievement_id === a.id)?.unlocked_at,
+    unlocked_at: unlockedAchievements.results?.find((ua: any) => ua.achievement_id === a.id)
+      ?.unlocked_at,
   }));
 
   // Calculate streak
@@ -161,15 +162,21 @@ export async function handleGetDashboard(request: Request, env: Env): Promise<Re
   const tierConfig = TIER_FEATURES[tier] || TIER_FEATURES.free;
 
   // Get command breakdown
-  const commandBreakdown = await env.DB.prepare(`
+  const commandBreakdown = await env.DB.prepare(
+    `
     SELECT packages_installed, packages_searched, runtimes_switched, sbom_generated, vulnerabilities_found
     FROM usage_daily
     WHERE license_id = ? AND date >= date('now', '-30 days')
-  `)
+  `
+  )
     .bind(license.id)
     .all();
 
-  let installed = 0, searched = 0, switched = 0, sbom = 0, vulns = 0;
+  let installed = 0,
+    searched = 0,
+    switched = 0,
+    sbom = 0,
+    vulns = 0;
   for (const row of (commandBreakdown.results || []) as any[]) {
     installed += row.packages_installed || 0;
     searched += row.packages_searched || 0;
@@ -179,25 +186,35 @@ export async function handleGetDashboard(request: Request, env: Env): Promise<Re
   }
 
   // Get global stats for telemetry section
-  const topPackage = await env.DB.prepare(`
+  const topPackage = await env.DB.prepare(
+    `
     SELECT package_name FROM analytics_packages ORDER BY install_count DESC LIMIT 1
-  `).first<{ package_name: string }>();
+  `
+  ).first<{ package_name: string }>();
 
-  const topRuntime = await env.DB.prepare(`
+  const topRuntime = await env.DB.prepare(
+    `
     SELECT dimension FROM analytics_daily WHERE metric = 'version' ORDER BY value DESC LIMIT 1
-  `).first<{ dimension: string }>();
+  `
+  ).first<{ dimension: string }>();
 
   // Calculate user percentile
   const userTotalCommands = Number(usageStats?.total_commands) || 0;
-  const rankResult = await env.DB.prepare(`
+  const rankResult = await env.DB.prepare(
+    `
     SELECT COUNT(*) as better_users FROM (
       SELECT SUM(commands_run) as total FROM usage_daily GROUP BY license_id HAVING total > ?
     )
-  `).bind(userTotalCommands).first<{ better_users: number }>();
+  `
+  )
+    .bind(userTotalCommands)
+    .first<{ better_users: number }>();
 
-  const totalUsersResult = await env.DB.prepare(`SELECT COUNT(DISTINCT license_id) as count FROM usage_daily`).first<{ count: number }>();
+  const totalUsersResult = await env.DB.prepare(
+    `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily`
+  ).first<{ count: number }>();
   const totalUsers = Number(totalUsersResult?.count) || 1;
-  const percentile = Math.round((1 - ((Number(rankResult?.better_users) || 0) / totalUsers)) * 100);
+  const percentile = Math.round((1 - (Number(rankResult?.better_users) || 0) / totalUsers) * 100);
 
   return jsonResponse({
     user: {
@@ -233,8 +250,8 @@ export async function handleGetDashboard(request: Request, env: Env): Promise<Re
         searched,
         switched,
         sbom,
-        vulns
-      }
+        vulns,
+      },
     },
     achievements,
     subscription: subscription
@@ -246,7 +263,8 @@ export async function handleGetDashboard(request: Request, env: Env): Promise<Re
       : null,
     invoices: invoices.results || [],
     is_admin: isAdmin,
-    leaderboard: await env.DB.prepare(`
+    leaderboard: await env.DB.prepare(
+      `
       SELECT SUBSTR(c.email, 1, 3) || '***' as user, SUM(u.time_saved_ms) as time_saved
       FROM usage_daily u
       JOIN licenses l ON u.license_id = l.id
@@ -254,12 +272,15 @@ export async function handleGetDashboard(request: Request, env: Env): Promise<Re
       GROUP BY c.id
       ORDER BY time_saved DESC
       LIMIT 3
-    `).all().then(r => r.results || []),
+    `
+    )
+      .all()
+      .then(r => r.results || []),
     global_stats: {
       top_package: topPackage?.package_name || 'ripgrep',
       top_runtime: topRuntime?.dimension || 'node',
-      percentile: percentile
-    }
+      percentile: percentile,
+    },
   });
 }
 
@@ -496,9 +517,11 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     }
 
     // Get license and check tier
-    const license = await env.DB.prepare(`
+    const license = await env.DB.prepare(
+      `
       SELECT * FROM licenses WHERE customer_id = ?
-    `)
+    `
+    )
       .bind(auth.user.id)
       .first();
 
@@ -510,8 +533,9 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       return errorResponse('Team management requires Team or Enterprise tier', 403);
     }
 
-  // Get all machines (team members)
-  const machines = await env.DB.prepare(`
+    // Get all machines (team members)
+    const machines = await env.DB.prepare(
+      `
     SELECT
       m.id,
       m.machine_id,
@@ -527,12 +551,14 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     FROM machines m
     WHERE m.license_id = ?
     ORDER BY m.last_seen_at DESC
-  `)
-    .bind(license.id)
-    .all();
+  `
+    )
+      .bind(license.id)
+      .all();
 
-  // Get real per-member usage stats
-  const memberUsage = await env.DB.prepare(`
+    // Get real per-member usage stats
+    const memberUsage = await env.DB.prepare(
+      `
     SELECT
       machine_id,
       SUM(commands_run) as total_commands,
@@ -542,60 +568,71 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     FROM usage_member_daily
     WHERE license_id = ?
     GROUP BY machine_id
-  `)
-    .bind(license.id)
-    .all();
+  `
+    )
+      .bind(license.id)
+      .all();
 
-  const usageMap = new Map(memberUsage.results?.map((u: any) => [u.machine_id, u]) || []);
+    const usageMap = new Map(memberUsage.results?.map((u: any) => [u.machine_id, u]) || []);
 
-  // Get last 7 days usage
-  const recentUsage = await env.DB.prepare(`
+    // Get last 7 days usage
+    const recentUsage = await env.DB.prepare(
+      `
     SELECT
       machine_id,
       SUM(commands_run) as commands_last_7d
     FROM usage_member_daily
     WHERE license_id = ? AND date >= date('now', '-7 days')
     GROUP BY machine_id
-  `)
-    .bind(license.id)
-    .all();
+  `
+    )
+      .bind(license.id)
+      .all();
 
-  const recentMap = new Map(recentUsage.results?.map((u: any) => [u.machine_id, u.commands_last_7d]) || []);
+    const recentMap = new Map(
+      recentUsage.results?.map((u: any) => [u.machine_id, u.commands_last_7d]) || []
+    );
 
-  const totalUsage = await env.DB.prepare(`
+    const totalUsage = await env.DB.prepare(
+      `
     SELECT
       SUM(commands_run) as total_commands,
       SUM(packages_installed) as total_packages,
       SUM(time_saved_ms) as total_time_saved_ms
     FROM usage_daily
     WHERE license_id = ?
-  `).bind(license.id).first();
+  `
+    )
+      .bind(license.id)
+      .first();
 
-  const membersWithUsage = (machines.results || []).map((m: any) => {
-    const usage = usageMap.get(m.machine_id as string) as any || {};
-    const recent = recentMap.get(m.machine_id as string) || 0;
-    return {
-      ...m,
-      total_commands: Number(usage.total_commands || 0),
-      total_packages: Number(usage.total_packages || 0),
-      total_time_saved_ms: Number(usage.total_time_saved_ms || 0),
-      commands_last_7d: Number(recent),
-      last_active: usage.last_active || m.last_seen_at,
-    };
-  });
+    const membersWithUsage = (machines.results || []).map((m: any) => {
+      const usage = (usageMap.get(m.machine_id as string) as any) || {};
+      const recent = recentMap.get(m.machine_id as string) || 0;
+      return {
+        ...m,
+        total_commands: Number(usage.total_commands || 0),
+        total_packages: Number(usage.total_packages || 0),
+        total_time_saved_ms: Number(usage.total_time_saved_ms || 0),
+        commands_last_7d: Number(recent),
+        last_active: usage.last_active || m.last_seen_at,
+      };
+    });
 
-  // Calculate fleet compliance (version drift)
-  const versions = (machines.results || []).map((m: any) => m.omg_version || 'unknown');
-  const uniqueVersions = [...new Set(versions)];
-  const latestVersion = uniqueVersions.sort().reverse()[0] || 'unknown';
-  const complianceRate = (versions.filter(v => v === latestVersion).length / (versions.length || 1)) * 100;
+    // Calculate fleet compliance (version drift)
+    const versions = (machines.results || []).map((m: any) => m.omg_version || 'unknown');
+    const uniqueVersions = [...new Set(versions)];
+    const latestVersion = uniqueVersions.sort().reverse()[0] || 'unknown';
+    const complianceRate =
+      (versions.filter(v => v === latestVersion).length / (versions.length || 1)) * 100;
 
-  // Calculate ROI (Return on Investment)
-  const totalHoursSaved = (Number(totalUsage?.total_time_saved_ms) || 0) / (1000 * 60 * 60);
-  const totalValueUSD = Math.round(totalHoursSaved * 100);
+    // Calculate ROI (Return on Investment)
+    const totalHoursSaved = (Number(totalUsage?.total_time_saved_ms) || 0) / (1000 * 60 * 60);
+    const totalValueUSD = Math.round(totalHoursSaved * 100);
 
-  // Get daily usage breakdown (last 14 days)
-  const dailyUsage = await env.DB.prepare(`
+    // Get daily usage breakdown (last 14 days)
+    const dailyUsage = await env.DB.prepare(
+      `
     SELECT
       date,
       commands_run,
@@ -603,43 +640,44 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     FROM usage_daily
     WHERE license_id = ? AND date >= date('now', '-14 days')
     ORDER BY date DESC
-  `)
-    .bind(license.id)
-    .all();
+  `
+    )
+      .bind(license.id)
+      .all();
 
-  // Get team totals
-  const totalMachines = machines.results?.length || 0;
-  const activeMachines = (machines.results || []).filter((m: any) => m.is_active === 1).length;
-  const totalCommands = Number(totalUsage?.total_commands) || 0;
-  const totalTimeSaved = Number(totalUsage?.total_time_saved_ms) || 0;
+    // Get team totals
+    const totalMachines = machines.results?.length || 0;
+    const activeMachines = (machines.results || []).filter((m: any) => m.is_active === 1).length;
+    const totalCommands = Number(totalUsage?.total_commands) || 0;
+    const totalTimeSaved = Number(totalUsage?.total_time_saved_ms) || 0;
 
-  return jsonResponse({
-    license: {
-      tier: license.tier,
-      max_seats: license.max_seats,
-      status: license.status,
-    },
-    members: membersWithUsage,
-    daily_usage: dailyUsage.results || [],
-    totals: {
-      total_machines: totalMachines,
-      active_machines: activeMachines,
-      total_commands: totalCommands,
-      total_time_saved_ms: totalTimeSaved,
-      total_time_saved_hours: Math.round(totalTimeSaved / (1000 * 60 * 60) * 10) / 10,
-      total_value_usd: totalValueUSD,
-    },
-    fleet_health: {
-      compliance_rate: Math.round(complianceRate),
-      latest_version: latestVersion,
-      version_drift: uniqueVersions.length > 1,
-    },
-    productivity_score: Math.min(100, Math.round((totalCommands / 1000) * 100)),
-    insights: {
-      engagement_rate: Math.round((activeMachines / (totalMachines || 1)) * 100),
-      roi_multiplier: totalValueUSD > 0 ? (totalValueUSD / 200).toFixed(1) : '0',
-    },
-  });
+    return jsonResponse({
+      license: {
+        tier: license.tier,
+        max_seats: license.max_seats,
+        status: license.status,
+      },
+      members: membersWithUsage,
+      daily_usage: dailyUsage.results || [],
+      totals: {
+        total_machines: totalMachines,
+        active_machines: activeMachines,
+        total_commands: totalCommands,
+        total_time_saved_ms: totalTimeSaved,
+        total_time_saved_hours: Math.round((totalTimeSaved / (1000 * 60 * 60)) * 10) / 10,
+        total_value_usd: totalValueUSD,
+      },
+      fleet_health: {
+        compliance_rate: Math.round(complianceRate),
+        latest_version: latestVersion,
+        version_drift: uniqueVersions.length > 1,
+      },
+      productivity_score: Math.min(100, Math.round((totalCommands / 1000) * 100)),
+      insights: {
+        engagement_rate: Math.round((activeMachines / (totalMachines || 1)) * 100),
+        roi_multiplier: totalValueUSD > 0 ? (totalValueUSD / 200).toFixed(1) : '0',
+      },
+    });
   } catch (error) {
     console.error('handleGetTeamMembers error:', error);
     return errorResponse('Failed to load team data', 500);
@@ -669,9 +707,11 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
   }
 
   // Get license
-  const license = await env.DB.prepare(`
+  const license = await env.DB.prepare(
+    `
     SELECT * FROM licenses WHERE customer_id = ?
-  `)
+  `
+  )
     .bind(auth.user.id)
     .first();
 
@@ -680,9 +720,11 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
   }
 
   // Deactivate the machine
-  const result = await env.DB.prepare(`
+  const result = await env.DB.prepare(
+    `
     UPDATE machines SET is_active = 0 WHERE license_id = ? AND id = ?
-  `)
+  `
+  )
     .bind(license.id, body.machine_id)
     .run();
 
@@ -690,14 +732,7 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
     return errorResponse('Machine not found', 404);
   }
 
-  await logAudit(
-    env.DB,
-    auth.user.id,
-    'team.member_revoked',
-    'machine',
-    body.machine_id,
-    request
-  );
+  await logAudit(env.DB, auth.user.id, 'team.member_revoked', 'machine', body.machine_id, request);
 
   return jsonResponse({ success: true });
 }

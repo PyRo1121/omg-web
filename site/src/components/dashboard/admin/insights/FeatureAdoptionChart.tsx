@@ -18,7 +18,7 @@ interface FeatureAdoptionChartProps {
   data: FeatureAdoptionData;
 }
 
-export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = (props) => {
+export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props => {
   const features = [
     {
       name: 'Package Install',
@@ -93,7 +93,7 @@ export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = (props
 
       <div class="space-y-4">
         <For each={features}>
-          {(feature) => {
+          {feature => {
             const colors = getColorClasses(feature.color);
             const adoptionRate = parseFloat(getAdoptionRate(feature.adopters));
             const Icon = feature.icon;

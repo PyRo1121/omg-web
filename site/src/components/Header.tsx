@@ -101,7 +101,7 @@ const Header: Component = () => {
             >
               ?
             </button>
-            <Show 
+            <Show
               when={session()?.data?.user}
               fallback={
                 <A href="/login" class="btn-secondary px-4 py-2 text-sm">
@@ -121,14 +121,19 @@ const Header: Component = () => {
                   </div>
                   <span class="max-w-[150px] truncate">{session()?.data?.user?.email}</span>
                   <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </button>
-                
+
                 <Show when={userMenuOpen()}>
-                  <div class="absolute right-0 top-full mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
-                    <A 
-                      href="/dashboard" 
+                  <div class="absolute top-full right-0 mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
+                    <A
+                      href="/dashboard"
                       class="block px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-800"
                       onClick={() => setUserMenuOpen(false)}
                     >
@@ -172,22 +177,39 @@ const Header: Component = () => {
         {menuOpen() && (
           <div class="border-t border-white/5 bg-[#1a1a2e] px-6 py-4 md:hidden">
             <div class="flex flex-col gap-4">
-              <a href="/docs/" rel="external" class="text-slate-400 hover:text-white" onClick={() => setMenuOpen(false)}>
+              <a
+                href="/docs/"
+                rel="external"
+                class="text-slate-400 hover:text-white"
+                onClick={() => setMenuOpen(false)}
+              >
                 Docs
               </a>
-              <a href="/#features" class="text-slate-400 hover:text-white" onClick={() => setMenuOpen(false)}>
+              <a
+                href="/#features"
+                class="text-slate-400 hover:text-white"
+                onClick={() => setMenuOpen(false)}
+              >
                 Features
               </a>
-              <a href="/#benchmarks" class="text-slate-400 hover:text-white" onClick={() => setMenuOpen(false)}>
+              <a
+                href="/#benchmarks"
+                class="text-slate-400 hover:text-white"
+                onClick={() => setMenuOpen(false)}
+              >
                 Benchmarks
               </a>
-              <a href="/#pricing" class="text-slate-400 hover:text-white" onClick={() => setMenuOpen(false)}>
+              <a
+                href="/#pricing"
+                class="text-slate-400 hover:text-white"
+                onClick={() => setMenuOpen(false)}
+              >
                 Pricing
               </a>
               <a href="https://github.com/PyRo1121/omg/" class="text-slate-400 hover:text-white">
                 GitHub
               </a>
-              <Show 
+              <Show
                 when={session()?.data?.user}
                 fallback={
                   <A href="/login" class="text-slate-400 hover:text-white">
@@ -202,10 +224,18 @@ const Header: Component = () => {
                   Sign Out
                 </a>
               </Show>
-              <a href="/#install" class="btn-secondary px-4 py-2 text-center text-sm" onClick={() => setMenuOpen(false)}>
+              <a
+                href="/#install"
+                class="btn-secondary px-4 py-2 text-center text-sm"
+                onClick={() => setMenuOpen(false)}
+              >
                 Install
               </a>
-              <a href="/#pricing" class="btn-primary px-4 py-2 text-center text-sm" onClick={() => setMenuOpen(false)}>
+              <a
+                href="/#pricing"
+                class="btn-primary px-4 py-2 text-center text-sm"
+                onClick={() => setMenuOpen(false)}
+              >
                 Get Pro
               </a>
             </div>

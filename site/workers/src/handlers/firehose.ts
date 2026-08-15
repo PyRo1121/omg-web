@@ -9,9 +9,7 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
   if (!auth) return errorResponse('Invalid session', 401);
 
   // Strictly Admin Only - Check admin column from database
-  const adminCheck = await env.DB.prepare(
-    `SELECT admin FROM customers WHERE id = ?`
-  )
+  const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
     .bind(auth.user.id)
     .first();
   if (adminCheck?.admin !== 1) return errorResponse('Forbidden', 403);
@@ -47,7 +45,9 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
     query += ` ORDER BY created_at DESC LIMIT ?`;
     params.push(limit);
 
-    const { results } = await env.DB.prepare(query).bind(...params).all();
+    const { results } = await env.DB.prepare(query)
+      .bind(...params)
+      .all();
 
     // Parse properties JSON for frontend convenience
     const events = results.map((event: any) => ({
@@ -58,7 +58,7 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
     return jsonResponse({
       events,
       count: events.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (e) {
     console.error('Firehose error:', e);

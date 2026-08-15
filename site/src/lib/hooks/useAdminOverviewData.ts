@@ -12,7 +12,13 @@ import {
   transformFirehoseEvents,
   transformGeoDistribution,
 } from '../transforms/admin';
-import type { ExecutiveKPI, AdvancedMetrics, FirehoseEvent, GeoDistribution, CommandHealth } from '~/types';
+import type {
+  ExecutiveKPI,
+  AdvancedMetrics,
+  FirehoseEvent,
+  GeoDistribution,
+  CommandHealth,
+} from '~/types';
 
 export function useAdminOverviewData() {
   const dashboardQuery = useAdminDashboard();
@@ -57,9 +63,7 @@ export function useAdminOverviewData() {
   });
 
   const isLoading = () =>
-    dashboardQuery.isLoading ||
-    firehoseQuery.isLoading ||
-    advancedMetricsQuery.isLoading;
+    dashboardQuery.isLoading || firehoseQuery.isLoading || advancedMetricsQuery.isLoading;
 
   const refetchAll = () => {
     dashboardQuery.refetch();
@@ -83,9 +87,20 @@ export function useAdminOverviewData() {
 
 function getCountryName(code: string): string {
   const countries: Record<string, string> = {
-    US: 'United States', DE: 'Germany', GB: 'United Kingdom', FR: 'France',
-    CA: 'Canada', JP: 'Japan', AU: 'Australia', BR: 'Brazil', IN: 'India',
-    NL: 'Netherlands', SE: 'Sweden', ES: 'Spain', IT: 'Italy', KR: 'South Korea',
+    US: 'United States',
+    DE: 'Germany',
+    GB: 'United Kingdom',
+    FR: 'France',
+    CA: 'Canada',
+    JP: 'Japan',
+    AU: 'Australia',
+    BR: 'Brazil',
+    IN: 'India',
+    NL: 'Netherlands',
+    SE: 'Sweden',
+    ES: 'Spain',
+    IT: 'Italy',
+    KR: 'South Korea',
   };
   return countries[code] || code || 'Unknown';
 }

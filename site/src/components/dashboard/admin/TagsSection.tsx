@@ -30,15 +30,15 @@ const TAG_COLORS = [
   { value: '#6b7280', label: 'Gray' },
 ];
 
-export const TagsSection: Component<TagsSectionProps> = (props) => {
+export const TagsSection: Component<TagsSectionProps> = props => {
   const [isAdding, setIsAdding] = createSignal(false);
   const [showNewTagForm, setShowNewTagForm] = createSignal(false);
   const [newTagName, setNewTagName] = createSignal('');
   const [newTagColor, setNewTagColor] = createSignal(TAG_COLORS[0].value);
 
   const availableTags = () => {
-    const assignedIds = new Set(props.customerTags.map((t) => t.id));
-    return props.allTags.filter((t) => !assignedIds.has(t.id));
+    const assignedIds = new Set(props.customerTags.map(t => t.id));
+    return props.allTags.filter(t => !assignedIds.has(t.id));
   };
 
   const handleAssignTag = (tagId: string) => {
@@ -88,14 +88,14 @@ export const TagsSection: Component<TagsSectionProps> = (props) => {
         <div class="mb-4 space-y-3">
           <Show when={!showNewTagForm()}>
             <div class="rounded-lg border border-white/10 bg-white/5 p-4">
-              <p class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+              <p class="mb-3 text-xs font-bold tracking-wider text-slate-400 uppercase">
                 Select Existing Tag
               </p>
 
               <Show when={availableTags().length > 0}>
                 <div class="space-y-2">
                   <For each={availableTags()}>
-                    {(tag) => (
+                    {tag => (
                       <button
                         onClick={() => handleAssignTag(tag.id)}
                         class="flex w-full items-center justify-between rounded-lg border border-white/5 bg-white/5 p-3 text-left transition-all hover:border-white/10 hover:bg-white/10"
@@ -138,7 +138,7 @@ export const TagsSection: Component<TagsSectionProps> = (props) => {
 
           <Show when={showNewTagForm()}>
             <div class="rounded-lg border border-white/10 bg-white/5 p-4">
-              <p class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+              <p class="mb-3 text-xs font-bold tracking-wider text-slate-400 uppercase">
                 Create New Tag
               </p>
 
@@ -147,9 +147,9 @@ export const TagsSection: Component<TagsSectionProps> = (props) => {
                 <input
                   type="text"
                   value={newTagName()}
-                  onInput={(e) => setNewTagName(e.currentTarget.value)}
+                  onInput={e => setNewTagName(e.currentTarget.value)}
                   placeholder="e.g., High Priority, Enterprise, Champion"
-                  class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                  class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 focus:outline-none"
                 />
               </div>
 
@@ -157,7 +157,7 @@ export const TagsSection: Component<TagsSectionProps> = (props) => {
                 <label class="mb-2 block text-xs font-medium text-slate-400">Color</label>
                 <div class="flex flex-wrap gap-2">
                   <For each={TAG_COLORS}>
-                    {(color) => (
+                    {color => (
                       <button
                         onClick={() => setNewTagColor(color.value)}
                         class="group relative h-8 w-8 rounded-lg border-2 transition-all hover:scale-110"
@@ -219,7 +219,7 @@ export const TagsSection: Component<TagsSectionProps> = (props) => {
           </Show>
 
           <For each={props.customerTags}>
-            {(tag) => (
+            {tag => (
               <div
                 class="group flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-all hover:pr-2"
                 style={{

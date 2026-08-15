@@ -1,6 +1,6 @@
-import { Component, createSignal, onMount, onCleanup, Show, For } from "solid-js";
-import { useNavigate } from "@solidjs/router";
-import { Command } from "cmdk-solid";
+import { Component, createSignal, onMount, onCleanup, Show, For } from 'solid-js';
+import { useNavigate } from '@solidjs/router';
+import { Command } from 'cmdk-solid';
 import {
   Home,
   FileText,
@@ -11,7 +11,7 @@ import {
   ExternalLink,
   Zap,
   Package,
-} from "lucide-solid";
+} from 'lucide-solid';
 
 interface CommandItem {
   id: string;
@@ -24,12 +24,12 @@ interface CommandItem {
 
 const CommandPalette: Component = () => {
   const [open, setOpen] = createSignal(false);
-  const [search, setSearch] = createSignal("");
+  const [search, setSearch] = createSignal('');
   const [copied, setCopied] = createSignal(false);
   const navigate = useNavigate();
 
   const copyInstallCommand = () => {
-    navigator.clipboard.writeText("curl -fsSL https://pyro1121.com/install.sh | bash");
+    navigator.clipboard.writeText('curl -fsSL https://pyro1121.com/install.sh | bash');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     setOpen(false);
@@ -37,76 +37,76 @@ const CommandPalette: Component = () => {
 
   const commands: CommandItem[] = [
     {
-      id: "home",
-      label: "Home",
+      id: 'home',
+      label: 'Home',
       icon: Home,
-      shortcut: ["H"],
+      shortcut: ['H'],
       action: () => {
-        navigate("/");
+        navigate('/');
         setOpen(false);
       },
-      group: "Navigation",
+      group: 'Navigation',
     },
     {
-      id: "docs",
-      label: "Documentation",
+      id: 'docs',
+      label: 'Documentation',
       icon: FileText,
-      shortcut: ["G", "D"],
+      shortcut: ['G', 'D'],
       action: () => {
-        window.location.href = "/docs";
+        window.location.href = '/docs';
         setOpen(false);
       },
-      group: "Navigation",
+      group: 'Navigation',
     },
     {
-      id: "dashboard",
-      label: "Dashboard",
+      id: 'dashboard',
+      label: 'Dashboard',
       icon: LayoutDashboard,
-      shortcut: ["G", "A"],
+      shortcut: ['G', 'A'],
       action: () => {
-        navigate("/dashboard");
+        navigate('/dashboard');
         setOpen(false);
       },
-      group: "Navigation",
+      group: 'Navigation',
     },
     {
-      id: "features",
-      label: "Features",
+      id: 'features',
+      label: 'Features',
       icon: Zap,
       action: () => {
-        window.location.href = "/#features";
+        window.location.href = '/#features';
         setOpen(false);
       },
-      group: "Navigation",
+      group: 'Navigation',
     },
     {
-      id: "benchmarks",
-      label: "Benchmarks",
+      id: 'benchmarks',
+      label: 'Benchmarks',
       icon: Package,
       action: () => {
-        window.location.href = "/#benchmarks";
+        window.location.href = '/#benchmarks';
         setOpen(false);
       },
-      group: "Navigation",
+      group: 'Navigation',
     },
     {
-      id: "github",
-      label: "GitHub Repository",
+      id: 'github',
+      label: 'GitHub Repository',
       icon: Github,
-      shortcut: ["G", "H"],
+      shortcut: ['G', 'H'],
       action: () => {
-        window.open("https://github.com/PyRo1121/omg", "_blank");
+        window.open('https://github.com/PyRo1121/omg', '_blank');
         setOpen(false);
       },
-      group: "Links",
+      group: 'Links',
     },
     {
-      id: "copy-install",
-      label: copied() ? "Copied!" : "Copy Install Command",
+      id: 'copy-install',
+      label: copied() ? 'Copied!' : 'Copy Install Command',
       icon: copied() ? Terminal : Copy,
-      shortcut: ["C", "I"],
+      shortcut: ['C', 'I'],
       action: copyInstallCommand,
-      group: "Actions",
+      group: 'Actions',
     },
   ];
 
@@ -125,18 +125,18 @@ const CommandPalette: Component = () => {
 
   onMount(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setOpen((prev) => !prev);
+        setOpen(prev => !prev);
       }
 
-      if (e.key === "Escape" && open()) {
+      if (e.key === 'Escape' && open()) {
         setOpen(false);
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
-    onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
+    document.addEventListener('keydown', handleKeyDown);
+    onCleanup(() => document.removeEventListener('keydown', handleKeyDown));
   });
 
   return (
@@ -148,10 +148,7 @@ const CommandPalette: Component = () => {
 
       <div class="fixed inset-0 z-[101] flex items-start justify-center pt-[15vh]">
         <div class="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900 shadow-2xl shadow-black/50">
-          <Command
-            class="flex flex-col"
-            shouldFilter={false}
-          >
+          <Command class="flex flex-col" shouldFilter={false}>
             <div class="flex items-center border-b border-slate-700/50 px-4">
               <svg
                 class="h-5 w-5 shrink-0 text-slate-500"
@@ -185,22 +182,22 @@ const CommandPalette: Component = () => {
               <For each={Object.entries(groupedCommands())}>
                 {([group, items]) => (
                   <Command.Group class="mb-2">
-                    <div class="px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <div class="px-2 py-1.5 text-xs font-semibold tracking-wider text-slate-500 uppercase">
                       {group}
                     </div>
                     <For each={items}>
-                      {(cmd) => (
+                      {cmd => (
                         <Command.Item
                           value={cmd.id}
                           onSelect={cmd.action}
-                          class="group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-slate-300 outline-none transition-colors hover:bg-slate-800 hover:text-white data-[selected=true]:bg-slate-800 data-[selected=true]:text-white"
+                          class="group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-slate-300 transition-colors outline-none hover:bg-slate-800 hover:text-white data-[selected=true]:bg-slate-800 data-[selected=true]:text-white"
                         >
                           <cmd.icon class="h-4 w-4 text-slate-500 transition-colors group-hover:text-indigo-400 group-data-[selected=true]:text-indigo-400" />
                           <span class="flex-1">{cmd.label}</span>
                           <Show when={cmd.shortcut}>
                             <div class="flex items-center gap-1">
                               <For each={cmd.shortcut}>
-                                {(key) => (
+                                {key => (
                                   <kbd class="rounded border border-slate-700 bg-slate-800/50 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                                     {key}
                                   </kbd>
@@ -208,7 +205,7 @@ const CommandPalette: Component = () => {
                               </For>
                             </div>
                           </Show>
-                          <Show when={cmd.id === "github"}>
+                          <Show when={cmd.id === 'github'}>
                             <ExternalLink class="h-3 w-3 text-slate-600" />
                           </Show>
                         </Command.Item>
@@ -222,12 +219,18 @@ const CommandPalette: Component = () => {
             <div class="flex items-center justify-between border-t border-slate-700/50 px-4 py-2.5 text-xs text-slate-500">
               <div class="flex items-center gap-4">
                 <span class="flex items-center gap-1">
-                  <kbd class="rounded border border-slate-700 bg-slate-800 px-1 py-0.5 text-[10px]">↑</kbd>
-                  <kbd class="rounded border border-slate-700 bg-slate-800 px-1 py-0.5 text-[10px]">↓</kbd>
+                  <kbd class="rounded border border-slate-700 bg-slate-800 px-1 py-0.5 text-[10px]">
+                    ↑
+                  </kbd>
+                  <kbd class="rounded border border-slate-700 bg-slate-800 px-1 py-0.5 text-[10px]">
+                    ↓
+                  </kbd>
                   <span class="ml-1">Navigate</span>
                 </span>
                 <span class="flex items-center gap-1">
-                  <kbd class="rounded border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-[10px]">↵</kbd>
+                  <kbd class="rounded border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-[10px]">
+                    ↵
+                  </kbd>
                   <span class="ml-1">Select</span>
                 </span>
               </div>

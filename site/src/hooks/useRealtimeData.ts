@@ -61,7 +61,8 @@ export interface HealthUpdate {
   updated_at: string;
 }
 
-export type TelemetryEventType = 'command_event' | 'session_start' | 'session_end' | 'health_update';
+export type TelemetryEventType =
+  'command_event' | 'session_start' | 'session_end' | 'health_update';
 
 export interface TelemetryMessage {
   type: TelemetryEventType;
@@ -176,10 +177,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
 
   // Calculate exponential backoff delay
   const getReconnectDelay = (attempt: number): number => {
-    const delay = Math.min(
-      BASE_RECONNECT_DELAY * Math.pow(2, attempt),
-      MAX_RECONNECT_DELAY
-    );
+    const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, attempt), MAX_RECONNECT_DELAY);
     // Add jitter (0-25% of delay)
     const jitter = delay * Math.random() * 0.25;
     return delay + jitter;
@@ -190,7 +188,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
     switch (message.type) {
       case 'command_event': {
         const event = message.data as CommandEvent;
-        setCommands((prev) => {
+        setCommands(prev => {
           const updated = [event, ...prev];
           // Keep only the latest N commands
           return updated.slice(0, maxCommands);
@@ -201,7 +199,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
 
       case 'session_start': {
         const session = message.data as SessionEvent;
-        setActiveSessions((prev) => {
+        setActiveSessions(prev => {
           const updated = new Map(prev);
           updated.set(session.session_id, { ...session, is_active: true });
           return updated;
@@ -212,7 +210,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
 
       case 'session_end': {
         const session = message.data as SessionEvent;
-        setActiveSessions((prev) => {
+        setActiveSessions(prev => {
           const updated = new Map(prev);
           updated.delete(session.session_id);
           return updated;
@@ -237,7 +235,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
     }
 
     isManualDisconnect = false;
-    setConnectionState((prev) => ({
+    setConnectionState(prev => ({
       ...prev,
       status: 'connecting',
     }));
@@ -253,7 +251,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
         });
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = event => {
         try {
           const message = JSON.parse(event.data) as TelemetryMessage;
           handleMessage(message);
@@ -262,9 +260,9 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
         }
       };
 
-      ws.onerror = (event) => {
+      ws.onerror = event => {
         const error = new Error('WebSocket connection error');
-        setConnectionState((prev) => ({
+        setConnectionState(prev => ({
           ...prev,
           status: 'error',
           error: error.message,
@@ -272,7 +270,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
         onError?.(error);
       };
 
-      ws.onclose = (event) => {
+      ws.onclose = event => {
         ws = null;
 
         if (isManualDisconnect) {
@@ -302,9 +300,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
           setConnectionState({
             status: 'error',
             reconnectAttempt: nextAttempt,
-            error: autoReconnect
-              ? 'Max reconnection attempts reached'
-              : 'Connection closed',
+            error: autoReconnect ? 'Max reconnection attempts reached' : 'Connection closed',
           });
         }
       };

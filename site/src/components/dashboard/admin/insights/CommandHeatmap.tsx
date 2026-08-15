@@ -32,7 +32,7 @@ const heatmapColors = [
   { bg: 'var(--color-electric-400)', glow: 'rgba(34, 211, 211, 0.5)' },
 ];
 
-export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
+export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [isExpanded, setIsExpanded] = createSignal(false);
   const [hoveredCell, setHoveredCell] = createSignal<{ day: number; hour: number } | null>(null);
@@ -43,13 +43,13 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
 
   const maxCount = createMemo(() => {
     if (props.data.length === 0) return 1;
-    return Math.max(...props.data.map((d) => d.event_count));
+    return Math.max(...props.data.map(d => d.event_count));
   });
 
   const totalEvents = createMemo(() => props.data.reduce((sum, d) => sum + d.event_count, 0));
 
   const getCountForCell = (day: number, hour: number) => {
-    const cell = props.data.find((d) => parseInt(d.day_of_week) === day && parseInt(d.hour) === hour);
+    const cell = props.data.find(d => parseInt(d.day_of_week) === day && parseInt(d.hour) === hour);
     return cell?.event_count || 0;
   };
 
@@ -68,7 +68,10 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
 
   const peakActivity = createMemo(() => {
     if (props.data.length === 0) return { day: 0, hour: 0, count: 0 };
-    const peak = props.data.reduce((max, d) => (d.event_count > max.event_count ? d : max), props.data[0]);
+    const peak = props.data.reduce(
+      (max, d) => (d.event_count > max.event_count ? d : max),
+      props.data[0]
+    );
     return {
       day: parseInt(peak.day_of_week),
       hour: parseInt(peak.hour),
@@ -85,7 +88,7 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
   });
 
   const busyHours = createMemo(() => {
-    const hourTotals = HOURS.map((hour) => ({
+    const hourTotals = HOURS.map(hour => ({
       hour,
       total: DAYS.reduce((sum, _, dayIndex) => sum + getCountForCell(dayIndex, hour), 0),
     }));
@@ -100,29 +103,36 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
   return (
     <div
       class={cn(
-        'rounded-2xl border border-white/[0.06] bg-void-900 p-6 shadow-2xl relative overflow-hidden',
+        'bg-void-900 relative overflow-hidden rounded-2xl border border-white/[0.06] p-6 shadow-2xl',
         'transition-all duration-300',
         isExpanded() && 'col-span-2'
       )}
     >
-      <div class="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-3xl opacity-10 transition-opacity duration-500" style={{ background: 'var(--color-indigo-500)' }} />
+      <div
+        class="absolute -top-20 -right-20 h-40 w-40 rounded-full opacity-10 blur-3xl transition-opacity duration-500"
+        style={{ background: 'var(--color-indigo-500)' }}
+      />
 
-      <div class="mb-6 flex items-start justify-between relative">
+      <div class="relative mb-6 flex items-start justify-between">
         <div>
-          <div class="flex items-center gap-3 mb-1">
+          <div class="mb-1 flex items-center gap-3">
             <div
-              class="w-10 h-10 rounded-xl flex items-center justify-center"
+              class="flex h-10 w-10 items-center justify-center rounded-xl"
               style={{
-                background: 'linear-gradient(135deg, var(--color-indigo-600), var(--color-indigo-400))',
+                background:
+                  'linear-gradient(135deg, var(--color-indigo-600), var(--color-indigo-400))',
                 'box-shadow': '0 0 15px rgba(99, 102, 241, 0.3)',
               }}
             >
               <Activity size={20} class="text-white" />
             </div>
             <div>
-              <h3 class="text-lg font-bold tracking-tight text-nebula-100">Command Heatmap</h3>
-              <p class="text-xs text-nebula-500">
-                <span class="font-bold text-nebula-300 tabular-nums">{totalEvents().toLocaleString()}</span> events
+              <h3 class="text-nebula-100 text-lg font-bold tracking-tight">Command Heatmap</h3>
+              <p class="text-nebula-500 text-xs">
+                <span class="text-nebula-300 font-bold tabular-nums">
+                  {totalEvents().toLocaleString()}
+                </span>{' '}
+                events
                 {props.data.length > 0 && (
                   <>
                     {' '}
@@ -137,9 +147,9 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
         <button
           onClick={() => setIsExpanded(!isExpanded())}
           class={cn(
-            'rounded-xl border border-white/[0.06] bg-void-800/50 p-2',
+            'bg-void-800/50 rounded-xl border border-white/[0.06] p-2',
             'text-nebula-400 hover:text-nebula-200',
-            'transition-all duration-200 hover:bg-void-750/50 hover:border-white/10'
+            'hover:bg-void-750/50 transition-all duration-200 hover:border-white/10'
           )}
           title={isExpanded() ? 'Collapse' : 'Expand'}
         >
@@ -149,22 +159,32 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
 
       <Show when={props.data.length === 0}>
         <div class="flex flex-col items-center justify-center py-12">
-          <div class="w-16 h-16 rounded-full bg-void-800 flex items-center justify-center mb-4">
+          <div class="bg-void-800 mb-4 flex h-16 w-16 items-center justify-center rounded-full">
             <Activity size={32} class="text-nebula-600" />
           </div>
-          <p class="text-lg font-bold text-nebula-200">No Activity Data</p>
-          <p class="mt-1 text-sm text-nebula-500">Command activity will appear here once users start using OMG</p>
+          <p class="text-nebula-200 text-lg font-bold">No Activity Data</p>
+          <p class="text-nebula-500 mt-1 text-sm">
+            Command activity will appear here once users start using OMG
+          </p>
         </div>
       </Show>
 
       <Show when={props.data.length > 0}>
-        <div class={cn('overflow-x-auto transition-all duration-500', mounted() ? 'opacity-100' : 'opacity-0')}>
+        <div
+          class={cn(
+            'overflow-x-auto transition-all duration-500',
+            mounted() ? 'opacity-100' : 'opacity-0'
+          )}
+        >
           <div class="inline-flex flex-col gap-1">
             <div class="flex gap-1 pl-12">
               <For each={HOURS}>
-                {(hour) => (
+                {hour => (
                   <div
-                    class={cn('flex h-6 w-6 items-center justify-center text-[10px] font-bold transition-colors', hoveredCell()?.hour === hour ? 'text-nebula-200' : 'text-nebula-600')}
+                    class={cn(
+                      'flex h-6 w-6 items-center justify-center text-[10px] font-bold transition-colors',
+                      hoveredCell()?.hour === hour ? 'text-nebula-200' : 'text-nebula-600'
+                    )}
                   >
                     {hour % 6 === 0 ? hour : ''}
                   </div>
@@ -173,46 +193,65 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
             </div>
 
             <For each={DAYS.map((_, i) => i)}>
-              {(dayIndex) => (
+              {dayIndex => (
                 <div class="flex items-center gap-1">
-                  <div class={cn('w-10 text-right text-xs font-bold transition-colors', hoveredCell()?.day === dayIndex ? 'text-nebula-200' : 'text-nebula-500')}>{DAYS[dayIndex]}</div>
+                  <div
+                    class={cn(
+                      'w-10 text-right text-xs font-bold transition-colors',
+                      hoveredCell()?.day === dayIndex ? 'text-nebula-200' : 'text-nebula-500'
+                    )}
+                  >
+                    {DAYS[dayIndex]}
+                  </div>
                   <div class="flex gap-1">
                     <For each={HOURS}>
-                      {(hour) => {
+                      {hour => {
                         const count = getCountForCell(dayIndex, hour);
                         const level = getHeatmapLevel(count);
                         const colors = heatmapColors[level];
-                        const isPeak = dayIndex === peakActivity().day && hour === peakActivity().hour;
-                        const isHovered = hoveredCell()?.day === dayIndex && hoveredCell()?.hour === hour;
+                        const isPeak =
+                          dayIndex === peakActivity().day && hour === peakActivity().hour;
+                        const isHovered =
+                          hoveredCell()?.day === dayIndex && hoveredCell()?.hour === hour;
 
                         return (
                           <div
                             class={cn(
                               'group relative h-6 w-6 rounded transition-all duration-200',
-                              'hover:scale-125 hover:z-10 cursor-pointer',
-                              isPeak && 'ring-2 ring-electric-400 ring-offset-1 ring-offset-void-900'
+                              'cursor-pointer hover:z-10 hover:scale-125',
+                              isPeak &&
+                                'ring-electric-400 ring-offset-void-900 ring-2 ring-offset-1'
                             )}
                             style={{
                               background: colors.bg,
-                              'box-shadow': isHovered && level > 0 ? `0 0 12px ${colors.glow}` : undefined,
+                              'box-shadow':
+                                isHovered && level > 0 ? `0 0 12px ${colors.glow}` : undefined,
                             }}
                             onMouseEnter={() => setHoveredCell({ day: dayIndex, hour })}
                             onMouseLeave={() => setHoveredCell(null)}
                           >
                             <div
                               class={cn(
-                                'pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2',
-                                'whitespace-nowrap rounded-lg border border-white/10 px-3 py-2',
+                                'pointer-events-none absolute top-full left-1/2 z-20 mt-2 -translate-x-1/2',
+                                'rounded-lg border border-white/10 px-3 py-2 whitespace-nowrap',
                                 'text-[10px] font-bold shadow-xl backdrop-blur-sm',
-                                'opacity-0 scale-95 transition-all duration-150',
-                                'group-hover:opacity-100 group-hover:scale-100'
+                                'scale-95 opacity-0 transition-all duration-150',
+                                'group-hover:scale-100 group-hover:opacity-100'
                               )}
                               style={{ background: 'var(--bg-overlay)' }}
                             >
                               <div class="text-nebula-400">
                                 {DAYS[dayIndex]} {hour}:00
                               </div>
-                              <div class="mt-0.5 text-sm" style={{ color: level >= 6 ? 'var(--color-electric-400)' : 'var(--color-indigo-400)' }}>
+                              <div
+                                class="mt-0.5 text-sm"
+                                style={{
+                                  color:
+                                    level >= 6
+                                      ? 'var(--color-electric-400)'
+                                      : 'var(--color-indigo-400)',
+                                }}
+                              >
                                 {count.toLocaleString()} events
                               </div>
                             </div>
@@ -227,14 +266,17 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
           </div>
         </div>
 
-        <div class="mt-6 flex items-center justify-between rounded-xl border border-white/[0.06] bg-void-800/30 p-4">
+        <div class="bg-void-800/30 mt-6 flex items-center justify-between rounded-xl border border-white/[0.06] p-4">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(34, 211, 211, 0.15)' }}>
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-lg"
+              style={{ background: 'rgba(34, 211, 211, 0.15)' }}
+            >
               <Flame size={14} style={{ color: 'var(--color-electric-400)' }} />
             </div>
             <div>
               <p class="text-2xs text-nebula-500">Peak Activity</p>
-              <p class="text-sm font-bold text-nebula-200">
+              <p class="text-nebula-200 text-sm font-bold">
                 {DAYS[peakActivity().day]} {peakActivity().hour}:00
                 <span class="ml-2" style={{ color: 'var(--color-electric-400)' }}>
                   ({peakActivity().count.toLocaleString()})
@@ -244,10 +286,10 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
           </div>
 
           <div class="flex items-center gap-2">
-            <span class="text-xs text-nebula-600">Low</span>
+            <span class="text-nebula-600 text-xs">Low</span>
             <div class="flex gap-0.5">
               <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>
-                {(level) => (
+                {level => (
                   <div
                     class="h-4 w-4 rounded transition-all hover:scale-110"
                     style={{
@@ -258,16 +300,23 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
                 )}
               </For>
             </div>
-            <span class="text-xs text-nebula-600">High</span>
+            <span class="text-nebula-600 text-xs">High</span>
           </div>
         </div>
 
         <Show when={isExpanded()}>
-          <div class={cn('mt-6 grid grid-cols-2 gap-4 transition-all duration-500', mounted() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4')}>
-            <div class="rounded-xl border border-white/[0.06] bg-void-800/30 p-4">
-              <div class="flex items-center gap-2 mb-3">
+          <div
+            class={cn(
+              'mt-6 grid grid-cols-2 gap-4 transition-all duration-500',
+              mounted() ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+            )}
+          >
+            <div class="bg-void-800/30 rounded-xl border border-white/[0.06] p-4">
+              <div class="mb-3 flex items-center gap-2">
                 <Calendar size={14} style={{ color: 'var(--color-electric-400)' }} />
-                <h4 class="text-xs font-bold uppercase tracking-wider text-nebula-500">Busiest Days</h4>
+                <h4 class="text-nebula-500 text-xs font-bold tracking-wider uppercase">
+                  Busiest Days
+                </h4>
               </div>
               <div class="space-y-2">
                 <For each={busyDays()}>
@@ -275,27 +324,37 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-2">
                         <span
-                          class="flex h-5 w-5 items-center justify-center rounded text-2xs font-black"
+                          class="text-2xs flex h-5 w-5 items-center justify-center rounded font-black"
                           style={{
-                            background: index() === 0 ? 'rgba(34, 211, 211, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                            color: index() === 0 ? 'var(--color-electric-400)' : 'var(--color-nebula-400)',
+                            background:
+                              index() === 0
+                                ? 'rgba(34, 211, 211, 0.2)'
+                                : 'rgba(255, 255, 255, 0.05)',
+                            color:
+                              index() === 0
+                                ? 'var(--color-electric-400)'
+                                : 'var(--color-nebula-400)',
                           }}
                         >
                           {index() + 1}
                         </span>
-                        <span class="text-sm font-medium text-nebula-200">{DAYS[item.day]}</span>
+                        <span class="text-nebula-200 text-sm font-medium">{DAYS[item.day]}</span>
                       </div>
-                      <span class="font-mono text-sm tabular-nums text-nebula-400">{item.total.toLocaleString()}</span>
+                      <span class="text-nebula-400 font-mono text-sm tabular-nums">
+                        {item.total.toLocaleString()}
+                      </span>
                     </div>
                   )}
                 </For>
               </div>
             </div>
 
-            <div class="rounded-xl border border-white/[0.06] bg-void-800/30 p-4">
-              <div class="flex items-center gap-2 mb-3">
+            <div class="bg-void-800/30 rounded-xl border border-white/[0.06] p-4">
+              <div class="mb-3 flex items-center gap-2">
                 <Clock size={14} style={{ color: 'var(--color-indigo-400)' }} />
-                <h4 class="text-xs font-bold uppercase tracking-wider text-nebula-500">Peak Hours</h4>
+                <h4 class="text-nebula-500 text-xs font-bold tracking-wider uppercase">
+                  Peak Hours
+                </h4>
               </div>
               <div class="space-y-2">
                 <For each={busyHours()}>
@@ -303,17 +362,23 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = (props) => {
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-2">
                         <span
-                          class="flex h-5 w-5 items-center justify-center rounded text-2xs font-black"
+                          class="text-2xs flex h-5 w-5 items-center justify-center rounded font-black"
                           style={{
-                            background: index() === 0 ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                            color: index() === 0 ? 'var(--color-indigo-400)' : 'var(--color-nebula-400)',
+                            background:
+                              index() === 0
+                                ? 'rgba(99, 102, 241, 0.2)'
+                                : 'rgba(255, 255, 255, 0.05)',
+                            color:
+                              index() === 0 ? 'var(--color-indigo-400)' : 'var(--color-nebula-400)',
                           }}
                         >
                           {index() + 1}
                         </span>
-                        <span class="text-sm font-medium text-nebula-200">{item.hour}:00</span>
+                        <span class="text-nebula-200 text-sm font-medium">{item.hour}:00</span>
                       </div>
-                      <span class="font-mono text-sm tabular-nums text-nebula-400">{item.total.toLocaleString()}</span>
+                      <span class="text-nebula-400 font-mono text-sm tabular-nums">
+                        {item.total.toLocaleString()}
+                      </span>
                     </div>
                   )}
                 </For>

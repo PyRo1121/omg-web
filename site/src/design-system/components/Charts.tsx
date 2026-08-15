@@ -67,13 +67,17 @@ const cellSizes = {
   lg: 'h-5 w-5',
 };
 
-export const Heatmap: Component<HeatmapProps> = (props) => {
+export const Heatmap: Component<HeatmapProps> = props => {
   const scale = () => colorScales[props.colorScale || 'indigo'];
   const size = () => cellSizes[props.cellSize || 'md'];
-  
+
   const maxValue = createMemo(() => Math.max(...props.data.map(d => d.value), 1));
-  const xCount = createMemo(() => props.xLabels?.length || Math.max(...props.data.map(d => d.x)) + 1);
-  const yCount = createMemo(() => props.yLabels?.length || Math.max(...props.data.map(d => d.y)) + 1);
+  const xCount = createMemo(
+    () => props.xLabels?.length || Math.max(...props.data.map(d => d.x)) + 1
+  );
+  const yCount = createMemo(
+    () => props.yLabels?.length || Math.max(...props.data.map(d => d.y)) + 1
+  );
 
   const getCellColor = (value: number) => {
     if (value === 0) return scale()[0];
@@ -90,11 +94,14 @@ export const Heatmap: Component<HeatmapProps> = (props) => {
   return (
     <div class={cn('space-y-2', props.class)}>
       <Show when={props.xLabels}>
-        <div class="flex pl-10 gap-1">
+        <div class="flex gap-1 pl-10">
           <For each={props.xLabels}>
             {(label, i) => (
               <Show when={i() % 3 === 0}>
-                <div class={cn('text-center text-2xs text-nebula-600', size())} style={{ width: size() }}>
+                <div
+                  class={cn('text-2xs text-nebula-600 text-center', size())}
+                  style={{ width: size() }}
+                >
                   {label}
                 </div>
               </Show>
@@ -102,13 +109,13 @@ export const Heatmap: Component<HeatmapProps> = (props) => {
           </For>
         </div>
       </Show>
-      
+
       <div class="flex flex-col gap-1">
         <For each={Array(yCount()).fill(0)}>
           {(_, y) => (
             <div class="flex items-center gap-1">
               <Show when={props.yLabels}>
-                <div class="w-8 text-right text-2xs text-nebula-600 pr-1">
+                <div class="text-2xs text-nebula-600 w-8 pr-1 text-right">
                   {props.yLabels![y()]}
                 </div>
               </Show>
@@ -118,8 +125,8 @@ export const Heatmap: Component<HeatmapProps> = (props) => {
                   return (
                     <div
                       class={cn(
-                        'rounded-sm transition-all cursor-pointer',
-                        'hover:scale-125 hover:z-10 hover:shadow-lg',
+                        'cursor-pointer rounded-sm transition-all',
+                        'hover:z-10 hover:scale-125 hover:shadow-lg',
                         size(),
                         getCellColor(value)
                       )}
@@ -134,12 +141,15 @@ export const Heatmap: Component<HeatmapProps> = (props) => {
       </div>
 
       <Show when={props.showLegend}>
-        <div class="flex items-center justify-end gap-2 text-2xs text-nebula-500 pt-2">
+        <div class="text-2xs text-nebula-500 flex items-center justify-end gap-2 pt-2">
           <span>Less</span>
           <div class="flex gap-0.5">
             <For each={scale()}>
-              {(color) => (
-                <div class={cn('rounded-sm', size(), color)} style={{ width: '12px', height: '12px' }} />
+              {color => (
+                <div
+                  class={cn('rounded-sm', size(), color)}
+                  style={{ width: '12px', height: '12px' }}
+                />
               )}
             </For>
           </div>
@@ -161,7 +171,7 @@ interface SparklineProps {
   class?: string;
 }
 
-export const Sparkline: Component<SparklineProps> = (props) => {
+export const Sparkline: Component<SparklineProps> = props => {
   const width = () => props.width || 120;
   const height = () => props.height || 32;
   const color = () => props.color || '#6366f1';
@@ -188,7 +198,9 @@ export const Sparkline: Component<SparklineProps> = (props) => {
     const pts = points();
     if (pts.length === 0) return '';
     let path = `M 0,${height()}`;
-    pts.forEach(p => { path += ` L ${p.x},${p.y}`; });
+    pts.forEach(p => {
+      path += ` L ${p.x},${p.y}`;
+    });
     path += ` L ${width()},${height()} Z`;
     return path;
   });
@@ -201,12 +213,18 @@ export const Sparkline: Component<SparklineProps> = (props) => {
       viewBox={`0 0 ${width()} ${height()}`}
     >
       <defs>
-        <linearGradient id={`sparkline-grad-${color().replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient
+          id={`sparkline-grad-${color().replace('#', '')}`}
+          x1="0%"
+          y1="0%"
+          x2="0%"
+          y2="100%"
+        >
           <stop offset="0%" stop-color={color()} stop-opacity="0.4" />
           <stop offset="100%" stop-color={color()} stop-opacity="0" />
         </linearGradient>
       </defs>
-      
+
       <Show when={props.showArea}>
         <path
           d={areaPath()}
@@ -214,7 +232,7 @@ export const Sparkline: Component<SparklineProps> = (props) => {
           class={props.animated ? 'animate-fade-up' : ''}
         />
       </Show>
-      
+
       <path
         d={linePath()}
         fill="none"
@@ -233,7 +251,7 @@ export const Sparkline: Component<SparklineProps> = (props) => {
               cy={point.y}
               r="3"
               fill={color()}
-              class="opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+              class="cursor-pointer opacity-0 transition-opacity hover:opacity-100"
             />
           )}
         </For>
@@ -255,7 +273,7 @@ interface ProgressRingProps {
   class?: string;
 }
 
-export const ProgressRing: Component<ProgressRingProps> = (props) => {
+export const ProgressRing: Component<ProgressRingProps> = props => {
   const size = () => props.size || 80;
   const strokeWidth = () => props.strokeWidth || 6;
   const max = () => props.max || 100;
@@ -289,7 +307,7 @@ export const ProgressRing: Component<ProgressRingProps> = (props) => {
           stroke-dasharray={`${circumference()}`}
           stroke-dashoffset={props.animated ? circumference() : offset()}
           class={cn(
-            'transition-all duration-1000 ease-smooth',
+            'ease-smooth transition-all duration-1000',
             props.animated && 'animate-gauge-fill'
           )}
           style={{
@@ -302,7 +320,10 @@ export const ProgressRing: Component<ProgressRingProps> = (props) => {
       <Show when={props.showValue || props.label}>
         <div class="absolute inset-0 flex flex-col items-center justify-center">
           <Show when={props.showValue}>
-            <span class="font-display font-black text-white tabular-nums" style={{ 'font-size': `${size() / 4}px` }}>
+            <span
+              class="font-display font-black text-white tabular-nums"
+              style={{ 'font-size': `${size() / 4}px` }}
+            >
               {Math.round(props.value)}
             </span>
           </Show>
@@ -331,7 +352,7 @@ interface BarChartProps {
   class?: string;
 }
 
-export const BarChart: Component<BarChartProps> = (props) => {
+export const BarChart: Component<BarChartProps> = props => {
   const height = () => props.height || 160;
   const maxValue = createMemo(() => Math.max(...props.data.map(d => d.value), 1));
 
@@ -347,24 +368,29 @@ export const BarChart: Component<BarChartProps> = (props) => {
                 <div class="group relative flex flex-1 flex-col items-center gap-2">
                   <div
                     class={cn(
-                      'w-full rounded-t-lg transition-all duration-700 ease-smooth',
+                      'ease-smooth w-full rounded-t-lg transition-all duration-700',
                       'group-hover:brightness-125'
                     )}
                     style={{
                       height: `${Math.max(barHeight, 4)}%`,
                       'min-height': '4px',
                       'background-color': item.color || '#6366f1',
-                      'box-shadow': item.value > 0 ? `0 0 20px -5px ${item.color || 'rgba(99,102,241,0.3)'}` : 'none',
+                      'box-shadow':
+                        item.value > 0
+                          ? `0 0 20px -5px ${item.color || 'rgba(99,102,241,0.3)'}`
+                          : 'none',
                       'animation-delay': props.animated ? `${i() * 50}ms` : '0ms',
                     }}
                   />
                   <Show when={props.showLabels}>
-                    <span class="w-full truncate text-center text-2xs font-bold uppercase tracking-widest text-nebula-600 group-hover:text-nebula-400 transition-colors">
+                    <span class="text-2xs text-nebula-600 group-hover:text-nebula-400 w-full truncate text-center font-bold tracking-widest uppercase transition-colors">
                       {item.label}
                     </span>
                   </Show>
-                  <div class="pointer-events-none absolute bottom-full left-1/2 z-30 mb-3 -translate-x-1/2 scale-95 rounded-xl border border-white/10 bg-void-900/95 p-2 text-xs whitespace-nowrap text-white opacity-0 shadow-xl backdrop-blur-md transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
-                    <div class="text-2xs font-bold uppercase tracking-widest text-nebula-500">{item.label}</div>
+                  <div class="bg-void-900/95 pointer-events-none absolute bottom-full left-1/2 z-30 mb-3 -translate-x-1/2 scale-95 rounded-xl border border-white/10 p-2 text-xs whitespace-nowrap text-white opacity-0 shadow-xl backdrop-blur-md transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
+                    <div class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
+                      {item.label}
+                    </div>
                     <div class="text-sm font-black tabular-nums">{item.value.toLocaleString()}</div>
                   </div>
                 </div>
@@ -382,14 +408,16 @@ export const BarChart: Component<BarChartProps> = (props) => {
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-nebula-400 font-medium">{item.label}</span>
                   <Show when={props.showValues}>
-                    <span class="text-white font-bold tabular-nums">{item.value.toLocaleString()}</span>
+                    <span class="font-bold text-white tabular-nums">
+                      {item.value.toLocaleString()}
+                    </span>
                   </Show>
                 </div>
               </Show>
-              <div class="h-2 rounded-full bg-void-700 overflow-hidden">
+              <div class="bg-void-700 h-2 overflow-hidden rounded-full">
                 <div
                   class={cn(
-                    'h-full rounded-full transition-all duration-700 ease-smooth',
+                    'ease-smooth h-full rounded-full transition-all duration-700',
                     props.animated && 'animate-[score-fill_1s_ease-out_forwards]'
                   )}
                   style={{
@@ -424,7 +452,7 @@ interface DonutChartProps {
   class?: string;
 }
 
-export const DonutChart: Component<DonutChartProps> = (props) => {
+export const DonutChart: Component<DonutChartProps> = props => {
   const size = () => props.size || 120;
   const thickness = () => props.thickness || 20;
   const radius = () => (size() - thickness()) / 2;
@@ -457,7 +485,7 @@ export const DonutChart: Component<DonutChartProps> = (props) => {
             stroke-width={thickness()}
           />
           <For each={segments()}>
-            {(segment) => (
+            {segment => (
               <circle
                 cx={size() / 2}
                 cy={size() / 2}
@@ -469,7 +497,11 @@ export const DonutChart: Component<DonutChartProps> = (props) => {
                 stroke-dashoffset={segment.strokeDashoffset}
                 stroke-linecap="round"
                 class="cursor-pointer transition-all duration-300"
-                style={hoveredIndex() === segment.index ? { filter: `drop-shadow(0 0 8px ${segment.color})` } : {}}
+                style={
+                  hoveredIndex() === segment.index
+                    ? { filter: `drop-shadow(0 0 8px ${segment.color})` }
+                    : {}
+                }
                 onMouseEnter={() => setHoveredIndex(segment.index)}
                 onMouseLeave={() => setHoveredIndex(null)}
               />
@@ -477,27 +509,27 @@ export const DonutChart: Component<DonutChartProps> = (props) => {
           </For>
         </svg>
         <div class="absolute inset-0 flex flex-col items-center justify-center">
-          <div class="text-2xl font-display font-black text-white">
+          <div class="font-display text-2xl font-black text-white">
             {props.centerValue !== undefined ? props.centerValue : total()}
           </div>
-          <div class="text-xs text-nebula-500">{props.centerLabel || 'Total'}</div>
+          <div class="text-nebula-500 text-xs">{props.centerLabel || 'Total'}</div>
         </div>
       </div>
-      
+
       <Show when={props.showLegend}>
         <div class="flex flex-col gap-2">
           <For each={props.data}>
             {(item, index) => (
               <div
                 class={cn(
-                  'flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all cursor-pointer',
+                  'flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-all',
                   hoveredIndex() === index() && 'bg-void-800'
                 )}
                 onMouseEnter={() => setHoveredIndex(index())}
                 onMouseLeave={() => setHoveredIndex(null)}
               >
                 <div class="h-3 w-3 rounded-full" style={{ background: item.color }} />
-                <span class="text-sm text-nebula-400">{item.label}</span>
+                <span class="text-nebula-400 text-sm">{item.label}</span>
                 <span class="ml-auto text-sm font-bold text-white tabular-nums">{item.value}</span>
               </div>
             )}

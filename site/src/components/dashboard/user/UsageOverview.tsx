@@ -137,10 +137,10 @@ export const UsageOverview: Component = () => {
       </Show>
 
       <Show when={usage()}>
-        {(data) => (
+        {data => (
           <>
             {/* Summary Stats */}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 title="Commands This Month"
                 value={data().totalCommandsThisMonth.toLocaleString()}
@@ -176,19 +176,23 @@ export const UsageOverview: Component = () => {
 
             {/* Usage Trend Sparkline */}
             <GlassCard class="p-6">
-              <div class="flex items-center justify-between mb-4">
+              <div class="mb-4 flex items-center justify-between">
                 <div>
                   <h3 class="text-lg font-bold text-white">Daily Activity</h3>
                   <p class="text-sm text-slate-400">Command execution over the last 30 days</p>
                 </div>
                 <div class="flex items-center gap-2">
-                  <Show when={data().commandsTrend >= 0} fallback={
-                    <TrendingDown size={18} class="text-rose-400" />
-                  }>
+                  <Show
+                    when={data().commandsTrend >= 0}
+                    fallback={<TrendingDown size={18} class="text-rose-400" />}
+                  >
                     <TrendingUp size={18} class="text-emerald-400" />
                   </Show>
-                  <span class={`text-sm font-bold ${data().commandsTrend >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {data().commandsTrend >= 0 ? '+' : ''}{data().commandsTrend}% vs last week
+                  <span
+                    class={`text-sm font-bold ${data().commandsTrend >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                  >
+                    {data().commandsTrend >= 0 ? '+' : ''}
+                    {data().commandsTrend}% vs last week
                   </span>
                 </div>
               </div>
@@ -202,21 +206,22 @@ export const UsageOverview: Component = () => {
               />
             </GlassCard>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* Command Distribution */}
               <GlassCard class="p-6">
-                <h3 class="text-lg font-bold text-white mb-4">Most Used Commands</h3>
-                <Show when={data().commandDistribution.length > 0} fallback={
-                  <p class="text-slate-400 text-sm">No command data available yet.</p>
-                }>
+                <h3 class="mb-4 text-lg font-bold text-white">Most Used Commands</h3>
+                <Show
+                  when={data().commandDistribution.length > 0}
+                  fallback={<p class="text-sm text-slate-400">No command data available yet.</p>}
+                >
                   <div class="space-y-3">
                     <For each={data().commandDistribution.slice(0, 6)}>
-                      {(cmd) => {
+                      {cmd => {
                         const colors = getCommandColor(cmd.command);
                         const Icon = getCommandIcon(cmd.command);
                         return (
                           <div class="rounded-lg border border-white/10 bg-white/5 p-3">
-                            <div class="flex items-center justify-between mb-2">
+                            <div class="mb-2 flex items-center justify-between">
                               <div class="flex items-center gap-2">
                                 <div class={`rounded-lg ${colors.bg} p-1.5`}>
                                   <Icon size={14} class={colors.text} />
@@ -229,12 +234,10 @@ export const UsageOverview: Component = () => {
                                 <span class={`text-sm font-bold ${colors.text}`}>
                                   {cmd.count.toLocaleString()}
                                 </span>
-                                <span class="text-xs text-slate-500 ml-1">
-                                  ({cmd.percentage}%)
-                                </span>
+                                <span class="ml-1 text-xs text-slate-500">({cmd.percentage}%)</span>
                               </div>
                             </div>
-                            <div class="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div class="h-1.5 overflow-hidden rounded-full bg-white/5">
                               <div
                                 class={`h-full rounded-full ${colors.bar} transition-all duration-500`}
                                 style={{ width: `${cmd.percentage}%` }}
@@ -250,13 +253,13 @@ export const UsageOverview: Component = () => {
 
               {/* Feature Adoption Badges */}
               <GlassCard class="p-6">
-                <h3 class="text-lg font-bold text-white mb-4">Feature Adoption</h3>
-                <p class="text-sm text-slate-400 mb-4">
+                <h3 class="mb-4 text-lg font-bold text-white">Feature Adoption</h3>
+                <p class="mb-4 text-sm text-slate-400">
                   Unlock the full power of OMG with these advanced features
                 </p>
                 <div class="grid grid-cols-2 gap-3">
                   <For each={data().featureAdoption}>
-                    {(feature) => {
+                    {feature => {
                       const Icon = getFeatureIcon(feature.feature);
                       return (
                         <div
@@ -266,7 +269,7 @@ export const UsageOverview: Component = () => {
                               : 'border-white/10 bg-white/5 opacity-60'
                           }`}
                         >
-                          <div class="flex items-center gap-2 mb-2">
+                          <div class="mb-2 flex items-center gap-2">
                             <Icon
                               size={18}
                               class={feature.adopted ? 'text-emerald-400' : 'text-slate-500'}

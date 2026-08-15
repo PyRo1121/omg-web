@@ -1,7 +1,7 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, gte, desc, eq } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import { APIEvent } from '@solidjs/start/server';
+import { sql, gte, desc, eq } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
 
 export async function GET(event: APIEvent) {
   try {
@@ -11,9 +11,9 @@ export async function GET(event: APIEvent) {
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const format = url.searchParams.get("format") || "csv";
-    const includeHistory = url.searchParams.get("includeHistory") === "true";
-    const historyDays = parseInt(url.searchParams.get("historyDays") || "30");
+    const format = url.searchParams.get('format') || 'csv';
+    const includeHistory = url.searchParams.get('includeHistory') === 'true';
+    const historyDays = parseInt(url.searchParams.get('historyDays') || '30');
 
     // Get latest health scores for all users with their info
     const healthData = await db
@@ -49,20 +49,20 @@ export async function GET(event: APIEvent) {
 
     // Calculate risk bucket
     const addRiskBucket = (score: number): string => {
-      if (score >= 80) return "excellent";
-      if (score >= 60) return "good";
-      if (score >= 40) return "fair";
-      if (score >= 20) return "poor";
-      return "critical";
+      if (score >= 80) return 'excellent';
+      if (score >= 60) return 'good';
+      if (score >= 40) return 'fair';
+      if (score >= 20) return 'poor';
+      return 'critical';
     };
 
-    if (format === "json") {
+    if (format === 'json') {
       const exportData = healthData.map(row => ({
         userId: row.userId,
         email: row.email,
         name: row.name,
-        tier: row.tier || "free",
-        status: row.status || "active",
+        tier: row.tier || 'free',
+        status: row.status || 'active',
         healthScores: {
           overall: row.overallScore,
           engagement: row.engagementScore,
@@ -87,19 +87,19 @@ export async function GET(event: APIEvent) {
           exportedAt: new Date().toISOString(),
           recordCount: exportData.length,
           summary: {
-            excellent: exportData.filter(d => d.riskBucket === "excellent").length,
-            good: exportData.filter(d => d.riskBucket === "good").length,
-            fair: exportData.filter(d => d.riskBucket === "fair").length,
-            poor: exportData.filter(d => d.riskBucket === "poor").length,
-            critical: exportData.filter(d => d.riskBucket === "critical").length,
+            excellent: exportData.filter(d => d.riskBucket === 'excellent').length,
+            good: exportData.filter(d => d.riskBucket === 'good').length,
+            fair: exportData.filter(d => d.riskBucket === 'fair').length,
+            poor: exportData.filter(d => d.riskBucket === 'poor').length,
+            critical: exportData.filter(d => d.riskBucket === 'critical').length,
           },
           data: exportData,
         }),
         {
           status: 200,
           headers: {
-            "Content-Type": "application/json",
-            "Content-Disposition": `attachment; filename="health-report-${new Date().toISOString().split('T')[0]}.json"`,
+            'Content-Type': 'application/json',
+            'Content-Disposition': `attachment; filename="health-report-${new Date().toISOString().split('T')[0]}.json"`,
           },
         }
       );
@@ -107,33 +107,33 @@ export async function GET(event: APIEvent) {
 
     // Generate CSV
     const headers = [
-      "User ID",
-      "Email",
-      "Name",
-      "Tier",
-      "Status",
-      "Overall Score",
-      "Engagement Score",
-      "Activation Score",
-      "Growth Score",
-      "Risk Score",
-      "Risk Bucket",
-      "Lifecycle Stage",
-      "Churn Probability",
-      "Upgrade Probability",
-      "Command Velocity (7d)",
-      "Recorded At",
+      'User ID',
+      'Email',
+      'Name',
+      'Tier',
+      'Status',
+      'Overall Score',
+      'Engagement Score',
+      'Activation Score',
+      'Growth Score',
+      'Risk Score',
+      'Risk Bucket',
+      'Lifecycle Stage',
+      'Churn Probability',
+      'Upgrade Probability',
+      'Command Velocity (7d)',
+      'Recorded At',
     ];
 
-    const csvRows = [headers.join(",")];
+    const csvRows = [headers.join(',')];
 
     for (const row of healthData) {
       const values = [
         row.userId,
         escapeCSV(row.email),
-        escapeCSV(row.name || ""),
-        row.tier || "free",
-        row.status || "active",
+        escapeCSV(row.name || ''),
+        row.tier || 'free',
+        row.status || 'active',
         row.overallScore,
         row.engagementScore,
         row.activationScore,
@@ -146,35 +146,35 @@ export async function GET(event: APIEvent) {
         row.commandVelocity7d,
         new Date(row.recordedAt).toISOString(),
       ];
-      csvRows.push(values.join(","));
+      csvRows.push(values.join(','));
     }
 
-    const csv = csvRows.join("\n");
+    const csv = csvRows.join('\n');
 
     return new Response(csv, {
       status: 200,
       headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="health-report-${new Date().toISOString().split('T')[0]}.csv"`,
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="health-report-${new Date().toISOString().split('T')[0]}.csv"`,
       },
     });
   } catch (error) {
-    console.error("[Admin Export Health Report] Error:", error);
+    console.error('[Admin Export Health Report] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }
 }
 
 function escapeCSV(value: string): string {
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;

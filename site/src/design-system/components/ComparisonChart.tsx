@@ -1,13 +1,7 @@
 import { Component, For, Show, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Minus,
-  Calendar,
-  ArrowRight
-} from 'lucide-solid';
+import { TrendingUp, TrendingDown, Minus, Calendar, ArrowRight } from 'lucide-solid';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -66,24 +60,26 @@ const Sparkline: Component<{
   dashed?: boolean;
   width?: number;
   height?: number;
-}> = (props) => {
+}> = props => {
   const width = () => props.width || 60;
   const height = () => props.height || 24;
 
   const path = createMemo(() => {
     const data = props.data;
     if (data.length < 2) return '';
-    
+
     const max = Math.max(...data);
     const min = Math.min(...data);
     const range = max - min || 1;
     const padding = 2;
 
-    return data.map((value, i) => {
-      const x = padding + (i / (data.length - 1)) * (width() - padding * 2);
-      const y = padding + (1 - (value - min) / range) * (height() - padding * 2);
-      return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
-    }).join(' ');
+    return data
+      .map((value, i) => {
+        const x = padding + (i / (data.length - 1)) * (width() - padding * 2);
+        const y = padding + (1 - (value - min) / range) * (height() - padding * 2);
+        return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+      })
+      .join(' ');
   });
 
   return (
@@ -104,17 +100,17 @@ const Sparkline: Component<{
 const PeriodSelector: Component<{
   value: ComparisonPeriod;
   onChange: (period: ComparisonPeriod) => void;
-}> = (props) => {
+}> = props => {
   const periods: ComparisonPeriod[] = ['week', 'month', 'quarter'];
 
   return (
-    <div class="flex items-center gap-1 p-1 rounded-xl bg-void-800 border border-white/5">
+    <div class="bg-void-800 flex items-center gap-1 rounded-xl border border-white/5 p-1">
       <For each={periods}>
-        {(period) => (
+        {period => (
           <button
             type="button"
             class={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest',
+              'rounded-lg px-3 py-1.5 text-xs font-bold tracking-widest uppercase',
               'transition-all duration-300',
               props.value === period
                 ? 'bg-indigo-500/20 text-indigo-300'
@@ -135,7 +131,7 @@ const ComparisonBars: Component<{
   height: number;
   prefix?: string;
   unit?: string;
-}> = (props) => {
+}> = props => {
   const maxValue = createMemo(() => {
     const allValues = [...props.data.current, ...props.data.previous].map(d => d.value);
     return Math.max(...allValues, 1);
@@ -152,8 +148,8 @@ const ComparisonBars: Component<{
           const previousHeight = () => (previousPoint()?.value / maxValue()) * chartHeight();
 
           return (
-            <div class="flex-1 flex flex-col items-center gap-1">
-              <div class="flex items-end gap-0.5 flex-1">
+            <div class="flex flex-1 flex-col items-center gap-1">
+              <div class="flex flex-1 items-end gap-0.5">
                 <div
                   class={cn(
                     'flex-1 rounded-t-sm transition-all duration-500',
@@ -170,7 +166,7 @@ const ComparisonBars: Component<{
                 />
               </div>
               <Show when={point.label}>
-                <span class="text-2xs font-mono text-nebula-600 truncate max-w-full">
+                <span class="text-2xs text-nebula-600 max-w-full truncate font-mono">
                   {point.label}
                 </span>
               </Show>
@@ -190,31 +186,46 @@ const DualAxisChart: Component<{
   primaryUnit?: string;
   secondaryPrefix?: string;
   secondaryUnit?: string;
-}> = (props) => {
+}> = props => {
   const chartHeight = () => props.height - 40;
   const chartWidth = 400;
 
-  const primaryMax = createMemo(() => 
-    Math.max(...props.primaryData.current.map(d => d.value), ...props.primaryData.previous.map(d => d.value), 1)
+  const primaryMax = createMemo(() =>
+    Math.max(
+      ...props.primaryData.current.map(d => d.value),
+      ...props.primaryData.previous.map(d => d.value),
+      1
+    )
   );
-  
+
   const secondaryMax = createMemo(() =>
-    Math.max(...props.secondaryData.current.map(d => d.value), ...props.secondaryData.previous.map(d => d.value), 1)
+    Math.max(
+      ...props.secondaryData.current.map(d => d.value),
+      ...props.secondaryData.previous.map(d => d.value),
+      1
+    )
   );
 
   const createPath = (data: DataPoint[], max: number): string => {
     if (data.length < 2) return '';
     const padding = 20;
-    return data.map((point, i) => {
-      const x = padding + (i / (data.length - 1)) * (chartWidth - padding * 2);
-      const y = padding + (1 - point.value / max) * (chartHeight() - padding * 2);
-      return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
-    }).join(' ');
+    return data
+      .map((point, i) => {
+        const x = padding + (i / (data.length - 1)) * (chartWidth - padding * 2);
+        const y = padding + (1 - point.value / max) * (chartHeight() - padding * 2);
+        return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+      })
+      .join(' ');
   };
 
   return (
     <div style={{ height: `${props.height}px` }}>
-      <svg width="100%" height={chartHeight()} viewBox={`0 0 ${chartWidth} ${chartHeight()}`} preserveAspectRatio="none">
+      <svg
+        width="100%"
+        height={chartHeight()}
+        viewBox={`0 0 ${chartWidth} ${chartHeight()}`}
+        preserveAspectRatio="none"
+      >
         <defs>
           <linearGradient id="comparison-primary-gradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="var(--comparison-current)" stop-opacity="0.3" />
@@ -265,24 +276,31 @@ const DualAxisChart: Component<{
         />
       </svg>
 
-      <div class="flex items-center justify-between mt-2 px-2">
-        <div class="flex items-center gap-4 text-2xs">
+      <div class="mt-2 flex items-center justify-between px-2">
+        <div class="text-2xs flex items-center gap-4">
           <div class="flex items-center gap-2">
-            <div class="w-4 h-0.5 rounded bg-comparison-current" />
+            <div class="bg-comparison-current h-0.5 w-4 rounded" />
             <span class="text-nebula-400">Primary (Current)</span>
           </div>
           <div class="flex items-center gap-2">
-            <div class="w-4 h-0.5 rounded bg-comparison-baseline opacity-50" style={{ 'border-style': 'dashed', 'border-width': '1px 0 0 0', 'border-color': 'var(--comparison-baseline)' }} />
+            <div
+              class="bg-comparison-baseline h-0.5 w-4 rounded opacity-50"
+              style={{
+                'border-style': 'dashed',
+                'border-width': '1px 0 0 0',
+                'border-color': 'var(--comparison-baseline)',
+              }}
+            />
             <span class="text-nebula-500">Primary (Previous)</span>
           </div>
         </div>
-        <div class="flex items-center gap-4 text-2xs">
+        <div class="text-2xs flex items-center gap-4">
           <div class="flex items-center gap-2">
-            <div class="w-4 h-0.5 rounded bg-photon-500" />
+            <div class="bg-photon-500 h-0.5 w-4 rounded" />
             <span class="text-nebula-400">Secondary (Current)</span>
           </div>
           <div class="flex items-center gap-2">
-            <div class="w-4 h-0.5 rounded bg-photon-400 opacity-50" />
+            <div class="bg-photon-400 h-0.5 w-4 rounded opacity-50" />
             <span class="text-nebula-500">Secondary (Previous)</span>
           </div>
         </div>
@@ -291,16 +309,12 @@ const DualAxisChart: Component<{
   );
 };
 
-export const ComparisonChart: Component<ComparisonChartProps> = (props) => {
+export const ComparisonChart: Component<ComparisonChartProps> = props => {
   const height = () => props.height || 200;
 
-  const currentTotal = createMemo(() => 
-    props.data.current.reduce((sum, d) => sum + d.value, 0)
-  );
-  
-  const previousTotal = createMemo(() =>
-    props.data.previous.reduce((sum, d) => sum + d.value, 0)
-  );
+  const currentTotal = createMemo(() => props.data.current.reduce((sum, d) => sum + d.value, 0));
+
+  const previousTotal = createMemo(() => props.data.previous.reduce((sum, d) => sum + d.value, 0));
 
   const percentageChange = createMemo(() => {
     if (previousTotal() === 0) return currentTotal() > 0 ? 100 : 0;
@@ -313,40 +327,31 @@ export const ComparisonChart: Component<ComparisonChartProps> = (props) => {
   return (
     <div
       class={cn(
-        'rounded-3xl border border-white/5 bg-void-850',
+        'bg-void-850 rounded-3xl border border-white/5',
         'transition-all duration-300',
         'hover:border-white/10',
         props.class
       )}
     >
       <div class="p-6">
-        <div class="flex items-start justify-between mb-6">
+        <div class="mb-6 flex items-start justify-between">
           <div>
-            <h3 class="font-display font-bold text-white text-lg">
-              {props.title}
-            </h3>
-            <div class="flex items-center gap-2 mt-2">
+            <h3 class="font-display text-lg font-bold text-white">{props.title}</h3>
+            <div class="mt-2 flex items-center gap-2">
               <Calendar size={14} class="text-nebula-500" />
-              <span class="text-sm text-nebula-400">
-                {PERIOD_LABELS[props.period].previous}
-              </span>
+              <span class="text-nebula-400 text-sm">{PERIOD_LABELS[props.period].previous}</span>
               <ArrowRight size={12} class="text-nebula-600" />
-              <span class="text-sm text-nebula-300">
-                {PERIOD_LABELS[props.period].current}
-              </span>
+              <span class="text-nebula-300 text-sm">{PERIOD_LABELS[props.period].current}</span>
             </div>
           </div>
           <Show when={props.onPeriodChange}>
-            <PeriodSelector
-              value={props.period}
-              onChange={props.onPeriodChange!}
-            />
+            <PeriodSelector value={props.period} onChange={props.onPeriodChange!} />
           </Show>
         </div>
 
-        <div class="grid grid-cols-3 gap-6 mb-6">
+        <div class="mb-6 grid grid-cols-3 gap-6">
           <div>
-            <span class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+            <span class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
               {PERIOD_LABELS[props.period].current}
             </span>
             <div class="mt-1">
@@ -367,11 +372,11 @@ export const ComparisonChart: Component<ComparisonChartProps> = (props) => {
           </div>
 
           <div>
-            <span class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+            <span class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
               {PERIOD_LABELS[props.period].previous}
             </span>
             <div class="mt-1">
-              <span class="font-mono text-2xl font-black text-nebula-400 tabular-nums">
+              <span class="text-nebula-400 font-mono text-2xl font-black tabular-nums">
                 {formatValue(previousTotal(), props.prefix, props.unit)}
               </span>
             </div>
@@ -389,9 +394,7 @@ export const ComparisonChart: Component<ComparisonChartProps> = (props) => {
           </div>
 
           <div>
-            <span class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
-              Change
-            </span>
+            <span class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Change</span>
             <div class="mt-1 flex items-center gap-2">
               <span
                 class={cn(
@@ -401,7 +404,8 @@ export const ComparisonChart: Component<ComparisonChartProps> = (props) => {
                   isNeutral() && 'text-nebula-400'
                 )}
               >
-                {isPositive() ? '+' : ''}{percentageChange().toFixed(1)}%
+                {isPositive() ? '+' : ''}
+                {percentageChange().toFixed(1)}%
               </span>
               <Show when={isPositive()}>
                 <TrendingUp size={20} class="text-comparison-delta-positive" />
@@ -413,13 +417,14 @@ export const ComparisonChart: Component<ComparisonChartProps> = (props) => {
                 <Minus size={20} class="text-nebula-500" />
               </Show>
             </div>
-            <div class="mt-1 text-sm text-nebula-500">
-              {isPositive() ? '+' : ''}{formatValue(currentTotal() - previousTotal(), props.prefix, props.unit)}
+            <div class="text-nebula-500 mt-1 text-sm">
+              {isPositive() ? '+' : ''}
+              {formatValue(currentTotal() - previousTotal(), props.prefix, props.unit)}
             </div>
           </div>
         </div>
 
-        <Show 
+        <Show
           when={props.dualAxis && props.secondaryData}
           fallback={
             <ComparisonBars
@@ -442,15 +447,15 @@ export const ComparisonChart: Component<ComparisonChartProps> = (props) => {
         </Show>
       </div>
 
-      <div class="px-6 py-4 border-t border-white/5 bg-void-900/50 rounded-b-3xl">
+      <div class="bg-void-900/50 rounded-b-3xl border-t border-white/5 px-6 py-4">
         <div class="flex items-center justify-between text-sm">
           <div class="flex items-center gap-4">
             <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-sm bg-comparison-current" />
+              <div class="bg-comparison-current h-3 w-3 rounded-sm" />
               <span class="text-nebula-400">{PERIOD_LABELS[props.period].current}</span>
             </div>
             <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-sm bg-comparison-previous opacity-50" />
+              <div class="bg-comparison-previous h-3 w-3 rounded-sm opacity-50" />
               <span class="text-nebula-500">{PERIOD_LABELS[props.period].previous}</span>
             </div>
           </div>

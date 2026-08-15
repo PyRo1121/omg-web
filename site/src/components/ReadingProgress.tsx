@@ -1,4 +1,4 @@
-import { createSignal, onMount, onCleanup } from "solid-js";
+import { createSignal, onMount, onCleanup } from 'solid-js';
 
 interface ReadingProgressProps {
   /** Optional CSS selector for the element to track (defaults to document) */
@@ -31,9 +31,7 @@ export function ReadingProgress(props: ReadingProgressProps) {
     }
 
     scrollTop = window.scrollY || document.documentElement.scrollTop;
-    scrollHeight =
-      document.documentElement.scrollHeight -
-      document.documentElement.clientHeight;
+    scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
 
     if (scrollHeight > 0) {
       setProgress(Math.min(100, Math.max(0, (scrollTop / scrollHeight) * 100)));
@@ -42,20 +40,20 @@ export function ReadingProgress(props: ReadingProgressProps) {
 
   onMount(() => {
     calculateProgress();
-    window.addEventListener("scroll", calculateProgress, { passive: true });
-    window.addEventListener("resize", calculateProgress, { passive: true });
+    window.addEventListener('scroll', calculateProgress, { passive: true });
+    window.addEventListener('resize', calculateProgress, { passive: true });
   });
 
   onCleanup(() => {
-    window.removeEventListener("scroll", calculateProgress);
-    window.removeEventListener("resize", calculateProgress);
+    window.removeEventListener('scroll', calculateProgress);
+    window.removeEventListener('resize', calculateProgress);
   });
 
   const barHeight = () => props.height ?? 2;
 
   return (
     <div
-      class="fixed left-0 right-0 top-0 z-[60] overflow-hidden"
+      class="fixed top-0 right-0 left-0 z-[60] overflow-hidden"
       style={{ height: `${barHeight()}px` }}
       role="progressbar"
       aria-valuenow={Math.round(progress())}

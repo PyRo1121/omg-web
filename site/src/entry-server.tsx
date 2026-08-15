@@ -1,4 +1,4 @@
-import { createHandler, StartServer } from "@solidjs/start/server";
+import { createHandler, StartServer } from '@solidjs/start/server';
 
 export default createHandler(() => (
   <StartServer
@@ -11,10 +11,10 @@ export default createHandler(() => (
           <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
           <link rel="manifest" href="/site.webmanifest" />
           <meta name="theme-color" content="#0a0a0a" />
-          
+
           {/* Preconnects */}
           <link rel="preconnect" href="https://api.pyro1121.com" />
-          
+
           {/* Structured Data */}
           <script type="application/ld+json">{`
             {
@@ -37,7 +37,7 @@ export default createHandler(() => (
               }
             }
           `}</script>
-          
+
           {assets}
         </head>
         <body class="bg-[#0a0a0a] text-white antialiased">

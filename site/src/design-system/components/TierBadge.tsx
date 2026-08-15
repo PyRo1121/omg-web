@@ -19,16 +19,19 @@ interface TierBadgeProps {
   class?: string;
 }
 
-const tierConfig: Record<Tier, {
-  label: string;
-  icon: typeof Crown;
-  color: string;
-  bg: string;
-  border: string;
-  gradient: string;
-  glow: string;
-  ringColor: string;
-}> = {
+const tierConfig: Record<
+  Tier,
+  {
+    label: string;
+    icon: typeof Crown;
+    color: string;
+    bg: string;
+    border: string;
+    gradient: string;
+    glow: string;
+    ringColor: string;
+  }
+> = {
   free: {
     label: 'Free',
     icon: Sparkles,
@@ -89,7 +92,7 @@ const sizeConfig = {
   },
 };
 
-export const TierBadge: Component<TierBadgeProps> = (props) => {
+export const TierBadge: Component<TierBadgeProps> = props => {
   const config = createMemo(() => tierConfig[props.tier]);
   const size = createMemo(() => sizeConfig[props.size || 'md']);
   const showIcon = () => props.showIcon !== false;
@@ -111,14 +114,14 @@ export const TierBadge: Component<TierBadgeProps> = (props) => {
         )}
       >
         <div class="flex items-center gap-3">
-          <div class={cn('p-2 rounded-xl', config().bg)}>
+          <div class={cn('rounded-xl p-2', config().bg)}>
             <IconComponent size={size().icon + 4} class={config().color} />
           </div>
           <div>
-            <p class={cn('font-black uppercase tracking-wider', config().color)}>
+            <p class={cn('font-black tracking-wider uppercase', config().color)}>
               {config().label}
             </p>
-            <p class="text-xs text-nebula-500 font-medium">Subscription Tier</p>
+            <p class="text-nebula-500 text-xs font-medium">Subscription Tier</p>
           </div>
         </div>
       </div>
@@ -129,7 +132,7 @@ export const TierBadge: Component<TierBadgeProps> = (props) => {
     return (
       <div
         class={cn(
-          'inline-flex items-center rounded-lg border font-bold uppercase tracking-wider transition-all',
+          'inline-flex items-center rounded-lg border font-bold tracking-wider uppercase transition-all',
           config().bg,
           config().border,
           config().color,
@@ -152,7 +155,7 @@ export const TierBadge: Component<TierBadgeProps> = (props) => {
   return (
     <div
       class={cn(
-        'inline-flex items-center rounded-full border font-black uppercase tracking-wider transition-all',
+        'inline-flex items-center rounded-full border font-black tracking-wider uppercase transition-all',
         config().bg,
         config().border,
         config().color,
@@ -180,9 +183,9 @@ interface TierComparisonProps {
 
 const tierOrder: Tier[] = ['free', 'pro', 'team', 'enterprise'];
 
-export const TierComparison: Component<TierComparisonProps> = (props) => {
+export const TierComparison: Component<TierComparisonProps> = props => {
   const currentIndex = createMemo(() => tierOrder.indexOf(props.currentTier));
-  const _recommendedIndex = createMemo(() => 
+  const _recommendedIndex = createMemo(() =>
     props.recommendedTier ? tierOrder.indexOf(props.recommendedTier) : -1
   );
 
@@ -231,10 +234,10 @@ interface TierSelectorProps {
   class?: string;
 }
 
-export const TierSelector: Component<TierSelectorProps> = (props) => {
+export const TierSelector: Component<TierSelectorProps> = props => {
   return (
     <div class={cn('grid grid-cols-4 gap-3', props.class)}>
-      {tierOrder.map((tier) => {
+      {tierOrder.map(tier => {
         const config = tierConfig[tier];
         const isSelected = tier === props.value;
         const isDisabled = props.disabledTiers?.includes(tier);
@@ -245,20 +248,22 @@ export const TierSelector: Component<TierSelectorProps> = (props) => {
             onClick={() => !isDisabled && props.onChange(tier)}
             disabled={isDisabled}
             class={cn(
-              'rounded-2xl border p-4 transition-all text-left',
+              'rounded-2xl border p-4 text-left transition-all',
               isSelected
                 ? cn('bg-gradient-to-br', config.gradient, config.border, config.glow)
                 : 'bg-void-850 border-void-700 hover:border-void-600',
-              isDisabled && 'opacity-50 cursor-not-allowed'
+              isDisabled && 'cursor-not-allowed opacity-50'
             )}
           >
-            <div class={cn('p-2 rounded-xl w-fit mb-3', config.bg)}>
+            <div class={cn('mb-3 w-fit rounded-xl p-2', config.bg)}>
               <IconComponent size={18} class={isSelected ? config.color : 'text-nebula-500'} />
             </div>
-            <p class={cn(
-              'font-bold uppercase tracking-wider',
-              isSelected ? config.color : 'text-nebula-400'
-            )}>
+            <p
+              class={cn(
+                'font-bold tracking-wider uppercase',
+                isSelected ? config.color : 'text-nebula-400'
+              )}
+            >
               {config.label}
             </p>
           </button>

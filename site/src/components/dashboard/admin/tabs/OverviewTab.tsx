@@ -1,8 +1,5 @@
 import { Component } from 'solid-js';
-import {
-  ExecutiveKPIDashboard,
-  RealTimeCommandCenter,
-} from '../../premium';
+import { ExecutiveKPIDashboard, RealTimeCommandCenter } from '../../premium';
 import type {
   ExecutiveKPI,
   AdvancedMetrics,
@@ -21,7 +18,7 @@ interface OverviewTabProps {
   onRefresh: () => void;
 }
 
-export const OverviewTab: Component<OverviewTabProps> = (props) => {
+export const OverviewTab: Component<OverviewTabProps> = props => {
   return (
     <div class="space-y-8">
       <ExecutiveKPIDashboard

@@ -1,14 +1,14 @@
 import { Component, Show, For, createMemo, createSignal, onMount } from 'solid-js';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  Calendar, 
-  CreditCard, 
-  Users, 
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  CreditCard,
+  Users,
   Sparkles,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
 } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -75,12 +75,25 @@ function formatCurrency(value: number): string {
 function formatMonth(monthStr: string): string {
   const parts = monthStr.split('-');
   if (parts.length < 2) return monthStr;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   const monthIndex = parseInt(parts[1], 10) - 1;
   return months[monthIndex] || monthStr;
 }
 
-export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
+export const RevenueDashboard: Component<RevenueDashboardProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [hoveredBar, setHoveredBar] = createSignal<number | null>(null);
   const [selectedPeriod, setSelectedPeriod] = createSignal<'6m' | '12m' | 'all'>('12m');
@@ -91,13 +104,12 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
 
   const monthlyData = createMemo(() => {
     const data = props.data.monthly_revenue || [];
-    const periodMonths = selectedPeriod() === '6m' ? 6 : selectedPeriod() === '12m' ? 12 : data.length;
+    const periodMonths =
+      selectedPeriod() === '6m' ? 6 : selectedPeriod() === '12m' ? 12 : data.length;
     return data.slice(-periodMonths);
   });
 
-  const maxRevenue = createMemo(() => 
-    Math.max(...monthlyData().map(m => m.revenue), 1)
-  );
+  const maxRevenue = createMemo(() => Math.max(...monthlyData().map(m => m.revenue), 1));
 
   const mrrChange = createMemo(() => {
     if (!props.previousMRR || props.previousMRR === 0) return null;
@@ -110,15 +122,20 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
     return Math.round(recent.revenue / recent.transactions);
   });
 
-  const totalTransactions = createMemo(() => 
-    props.data.monthly_revenue?.reduce((sum, m) => sum + m.transactions, 0) || 0
+  const totalTransactions = createMemo(
+    () => props.data.monthly_revenue?.reduce((sum, m) => sum + m.transactions, 0) || 0
   );
 
   const defaultTiers = createMemo<RevenueByTier[]>(() => {
     if (props.revenueByTier) return props.revenueByTier;
     const mrr = props.data.mrr || 0;
     return [
-      { tier: 'enterprise', revenue: mrr * 0.6, percentage: 60, customers: Math.round(mrr * 0.003) },
+      {
+        tier: 'enterprise',
+        revenue: mrr * 0.6,
+        percentage: 60,
+        customers: Math.round(mrr * 0.003),
+      },
       { tier: 'team', revenue: mrr * 0.3, percentage: 30, customers: Math.round(mrr * 0.01) },
       { tier: 'pro', revenue: mrr * 0.1, percentage: 10, customers: Math.round(mrr * 0.011) },
     ];
@@ -126,12 +143,12 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
 
   return (
     <div class="space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="group relative overflow-hidden rounded-2xl border border-aurora-500/20 bg-gradient-to-br from-aurora-500/10 via-aurora-500/5 to-transparent p-6 shadow-2xl transition-all hover:border-aurora-500/40 hover:shadow-aurora-500/10">
-          <div class="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-aurora-500/10 blur-3xl transition-all group-hover:bg-aurora-500/20" />
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div class="group border-aurora-500/20 from-aurora-500/10 via-aurora-500/5 hover:border-aurora-500/40 hover:shadow-aurora-500/10 relative overflow-hidden rounded-2xl border bg-gradient-to-br to-transparent p-6 shadow-2xl transition-all">
+          <div class="bg-aurora-500/10 group-hover:bg-aurora-500/20 absolute -top-8 -right-8 h-32 w-32 rounded-full blur-3xl transition-all" />
           <div class="relative">
             <div class="mb-4 flex items-center justify-between">
-              <div class="rounded-xl bg-aurora-500/20 p-3">
+              <div class="bg-aurora-500/20 rounded-xl p-3">
                 <DollarSign size={20} class="text-aurora-400" />
               </div>
               <Show when={mrrChange() !== null}>
@@ -139,7 +156,8 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
                   class="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black"
                   style={{
                     color: mrrChange()! >= 0 ? 'var(--color-aurora-400)' : 'var(--color-flare-400)',
-                    background: mrrChange()! >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    background:
+                      mrrChange()! >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                   }}
                 >
                   {mrrChange()! >= 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
@@ -147,7 +165,7 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
                 </div>
               </Show>
             </div>
-            <p class="text-[10px] font-black tracking-widest text-aurora-400/60 uppercase">
+            <p class="text-aurora-400/60 text-[10px] font-black tracking-widest uppercase">
               Monthly Recurring
             </p>
             <p
@@ -164,7 +182,7 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
         <div class="group relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent p-6 shadow-2xl transition-all hover:border-indigo-500/40">
           <div class="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-indigo-500/10 blur-3xl transition-all group-hover:bg-indigo-500/20" />
           <div class="relative">
-            <div class="mb-4 rounded-xl bg-indigo-500/20 p-3 w-fit">
+            <div class="mb-4 w-fit rounded-xl bg-indigo-500/20 p-3">
               <Calendar size={20} class="text-indigo-400" />
             </div>
             <p class="text-[10px] font-black tracking-widest text-indigo-400/60 uppercase">
@@ -181,13 +199,13 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
           </div>
         </div>
 
-        <div class="group relative overflow-hidden rounded-2xl border border-solar-500/20 bg-gradient-to-br from-solar-500/10 via-solar-500/5 to-transparent p-6 shadow-2xl transition-all hover:border-solar-500/40">
-          <div class="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-solar-500/10 blur-3xl transition-all group-hover:bg-solar-500/20" />
+        <div class="group border-solar-500/20 from-solar-500/10 via-solar-500/5 hover:border-solar-500/40 relative overflow-hidden rounded-2xl border bg-gradient-to-br to-transparent p-6 shadow-2xl transition-all">
+          <div class="bg-solar-500/10 group-hover:bg-solar-500/20 absolute -top-8 -right-8 h-32 w-32 rounded-full blur-3xl transition-all" />
           <div class="relative">
-            <div class="mb-4 rounded-xl bg-solar-500/20 p-3 w-fit">
+            <div class="bg-solar-500/20 mb-4 w-fit rounded-xl p-3">
               <CreditCard size={20} class="text-solar-400" />
             </div>
-            <p class="text-[10px] font-black tracking-widest text-solar-400/60 uppercase">
+            <p class="text-solar-400/60 text-[10px] font-black tracking-widest uppercase">
               Avg Transaction
             </p>
             <p
@@ -201,13 +219,13 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
           </div>
         </div>
 
-        <div class="group relative overflow-hidden rounded-2xl border border-photon-500/20 bg-gradient-to-br from-photon-500/10 via-photon-500/5 to-transparent p-6 shadow-2xl transition-all hover:border-photon-500/40">
-          <div class="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-photon-500/10 blur-3xl transition-all group-hover:bg-photon-500/20" />
+        <div class="group border-photon-500/20 from-photon-500/10 via-photon-500/5 hover:border-photon-500/40 relative overflow-hidden rounded-2xl border bg-gradient-to-br to-transparent p-6 shadow-2xl transition-all">
+          <div class="bg-photon-500/10 group-hover:bg-photon-500/20 absolute -top-8 -right-8 h-32 w-32 rounded-full blur-3xl transition-all" />
           <div class="relative">
-            <div class="mb-4 rounded-xl bg-photon-500/20 p-3 w-fit">
+            <div class="bg-photon-500/20 mb-4 w-fit rounded-xl p-3">
               <Users size={20} class="text-photon-400" />
             </div>
-            <p class="text-[10px] font-black tracking-widest text-photon-400/60 uppercase">
+            <p class="text-photon-400/60 text-[10px] font-black tracking-widest uppercase">
               Total Transactions
             </p>
             <p
@@ -222,16 +240,16 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="rounded-2xl border border-white/[0.06] bg-void-900 p-6 shadow-2xl lg:col-span-2">
-          <div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div class="bg-void-900 rounded-2xl border border-white/[0.06] p-6 shadow-2xl lg:col-span-2">
+          <div class="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
               <h3 class="text-xl font-bold tracking-tight text-white">Revenue Trend</h3>
-              <p class="mt-1 text-xs font-medium text-nebula-500">Monthly revenue over time</p>
+              <p class="text-nebula-500 mt-1 text-xs font-medium">Monthly revenue over time</p>
             </div>
             <div class="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-1">
               <For each={['6m', '12m', 'all'] as const}>
-                {(period) => (
+                {period => (
                   <button
                     onClick={() => setSelectedPeriod(period)}
                     class={cn(
@@ -248,7 +266,7 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
             </div>
           </div>
 
-          <div class="h-64 flex items-end gap-2">
+          <div class="flex h-64 items-end gap-2">
             <For each={monthlyData()}>
               {(month, index) => {
                 const height = (month.revenue / maxRevenue()) * 100;
@@ -266,8 +284,8 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
                         class={cn(
                           'w-full rounded-t-xl transition-all duration-500',
                           isLast
-                            ? 'bg-gradient-to-t from-aurora-600 to-aurora-400'
-                            : 'bg-gradient-to-t from-nebula-700 to-nebula-600'
+                            ? 'from-aurora-600 to-aurora-400 bg-gradient-to-t'
+                            : 'from-nebula-700 to-nebula-600 bg-gradient-to-t'
                         )}
                         style={{
                           height: mounted() ? `${Math.max(height, 8)}%` : '0%',
@@ -285,25 +303,25 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
                       <div
                         class={cn(
                           'absolute -top-16 left-1/2 -translate-x-1/2 rounded-xl border border-white/10 px-3 py-2',
-                          'text-xs shadow-2xl backdrop-blur-md whitespace-nowrap',
-                          'opacity-0 scale-95 transition-all duration-200',
-                          'group-hover:opacity-100 group-hover:scale-100'
+                          'text-xs whitespace-nowrap shadow-2xl backdrop-blur-md',
+                          'scale-95 opacity-0 transition-all duration-200',
+                          'group-hover:scale-100 group-hover:opacity-100'
                         )}
                         style={{ background: 'var(--bg-overlay, rgba(10, 10, 11, 0.95))' }}
                       >
-                        <div class="text-[10px] font-bold uppercase tracking-wider text-nebula-500">
+                        <div class="text-nebula-500 text-[10px] font-bold tracking-wider uppercase">
                           {month.month}
                         </div>
                         <div class="text-sm font-black text-white tabular-nums">
                           ${month.revenue.toLocaleString()}
                         </div>
-                        <div class="text-[10px] text-nebula-400">
+                        <div class="text-nebula-400 text-[10px]">
                           {month.transactions} transactions
                         </div>
-                        <div class="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-white/10 bg-[#0a0a0b]" />
+                        <div class="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-r border-b border-white/10 bg-[#0a0a0b]" />
                       </div>
                     </div>
-                    <span class="text-[9px] font-bold tracking-wider text-nebula-500 uppercase">
+                    <span class="text-nebula-500 text-[9px] font-bold tracking-wider uppercase">
                       {formatMonth(month.month)}
                     </span>
                   </div>
@@ -313,19 +331,22 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
           </div>
         </div>
 
-        <div class="rounded-2xl border border-white/[0.06] bg-void-900 p-6 shadow-2xl">
+        <div class="bg-void-900 rounded-2xl border border-white/[0.06] p-6 shadow-2xl">
           <h3 class="mb-6 text-xl font-bold tracking-tight text-white">Revenue by Tier</h3>
-          
+
           <div class="space-y-6">
             <For each={defaultTiers()}>
-              {(tier) => {
+              {tier => {
                 const colors = TIER_COLORS[tier.tier] || TIER_COLORS.free;
-                
+
                 return (
                   <div class="space-y-3">
                     <div class="flex items-center justify-between">
                       <span class="text-sm font-bold text-white capitalize">{tier.tier}</span>
-                      <span class="text-sm font-black tabular-nums" style={{ color: colors.accent }}>
+                      <span
+                        class="text-sm font-black tabular-nums"
+                        style={{ color: colors.accent }}
+                      >
                         {formatCurrency(tier.revenue)}
                       </span>
                     </div>
@@ -339,7 +360,7 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
                         }}
                       />
                     </div>
-                    <div class="flex items-center justify-between text-xs text-nebula-500">
+                    <div class="text-nebula-500 flex items-center justify-between text-xs">
                       <span>{tier.percentage}% of MRR</span>
                       <span>{tier.customers} customers</span>
                     </div>
@@ -354,17 +375,17 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
               <div
                 class="flex items-center gap-3 rounded-xl p-4"
                 style={{
-                  background: props.growthRate! >= 0
-                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), transparent)'
-                    : 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent)',
+                  background:
+                    props.growthRate! >= 0
+                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), transparent)'
+                      : 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent)',
                 }}
               >
                 <div
                   class="rounded-xl p-2"
                   style={{
-                    background: props.growthRate! >= 0
-                      ? 'rgba(16, 185, 129, 0.2)'
-                      : 'rgba(239, 68, 68, 0.2)',
+                    background:
+                      props.growthRate! >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
                   }}
                 >
                   {props.growthRate! >= 0 ? (
@@ -374,18 +395,20 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
                   )}
                 </div>
                 <div>
-                  <p class="text-[10px] font-black tracking-widest text-nebula-500 uppercase">
+                  <p class="text-nebula-500 text-[10px] font-black tracking-widest uppercase">
                     Growth Rate
                   </p>
                   <p
                     class="text-lg font-black"
                     style={{
-                      color: props.growthRate! >= 0
-                        ? 'var(--color-aurora-400)'
-                        : 'var(--color-flare-400)',
+                      color:
+                        props.growthRate! >= 0
+                          ? 'var(--color-aurora-400)'
+                          : 'var(--color-flare-400)',
                     }}
                   >
-                    {props.growthRate! >= 0 ? '+' : ''}{props.growthRate!.toFixed(1)}%
+                    {props.growthRate! >= 0 ? '+' : ''}
+                    {props.growthRate!.toFixed(1)}%
                   </p>
                 </div>
               </div>
@@ -395,14 +418,14 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
       </div>
 
       <Show when={(props.data.monthly_revenue?.length || 0) > 0}>
-        <div class="rounded-2xl border border-white/[0.06] bg-void-900 p-6 shadow-2xl">
+        <div class="bg-void-900 rounded-2xl border border-white/[0.06] p-6 shadow-2xl">
           <h3 class="mb-2 text-xl font-bold tracking-tight text-white">Recent Transactions</h3>
-          <p class="mb-6 text-xs font-medium text-nebula-500">Monthly breakdown</p>
+          <p class="text-nebula-500 mb-6 text-xs font-medium">Monthly breakdown</p>
 
           <div class="overflow-x-auto">
             <table class="w-full text-left">
               <thead>
-                <tr class="border-b border-white/5 text-[10px] font-black tracking-widest text-nebula-500 uppercase">
+                <tr class="text-nebula-500 border-b border-white/5 text-[10px] font-black tracking-widest uppercase">
                   <th class="px-4 py-3">Month</th>
                   <th class="px-4 py-3">Revenue</th>
                   <th class="px-4 py-3">Transactions</th>
@@ -415,26 +438,30 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
                   {(month, index) => {
                     const monthlyRevenue = props.data.monthly_revenue || [];
                     const currentIndex = monthlyRevenue.length - 1 - index();
-                    const prevMonth = currentIndex > 0 ? monthlyRevenue[currentIndex - 1] : undefined;
-                    const trend = prevMonth && prevMonth.revenue > 0
-                      ? ((month.revenue - prevMonth.revenue) / prevMonth.revenue) * 100
-                      : 0;
-                    
+                    const prevMonth =
+                      currentIndex > 0 ? monthlyRevenue[currentIndex - 1] : undefined;
+                    const trend =
+                      prevMonth && prevMonth.revenue > 0
+                        ? ((month.revenue - prevMonth.revenue) / prevMonth.revenue) * 100
+                        : 0;
+
                     return (
                       <tr class="group transition-colors hover:bg-white/[0.02]">
                         <td class="px-4 py-4">
                           <span class="text-sm font-bold text-white">{month.month}</span>
                         </td>
                         <td class="px-4 py-4">
-                          <span class="text-sm font-black text-aurora-400 tabular-nums">
+                          <span class="text-aurora-400 text-sm font-black tabular-nums">
                             ${month.revenue.toLocaleString()}
                           </span>
                         </td>
                         <td class="px-4 py-4">
-                          <span class="text-sm text-nebula-300 tabular-nums">{month.transactions}</span>
+                          <span class="text-nebula-300 text-sm tabular-nums">
+                            {month.transactions}
+                          </span>
                         </td>
                         <td class="px-4 py-4">
-                          <span class="text-sm text-nebula-300 tabular-nums">
+                          <span class="text-nebula-300 text-sm tabular-nums">
                             ${Math.round(month.revenue / Math.max(1, month.transactions))}
                           </span>
                         </td>
@@ -442,7 +469,8 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = (props) => {
                           <div
                             class="flex items-center gap-1 text-xs font-bold"
                             style={{
-                              color: trend >= 0 ? 'var(--color-aurora-400)' : 'var(--color-flare-400)',
+                              color:
+                                trend >= 0 ? 'var(--color-aurora-400)' : 'var(--color-flare-400)',
                             }}
                           >
                             {trend >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}

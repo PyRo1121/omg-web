@@ -16,12 +16,7 @@ const MAX_BATCH_SIZE = 20;
 
 // Event types for analytics
 type EventType =
-  | 'pageview'
-  | 'scroll_depth'
-  | 'time_on_page'
-  | 'cta_click'
-  | 'web_vitals'
-  | 'engagement';
+  'pageview' | 'scroll_depth' | 'time_on_page' | 'cta_click' | 'web_vitals' | 'engagement';
 
 interface AnalyticsEvent {
   type: EventType;
@@ -225,7 +220,7 @@ export function trackPageView(): void {
 export function trackScrollDepth(depth: number): void {
   // Only track at specific thresholds: 25%, 50%, 75%, 90%, 100%
   const thresholds = [25, 50, 75, 90, 100];
-  const roundedDepth = thresholds.find((t) => depth >= t && maxScrollDepth < t);
+  const roundedDepth = thresholds.find(t => depth >= t && maxScrollDepth < t);
 
   if (roundedDepth && roundedDepth > maxScrollDepth) {
     maxScrollDepth = roundedDepth;
@@ -285,23 +280,28 @@ export function reportWebVitals(metrics: WebVitalsMetrics): void {
   // Add values and ratings for each metric
   if (metrics.lcp !== undefined) {
     vitalsWithRating.lcp = metrics.lcp;
-    vitalsWithRating.lcp_rating = metrics.lcp <= 2500 ? 'good' : metrics.lcp <= 4000 ? 'needs-improvement' : 'poor';
+    vitalsWithRating.lcp_rating =
+      metrics.lcp <= 2500 ? 'good' : metrics.lcp <= 4000 ? 'needs-improvement' : 'poor';
   }
   if (metrics.inp !== undefined) {
     vitalsWithRating.inp = metrics.inp;
-    vitalsWithRating.inp_rating = metrics.inp <= 200 ? 'good' : metrics.inp <= 500 ? 'needs-improvement' : 'poor';
+    vitalsWithRating.inp_rating =
+      metrics.inp <= 200 ? 'good' : metrics.inp <= 500 ? 'needs-improvement' : 'poor';
   }
   if (metrics.cls !== undefined) {
     vitalsWithRating.cls = metrics.cls;
-    vitalsWithRating.cls_rating = metrics.cls <= 0.1 ? 'good' : metrics.cls <= 0.25 ? 'needs-improvement' : 'poor';
+    vitalsWithRating.cls_rating =
+      metrics.cls <= 0.1 ? 'good' : metrics.cls <= 0.25 ? 'needs-improvement' : 'poor';
   }
   if (metrics.ttfb !== undefined) {
     vitalsWithRating.ttfb = metrics.ttfb;
-    vitalsWithRating.ttfb_rating = metrics.ttfb <= 800 ? 'good' : metrics.ttfb <= 1800 ? 'needs-improvement' : 'poor';
+    vitalsWithRating.ttfb_rating =
+      metrics.ttfb <= 800 ? 'good' : metrics.ttfb <= 1800 ? 'needs-improvement' : 'poor';
   }
   if (metrics.fcp !== undefined) {
     vitalsWithRating.fcp = metrics.fcp;
-    vitalsWithRating.fcp_rating = metrics.fcp <= 1800 ? 'good' : metrics.fcp <= 3000 ? 'needs-improvement' : 'poor';
+    vitalsWithRating.fcp_rating =
+      metrics.fcp <= 1800 ? 'good' : metrics.fcp <= 3000 ? 'needs-improvement' : 'poor';
   }
 
   queueEvent('web_vitals', 'core_web_vitals', vitalsWithRating);
@@ -342,7 +342,7 @@ function initWebVitalsCollection(): void {
 
   // LCP Observer
   try {
-    const lcpObserver = new PerformanceObserver((list) => {
+    const lcpObserver = new PerformanceObserver(list => {
       const entries = list.getEntries();
       const lastEntry = entries[entries.length - 1];
       if (lastEntry) {
@@ -358,7 +358,7 @@ function initWebVitalsCollection(): void {
         lcpObserver.disconnect();
       }
     };
-    ['keydown', 'click', 'visibilitychange'].forEach((event) => {
+    ['keydown', 'click', 'visibilitychange'].forEach(event => {
       window.addEventListener(event, reportLcp, { once: true, capture: true });
     });
   } catch {
@@ -367,7 +367,7 @@ function initWebVitalsCollection(): void {
 
   // INP Observer (replaces FID)
   try {
-    const inpObserver = new PerformanceObserver((list) => {
+    const inpObserver = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
         const eventEntry = entry as PerformanceEventTiming;
         const duration = eventEntry.processingEnd - eventEntry.startTime;
@@ -380,7 +380,7 @@ function initWebVitalsCollection(): void {
   } catch {
     // INP observer not supported, try FID as fallback
     try {
-      const fidObserver = new PerformanceObserver((list) => {
+      const fidObserver = new PerformanceObserver(list => {
         for (const entry of list.getEntries()) {
           const eventEntry = entry as PerformanceEventTiming;
           metrics.inp = eventEntry.processingStart - eventEntry.startTime;
@@ -394,9 +394,12 @@ function initWebVitalsCollection(): void {
 
   // CLS Observer
   try {
-    const clsObserver = new PerformanceObserver((list) => {
+    const clsObserver = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
-        const layoutShift = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number };
+        const layoutShift = entry as PerformanceEntry & {
+          hadRecentInput?: boolean;
+          value?: number;
+        };
         if (!layoutShift.hadRecentInput && layoutShift.value) {
           clsValue += layoutShift.value;
           clsEntries.push(entry);
@@ -411,7 +414,7 @@ function initWebVitalsCollection(): void {
 
   // TTFB and FCP from navigation timing
   try {
-    const paintObserver = new PerformanceObserver((list) => {
+    const paintObserver = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
         if (entry.name === 'first-contentful-paint') {
           metrics.fcp = entry.startTime;
@@ -451,7 +454,7 @@ function initWebVitalsCollection(): void {
 function initCtaTracking(): void {
   document.addEventListener(
     'click',
-    (e) => {
+    e => {
       const target = e.target as HTMLElement;
       const link = target.closest('a, button');
       if (!link) return;

@@ -20,69 +20,79 @@ export const Sparkline: Component<SparklineProps> = props => {
   const points = () => {
     const data = props.data || [];
     if (data.length === 0) return '';
-    
+
     const max = Math.max(...data, 1);
     const min = Math.min(...data, 0);
     const range = max - min || 1;
     const padding = 4;
     const chartWidth = width - padding * 2;
     const chartHeight = height - padding * 2;
-    
-    return data.map((value, i) => {
-      const x = padding + (i / (data.length - 1 || 1)) * chartWidth;
-      const y = padding + chartHeight - ((value - min) / range) * chartHeight;
-      return `${x},${y}`;
-    }).join(' ');
+
+    return data
+      .map((value, i) => {
+        const x = padding + (i / (data.length - 1 || 1)) * chartWidth;
+        const y = padding + chartHeight - ((value - min) / range) * chartHeight;
+        return `${x},${y}`;
+      })
+      .join(' ');
   };
 
   const areaPath = () => {
     const data = props.data || [];
     if (data.length === 0) return '';
-    
+
     const max = Math.max(...data, 1);
     const min = Math.min(...data, 0);
     const range = max - min || 1;
     const padding = 4;
     const chartWidth = width - padding * 2;
     const chartHeight = height - padding * 2;
-    
+
     const pts = data.map((value, i) => {
       const x = padding + (i / (data.length - 1 || 1)) * chartWidth;
       const y = padding + chartHeight - ((value - min) / range) * chartHeight;
       return { x, y };
     });
-    
+
     if (pts.length === 0) return '';
-    
+
     let path = `M ${pts[0].x},${height - padding}`;
-    pts.forEach(pt => { path += ` L ${pt.x},${pt.y}`; });
+    pts.forEach(pt => {
+      path += ` L ${pt.x},${pt.y}`;
+    });
     path += ` L ${pts[pts.length - 1].x},${height - padding} Z`;
-    
+
     return path;
   };
 
   const lastPoint = () => {
     const data = props.data || [];
     if (data.length === 0) return null;
-    
+
     const max = Math.max(...data, 1);
     const min = Math.min(...data, 0);
     const range = max - min || 1;
     const padding = 4;
     const chartWidth = width - padding * 2;
     const chartHeight = height - padding * 2;
-    
+
     const lastValue = data[data.length - 1];
     const x = padding + chartWidth;
     const y = padding + chartHeight - ((lastValue - min) / range) * chartHeight;
-    
+
     return { x, y };
   };
 
   return (
     <svg width={width} height={height} class="overflow-visible">
       <defs>
-        <linearGradient id={`sparkline-gradient-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient
+          id={`sparkline-gradient-${color.replace('#', '')}`}
+          x1="0%"
+          y1="0%"
+          x2="0%"
+          y2="100%"
+        >
           <stop offset="0%" stop-color={color} stop-opacity={fillOpacity * 2} />
           <stop offset="100%" stop-color={color} stop-opacity="0" />
         </linearGradient>
@@ -141,7 +151,7 @@ export const ProgressRing: Component<ProgressRingProps> = props => {
   const max = props.max || 100;
   const color = props.color || '#6366f1';
   const bgColor = props.bgColor || '#1e293b';
-  
+
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const progress = () => Math.min(props.value / max, 1);
@@ -193,7 +203,7 @@ export const TrendIndicator: Component<TrendIndicatorProps> = props => {
     if (props.previousValue === 0) return props.value > 0 ? 100 : 0;
     return ((props.value - props.previousValue) / props.previousValue) * 100;
   };
-  
+
   const isPositive = () => change() >= 0;
   const sizeClasses = {
     sm: 'text-xs gap-0.5',
@@ -214,13 +224,15 @@ export const TrendIndicator: Component<TrendIndicatorProps> = props => {
   };
 
   return (
-    <div class={`inline-flex items-center ${sizeClasses[props.size || 'sm']} ${
-      isPositive() ? 'text-emerald-400' : 'text-red-400'
-    }`}>
-      <svg 
-        class={`h-3 w-3 ${isPositive() ? '' : 'rotate-180'}`} 
-        fill="none" 
-        viewBox="0 0 24 24" 
+    <div
+      class={`inline-flex items-center ${sizeClasses[props.size || 'sm']} ${
+        isPositive() ? 'text-emerald-400' : 'text-red-400'
+      }`}
+    >
+      <svg
+        class={`h-3 w-3 ${isPositive() ? '' : 'rotate-180'}`}
+        fill="none"
+        viewBox="0 0 24 24"
         stroke="currentColor"
       >
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7" />

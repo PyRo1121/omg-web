@@ -143,19 +143,22 @@ export const omgPreset: Partial<Config> = {
         'glow-sm': '0 0 10px var(--color-indigo-500, #6366f1)',
         'glow-md': '0 0 20px var(--color-indigo-500, #6366f1), 0 0 40px rgba(99, 102, 241, 0.3)',
         'glow-lg': '0 0 30px var(--color-indigo-500, #6366f1), 0 0 60px rgba(99, 102, 241, 0.4)',
-        'glow-electric': '0 0 20px var(--color-electric-500, #22d3d3), 0 0 40px rgba(34, 211, 211, 0.3)',
-        'glow-aurora': '0 0 20px var(--color-aurora-500, #10b981), 0 0 40px rgba(16, 185, 129, 0.3)',
+        'glow-electric':
+          '0 0 20px var(--color-electric-500, #22d3d3), 0 0 40px rgba(34, 211, 211, 0.3)',
+        'glow-aurora':
+          '0 0 20px var(--color-aurora-500, #10b981), 0 0 40px rgba(16, 185, 129, 0.3)',
         'glow-flare': '0 0 20px var(--color-flare-500, #ef4444), 0 0 40px rgba(239, 68, 68, 0.3)',
-        'card': '0 0 0 1px rgba(255,255,255,0.05), 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.4)',
-        'card-hover': '0 0 0 1px rgba(255,255,255,0.08), 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -4px rgba(0,0,0,0.5), 0 0 30px -10px rgba(99,102,241,0.2)',
+        card: '0 0 0 1px rgba(255,255,255,0.05), 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.4)',
+        'card-hover':
+          '0 0 0 1px rgba(255,255,255,0.08), 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -4px rgba(0,0,0,0.5), 0 0 30px -10px rgba(99,102,241,0.2)',
         '3xl': '0 35px 60px -15px rgba(0, 0, 0, 0.7)',
       },
 
       animation: {
         'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
         'pulse-slow': 'pulse-slow 4s ease-in-out infinite',
-        'float': 'float 3s ease-in-out infinite',
-        'shimmer': 'shimmer 2s linear infinite',
+        float: 'float 3s ease-in-out infinite',
+        shimmer: 'shimmer 2s linear infinite',
         'score-fill': 'score-fill 1s ease-out forwards',
         'fade-up': 'fade-up 0.5s ease-out forwards',
         'slide-in-right': 'slide-in-right 0.3s ease-out forwards',
@@ -224,10 +227,10 @@ export const omgPreset: Partial<Config> = {
       },
 
       transitionTimingFunction: {
-        'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-        'bounce': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-        'smooth': 'cubic-bezier(0.23, 1, 0.32, 1)',
-        'swift': 'cubic-bezier(0.16, 1, 0.3, 1)',
+        spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        smooth: 'cubic-bezier(0.23, 1, 0.32, 1)',
+        swift: 'cubic-bezier(0.16, 1, 0.3, 1)',
       },
 
       backdropBlur: {
@@ -244,7 +247,8 @@ export const omgPreset: Partial<Config> = {
           radial-gradient(at 80% 50%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
           radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.08) 0px, transparent 50%)
         `,
-        'noise': "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")",
+        noise:
+          "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")",
       },
     },
   },

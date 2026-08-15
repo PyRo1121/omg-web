@@ -2,8 +2,8 @@ export interface License {
   id: string;
   userId: string;
   licenseKey: string;
-  tier: "free" | "team" | "enterprise";
-  status: "active" | "suspended" | "expired" | "cancelled";
+  tier: 'free' | 'team' | 'enterprise';
+  status: 'active' | 'suspended' | 'expired' | 'cancelled';
   maxMachines: number;
   expiresAt: Date | null;
   createdAt: Date;

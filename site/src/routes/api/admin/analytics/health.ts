@@ -1,7 +1,7 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, gte, desc, eq, lte, and } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import { APIEvent } from '@solidjs/start/server';
+import { sql, gte, desc, eq, lte, and } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
 
 export async function GET(event: APIEvent) {
   try {
@@ -11,9 +11,9 @@ export async function GET(event: APIEvent) {
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 200);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
-    const riskThreshold = parseInt(url.searchParams.get("riskThreshold") || "30");
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+    const offset = parseInt(url.searchParams.get('offset') || '0');
+    const riskThreshold = parseInt(url.searchParams.get('riskThreshold') || '30');
 
     // Get the latest health scores for all users
     const latestHealthScores = await db
@@ -65,7 +65,8 @@ export async function GET(event: APIEvent) {
           WHERE h2.user_id = ${schema.customerHealthHistory.userId}
         )`
       )
-      .groupBy(sql`
+      .groupBy(
+        sql`
         CASE
           WHEN ${schema.customerHealthHistory.overallScore} >= 80 THEN 'excellent'
           WHEN ${schema.customerHealthHistory.overallScore} >= 60 THEN 'good'
@@ -73,7 +74,8 @@ export async function GET(event: APIEvent) {
           WHEN ${schema.customerHealthHistory.overallScore} >= 20 THEN 'poor'
           ELSE 'critical'
         END
-      `)
+      `
+      )
       .all();
 
     // Lifecycle stage distribution
@@ -207,7 +209,7 @@ export async function GET(event: APIEvent) {
           churnProbability: c.churnProbability,
           lifecycleStage: c.lifecycleStage,
           commandVelocity7d: c.commandVelocity7d,
-          tier: c.tier || "free",
+          tier: c.tier || 'free',
         })),
         upgradeOpportunities: upgradeOpportunities.map(c => ({
           userId: c.userId,
@@ -216,7 +218,7 @@ export async function GET(event: APIEvent) {
           overallScore: c.overallScore,
           upgradeProbability: c.upgradeProbability,
           lifecycleStage: c.lifecycleStage,
-          tier: c.tier || "free",
+          tier: c.tier || 'free',
         })),
         summary: {
           avgOverallScore: Math.round(Number(avgScores?.avgOverall) || 0),
@@ -237,21 +239,21 @@ export async function GET(event: APIEvent) {
       {
         status: 200,
         headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "private, no-cache, no-store, must-revalidate",
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
         },
       }
     );
   } catch (error) {
-    console.error("[Admin Health Analytics] Error:", error);
+    console.error('[Admin Health Analytics] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

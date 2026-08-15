@@ -82,14 +82,14 @@ interface SegmentMetrics {
   mrrContribution: number;
 }
 
-const TrendBadge: Component<{ direction: 'up' | 'down' | 'stable'; value: number }> = (props) => {
+const TrendBadge: Component<{ direction: 'up' | 'down' | 'stable'; value: number }> = props => {
   const isPositive = () => props.direction === 'up';
   const isNeutral = () => props.direction === 'stable';
 
   return (
     <div
       class={cn(
-        'inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-2xs font-bold',
+        'text-2xs inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-bold',
         isNeutral()
           ? 'bg-nebula-600/10 text-nebula-400'
           : isPositive()
@@ -118,19 +118,19 @@ const SegmentCard: Component<{
   onSelect: () => void;
   onCompare: () => void;
   compareMode: boolean;
-}> = (props) => {
+}> = props => {
   return (
     <div
       class={cn(
         'group relative cursor-pointer overflow-hidden rounded-2xl border p-5 transition-all duration-300',
         props.isSelected
           ? 'border-white/20 bg-white/[0.05] ring-2 ring-white/10'
-          : 'border-white/5 bg-void-850 hover:border-white/10 hover:bg-white/[0.02]'
+          : 'bg-void-850 border-white/5 hover:border-white/10 hover:bg-white/[0.02]'
       )}
       onClick={props.onSelect}
     >
       <div
-        class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-100"
+        class="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-100"
         style={{ 'background-color': `${props.metrics.segment.color}30` }}
       />
 
@@ -153,21 +153,21 @@ const SegmentCard: Component<{
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <p class="text-2xs font-bold uppercase tracking-widest text-nebula-500">Users</p>
-            <p class="font-display text-2xl font-black tabular-nums text-white">
+            <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Users</p>
+            <p class="font-display text-2xl font-black text-white tabular-nums">
               {props.metrics.userCount.toLocaleString()}
             </p>
           </div>
           <div>
-            <p class="text-2xs font-bold uppercase tracking-widest text-nebula-500">Avg LTV</p>
-            <p class="font-display text-2xl font-black tabular-nums text-aurora-400">
+            <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Avg LTV</p>
+            <p class="font-display text-aurora-400 text-2xl font-black tabular-nums">
               ${props.metrics.avgLtv.toLocaleString()}
             </p>
           </div>
           <div>
-            <p class="text-2xs font-bold uppercase tracking-widest text-nebula-500">Engagement</p>
+            <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Engagement</p>
             <div class="flex items-center gap-2">
-              <div class="h-2 flex-1 overflow-hidden rounded-full bg-void-700">
+              <div class="bg-void-700 h-2 flex-1 overflow-hidden rounded-full">
                 <div
                   class="h-full rounded-full transition-all duration-500"
                   style={{
@@ -180,9 +180,9 @@ const SegmentCard: Component<{
             </div>
           </div>
           <div>
-            <p class="text-2xs font-bold uppercase tracking-widest text-nebula-500">Churn Risk</p>
+            <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Churn Risk</p>
             <div class="flex items-center gap-2">
-              <div class="h-2 flex-1 overflow-hidden rounded-full bg-void-700">
+              <div class="bg-void-700 h-2 flex-1 overflow-hidden rounded-full">
                 <div
                   class={cn('h-full rounded-full transition-all duration-500')}
                   style={{
@@ -201,9 +201,9 @@ const SegmentCard: Component<{
           </div>
         </div>
 
-        <div class="mt-4 rounded-xl border border-white/5 bg-void-800/50 p-3">
+        <div class="bg-void-800/50 mt-4 rounded-xl border border-white/5 p-3">
           <div class="flex items-center justify-between">
-            <span class="text-xs text-nebula-500">MRR Contribution</span>
+            <span class="text-nebula-500 text-xs">MRR Contribution</span>
             <span class="font-mono text-sm font-bold text-white">
               ${props.metrics.mrrContribution.toLocaleString()}
             </span>
@@ -212,7 +212,7 @@ const SegmentCard: Component<{
 
         <Show when={props.compareMode}>
           <button
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               props.onCompare();
             }}
@@ -233,9 +233,9 @@ const SegmentCard: Component<{
 
 const SegmentComparisonChart: Component<{
   segments: SegmentMetrics[];
-}> = (props) => {
+}> = props => {
   const barData = createMemo(() => {
-    return props.segments.map((s) => ({
+    return props.segments.map(s => ({
       label: s.segment.name,
       value: s.userCount,
       color: s.segment.color,
@@ -243,7 +243,7 @@ const SegmentComparisonChart: Component<{
   });
 
   const ltvData = createMemo(() => {
-    return props.segments.map((s) => ({
+    return props.segments.map(s => ({
       label: s.segment.name,
       value: s.avgLtv,
       color: s.segment.color,
@@ -252,27 +252,27 @@ const SegmentComparisonChart: Component<{
 
   return (
     <div class="space-y-6">
-      <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-        <h4 class="mb-4 text-sm font-black uppercase tracking-widest text-white">
+      <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+        <h4 class="mb-4 text-sm font-black tracking-widest text-white uppercase">
           User Count by Segment
         </h4>
         <BarChart data={barData()} height={160} showLabels showValues horizontal />
       </div>
 
-      <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-        <h4 class="mb-4 text-sm font-black uppercase tracking-widest text-white">
+      <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+        <h4 class="mb-4 text-sm font-black tracking-widest text-white uppercase">
           Average LTV by Segment
         </h4>
         <BarChart data={ltvData()} height={160} showLabels showValues horizontal />
       </div>
 
-      <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-        <h4 class="mb-4 text-sm font-black uppercase tracking-widest text-white">
+      <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+        <h4 class="mb-4 text-sm font-black tracking-widest text-white uppercase">
           Segment Distribution
         </h4>
         <div class="flex justify-center">
           <DonutChart
-            data={props.segments.map((s) => ({
+            data={props.segments.map(s => ({
               label: s.segment.name,
               value: s.userCount,
               color: s.segment.color,
@@ -289,12 +289,12 @@ const SegmentComparisonChart: Component<{
   );
 };
 
-const VennDiagramConcept: Component<{ segments: SegmentMetrics[] }> = (props) => {
+const VennDiagramConcept: Component<{ segments: SegmentMetrics[] }> = props => {
   const segments = () => props.segments.slice(0, 3);
 
   return (
-    <div class="rounded-2xl border border-white/5 bg-void-850 p-6">
-      <h4 class="mb-4 text-sm font-black uppercase tracking-widest text-white">
+    <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
+      <h4 class="mb-4 text-sm font-black tracking-widest text-white uppercase">
         Segment Overlap Analysis
       </h4>
 
@@ -331,16 +331,16 @@ const VennDiagramConcept: Component<{ segments: SegmentMetrics[] }> = (props) =>
         </For>
 
         <Show when={segments().length >= 2}>
-          <div class="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/5 backdrop-blur-sm">
+          <div class="absolute top-1/2 left-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/5 backdrop-blur-sm">
             <div class="text-center">
-              <Layers size={16} class="mx-auto text-nebula-400" />
-              <p class="mt-1 text-2xs text-nebula-400">Overlap</p>
+              <Layers size={16} class="text-nebula-400 mx-auto" />
+              <p class="text-2xs text-nebula-400 mt-1">Overlap</p>
             </div>
           </div>
         </Show>
       </div>
 
-      <div class="mt-4 text-center text-xs text-nebula-500">
+      <div class="text-nebula-500 mt-4 text-center text-xs">
         Users may appear in multiple segments based on behavior patterns
       </div>
     </div>
@@ -360,18 +360,18 @@ export const SegmentAnalytics: Component = () => {
     const churnRiskMap: Record<string, number> = {};
     const ltvMap: Record<string, number> = {};
 
-    metrics.churn_risk_segments?.forEach((s) => {
+    metrics.churn_risk_segments?.forEach(s => {
       churnRiskMap[s.tier || 'free'] = s.user_count;
     });
 
-    metrics.ltv_by_tier?.forEach((l) => {
+    metrics.ltv_by_tier?.forEach(l => {
       ltvMap[l.tier] = l.avg_ltv;
     });
 
     const totalUsers = metrics.engagement?.mau || 1;
     const currentMRR = metrics.revenue_metrics?.current_mrr || 0;
 
-    return PREDEFINED_SEGMENTS.map((segment) => {
+    return PREDEFINED_SEGMENTS.map(segment => {
       let userCount = 0;
       let avgLtv = 0;
       let churnRisk = 0;
@@ -385,7 +385,7 @@ export const SegmentAnalytics: Component = () => {
       } else if (segment.id === 'at_risk') {
         userCount =
           metrics.churn_risk_segments
-            ?.filter((s) => s.risk_segment === 'high' || s.risk_segment === 'critical')
+            ?.filter(s => s.risk_segment === 'high' || s.risk_segment === 'critical')
             .reduce((sum, s) => sum + s.user_count, 0) || 0;
         avgLtv = (ltvMap['pro'] || 0) * 0.5;
         churnRisk = 65;
@@ -396,19 +396,19 @@ export const SegmentAnalytics: Component = () => {
         churnRisk = 25;
         mrrContribution = currentMRR * 0.05;
       } else if (segment.id === 'enterprise') {
-        const tierData = metrics.ltv_by_tier?.find((t) => t.tier === 'enterprise');
+        const tierData = metrics.ltv_by_tier?.find(t => t.tier === 'enterprise');
         userCount = tierData?.customer_count || 0;
         avgLtv = tierData?.avg_ltv || 0;
         churnRisk = 8;
         mrrContribution = currentMRR * 0.45;
       } else if (segment.id === 'team') {
-        const tierData = metrics.ltv_by_tier?.find((t) => t.tier === 'team');
+        const tierData = metrics.ltv_by_tier?.find(t => t.tier === 'team');
         userCount = tierData?.customer_count || 0;
         avgLtv = tierData?.avg_ltv || 0;
         churnRisk = 12;
         mrrContribution = currentMRR * 0.3;
       } else if (segment.id === 'pro') {
-        const tierData = metrics.ltv_by_tier?.find((t) => t.tier === 'pro');
+        const tierData = metrics.ltv_by_tier?.find(t => t.tier === 'pro');
         userCount = tierData?.customer_count || 0;
         avgLtv = tierData?.avg_ltv || 0;
         churnRisk = 18;
@@ -437,13 +437,13 @@ export const SegmentAnalytics: Component = () => {
   });
 
   const selectedMetrics = createMemo(() => {
-    return segmentMetrics().filter((m) => selectedSegments().includes(m.segment.id));
+    return segmentMetrics().filter(m => selectedSegments().includes(m.segment.id));
   });
 
   const toggleSegment = (segmentId: string) => {
-    setSelectedSegments((prev) => {
+    setSelectedSegments(prev => {
       if (prev.includes(segmentId)) {
-        return prev.filter((id) => id !== segmentId);
+        return prev.filter(id => id !== segmentId);
       }
       if (prev.length >= 3) {
         return [...prev.slice(1), segmentId];
@@ -457,12 +457,12 @@ export const SegmentAnalytics: Component = () => {
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 class="flex items-center gap-3 text-2xl font-black tracking-tight text-white">
-            <div class="rounded-xl bg-photon-500/10 p-2">
+            <div class="bg-photon-500/10 rounded-xl p-2">
               <BarChart3 size={24} class="text-photon-400" />
             </div>
             Segment Analytics
           </h2>
-          <p class="mt-2 text-sm text-nebula-500">
+          <p class="text-nebula-500 mt-2 text-sm">
             Compare customer segments and analyze behavior patterns
           </p>
         </div>
@@ -504,13 +504,13 @@ export const SegmentAnalytics: Component = () => {
       </Show>
 
       <Show when={metricsQuery.isError}>
-        <div class="rounded-2xl border border-flare-500/30 bg-flare-500/10 p-8 text-center">
-          <AlertTriangle size={32} class="mx-auto mb-3 text-flare-400" />
-          <p class="font-bold text-flare-400">Failed to load segment analytics</p>
-          <p class="mt-2 text-sm text-nebula-500">{metricsQuery.error?.message}</p>
+        <div class="border-flare-500/30 bg-flare-500/10 rounded-2xl border p-8 text-center">
+          <AlertTriangle size={32} class="text-flare-400 mx-auto mb-3" />
+          <p class="text-flare-400 font-bold">Failed to load segment analytics</p>
+          <p class="text-nebula-500 mt-2 text-sm">{metricsQuery.error?.message}</p>
           <button
             onClick={() => metricsQuery.refetch()}
-            class="mt-4 rounded-lg bg-flare-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-flare-600"
+            class="bg-flare-500 hover:bg-flare-600 mt-4 rounded-lg px-4 py-2 text-sm font-bold text-white transition-colors"
           >
             Try Again
           </button>
@@ -520,7 +520,7 @@ export const SegmentAnalytics: Component = () => {
       <Show when={metricsQuery.isSuccess}>
         <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <For each={segmentMetrics()}>
-            {(metrics) => (
+            {metrics => (
               <SegmentCard
                 metrics={metrics}
                 isSelected={selectedSegments().includes(metrics.segment.id)}
@@ -536,7 +536,7 @@ export const SegmentAnalytics: Component = () => {
           <div class="space-y-6">
             <div class="flex items-center gap-3">
               <div class="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-              <span class="text-sm font-black uppercase tracking-widest text-nebula-500">
+              <span class="text-nebula-500 text-sm font-black tracking-widest uppercase">
                 Comparison View
               </span>
               <div class="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -549,45 +549,45 @@ export const SegmentAnalytics: Component = () => {
           </div>
         </Show>
 
-        <div class="rounded-3xl border border-white/5 bg-gradient-to-br from-indigo-500/5 to-photon-500/5 p-6">
+        <div class="to-photon-500/5 rounded-3xl border border-white/5 bg-gradient-to-br from-indigo-500/5 p-6">
           <h3 class="mb-4 text-lg font-black text-white">Segment Summary</h3>
           <div class="grid gap-4 md:grid-cols-4">
-            <div class="rounded-xl border border-white/5 bg-void-850/50 p-4">
-              <p class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+            <div class="bg-void-850/50 rounded-xl border border-white/5 p-4">
+              <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
                 Total Segments
               </p>
-              <p class="mt-1 font-display text-3xl font-black text-white">
+              <p class="font-display mt-1 text-3xl font-black text-white">
                 {segmentMetrics().length}
               </p>
             </div>
-            <div class="rounded-xl border border-white/5 bg-void-850/50 p-4">
-              <p class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+            <div class="bg-void-850/50 rounded-xl border border-white/5 p-4">
+              <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
                 High-Value Users
               </p>
-              <p class="mt-1 font-display text-3xl font-black text-aurora-400">
+              <p class="font-display text-aurora-400 mt-1 text-3xl font-black">
                 {segmentMetrics()
-                  .filter((m) => m.avgLtv > 200)
+                  .filter(m => m.avgLtv > 200)
                   .reduce((sum, m) => sum + m.userCount, 0)
                   .toLocaleString()}
               </p>
             </div>
-            <div class="rounded-xl border border-white/5 bg-void-850/50 p-4">
-              <p class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+            <div class="bg-void-850/50 rounded-xl border border-white/5 p-4">
+              <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
                 At-Risk Revenue
               </p>
-              <p class="mt-1 font-display text-3xl font-black text-flare-400">
+              <p class="font-display text-flare-400 mt-1 text-3xl font-black">
                 $
                 {segmentMetrics()
-                  .filter((m) => m.churnRisk > 30)
+                  .filter(m => m.churnRisk > 30)
                   .reduce((sum, m) => sum + m.mrrContribution, 0)
                   .toLocaleString()}
               </p>
             </div>
-            <div class="rounded-xl border border-white/5 bg-void-850/50 p-4">
-              <p class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+            <div class="bg-void-850/50 rounded-xl border border-white/5 p-4">
+              <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
                 Avg Engagement
               </p>
-              <p class="mt-1 font-display text-3xl font-black text-electric-400">
+              <p class="font-display text-electric-400 mt-1 text-3xl font-black">
                 {Math.round(
                   segmentMetrics().reduce((sum, m) => sum + m.avgEngagement, 0) /
                     (segmentMetrics().length || 1)

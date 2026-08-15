@@ -1,5 +1,23 @@
-import { Component, createMemo, createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { Users, TrendingUp, Calendar, Zap, ArrowUpRight, ArrowDownRight, Minus, Activity, BarChart3 } from 'lucide-solid';
+import {
+  Component,
+  createMemo,
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js';
+import {
+  Users,
+  TrendingUp,
+  Calendar,
+  Zap,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
+  Activity,
+  BarChart3,
+} from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -26,7 +44,7 @@ interface AnimatedCounterProps {
   duration?: number;
 }
 
-const AnimatedCounter: Component<AnimatedCounterProps> = (props) => {
+const AnimatedCounter: Component<AnimatedCounterProps> = props => {
   const [displayValue, setDisplayValue] = createSignal(0);
   const duration = () => props.duration || 1200;
 
@@ -91,7 +109,7 @@ const accentConfig: Record<AccentType, { color: string; gradient: string; glow: 
   },
 };
 
-const MetricCard: Component<MetricCardProps> = (props) => {
+const MetricCard: Component<MetricCardProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [hovered, setHovered] = createSignal(false);
 
@@ -111,8 +129,16 @@ const MetricCard: Component<MetricCardProps> = (props) => {
       isPositive,
       isNeutral,
       Icon: isNeutral ? Minus : isPositive ? ArrowUpRight : ArrowDownRight,
-      color: isNeutral ? 'var(--color-nebula-500)' : isPositive ? 'var(--color-aurora-400)' : 'var(--color-flare-400)',
-      bg: isNeutral ? 'rgba(113, 113, 122, 0.1)' : isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+      color: isNeutral
+        ? 'var(--color-nebula-500)'
+        : isPositive
+          ? 'var(--color-aurora-400)'
+          : 'var(--color-flare-400)',
+      bg: isNeutral
+        ? 'rgba(113, 113, 122, 0.1)'
+        : isPositive
+          ? 'rgba(16, 185, 129, 0.1)'
+          : 'rgba(239, 68, 68, 0.1)',
     };
   });
 
@@ -120,8 +146,8 @@ const MetricCard: Component<MetricCardProps> = (props) => {
     <div
       class={cn(
         'group relative overflow-hidden rounded-2xl border p-5',
-        'transition-all duration-300 cursor-default',
-        mounted() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+        'cursor-default transition-all duration-300',
+        mounted() ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
       )}
       style={{
         background: `linear-gradient(135deg, ${config().color}08, ${config().color}03)`,
@@ -132,14 +158,18 @@ const MetricCard: Component<MetricCardProps> = (props) => {
       onMouseLeave={() => setHovered(false)}
     >
       <div
-        class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-40"
+        class="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-40"
         style={{ background: config().color }}
       />
 
       <div class="relative">
         <div class="mb-4 flex items-center justify-between">
           <div
-            class={cn('w-10 h-10 rounded-xl flex items-center justify-center', 'transition-transform duration-300', hovered() && 'scale-110')}
+            class={cn(
+              'flex h-10 w-10 items-center justify-center rounded-xl',
+              'transition-transform duration-300',
+              hovered() && 'scale-110'
+            )}
             style={{
               background: config().gradient,
               'box-shadow': hovered() ? `0 0 15px ${config().glow}` : `0 0 8px ${config().glow}`,
@@ -149,11 +179,11 @@ const MetricCard: Component<MetricCardProps> = (props) => {
           </div>
           <div class="flex items-center gap-2">
             <Show when={trendInfo()}>
-              {(info) => {
+              {info => {
                 const TrendIcon = info().Icon;
                 return (
                   <div
-                    class="flex items-center gap-0.5 rounded-full px-2 py-0.5 text-2xs font-bold"
+                    class="text-2xs flex items-center gap-0.5 rounded-full px-2 py-0.5 font-bold"
                     style={{
                       color: info().color,
                       background: info().bg,
@@ -165,27 +195,32 @@ const MetricCard: Component<MetricCardProps> = (props) => {
                 );
               }}
             </Show>
-            <span class="text-2xs font-black uppercase tracking-widest" style={{ color: config().color }}>
+            <span
+              class="text-2xs font-black tracking-widest uppercase"
+              style={{ color: config().color }}
+            >
               {props.label}
             </span>
           </div>
         </div>
 
-        <div class="text-3xl font-black tracking-tight text-nebula-100">
+        <div class="text-nebula-100 text-3xl font-black tracking-tight">
           <AnimatedCounter value={props.value} duration={1200 + (props.delay ?? 0)} />
         </div>
 
-        <p class="mt-2 text-sm font-medium text-nebula-400">{props.sublabel}</p>
+        <p class="text-nebula-400 mt-2 text-sm font-medium">{props.sublabel}</p>
 
         <Show when={props.previousValue !== undefined}>
-          <p class="mt-1 text-2xs text-nebula-600">vs {(props.previousValue ?? 0).toLocaleString()} prev period</p>
+          <p class="text-2xs text-nebula-600 mt-1">
+            vs {(props.previousValue ?? 0).toLocaleString()} prev period
+          </p>
         </Show>
       </div>
     </div>
   );
 };
 
-export const EngagementMetrics: Component<EngagementMetricsProps> = (props) => {
+export const EngagementMetrics: Component<EngagementMetricsProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [hovered, setHovered] = createSignal(false);
 
@@ -206,19 +241,38 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = (props) => {
   });
 
   const getStickinessHealth = (value: number) => {
-    if (value >= 25) return { label: 'Excellent', color: 'var(--color-aurora-400)', glow: 'rgba(16, 185, 129, 0.3)' };
-    if (value >= 15) return { label: 'Good', color: 'var(--color-electric-400)', glow: 'rgba(34, 211, 211, 0.25)' };
-    if (value >= 10) return { label: 'Average', color: 'var(--color-solar-400)', glow: 'rgba(245, 158, 11, 0.25)' };
-    return { label: 'Needs Work', color: 'var(--color-flare-400)', glow: 'rgba(239, 68, 68, 0.25)' };
+    if (value >= 25)
+      return {
+        label: 'Excellent',
+        color: 'var(--color-aurora-400)',
+        glow: 'rgba(16, 185, 129, 0.3)',
+      };
+    if (value >= 15)
+      return {
+        label: 'Good',
+        color: 'var(--color-electric-400)',
+        glow: 'rgba(34, 211, 211, 0.25)',
+      };
+    if (value >= 10)
+      return {
+        label: 'Average',
+        color: 'var(--color-solar-400)',
+        glow: 'rgba(245, 158, 11, 0.25)',
+      };
+    return {
+      label: 'Needs Work',
+      color: 'var(--color-flare-400)',
+      glow: 'rgba(239, 68, 68, 0.25)',
+    };
   };
 
   const stickinessHealth = createMemo(() => getStickinessHealth(stickinessValue()));
 
   return (
     <div class="space-y-4">
-      <div class="flex items-center gap-2 mb-2">
+      <div class="mb-2 flex items-center gap-2">
         <div
-          class="w-8 h-8 rounded-lg flex items-center justify-center"
+          class="flex h-8 w-8 items-center justify-center rounded-lg"
           style={{
             background: 'linear-gradient(135deg, var(--color-indigo-600), var(--color-indigo-400))',
             'box-shadow': '0 0 10px rgba(99, 102, 241, 0.3)',
@@ -226,25 +280,51 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = (props) => {
         >
           <BarChart3 size={16} class="text-white" />
         </div>
-        <h3 class="text-lg font-bold tracking-tight text-nebula-100">User Engagement</h3>
+        <h3 class="text-nebula-100 text-lg font-bold tracking-tight">User Engagement</h3>
       </div>
 
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard icon={Users} label="Daily" value={props.data.dau ?? 0} sublabel="Daily Active Users" accent="plasma" trend={12.5} delay={0} />
+        <MetricCard
+          icon={Users}
+          label="Daily"
+          value={props.data.dau ?? 0}
+          sublabel="Daily Active Users"
+          accent="plasma"
+          trend={12.5}
+          delay={0}
+        />
 
-        <MetricCard icon={Calendar} label="Weekly" value={props.data.wau ?? 0} sublabel="Weekly Active Users" accent="electric" trend={8.2} delay={100} />
+        <MetricCard
+          icon={Calendar}
+          label="Weekly"
+          value={props.data.wau ?? 0}
+          sublabel="Weekly Active Users"
+          accent="electric"
+          trend={8.2}
+          delay={100}
+        />
 
-        <MetricCard icon={TrendingUp} label="Monthly" value={props.data.mau ?? 0} sublabel="Monthly Active Users" accent="photon" trend={15.7} delay={200} />
+        <MetricCard
+          icon={TrendingUp}
+          label="Monthly"
+          value={props.data.mau ?? 0}
+          sublabel="Monthly Active Users"
+          accent="photon"
+          trend={15.7}
+          delay={200}
+        />
 
         <div
           class={cn(
             'group relative overflow-hidden rounded-2xl border p-5',
-            'transition-all duration-300 cursor-default',
-            mounted() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            'cursor-default transition-all duration-300',
+            mounted() ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
           )}
           style={{
             background: `linear-gradient(135deg, ${stickinessHealth().color}08, ${stickinessHealth().color}03)`,
-            'border-color': hovered() ? `${stickinessHealth().color}30` : 'rgba(255, 255, 255, 0.04)',
+            'border-color': hovered()
+              ? `${stickinessHealth().color}30`
+              : 'rgba(255, 255, 255, 0.04)',
             'box-shadow': hovered() ? `0 0 25px ${stickinessHealth().glow}` : undefined,
             'animation-delay': '300ms',
           }}
@@ -252,24 +332,30 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = (props) => {
           onMouseLeave={() => setHovered(false)}
         >
           <div
-            class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-40"
+            class="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-40"
             style={{ background: stickinessHealth().color }}
           />
 
           <div class="relative">
             <div class="mb-4 flex items-center justify-between">
               <div
-                class={cn('w-10 h-10 rounded-xl flex items-center justify-center', 'transition-transform duration-300', hovered() && 'scale-110')}
+                class={cn(
+                  'flex h-10 w-10 items-center justify-center rounded-xl',
+                  'transition-transform duration-300',
+                  hovered() && 'scale-110'
+                )}
                 style={{
                   background: `linear-gradient(135deg, ${stickinessHealth().color}, color-mix(in srgb, ${stickinessHealth().color} 70%, white))`,
-                  'box-shadow': hovered() ? `0 0 15px ${stickinessHealth().glow}` : `0 0 8px ${stickinessHealth().glow}`,
+                  'box-shadow': hovered()
+                    ? `0 0 15px ${stickinessHealth().glow}`
+                    : `0 0 8px ${stickinessHealth().glow}`,
                 }}
               >
                 <Zap size={18} class="text-white" />
               </div>
               <div class="flex items-center gap-2">
                 <span
-                  class="rounded-full px-2 py-0.5 text-2xs font-bold"
+                  class="text-2xs rounded-full px-2 py-0.5 font-bold"
                   style={{
                     color: stickinessHealth().color,
                     background: `${stickinessHealth().color}15`,
@@ -277,29 +363,37 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = (props) => {
                 >
                   {stickinessHealth().label}
                 </span>
-                <span class="text-2xs font-black uppercase tracking-widest" style={{ color: stickinessHealth().color }}>
+                <span
+                  class="text-2xs font-black tracking-widest uppercase"
+                  style={{ color: stickinessHealth().color }}
+                >
                   Stickiness
                 </span>
               </div>
             </div>
 
-            <div class="text-3xl font-black tracking-tight text-nebula-100">
+            <div class="text-nebula-100 text-3xl font-black tracking-tight">
               {stickinessValue().toFixed(1)}
               <span class="ml-1 text-xl" style={{ color: stickinessHealth().color }}>
                 %
               </span>
             </div>
 
-            <p class="mt-2 text-sm font-medium text-nebula-400">DAU/MAU Ratio</p>
+            <p class="text-nebula-400 mt-2 text-sm font-medium">DAU/MAU Ratio</p>
 
             <div class="mt-3 space-y-2">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-nebula-500">DAU/MAU</span>
-                <span class="font-mono font-bold tabular-nums text-nebula-200">{stickinessValue().toFixed(1)}%</span>
+                <span class="text-nebula-200 font-mono font-bold tabular-nums">
+                  {stickinessValue().toFixed(1)}%
+                </span>
               </div>
-              <div class="h-1.5 overflow-hidden rounded-full bg-void-700">
+              <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
                 <div
-                  class={cn('h-full rounded-full transition-all duration-1000', mounted() ? 'opacity-100' : 'opacity-0')}
+                  class={cn(
+                    'h-full rounded-full transition-all duration-1000',
+                    mounted() ? 'opacity-100' : 'opacity-0'
+                  )}
                   style={{
                     width: mounted() ? `${Math.min(stickinessValue() * 4, 100)}%` : '0%',
                     background: `linear-gradient(90deg, ${stickinessHealth().color}, color-mix(in srgb, ${stickinessHealth().color} 70%, white))`,
@@ -310,14 +404,20 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = (props) => {
 
               <div class="flex items-center justify-between text-xs">
                 <span class="text-nebula-500">WAU/MAU</span>
-                <span class="font-mono font-bold tabular-nums text-nebula-400">{wauMauRatio().toFixed(1)}%</span>
+                <span class="text-nebula-400 font-mono font-bold tabular-nums">
+                  {wauMauRatio().toFixed(1)}%
+                </span>
               </div>
-              <div class="h-1.5 overflow-hidden rounded-full bg-void-700">
+              <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
                 <div
-                  class={cn('h-full rounded-full transition-all duration-1000', mounted() ? 'opacity-100' : 'opacity-0')}
+                  class={cn(
+                    'h-full rounded-full transition-all duration-1000',
+                    mounted() ? 'opacity-100' : 'opacity-0'
+                  )}
                   style={{
                     width: mounted() ? `${Math.min(wauMauRatio(), 100)}%` : '0%',
-                    background: 'linear-gradient(90deg, var(--color-electric-500), var(--color-electric-300))',
+                    background:
+                      'linear-gradient(90deg, var(--color-electric-500), var(--color-electric-300))',
                     'box-shadow': hovered() ? '0 0 8px rgba(34, 211, 211, 0.3)' : undefined,
                   }}
                 />

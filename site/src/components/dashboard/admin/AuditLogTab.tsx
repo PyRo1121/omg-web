@@ -59,10 +59,11 @@ export const AuditLogTab: Component = () => {
     if (!query) return allLogs;
 
     // Filter by user email or IP address
-    return allLogs.filter(log =>
-      log.user_email?.toLowerCase().includes(query) ||
-      log.ip_address?.toLowerCase().includes(query) ||
-      log.resource_id?.toLowerCase().includes(query)
+    return allLogs.filter(
+      log =>
+        log.user_email?.toLowerCase().includes(query) ||
+        log.ip_address?.toLowerCase().includes(query) ||
+        log.resource_id?.toLowerCase().includes(query)
     );
   };
 
@@ -139,11 +140,14 @@ export const AuditLogTab: Component = () => {
           <Show when={showFilters()}>
             <div class="animate-in fade-in slide-in-from-top-2 grid gap-4 rounded-xl border border-white/10 bg-white/5 p-4 md:grid-cols-2">
               <div>
-                <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                <label class="mb-2 block text-xs font-bold tracking-wider text-slate-400 uppercase">
                   Action Type
                 </label>
                 <div class="relative">
-                  <Filter size={16} class="absolute top-1/2 left-3 -translate-y-1/2 text-slate-500" />
+                  <Filter
+                    size={16}
+                    class="absolute top-1/2 left-3 -translate-y-1/2 text-slate-500"
+                  />
                   <select
                     value={actionFilter()}
                     onChange={e => {
@@ -161,11 +165,14 @@ export const AuditLogTab: Component = () => {
               </div>
 
               <div>
-                <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                <label class="mb-2 block text-xs font-bold tracking-wider text-slate-400 uppercase">
                   Search User / IP / Resource
                 </label>
                 <div class="relative">
-                  <Search size={16} class="absolute top-1/2 left-3 -translate-y-1/2 text-slate-500" />
+                  <Search
+                    size={16}
+                    class="absolute top-1/2 left-3 -translate-y-1/2 text-slate-500"
+                  />
                   <input
                     type="text"
                     value={searchQuery()}

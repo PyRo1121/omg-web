@@ -244,11 +244,13 @@ export function getCorsHeaders(origin: string | null): Record<string, string> {
     'https://*.omg-docs.pages.dev',
   ];
 
-  const isAllowed = origin && allowedOrigins.some(allowed =>
-    allowed.includes('*')
-      ? origin.endsWith(allowed.replace('https://*.', '.'))
-      : origin === allowed
-  );
+  const isAllowed =
+    origin &&
+    allowedOrigins.some(allowed =>
+      allowed.includes('*')
+        ? origin.endsWith(allowed.replace('https://*.', '.'))
+        : origin === allowed
+    );
 
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin! : 'https://pyro1121.com',
@@ -259,8 +261,8 @@ export function getCorsHeaders(origin: string | null): Record<string, string> {
 }
 
 export function jsonResponse(data: unknown, status = 200): Response {
-  const headers: Record<string, string> = { 
-    'Content-Type': 'application/json', 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
     ...corsHeaders,
     'CDN-Cache-Control': 'no-store',
   };
@@ -390,7 +392,7 @@ export async function verifyTurnstile(
       body: formData,
     });
 
-    const result = await response.json() as {
+    const result = (await response.json()) as {
       success: boolean;
       'error-codes'?: string[];
     };

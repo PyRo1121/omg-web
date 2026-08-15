@@ -1,7 +1,15 @@
 import { Component, createMemo, createSignal, createEffect, Show, splitProps, JSX } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { TrendingUp, TrendingDown, Minus, DollarSign, Users, AlertTriangle, Target } from 'lucide-solid';
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  DollarSign,
+  Users,
+  AlertTriangle,
+  Target,
+} from 'lucide-solid';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -29,13 +37,16 @@ interface KPICardProps {
   class?: string;
 }
 
-const variantConfig: Record<KPIVariant, {
-  iconBg: string;
-  iconColor: string;
-  sparklineColor: string;
-  glowColor: string;
-  defaultIcon: typeof DollarSign;
-}> = {
+const variantConfig: Record<
+  KPIVariant,
+  {
+    iconBg: string;
+    iconColor: string;
+    sparklineColor: string;
+    glowColor: string;
+    defaultIcon: typeof DollarSign;
+  }
+> = {
   revenue: {
     iconBg: 'bg-aurora-500/10',
     iconColor: 'text-aurora-400',
@@ -66,15 +77,18 @@ const variantConfig: Record<KPIVariant, {
   },
 };
 
-const sizeConfig: Record<KPISize, {
-  padding: string;
-  titleSize: string;
-  valueSize: string;
-  subtitleSize: string;
-  iconSize: number;
-  iconPadding: string;
-  sparklineHeight: number;
-}> = {
+const sizeConfig: Record<
+  KPISize,
+  {
+    padding: string;
+    titleSize: string;
+    valueSize: string;
+    subtitleSize: string;
+    iconSize: number;
+    iconPadding: string;
+    sparklineHeight: number;
+  }
+> = {
   sm: {
     padding: 'p-4',
     titleSize: 'text-2xs',
@@ -110,7 +124,7 @@ const AnimatedCounter: Component<{
   suffix?: string;
   decimals?: number;
   animated?: boolean;
-}> = (props) => {
+}> = props => {
   const [displayValue, setDisplayValue] = createSignal(props.animated ? 0 : props.value);
   const decimals = () => props.decimals ?? (props.value < 100 ? 1 : 0);
 
@@ -150,7 +164,9 @@ const AnimatedCounter: Component<{
 
   return (
     <span class="tabular-nums">
-      {props.prefix}{formattedValue()}{props.suffix}
+      {props.prefix}
+      {formattedValue()}
+      {props.suffix}
     </span>
   );
 };
@@ -159,10 +175,8 @@ const TrendIndicator: Component<{
   value: number;
   inverted?: boolean;
   size?: KPISize;
-}> = (props) => {
-  const isPositive = createMemo(() => 
-    props.inverted ? props.value < 0 : props.value > 0
-  );
+}> = props => {
+  const isPositive = createMemo(() => (props.inverted ? props.value < 0 : props.value > 0));
 
   const sizeClasses = {
     sm: 'px-1.5 py-0.5 text-2xs gap-0.5',
@@ -170,16 +184,14 @@ const TrendIndicator: Component<{
     lg: 'px-2.5 py-1 text-sm gap-1',
   };
 
-  const iconSize = () => props.size === 'lg' ? 14 : 12;
+  const iconSize = () => (props.size === 'lg' ? 14 : 12);
 
   return (
     <div
       class={cn(
         'inline-flex items-center rounded-full font-bold transition-colors',
         sizeClasses[props.size || 'md'],
-        isPositive() 
-          ? 'bg-aurora-500/10 text-aurora-400' 
-          : 'bg-flare-500/10 text-flare-400'
+        isPositive() ? 'bg-aurora-500/10 text-aurora-400' : 'bg-flare-500/10 text-flare-400'
       )}
     >
       <Show when={props.value > 0}>
@@ -192,7 +204,8 @@ const TrendIndicator: Component<{
         <Minus size={iconSize()} />
       </Show>
       <span class="tabular-nums">
-        {props.value > 0 ? '+' : ''}{Math.abs(props.value).toFixed(1)}%
+        {props.value > 0 ? '+' : ''}
+        {Math.abs(props.value).toFixed(1)}%
       </span>
     </div>
   );
@@ -202,7 +215,7 @@ const MiniSparkline: Component<{
   data: number[];
   color: string;
   height: number;
-}> = (props) => {
+}> = props => {
   const width = 70;
 
   const pathData = createMemo(() => {
@@ -239,7 +252,7 @@ const MiniSparkline: Component<{
     });
 
     let d = `M ${padding},${props.height - padding}`;
-    points.forEach((p) => {
+    points.forEach(p => {
       d += ` L ${p.x},${p.y}`;
     });
     d += ` L ${width - padding},${props.height - padding} Z`;
@@ -267,10 +280,7 @@ const MiniSparkline: Component<{
           <stop offset="100%" stop-color={props.color} stop-opacity="0" />
         </linearGradient>
       </defs>
-      <path
-        d={areaPath()}
-        fill={`url(#${gradientId})`}
-      />
+      <path d={areaPath()} fill={`url(#${gradientId})`} />
       <path
         d={pathData()}
         fill="none"
@@ -279,22 +289,28 @@ const MiniSparkline: Component<{
         stroke-linecap="round"
         stroke-linejoin="round"
       />
-      <circle
-        cx={width - 2}
-        cy={lastPointY()}
-        r="3"
-        fill={props.color}
-        class="animate-pulse"
-      />
+      <circle cx={width - 2} cy={lastPointY()} r="3" fill={props.color} class="animate-pulse" />
     </svg>
   );
 };
 
-export const KPICard: Component<KPICardProps> = (props) => {
+export const KPICard: Component<KPICardProps> = props => {
   const [local, others] = splitProps(props, [
-    'value', 'label', 'change', 'trend', 'icon', 'variant', 'size',
-    'prefix', 'suffix', 'subtitle', 'loading', 'invertTrend', 'animated',
-    'sparklineData', 'class'
+    'value',
+    'label',
+    'change',
+    'trend',
+    'icon',
+    'variant',
+    'size',
+    'prefix',
+    'suffix',
+    'subtitle',
+    'loading',
+    'invertTrend',
+    'animated',
+    'sparklineData',
+    'class',
   ]);
 
   const variant = () => variantConfig[local.variant || 'revenue'];
@@ -308,7 +324,7 @@ export const KPICard: Component<KPICardProps> = (props) => {
       class={cn(
         'group relative overflow-hidden rounded-3xl border transition-all duration-300',
         'bg-void-850 border-white/5',
-        'hover:border-white/10 hover:translate-y-[-2px]',
+        'hover:translate-y-[-2px] hover:border-white/10',
         'shadow-card hover:shadow-card-hover',
         size().padding,
         local.class
@@ -318,23 +334,22 @@ export const KPICard: Component<KPICardProps> = (props) => {
       {...others}
     >
       <div
-        class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-100"
+        class="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-100"
         style={{ 'background-color': variant().glowColor }}
       />
 
       <div class="relative flex items-start justify-between">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class={cn(
-              'font-bold uppercase tracking-widest text-nebula-500',
-              size().titleSize
-            )}>
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <span
+              class={cn('text-nebula-500 font-bold tracking-widest uppercase', size().titleSize)}
+            >
               {local.label}
             </span>
             <Show when={local.change !== undefined}>
-              <TrendIndicator 
-                value={local.change!} 
-                inverted={local.invertTrend} 
+              <TrendIndicator
+                value={local.change!}
+                inverted={local.invertTrend}
                 size={local.size}
               />
             </Show>
@@ -344,16 +359,21 @@ export const KPICard: Component<KPICardProps> = (props) => {
             <Show
               when={!local.loading}
               fallback={
-                <div class={cn(
-                  'animate-pulse rounded-lg bg-white/5',
-                  local.size === 'lg' ? 'h-14 w-40' : local.size === 'sm' ? 'h-8 w-24' : 'h-10 w-32'
-                )} />
+                <div
+                  class={cn(
+                    'animate-pulse rounded-lg bg-white/5',
+                    local.size === 'lg'
+                      ? 'h-14 w-40'
+                      : local.size === 'sm'
+                        ? 'h-8 w-24'
+                        : 'h-10 w-32'
+                  )}
+                />
               }
             >
-              <span class={cn(
-                'font-display font-black tracking-tight text-white',
-                size().valueSize
-              )}>
+              <span
+                class={cn('font-display font-black tracking-tight text-white', size().valueSize)}
+              >
                 <AnimatedCounter
                   value={local.value}
                   prefix={local.prefix}
@@ -372,10 +392,17 @@ export const KPICard: Component<KPICardProps> = (props) => {
         </div>
 
         <div class="flex flex-col items-end gap-3">
-          <div class={cn(variant().iconBg, size().iconPadding, 'transition-transform duration-500 group-hover:scale-110')}>
-            <Show when={local.icon} fallback={
-              <DefaultIcon size={size().iconSize} class={variant().iconColor} />
-            }>
+          <div
+            class={cn(
+              variant().iconBg,
+              size().iconPadding,
+              'transition-transform duration-500 group-hover:scale-110'
+            )}
+          >
+            <Show
+              when={local.icon}
+              fallback={<DefaultIcon size={size().iconSize} class={variant().iconColor} />}
+            >
               {local.icon}
             </Show>
           </div>
@@ -401,7 +428,7 @@ export interface KPIGridProps {
   children: JSX.Element;
 }
 
-export const KPIGrid: Component<KPIGridProps> = (props) => {
+export const KPIGrid: Component<KPIGridProps> = props => {
   const colClasses = {
     2: 'grid-cols-1 md:grid-cols-2',
     3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
@@ -409,11 +436,7 @@ export const KPIGrid: Component<KPIGridProps> = (props) => {
   };
 
   return (
-    <div class={cn(
-      'grid gap-6',
-      colClasses[props.columns || 4],
-      props.class
-    )}>
+    <div class={cn('grid gap-6', colClasses[props.columns || 4], props.class)}>
       {props.children}
     </div>
   );

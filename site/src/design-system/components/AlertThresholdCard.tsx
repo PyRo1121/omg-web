@@ -1,16 +1,16 @@
 import { Component, Show, For, createSignal, createMemo, JSX } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { 
-  Bell, 
-  BellOff, 
-  AlertTriangle, 
+import {
+  Bell,
+  BellOff,
+  AlertTriangle,
   AlertOctagon,
   Settings,
   Slack,
   Mail,
   Check,
-  ChevronDown
+  ChevronDown,
 } from 'lucide-solid';
 
 function cn(...inputs: ClassValue[]) {
@@ -54,7 +54,7 @@ const Toggle: Component<{
   onChange: (checked: boolean) => void;
   'aria-label'?: string;
   disabled?: boolean;
-}> = (props) => {
+}> = props => {
   return (
     <button
       type="button"
@@ -66,7 +66,7 @@ const Toggle: Component<{
         'relative inline-flex h-6 w-11 items-center rounded-full',
         'transition-colors duration-300',
         props.checked ? 'bg-indigo-500' : 'bg-void-600',
-        props.disabled && 'opacity-50 cursor-not-allowed'
+        props.disabled && 'cursor-not-allowed opacity-50'
       )}
       onClick={() => !props.disabled && props.onChange(!props.checked)}
     >
@@ -89,28 +89,25 @@ const RangeSlider: Component<{
   label?: string;
   color?: string;
   disabled?: boolean;
-}> = (props) => {
+}> = props => {
   const percentage = () => ((props.value - props.min) / (props.max - props.min)) * 100;
 
   return (
     <div class="space-y-2">
       <Show when={props.label}>
         <div class="flex items-center justify-between">
-          <span class="text-2xs font-bold uppercase tracking-widest text-nebula-500">
+          <span class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
             {props.label}
           </span>
-          <span 
-            class="font-mono text-sm font-bold tabular-nums"
-            style={{ color: props.color }}
-          >
+          <span class="font-mono text-sm font-bold tabular-nums" style={{ color: props.color }}>
             {props.value}
           </span>
         </div>
       </Show>
       <div class="relative h-2">
-        <div class="absolute inset-0 rounded-full bg-void-700" />
+        <div class="bg-void-700 absolute inset-0 rounded-full" />
         <div
-          class="absolute left-0 top-0 h-full rounded-full transition-all duration-150"
+          class="absolute top-0 left-0 h-full rounded-full transition-all duration-150"
           style={{
             width: `${percentage()}%`,
             'background-color': props.color || 'var(--color-indigo-500)',
@@ -122,16 +119,16 @@ const RangeSlider: Component<{
           max={props.max}
           value={props.value}
           disabled={props.disabled}
-          onInput={(e) => props.onChange(parseInt(e.currentTarget.value))}
+          onInput={e => props.onChange(parseInt(e.currentTarget.value))}
           class={cn(
-            'absolute inset-0 w-full h-full opacity-0 cursor-pointer',
+            'absolute inset-0 h-full w-full cursor-pointer opacity-0',
             props.disabled && 'cursor-not-allowed'
           )}
         />
         <div
           class={cn(
-            'absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full',
-            'bg-white shadow-lg border-2 pointer-events-none',
+            'absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full',
+            'pointer-events-none border-2 bg-white shadow-lg',
             'transition-all duration-150'
           )}
           style={{
@@ -148,12 +145,12 @@ const ChannelSelector: Component<{
   selected: NotificationChannel[];
   onChange: (channels: NotificationChannel[]) => void;
   disabled?: boolean;
-}> = (props) => {
+}> = props => {
   const [isOpen, setIsOpen] = createSignal(false);
 
   const toggleChannel = (channel: NotificationChannel) => {
     if (props.selected.includes(channel)) {
-      props.onChange(props.selected.filter((c) => c !== channel));
+      props.onChange(props.selected.filter(c => c !== channel));
     } else {
       props.onChange([...props.selected, channel]);
     }
@@ -169,44 +166,44 @@ const ChannelSelector: Component<{
       <button
         type="button"
         class={cn(
-          'flex items-center gap-2 px-3 py-2 rounded-xl w-full',
+          'flex w-full items-center gap-2 rounded-xl px-3 py-2',
           'bg-void-800 border border-white/10',
-          'text-sm text-nebula-300',
+          'text-nebula-300 text-sm',
           'transition-all duration-300',
           'hover:border-white/20',
-          props.disabled && 'opacity-50 cursor-not-allowed'
+          props.disabled && 'cursor-not-allowed opacity-50'
         )}
         onClick={() => !props.disabled && setIsOpen(!isOpen())}
         disabled={props.disabled}
       >
         <Bell size={14} class="text-nebula-500" />
         <span class="flex-1 text-left">
-          {props.selected.length === 0 
-            ? 'Select channels...' 
+          {props.selected.length === 0
+            ? 'Select channels...'
             : `${props.selected.length} channel${props.selected.length > 1 ? 's' : ''}`}
         </span>
-        <ChevronDown 
-          size={14} 
-          class={cn('text-nebula-500 transition-transform duration-300', isOpen() && 'rotate-180')} 
+        <ChevronDown
+          size={14}
+          class={cn('text-nebula-500 transition-transform duration-300', isOpen() && 'rotate-180')}
         />
       </button>
 
       <Show when={isOpen()}>
-        <div class="absolute top-full left-0 right-0 mt-1 z-50 p-2 rounded-xl bg-void-850 border border-white/10 shadow-xl">
+        <div class="bg-void-850 absolute top-full right-0 left-0 z-50 mt-1 rounded-xl border border-white/10 p-2 shadow-xl">
           <For each={channels}>
-            {(channel) => {
+            {channel => {
               const Icon = channel.icon;
               const isSelected = props.selected.includes(channel.id);
               return (
                 <button
                   type="button"
                   class={cn(
-                    'flex items-center gap-3 w-full px-3 py-2 rounded-lg',
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2',
                     'transition-all duration-300',
-                    isSelected 
-                    ? 'bg-indigo-500/20 text-indigo-300' 
-                    : 'text-nebula-400 hover:bg-white/5 hover:text-white'
-                )}
+                    isSelected
+                      ? 'bg-indigo-500/20 text-indigo-300'
+                      : 'text-nebula-400 hover:bg-white/5 hover:text-white'
+                  )}
                   onClick={() => toggleChannel(channel.id)}
                 >
                   <Icon size={16} />
@@ -230,7 +227,7 @@ const ThresholdVisualizer: Component<{
   min: number;
   max: number;
   unit?: string;
-}> = (props) => {
+}> = props => {
   const getPosition = (value: number) => {
     return ((value - props.min) / (props.max - props.min)) * 100;
   };
@@ -238,14 +235,14 @@ const ThresholdVisualizer: Component<{
   const getZoneClass = () => {
     const value = props.currentValue;
     if (value === undefined) return 'normal';
-    
+
     const { criticalMin, criticalMax, warningMin, warningMax } = props.threshold;
-    
+
     if (criticalMin !== undefined && value <= criticalMin) return 'critical';
     if (criticalMax !== undefined && value >= criticalMax) return 'critical';
     if (warningMin !== undefined && value <= warningMin) return 'warning';
     if (warningMax !== undefined && value >= warningMax) return 'warning';
-    
+
     return 'normal';
   };
 
@@ -253,10 +250,10 @@ const ThresholdVisualizer: Component<{
 
   return (
     <div class="space-y-3">
-      <div class="relative h-8 rounded-xl overflow-hidden bg-void-800">
+      <div class="bg-void-800 relative h-8 overflow-hidden rounded-xl">
         <Show when={props.threshold.criticalMin !== undefined}>
           <div
-            class="absolute top-0 bottom-0 bg-alert-threshold-critical-zone"
+            class="bg-alert-threshold-critical-zone absolute top-0 bottom-0"
             style={{
               left: '0%',
               width: `${getPosition(props.threshold.criticalMin!)}%`,
@@ -265,17 +262,18 @@ const ThresholdVisualizer: Component<{
         </Show>
         <Show when={props.threshold.warningMin !== undefined}>
           <div
-            class="absolute top-0 bottom-0 bg-alert-threshold-warning-zone"
+            class="bg-alert-threshold-warning-zone absolute top-0 bottom-0"
             style={{
-              left: props.threshold.criticalMin !== undefined 
-                ? `${getPosition(props.threshold.criticalMin)}%`
-                : '0%',
+              left:
+                props.threshold.criticalMin !== undefined
+                  ? `${getPosition(props.threshold.criticalMin)}%`
+                  : '0%',
               width: `${getPosition(props.threshold.warningMin!) - (props.threshold.criticalMin !== undefined ? getPosition(props.threshold.criticalMin) : 0)}%`,
             }}
           />
         </Show>
         <div
-          class="absolute top-0 bottom-0 bg-alert-threshold-normal-zone"
+          class="bg-alert-threshold-normal-zone absolute top-0 bottom-0"
           style={{
             left: `${getPosition(props.threshold.warningMin ?? props.threshold.criticalMin ?? props.min)}%`,
             right: `${100 - getPosition(props.threshold.warningMax ?? props.threshold.criticalMax ?? props.max)}%`,
@@ -283,18 +281,19 @@ const ThresholdVisualizer: Component<{
         />
         <Show when={props.threshold.warningMax !== undefined}>
           <div
-            class="absolute top-0 bottom-0 bg-alert-threshold-warning-zone"
+            class="bg-alert-threshold-warning-zone absolute top-0 bottom-0"
             style={{
               left: `${getPosition(props.threshold.warningMax!)}%`,
-              width: props.threshold.criticalMax !== undefined
-                ? `${getPosition(props.threshold.criticalMax) - getPosition(props.threshold.warningMax!)}%`
-                : `${100 - getPosition(props.threshold.warningMax!)}%`,
+              width:
+                props.threshold.criticalMax !== undefined
+                  ? `${getPosition(props.threshold.criticalMax) - getPosition(props.threshold.warningMax!)}%`
+                  : `${100 - getPosition(props.threshold.warningMax!)}%`,
             }}
           />
         </Show>
         <Show when={props.threshold.criticalMax !== undefined}>
           <div
-            class="absolute top-0 bottom-0 bg-alert-threshold-critical-zone"
+            class="bg-alert-threshold-critical-zone absolute top-0 bottom-0"
             style={{
               left: `${getPosition(props.threshold.criticalMax!)}%`,
               right: '0%',
@@ -313,7 +312,7 @@ const ThresholdVisualizer: Component<{
           />
           <div
             class={cn(
-              'absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 transition-all duration-500',
+              'absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 transition-all duration-500',
               zone() === 'critical' && 'bg-flare-500 border-flare-400',
               zone() === 'warning' && 'bg-solar-500 border-solar-400',
               zone() === 'normal' && 'bg-aurora-500 border-aurora-400'
@@ -322,15 +321,21 @@ const ThresholdVisualizer: Component<{
           />
         </Show>
       </div>
-      <div class="flex items-center justify-between text-2xs font-mono text-nebula-600">
-        <span>{props.min}{props.unit}</span>
-        <span>{props.max}{props.unit}</span>
+      <div class="text-2xs text-nebula-600 flex items-center justify-between font-mono">
+        <span>
+          {props.min}
+          {props.unit}
+        </span>
+        <span>
+          {props.max}
+          {props.unit}
+        </span>
       </div>
     </div>
   );
 };
 
-export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) => {
+export const AlertThresholdCard: Component<AlertThresholdCardProps> = props => {
   const [isExpanded, setIsExpanded] = createSignal(false);
 
   const min = () => props.minPossible ?? 0;
@@ -346,14 +351,14 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
   const getZoneClass = () => {
     const value = props.currentValue;
     if (value === undefined || !props.config.enabled) return 'normal';
-    
+
     const { criticalMin, criticalMax, warningMin, warningMax } = props.config.threshold;
-    
+
     if (criticalMin !== undefined && value <= criticalMin) return 'critical';
     if (criticalMax !== undefined && value >= criticalMax) return 'critical';
     if (warningMin !== undefined && value <= warningMin) return 'warning';
     if (warningMax !== undefined && value >= warningMax) return 'warning';
-    
+
     return 'normal';
   };
 
@@ -364,8 +369,12 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
       class={cn(
         'rounded-3xl border transition-all duration-300',
         'bg-void-850',
-        zone() === 'critical' && props.config.enabled && 'border-flare-500/30 shadow-[0_0_20px_-5px_rgba(239,68,68,0.3)]',
-        zone() === 'warning' && props.config.enabled && 'border-solar-500/30 shadow-[0_0_20px_-5px_rgba(245,158,11,0.3)]',
+        zone() === 'critical' &&
+          props.config.enabled &&
+          'border-flare-500/30 shadow-[0_0_20px_-5px_rgba(239,68,68,0.3)]',
+        zone() === 'warning' &&
+          props.config.enabled &&
+          'border-solar-500/30 shadow-[0_0_20px_-5px_rgba(245,158,11,0.3)]',
         zone() === 'normal' && 'border-white/5 hover:border-white/10',
         props.class
       )}
@@ -374,17 +383,19 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
         <div class="flex items-start justify-between">
           <div class="flex items-start gap-3">
             <Show when={props.icon}>
-              <div class={cn(
-                'p-2.5 rounded-xl transition-colors duration-300',
-                zone() === 'critical' && props.config.enabled && 'bg-flare-500/10',
-                zone() === 'warning' && props.config.enabled && 'bg-solar-500/10',
-                (zone() === 'normal' || !props.config.enabled) && 'bg-indigo-500/10'
-              )}>
+              <div
+                class={cn(
+                  'rounded-xl p-2.5 transition-colors duration-300',
+                  zone() === 'critical' && props.config.enabled && 'bg-flare-500/10',
+                  zone() === 'warning' && props.config.enabled && 'bg-solar-500/10',
+                  (zone() === 'normal' || !props.config.enabled) && 'bg-indigo-500/10'
+                )}
+              >
                 {props.icon}
               </div>
             </Show>
             <div>
-              <h3 class="font-display font-bold text-white flex items-center gap-2">
+              <h3 class="font-display flex items-center gap-2 font-bold text-white">
                 {props.metricName}
                 <Show when={zone() === 'critical' && props.config.enabled}>
                   <AlertOctagon size={16} class="text-flare-500" />
@@ -394,14 +405,14 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
                 </Show>
               </h3>
               <Show when={props.metricDescription}>
-                <p class="text-sm text-nebula-500 mt-1">{props.metricDescription}</p>
+                <p class="text-nebula-500 mt-1 text-sm">{props.metricDescription}</p>
               </Show>
             </div>
           </div>
           <div class="flex items-center gap-3">
             <Show when={props.currentValue !== undefined}>
               <div class="text-right">
-                <span 
+                <span
                   class={cn(
                     'font-mono text-2xl font-black tabular-nums transition-colors duration-300',
                     zone() === 'critical' && props.config.enabled && 'text-flare-400',
@@ -412,13 +423,13 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
                   {props.currentValue}
                 </span>
                 <Show when={props.unit}>
-                  <span class="text-sm text-nebula-500 ml-1">{props.unit}</span>
+                  <span class="text-nebula-500 ml-1 text-sm">{props.unit}</span>
                 </Show>
               </div>
             </Show>
             <Toggle
               checked={props.config.enabled}
-              onChange={(enabled) => props.onChange({ ...props.config, enabled })}
+              onChange={enabled => props.onChange({ ...props.config, enabled })}
               aria-label={`${props.config.enabled ? 'Disable' : 'Enable'} alerts for ${props.metricName}`}
             />
           </div>
@@ -441,11 +452,11 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
         <button
           type="button"
           class={cn(
-            'w-full px-6 py-3 flex items-center justify-between',
+            'flex w-full items-center justify-between px-6 py-3',
             'border-t border-white/5',
-            'text-sm text-nebula-400',
+            'text-nebula-400 text-sm',
             'transition-all duration-300',
-            'hover:bg-white/[0.02] hover:text-nebula-300'
+            'hover:text-nebula-300 hover:bg-white/[0.02]'
           )}
           onClick={() => setIsExpanded(!isExpanded())}
         >
@@ -453,20 +464,20 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
             <Settings size={14} />
             <span>Configure thresholds</span>
           </span>
-          <ChevronDown 
-            size={14} 
-            class={cn('transition-transform duration-300', isExpanded() && 'rotate-180')} 
+          <ChevronDown
+            size={14}
+            class={cn('transition-transform duration-300', isExpanded() && 'rotate-180')}
           />
         </button>
 
         <Show when={isExpanded()}>
-          <div class="px-6 pb-6 space-y-6 border-t border-white/5 pt-6">
+          <div class="space-y-6 border-t border-white/5 px-6 pt-6 pb-6">
             <div class="grid grid-cols-2 gap-6">
               <RangeSlider
                 value={props.config.threshold.warningMin ?? min()}
                 min={min()}
                 max={max()}
-                onChange={(value) => updateThreshold({ warningMin: value })}
+                onChange={value => updateThreshold({ warningMin: value })}
                 label="Warning (Low)"
                 color="var(--color-solar-500)"
               />
@@ -474,7 +485,7 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
                 value={props.config.threshold.warningMax ?? max()}
                 min={min()}
                 max={max()}
-                onChange={(value) => updateThreshold({ warningMax: value })}
+                onChange={value => updateThreshold({ warningMax: value })}
                 label="Warning (High)"
                 color="var(--color-solar-500)"
               />
@@ -485,7 +496,7 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
                 value={props.config.threshold.criticalMin ?? min()}
                 min={min()}
                 max={max()}
-                onChange={(value) => updateThreshold({ criticalMin: value })}
+                onChange={value => updateThreshold({ criticalMin: value })}
                 label="Critical (Low)"
                 color="var(--color-flare-500)"
               />
@@ -493,19 +504,19 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
                 value={props.config.threshold.criticalMax ?? max()}
                 min={min()}
                 max={max()}
-                onChange={(value) => updateThreshold({ criticalMax: value })}
+                onChange={value => updateThreshold({ criticalMax: value })}
                 label="Critical (High)"
                 color="var(--color-flare-500)"
               />
             </div>
 
             <div>
-              <label class="block text-2xs font-bold uppercase tracking-widest text-nebula-500 mb-2">
+              <label class="text-2xs text-nebula-500 mb-2 block font-bold tracking-widest uppercase">
                 Notification Channels
               </label>
               <ChannelSelector
                 selected={props.config.channels}
-                onChange={(channels) => props.onChange({ ...props.config, channels })}
+                onChange={channels => props.onChange({ ...props.config, channels })}
               />
             </div>
           </div>
@@ -513,8 +524,8 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = (props) =>
       </Show>
 
       <Show when={!props.config.enabled}>
-        <div class="px-6 pb-6 pt-2">
-          <div class="flex items-center gap-2 text-sm text-nebula-600">
+        <div class="px-6 pt-2 pb-6">
+          <div class="text-nebula-600 flex items-center gap-2 text-sm">
             <BellOff size={14} />
             <span>Alerts disabled for this metric</span>
           </div>

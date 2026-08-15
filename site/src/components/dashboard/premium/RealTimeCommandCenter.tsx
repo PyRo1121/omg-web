@@ -28,11 +28,19 @@ interface RealTimeCommandCenterProps {
   onRefresh?: () => void;
 }
 
-const EVENT_TYPE_CONFIG: Record<string, { icon: typeof Terminal; color: string; bg: string; label: string }> = {
+const EVENT_TYPE_CONFIG: Record<
+  string,
+  { icon: typeof Terminal; color: string; bg: string; label: string }
+> = {
   command: { icon: Terminal, color: 'text-indigo-400', bg: 'bg-indigo-500/10', label: 'CMD' },
   install: { icon: Package, color: 'text-aurora-400', bg: 'bg-aurora-500/10', label: 'INSTALL' },
   search: { icon: Search, color: 'text-electric-400', bg: 'bg-electric-500/10', label: 'SEARCH' },
-  runtime_switch: { icon: RefreshCw, color: 'text-photon-400', bg: 'bg-photon-500/10', label: 'RUNTIME' },
+  runtime_switch: {
+    icon: RefreshCw,
+    color: 'text-photon-400',
+    bg: 'bg-photon-500/10',
+    label: 'RUNTIME',
+  },
   error: { icon: AlertCircle, color: 'text-flare-400', bg: 'bg-flare-500/10', label: 'ERROR' },
 };
 
@@ -52,15 +60,17 @@ const formatDuration = (ms: number): string => {
   return `${(ms / 1000).toFixed(2)}s`;
 };
 
-const CommandStreamItem: Component<{ event: FirehoseEvent; index: number }> = (props) => {
-  const config = createMemo(() => EVENT_TYPE_CONFIG[props.event.event_type] || EVENT_TYPE_CONFIG.command);
+const CommandStreamItem: Component<{ event: FirehoseEvent; index: number }> = props => {
+  const config = createMemo(
+    () => EVENT_TYPE_CONFIG[props.event.event_type] || EVENT_TYPE_CONFIG.command
+  );
 
   return (
     <div
-      class="group flex items-start gap-3 border-l-2 border-transparent py-2 pl-3 pr-2 transition-all duration-200 hover:border-indigo-500 hover:bg-white/[0.02]"
+      class="group flex items-start gap-3 border-l-2 border-transparent py-2 pr-2 pl-3 transition-all duration-200 hover:border-indigo-500 hover:bg-white/[0.02]"
       style={{ 'animation-delay': `${props.index * 30}ms` }}
     >
-      <span class="shrink-0 font-mono text-2xs tabular-nums text-nebula-600">
+      <span class="text-2xs text-nebula-600 shrink-0 font-mono tabular-nums">
         {formatTimestamp(props.event.timestamp)}
       </span>
 
@@ -73,14 +83,14 @@ const CommandStreamItem: Component<{ event: FirehoseEvent; index: number }> = (p
 
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
-          <span class={cn('text-2xs font-black uppercase tracking-wider', config().color)}>
+          <span class={cn('text-2xs font-black tracking-wider uppercase', config().color)}>
             {config().label}
           </span>
           <span class="truncate font-mono text-xs font-medium text-white">
             {props.event.event_name}
           </span>
         </div>
-        <div class="mt-0.5 flex items-center gap-2 text-2xs text-nebula-500">
+        <div class="text-2xs text-nebula-500 mt-0.5 flex items-center gap-2">
           <span class="truncate">{props.event.hostname || props.event.machine_id.slice(0, 8)}</span>
           <span class="text-nebula-700">|</span>
           <span>{props.event.platform}</span>
@@ -93,9 +103,9 @@ const CommandStreamItem: Component<{ event: FirehoseEvent; index: number }> = (p
 
       <Show when={props.event.success !== undefined}>
         {props.event.success ? (
-          <CheckCircle size={14} class="shrink-0 text-aurora-400" />
+          <CheckCircle size={14} class="text-aurora-400 shrink-0" />
         ) : (
-          <AlertCircle size={14} class="shrink-0 text-flare-400" />
+          <AlertCircle size={14} class="text-flare-400 shrink-0" />
         )}
       </Show>
     </div>
@@ -107,7 +117,7 @@ interface GlobeVisualizationProps {
   totalNodes: number;
 }
 
-const GlobeVisualization: Component<GlobeVisualizationProps> = (props) => {
+const GlobeVisualization: Component<GlobeVisualizationProps> = props => {
   const topCountries = createMemo(() => props.data.slice(0, 8));
   const maxCount = createMemo(() => Math.max(...props.data.map(d => d.count), 1));
 
@@ -121,8 +131,8 @@ const GlobeVisualization: Component<GlobeVisualizationProps> = (props) => {
   };
 
   return (
-    <div class="relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-indigo-500/5 to-photon-500/5 p-6">
-      <div class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-indigo-500/10 blur-[60px]" />
+    <div class="to-photon-500/5 relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-indigo-500/5 p-6">
+      <div class="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-indigo-500/10 blur-[60px]" />
 
       <div class="relative">
         <div class="mb-6 flex items-center justify-between">
@@ -131,8 +141,10 @@ const GlobeVisualization: Component<GlobeVisualizationProps> = (props) => {
               <Globe size={18} class="text-indigo-400" />
             </div>
             <div>
-              <h3 class="text-sm font-black uppercase tracking-wider text-white">Global Presence</h3>
-              <p class="text-2xs font-medium text-nebula-500">
+              <h3 class="text-sm font-black tracking-wider text-white uppercase">
+                Global Presence
+              </h3>
+              <p class="text-2xs text-nebula-500 font-medium">
                 {props.totalNodes.toLocaleString()} active nodes worldwide
               </p>
             </div>
@@ -150,18 +162,18 @@ const GlobeVisualization: Component<GlobeVisualizationProps> = (props) => {
                   <div class="mb-1 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                       <span class="text-lg">{getCountryFlag(country.country_code)}</span>
-                      <span class="text-xs font-bold text-nebula-300">{country.country}</span>
+                      <span class="text-nebula-300 text-xs font-bold">{country.country}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span class="font-mono text-xs font-black tabular-nums text-white">
+                      <span class="font-mono text-xs font-black text-white tabular-nums">
                         {country.count.toLocaleString()}
                       </span>
-                      <span class="text-2xs font-medium text-nebula-500">
+                      <span class="text-2xs text-nebula-500 font-medium">
                         ({country.percentage.toFixed(1)}%)
                       </span>
                     </div>
                   </div>
-                  <div class="h-2 overflow-hidden rounded-full bg-void-700">
+                  <div class="bg-void-700 h-2 overflow-hidden rounded-full">
                     <div
                       class="h-full rounded-full transition-all duration-700 ease-out"
                       style={{
@@ -184,12 +196,12 @@ interface CommandHealthPulseProps {
   health: CommandHealth;
 }
 
-const CommandHealthPulse: Component<CommandHealthPulseProps> = (props) => {
+const CommandHealthPulse: Component<CommandHealthPulseProps> = props => {
   const [pulsePhase, setPulsePhase] = createSignal(0);
 
   createEffect(() => {
     const interval = setInterval(() => {
-      setPulsePhase((p) => (p + 1) % 100);
+      setPulsePhase(p => (p + 1) % 100);
     }, 50);
     onCleanup(() => clearInterval(interval));
   });
@@ -198,7 +210,7 @@ const CommandHealthPulse: Component<CommandHealthPulseProps> = (props) => {
   const isHealthy = () => props.health.success >= 95;
 
   return (
-    <div class="relative overflow-hidden rounded-2xl border border-white/5 bg-void-850 p-6">
+    <div class="bg-void-850 relative overflow-hidden rounded-2xl border border-white/5 p-6">
       <div class="flex items-center gap-6">
         <div class="relative">
           <svg width="100" height="100" viewBox="0 0 100 100">
@@ -260,33 +272,36 @@ const CommandHealthPulse: Component<CommandHealthPulseProps> = (props) => {
               class="transition-all"
             />
 
-            <circle
-              cx="50"
-              cy="50"
-              r="8"
-              fill={isHealthy() ? '#10b981' : '#ef4444'}
-            />
+            <circle cx="50" cy="50" r="8" fill={isHealthy() ? '#10b981' : '#ef4444'} />
           </svg>
         </div>
 
         <div class="flex-1">
-          <h3 class="text-sm font-black uppercase tracking-wider text-white">Command Health</h3>
-          <p class="mt-1 text-2xs text-nebula-500">Real-time success rate monitoring</p>
+          <h3 class="text-sm font-black tracking-wider text-white uppercase">Command Health</h3>
+          <p class="text-2xs text-nebula-500 mt-1">Real-time success rate monitoring</p>
 
           <div class="mt-4 grid grid-cols-2 gap-4">
             <div>
               <div class="flex items-baseline gap-1">
-                <span class="font-display text-3xl font-black text-aurora-400">{props.health.success.toFixed(1)}</span>
-                <span class="text-sm font-bold text-aurora-400/50">%</span>
+                <span class="font-display text-aurora-400 text-3xl font-black">
+                  {props.health.success.toFixed(1)}
+                </span>
+                <span class="text-aurora-400/50 text-sm font-bold">%</span>
               </div>
-              <span class="text-2xs font-bold uppercase tracking-wider text-nebula-500">Success</span>
+              <span class="text-2xs text-nebula-500 font-bold tracking-wider uppercase">
+                Success
+              </span>
             </div>
             <div>
               <div class="flex items-baseline gap-1">
-                <span class="font-display text-3xl font-black text-flare-400">{props.health.failure.toFixed(1)}</span>
-                <span class="text-sm font-bold text-flare-400/50">%</span>
+                <span class="font-display text-flare-400 text-3xl font-black">
+                  {props.health.failure.toFixed(1)}
+                </span>
+                <span class="text-flare-400/50 text-sm font-bold">%</span>
               </div>
-              <span class="text-2xs font-bold uppercase tracking-wider text-nebula-500">Failure</span>
+              <span class="text-2xs text-nebula-500 font-bold tracking-wider uppercase">
+                Failure
+              </span>
             </div>
           </div>
         </div>
@@ -307,13 +322,13 @@ interface ActivityHeatmapWrapperProps {
   heatmapData: AdvancedMetrics['command_heatmap'];
 }
 
-const ActivityHeatmapWrapper: Component<ActivityHeatmapWrapperProps> = (props) => {
+const ActivityHeatmapWrapper: Component<ActivityHeatmapWrapperProps> = props => {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 
   const formattedData = createMemo(() => {
     if (!props.heatmapData || props.heatmapData.length === 0) return [];
-    
+
     return props.heatmapData.map(item => ({
       x: parseInt(item.hour, 10),
       y: parseInt(item.day_of_week, 10),
@@ -322,14 +337,16 @@ const ActivityHeatmapWrapper: Component<ActivityHeatmapWrapperProps> = (props) =
   });
 
   return (
-    <div class="overflow-hidden rounded-2xl border border-white/5 bg-void-850 p-6">
+    <div class="bg-void-850 overflow-hidden rounded-2xl border border-white/5 p-6">
       <div class="mb-6 flex items-center gap-3">
-        <div class="rounded-xl bg-photon-500/10 p-2">
+        <div class="bg-photon-500/10 rounded-xl p-2">
           <Activity size={18} class="text-photon-400" />
         </div>
         <div>
-          <h3 class="text-sm font-black uppercase tracking-wider text-white">Activity Heatmap</h3>
-          <p class="text-2xs font-medium text-nebula-500">Command distribution by time (real data)</p>
+          <h3 class="text-sm font-black tracking-wider text-white uppercase">Activity Heatmap</h3>
+          <p class="text-2xs text-nebula-500 font-medium">
+            Command distribution by time (real data)
+          </p>
         </div>
       </div>
 
@@ -337,8 +354,8 @@ const ActivityHeatmapWrapper: Component<ActivityHeatmapWrapperProps> = (props) =
         when={formattedData().length > 0}
         fallback={
           <div class="flex flex-col items-center justify-center py-8 text-center">
-            <Activity size={32} class="mb-3 text-nebula-600" />
-            <p class="text-sm text-nebula-500">No activity data available</p>
+            <Activity size={32} class="text-nebula-600 mb-3" />
+            <p class="text-nebula-500 text-sm">No activity data available</p>
           </div>
         }
       >
@@ -355,7 +372,7 @@ const ActivityHeatmapWrapper: Component<ActivityHeatmapWrapperProps> = (props) =
   );
 };
 
-export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = (props) => {
+export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = props => {
   const [filter, setFilter] = createSignal<string>('all');
   const [searchQuery, setSearchQuery] = createSignal('');
   let streamRef: HTMLDivElement | undefined;
@@ -388,18 +405,20 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = (pro
 
   return (
     <div class="space-y-6">
-      <div class="relative overflow-hidden rounded-4xl border border-white/5 bg-void-850 shadow-2xl">
-        <div class="pointer-events-none absolute -left-32 -top-32 h-64 w-64 rounded-full bg-electric-500/10 blur-[100px]" />
+      <div class="bg-void-850 relative overflow-hidden rounded-4xl border border-white/5 shadow-2xl">
+        <div class="bg-electric-500/10 pointer-events-none absolute -top-32 -left-32 h-64 w-64 rounded-full blur-[100px]" />
 
         <div class="relative border-b border-white/5 bg-gradient-to-r from-white/[0.02] to-transparent p-6">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div class="flex items-center gap-4">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-electric-500 to-plasma-600">
+              <div class="from-electric-500 to-plasma-600 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br">
                 <Terminal size={24} class="text-white" />
               </div>
               <div>
-                <h2 class="font-display text-xl font-black tracking-tight text-white">Command Center</h2>
-                <p class="text-xs text-nebula-400">Real-time telemetry stream</p>
+                <h2 class="font-display text-xl font-black tracking-tight text-white">
+                  Command Center
+                </h2>
+                <p class="text-nebula-400 text-xs">Real-time telemetry stream</p>
               </div>
             </div>
 
@@ -411,19 +430,22 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = (pro
               />
 
               <div class="relative">
-                <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-nebula-500" />
+                <Search
+                  size={14}
+                  class="text-nebula-500 absolute top-1/2 left-3 -translate-y-1/2"
+                />
                 <input
                   type="text"
                   placeholder="Filter events..."
                   value={searchQuery()}
-                  onInput={(e) => setSearchQuery(e.currentTarget.value)}
-                  class="w-48 rounded-xl border border-white/10 bg-white/5 py-2 pl-9 pr-4 text-xs text-white placeholder-nebula-500 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  onInput={e => setSearchQuery(e.currentTarget.value)}
+                  class="placeholder-nebula-500 w-48 rounded-xl border border-white/10 bg-white/5 py-2 pr-4 pl-9 text-xs text-white transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
                 />
               </div>
 
               <select
                 value={filter()}
-                onChange={(e) => setFilter(e.currentTarget.value)}
+                onChange={e => setFilter(e.currentTarget.value)}
                 class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition-all focus:border-indigo-500 focus:outline-none"
               >
                 <option value="all">All Events</option>
@@ -442,11 +464,11 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = (pro
           class="relative h-[400px] overflow-y-auto font-mono text-xs"
           style={{ 'scrollbar-width': 'none', '-ms-overflow-style': 'none' }}
         >
-          <div class="sticky top-0 z-10 border-b border-white/5 bg-void-850/95 px-4 py-2 backdrop-blur-xl">
-            <div class="flex items-center gap-2 text-2xs font-bold uppercase tracking-wider text-nebula-600">
+          <div class="bg-void-850/95 sticky top-0 z-10 border-b border-white/5 px-4 py-2 backdrop-blur-xl">
+            <div class="text-2xs text-nebula-600 flex items-center gap-2 font-bold tracking-wider uppercase">
               <Terminal size={12} />
               <span>Live Stream</span>
-              <span class="ml-auto text-nebula-500">{filteredEvents().length} events</span>
+              <span class="text-nebula-500 ml-auto">{filteredEvents().length} events</span>
             </div>
           </div>
 
@@ -458,25 +480,27 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = (pro
 
           <Show when={filteredEvents().length === 0}>
             <div class="flex flex-col items-center justify-center py-16 text-center">
-              <Terminal size={48} class="mb-4 text-nebula-600" />
-              <p class="font-sans text-sm font-bold text-nebula-500">No events to display</p>
-              <p class="mt-1 font-sans text-xs text-nebula-600">
-                {searchQuery() || filter() !== 'all' ? 'Try adjusting your filters' : 'Waiting for incoming events...'}
+              <Terminal size={48} class="text-nebula-600 mb-4" />
+              <p class="text-nebula-500 font-sans text-sm font-bold">No events to display</p>
+              <p class="text-nebula-600 mt-1 font-sans text-xs">
+                {searchQuery() || filter() !== 'all'
+                  ? 'Try adjusting your filters'
+                  : 'Waiting for incoming events...'}
               </p>
             </div>
           </Show>
 
-          <div class="sticky bottom-0 flex items-center gap-2 border-t border-white/5 bg-void-850/95 px-4 py-2 backdrop-blur-xl">
-            <div class="h-1.5 w-1.5 animate-pulse rounded-full bg-aurora-500" />
-            <span class="text-2xs italic text-nebula-600">Streaming telemetry data...</span>
+          <div class="bg-void-850/95 sticky bottom-0 flex items-center gap-2 border-t border-white/5 px-4 py-2 backdrop-blur-xl">
+            <div class="bg-aurora-500 h-1.5 w-1.5 animate-pulse rounded-full" />
+            <span class="text-2xs text-nebula-600 italic">Streaming telemetry data...</span>
           </div>
         </div>
       </div>
 
       <div class="grid gap-6 lg:grid-cols-2">
-        <GlobeVisualization 
-          data={props.geoDistribution} 
-          totalNodes={props.geoDistribution.reduce((sum, g) => sum + g.count, 0)} 
+        <GlobeVisualization
+          data={props.geoDistribution}
+          totalNodes={props.geoDistribution.reduce((sum, g) => sum + g.count, 0)}
         />
         <CommandHealthPulse health={props.commandHealth} />
       </div>

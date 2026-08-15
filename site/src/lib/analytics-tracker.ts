@@ -66,7 +66,7 @@ async function flushEvents(): Promise<void> {
       body: JSON.stringify({ events }),
       keepalive: true,
     });
-    
+
     if (!response.ok) {
       eventQueue = [...events, ...eventQueue];
     }
@@ -94,7 +94,7 @@ function queueEvent(event: Omit<AnalyticsEvent, 'timestamp' | 'session_id'>): vo
 
 export function trackPageview(path?: string): void {
   if (typeof window === 'undefined') return;
-  
+
   queueEvent({
     event_type: 'pageview',
     event_name: 'page_view',
@@ -194,10 +194,10 @@ export function initAnalytics(): void {
 
   if ('PerformanceObserver' in window) {
     try {
-      const observer = new PerformanceObserver((list) => {
+      const observer = new PerformanceObserver(list => {
         const entries = list.getEntries();
         const metrics: Record<string, number> = {};
-        
+
         for (const entry of entries) {
           if (entry.entryType === 'largest-contentful-paint') {
             metrics.lcp = entry.startTime;
@@ -207,12 +207,12 @@ export function initAnalytics(): void {
             metrics.cls = (metrics.cls || 0) + (entry as any).value;
           }
         }
-        
+
         if (Object.keys(metrics).length > 0) {
           trackPerformance(metrics);
         }
       });
-      
+
       observer.observe({ type: 'largest-contentful-paint', buffered: true });
       observer.observe({ type: 'first-input', buffered: true });
       observer.observe({ type: 'layout-shift', buffered: true });

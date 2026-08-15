@@ -8,7 +8,7 @@ interface TooltipProps {
   delay?: number;
 }
 
-export const Tooltip: Component<TooltipProps> = (props) => {
+export const Tooltip: Component<TooltipProps> = props => {
   const [isVisible, setIsVisible] = createSignal(false);
   const [tooltipPos, setTooltipPos] = createSignal({ x: 0, y: 0 });
   let timeoutId: number | undefined;
@@ -19,7 +19,7 @@ export const Tooltip: Component<TooltipProps> = (props) => {
   const handleMouseEnter = (e: MouseEvent) => {
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
-    
+
     const position = props.position || 'top';
     let x = 0;
     let y = 0;
@@ -83,11 +83,11 @@ export const Tooltip: Component<TooltipProps> = (props) => {
       >
         {props.children}
       </div>
-      
+
       <Show when={isVisible()}>
         <Portal>
           <div
-            class={`pointer-events-none fixed z-[100] max-w-xs rounded-lg border border-white/10 bg-void-900/95 px-3 py-2 text-xs text-nebula-200 shadow-2xl backdrop-blur-sm transition-opacity duration-200 ${getPositionClasses()}`}
+            class={`bg-void-900/95 text-nebula-200 pointer-events-none fixed z-[100] max-w-xs rounded-lg border border-white/10 px-3 py-2 text-xs shadow-2xl backdrop-blur-sm transition-opacity duration-200 ${getPositionClasses()}`}
             style={{
               left: `${tooltipPos().x}px`,
               top: `${tooltipPos().y}px`,

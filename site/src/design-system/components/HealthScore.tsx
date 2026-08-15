@@ -27,14 +27,17 @@ const getHealthLevel = (score: number): HealthLevel => {
   return 'excellent';
 };
 
-const healthConfig: Record<HealthLevel, { 
-  color: string; 
-  bg: string; 
-  glow: string;
-  text: string;
-  gradient: string;
-  label: string;
-}> = {
+const healthConfig: Record<
+  HealthLevel,
+  {
+    color: string;
+    bg: string;
+    glow: string;
+    text: string;
+    gradient: string;
+    label: string;
+  }
+> = {
   critical: {
     color: 'var(--health-critical, #ef4444)',
     bg: 'bg-flare-500/10',
@@ -84,30 +87,23 @@ const sizeConfig = {
   xl: { ring: 128, stroke: 8, fontSize: 'text-4xl', labelSize: 'text-base' },
 };
 
-export const HealthScoreRing: Component<HealthScoreProps> = (props) => {
+export const HealthScoreRing: Component<HealthScoreProps> = props => {
   const [local, others] = splitProps(props, ['score', 'size', 'showLabel', 'animated', 'class']);
-  
+
   const level = createMemo(() => getHealthLevel(local.score));
   const config = createMemo(() => healthConfig[level()]);
   const sizeValues = createMemo(() => sizeConfig[local.size || 'md']);
-  
+
   const radius = createMemo(() => (sizeValues().ring - sizeValues().stroke) / 2);
   const circumference = createMemo(() => 2 * Math.PI * radius());
   const offset = createMemo(() => circumference() - (local.score / 100) * circumference());
 
   return (
-    <div 
-      class={cn(
-        'relative inline-flex flex-col items-center justify-center',
-        local.class
-      )}
+    <div
+      class={cn('relative inline-flex flex-col items-center justify-center', local.class)}
       {...others}
     >
-      <svg
-        width={sizeValues().ring}
-        height={sizeValues().ring}
-        class="rotate-[-90deg]"
-      >
+      <svg width={sizeValues().ring} height={sizeValues().ring} class="rotate-[-90deg]">
         <circle
           cx={sizeValues().ring / 2}
           cy={sizeValues().ring / 2}
@@ -127,10 +123,7 @@ export const HealthScoreRing: Component<HealthScoreProps> = (props) => {
           stroke-linecap="round"
           stroke-dasharray={`${circumference()}`}
           stroke-dashoffset={local.animated ? circumference() : offset()}
-          class={cn(
-            'transition-all duration-1000',
-            local.animated && 'animate-gauge-fill'
-          )}
+          class={cn('transition-all duration-1000', local.animated && 'animate-gauge-fill')}
           style={{
             '--gauge-circumference': `${circumference()}`,
             '--gauge-offset': `${offset()}`,
@@ -138,11 +131,18 @@ export const HealthScoreRing: Component<HealthScoreProps> = (props) => {
         />
       </svg>
       <div class="absolute inset-0 flex flex-col items-center justify-center">
-        <span class={cn('font-display font-black tabular-nums', config().text, sizeValues().fontSize)}>
+        <span
+          class={cn('font-display font-black tabular-nums', config().text, sizeValues().fontSize)}
+        >
           {local.score}
         </span>
         <Show when={local.showLabel}>
-          <span class={cn('font-medium text-nebula-500 uppercase tracking-wider', sizeValues().labelSize)}>
+          <span
+            class={cn(
+              'text-nebula-500 font-medium tracking-wider uppercase',
+              sizeValues().labelSize
+            )}
+          >
             {config().label}
           </span>
         </Show>
@@ -151,7 +151,7 @@ export const HealthScoreRing: Component<HealthScoreProps> = (props) => {
   );
 };
 
-export const HealthScoreBadge: Component<HealthScoreProps> = (props) => {
+export const HealthScoreBadge: Component<HealthScoreProps> = props => {
   const level = createMemo(() => getHealthLevel(props.score));
   const config = createMemo(() => healthConfig[level()]);
 
@@ -179,18 +179,25 @@ export const HealthScoreBadge: Component<HealthScoreProps> = (props) => {
         <span class="text-nebula-400 font-medium">/100</span>
       </Show>
       <Show when={props.showTrend && props.trend !== undefined}>
-        <span class={cn(
-          'flex items-center text-xs',
-          props.trend! > 0 ? 'text-aurora-400' : props.trend! < 0 ? 'text-flare-400' : 'text-nebula-500'
-        )}>
-          {props.trend! > 0 ? '+' : ''}{props.trend}
+        <span
+          class={cn(
+            'flex items-center text-xs',
+            props.trend! > 0
+              ? 'text-aurora-400'
+              : props.trend! < 0
+                ? 'text-flare-400'
+                : 'text-nebula-500'
+          )}
+        >
+          {props.trend! > 0 ? '+' : ''}
+          {props.trend}
         </span>
       </Show>
     </div>
   );
 };
 
-export const HealthScoreBar: Component<HealthScoreProps & { showSegments?: boolean }> = (props) => {
+export const HealthScoreBar: Component<HealthScoreProps & { showSegments?: boolean }> = props => {
   const level = createMemo(() => getHealthLevel(props.score));
   const config = createMemo(() => healthConfig[level()]);
 
@@ -204,15 +211,24 @@ export const HealthScoreBar: Component<HealthScoreProps & { showSegments?: boole
   return (
     <div class={cn('w-full', props.class)}>
       <Show when={props.showLabel}>
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-xs font-bold text-nebula-400 uppercase tracking-wider">Health Score</span>
-          <span class={cn('text-sm font-black tabular-nums', config().text)}>{props.score}/100</span>
+        <div class="mb-1.5 flex items-center justify-between">
+          <span class="text-nebula-400 text-xs font-bold tracking-wider uppercase">
+            Health Score
+          </span>
+          <span class={cn('text-sm font-black tabular-nums', config().text)}>
+            {props.score}/100
+          </span>
         </div>
       </Show>
-      <div class={cn('w-full rounded-full bg-void-700 overflow-hidden', heightClasses[props.size || 'md'])}>
+      <div
+        class={cn(
+          'bg-void-700 w-full overflow-hidden rounded-full',
+          heightClasses[props.size || 'md']
+        )}
+      >
         <div
           class={cn(
-            'h-full rounded-full bg-gradient-to-r transition-all duration-700 ease-smooth',
+            'ease-smooth h-full rounded-full bg-gradient-to-r transition-all duration-700',
             config().gradient,
             props.animated && config().glow
           )}
@@ -220,7 +236,7 @@ export const HealthScoreBar: Component<HealthScoreProps & { showSegments?: boole
         />
       </div>
       <Show when={props.showSegments}>
-        <div class="flex justify-between mt-1.5 text-2xs text-nebula-600 font-medium">
+        <div class="text-2xs text-nebula-600 mt-1.5 flex justify-between font-medium">
           <span>Critical</span>
           <span>Poor</span>
           <span>Fair</span>
@@ -232,7 +248,7 @@ export const HealthScoreBar: Component<HealthScoreProps & { showSegments?: boole
   );
 };
 
-export const HealthScoreGauge: Component<HealthScoreProps> = (props) => {
+export const HealthScoreGauge: Component<HealthScoreProps> = props => {
   const level = createMemo(() => getHealthLevel(props.score));
   const config = createMemo(() => healthConfig[level()]);
   const sizeValues = createMemo(() => sizeConfig[props.size || 'lg']);
@@ -246,11 +262,7 @@ export const HealthScoreGauge: Component<HealthScoreProps> = (props) => {
 
   return (
     <div class={cn('relative inline-flex flex-col items-center', props.class)}>
-      <svg
-        width={width()}
-        height={height() + 10}
-        class="overflow-visible"
-      >
+      <svg width={width()} height={height() + 10} class="overflow-visible">
         <path
           d={`M ${strokeWidth} ${height()} A ${radius()} ${radius()} 0 0 1 ${width() - strokeWidth} ${height()}`}
           fill="none"
@@ -268,7 +280,7 @@ export const HealthScoreGauge: Component<HealthScoreProps> = (props) => {
           stroke-dasharray={`${circumference()}`}
           stroke-dashoffset={props.animated ? circumference() : offset()}
           class={cn(
-            'transition-all duration-1000 ease-smooth',
+            'ease-smooth transition-all duration-1000',
             props.animated && 'animate-gauge-fill'
           )}
           style={{
@@ -277,9 +289,9 @@ export const HealthScoreGauge: Component<HealthScoreProps> = (props) => {
             filter: `drop-shadow(0 0 8px ${config().color})`,
           }}
         />
-        
+
         <For each={[0, 20, 40, 60, 80, 100]}>
-          {(tick) => {
+          {tick => {
             const angle = Math.PI * (1 - tick / 100);
             const innerRadius = radius() - 12;
             const outerRadius = radius() - 6;
@@ -301,13 +313,20 @@ export const HealthScoreGauge: Component<HealthScoreProps> = (props) => {
           }}
         </For>
       </svg>
-      
-      <div class="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
-        <span class={cn('font-display font-black tabular-nums', config().text, sizeValues().fontSize)}>
+
+      <div class="absolute bottom-0 left-1/2 flex -translate-x-1/2 flex-col items-center">
+        <span
+          class={cn('font-display font-black tabular-nums', config().text, sizeValues().fontSize)}
+        >
           {props.score}
         </span>
         <Show when={props.showLabel}>
-          <span class={cn('font-medium text-nebula-500 uppercase tracking-wider', sizeValues().labelSize)}>
+          <span
+            class={cn(
+              'text-nebula-500 font-medium tracking-wider uppercase',
+              sizeValues().labelSize
+            )}
+          >
             {config().label}
           </span>
         </Show>
@@ -316,7 +335,7 @@ export const HealthScoreGauge: Component<HealthScoreProps> = (props) => {
   );
 };
 
-export const HealthScoreCompact: Component<Omit<HealthScoreProps, 'size'>> = (props) => {
+export const HealthScoreCompact: Component<Omit<HealthScoreProps, 'size'>> = props => {
   const level = createMemo(() => getHealthLevel(props.score));
   const config = createMemo(() => healthConfig[level()]);
 
@@ -328,18 +347,13 @@ export const HealthScoreCompact: Component<Omit<HealthScoreProps, 'size'>> = (pr
         props.class
       )}
     >
-      <div
-        class="h-1.5 w-1.5 rounded-full"
-        style={{ 'background-color': config().color }}
-      />
-      <span class={cn('text-xs font-bold tabular-nums', config().text)}>
-        {props.score}
-      </span>
+      <div class="h-1.5 w-1.5 rounded-full" style={{ 'background-color': config().color }} />
+      <span class={cn('text-xs font-bold tabular-nums', config().text)}>{props.score}</span>
     </div>
   );
 };
 
-export const HealthScore: Component<HealthScoreProps> = (props) => {
+export const HealthScore: Component<HealthScoreProps> = props => {
   const variant = () => props.variant || 'ring';
 
   return (

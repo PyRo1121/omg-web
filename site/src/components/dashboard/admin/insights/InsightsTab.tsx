@@ -1,5 +1,9 @@
 import { Component, Show, For, createSignal } from 'solid-js';
-import { useAdminAdvancedMetrics, useAdminCohorts, useAdminDashboard } from '../../../../lib/api-hooks';
+import {
+  useAdminAdvancedMetrics,
+  useAdminCohorts,
+  useAdminDashboard,
+} from '../../../../lib/api-hooks';
 import { CardSkeleton } from '../../../ui/Skeleton';
 import { EngagementMetrics } from './EngagementMetrics';
 import { ChurnRiskSegments } from './ChurnRiskSegments';
@@ -41,8 +45,8 @@ export const InsightsTab: Component = () => {
   const [showAiPanel, setShowAiPanel] = createSignal(false);
 
   const toggleBookmark = (insightId: string) => {
-    setBookmarkedInsights((prev) =>
-      prev.includes(insightId) ? prev.filter((id) => id !== insightId) : [...prev, insightId]
+    setBookmarkedInsights(prev =>
+      prev.includes(insightId) ? prev.filter(id => id !== insightId) : [...prev, insightId]
     );
   };
 
@@ -98,31 +102,34 @@ export const InsightsTab: Component = () => {
       </div>
 
       <Show when={showAiPanel()}>
-        <div class="rounded-2xl border border-photon-500/30 bg-photon-500/5 p-6">
+        <div class="border-photon-500/30 bg-photon-500/5 rounded-2xl border p-6">
           <div class="flex items-start gap-4">
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-photon-500/20">
+            <div class="bg-photon-500/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
               <Sparkles size={20} class="text-photon-400" />
             </div>
             <div class="flex-1">
               <h3 class="mb-2 font-bold text-white">Ask AI about your data</h3>
               <div class="relative">
-                <Search size={16} class="absolute left-4 top-1/2 -translate-y-1/2 text-nebula-500" />
+                <Search
+                  size={16}
+                  class="text-nebula-500 absolute top-1/2 left-4 -translate-y-1/2"
+                />
                 <input
                   type="text"
                   value={aiQuery()}
-                  onInput={(e) => setAiQuery(e.currentTarget.value)}
+                  onInput={e => setAiQuery(e.currentTarget.value)}
                   placeholder="e.g., Why is churn higher this month? Which segments are growing fastest?"
-                  class="w-full rounded-xl border border-white/10 bg-void-850 py-3 pl-12 pr-4 text-white placeholder-nebula-500 focus:outline-none focus:ring-2 focus:ring-photon-500/20"
+                  class="bg-void-850 placeholder-nebula-500 focus:ring-photon-500/20 w-full rounded-xl border border-white/10 py-3 pr-4 pl-12 text-white focus:ring-2 focus:outline-none"
                 />
               </div>
               <div class="mt-3 flex flex-wrap gap-2">
-                <button class="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-nebula-400 transition-all hover:bg-white/10 hover:text-white">
+                <button class="text-nebula-400 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs transition-all hover:bg-white/10 hover:text-white">
                   Top churn reasons
                 </button>
-                <button class="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-nebula-400 transition-all hover:bg-white/10 hover:text-white">
+                <button class="text-nebula-400 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs transition-all hover:bg-white/10 hover:text-white">
                   Revenue forecast
                 </button>
-                <button class="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-nebula-400 transition-all hover:bg-white/10 hover:text-white">
+                <button class="text-nebula-400 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs transition-all hover:bg-white/10 hover:text-white">
                   Fastest growing segment
                 </button>
               </div>
@@ -133,7 +140,7 @@ export const InsightsTab: Component = () => {
 
       <div class="flex items-center gap-2 overflow-x-auto rounded-xl border border-white/5 bg-white/[0.02] p-1">
         <For each={INSIGHT_CATEGORIES}>
-          {(cat) => (
+          {cat => (
             <button
               onClick={() => setActiveCategory(cat.id)}
               class={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all ${
@@ -149,12 +156,12 @@ export const InsightsTab: Component = () => {
       </div>
 
       <Show when={bookmarkedInsights().length > 0}>
-        <div class="flex items-center gap-2 rounded-xl border border-solar-500/20 bg-solar-500/5 px-4 py-3">
+        <div class="border-solar-500/20 bg-solar-500/5 flex items-center gap-2 rounded-xl border px-4 py-3">
           <Bookmark size={16} class="text-solar-400" />
-          <span class="text-sm text-solar-400">
+          <span class="text-solar-400 text-sm">
             {bookmarkedInsights().length} insights bookmarked
           </span>
-          <button class="ml-auto flex items-center gap-1 rounded-lg bg-solar-500/20 px-3 py-1 text-xs font-bold text-solar-400 hover:bg-solar-500/30">
+          <button class="bg-solar-500/20 text-solar-400 hover:bg-solar-500/30 ml-auto flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-bold">
             <Share2 size={12} />
             Share
           </button>
@@ -188,7 +195,7 @@ export const InsightsTab: Component = () => {
           <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
             <Show when={metricsQuery.data!.engagement}>
               <div class="group relative">
-                <div class="absolute right-4 top-4 z-10 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                <div class="absolute top-4 right-4 z-10 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                   <button
                     onClick={() => toggleBookmark('engagement')}
                     class={`rounded-lg p-2 transition-all ${
@@ -199,7 +206,7 @@ export const InsightsTab: Component = () => {
                   >
                     <Bookmark size={14} />
                   </button>
-                  <button class="rounded-lg bg-void-800 p-2 text-nebula-400 transition-all hover:text-white">
+                  <button class="bg-void-800 text-nebula-400 rounded-lg p-2 transition-all hover:text-white">
                     <MessageSquare size={14} />
                   </button>
                 </div>
@@ -208,12 +215,28 @@ export const InsightsTab: Component = () => {
             </Show>
           </Show>
 
-          <Show when={activeCategory() === 'all' || activeCategory() === 'risk' || activeCategory() === 'growth'}>
+          <Show
+            when={
+              activeCategory() === 'all' ||
+              activeCategory() === 'risk' ||
+              activeCategory() === 'growth'
+            }
+          >
             <div class="grid gap-6 lg:grid-cols-2">
-              <Show when={(activeCategory() === 'all' || activeCategory() === 'risk') && metricsQuery.data!.churn_risk_segments}>
+              <Show
+                when={
+                  (activeCategory() === 'all' || activeCategory() === 'risk') &&
+                  metricsQuery.data!.churn_risk_segments
+                }
+              >
                 <ChurnRiskSegments data={metricsQuery.data!.churn_risk_segments!} />
               </Show>
-              <Show when={(activeCategory() === 'all' || activeCategory() === 'growth') && metricsQuery.data!.expansion_opportunities}>
+              <Show
+                when={
+                  (activeCategory() === 'all' || activeCategory() === 'growth') &&
+                  metricsQuery.data!.expansion_opportunities
+                }
+              >
                 <ExpansionOpportunities data={metricsQuery.data!.expansion_opportunities!} />
               </Show>
             </div>
@@ -244,12 +267,12 @@ export const InsightsTab: Component = () => {
 
           <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
             <Show when={cohortsQuery.isSuccess && cohortsQuery.data?.cohorts}>
-              <CohortRetentionHeatmap 
+              <CohortRetentionHeatmap
                 data={cohortsQuery.data!.cohorts.map(c => ({
                   cohort_month: c.cohort_week,
                   month_index: c.weeks_since_signup,
                   active_users: c.active_users,
-                }))} 
+                }))}
                 maxMonths={12}
               />
             </Show>

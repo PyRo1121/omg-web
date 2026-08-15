@@ -45,7 +45,7 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
   createEffect(() => {
     if (props.userId) {
       previousActiveElement = document.activeElement as HTMLElement | null;
-      
+
       setTimeout(() => {
         const closeButton = drawerRef?.querySelector('button');
         closeButton?.focus();
@@ -75,7 +75,7 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
       };
 
       document.addEventListener('keydown', handleKeyDown);
-      
+
       onCleanup(() => {
         document.removeEventListener('keydown', handleKeyDown);
         if (previousActiveElement instanceof HTMLElement) {
@@ -152,8 +152,8 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
   return (
     <Show when={props.userId}>
       <div class="fixed inset-0 z-50 flex justify-end">
-        <div 
-          class="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+        <div
+          class="absolute inset-0 bg-black/60 backdrop-blur-sm"
           onClick={props.onClose}
           aria-hidden="true"
         />
@@ -168,7 +168,9 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
           <div class="sticky top-0 z-10 border-b border-white/5 bg-[#0a0a0b]/95 p-6 backdrop-blur-xl">
             <div class="flex items-start justify-between">
               <div>
-                <h2 id="drawer-title" class="text-2xl font-black tracking-tight text-white">Customer Detail</h2>
+                <h2 id="drawer-title" class="text-2xl font-black tracking-tight text-white">
+                  Customer Detail
+                </h2>
                 <p class="mt-1 text-sm text-slate-500">360° view of customer activity</p>
               </div>
               <button
@@ -484,7 +486,8 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
                         <span class="font-bold">No Stripe account linked</span>
                       </div>
                       <p class="mt-2 text-xs text-slate-500">
-                        This customer hasn't connected to Stripe yet. They'll be linked automatically when they subscribe.
+                        This customer hasn't connected to Stripe yet. They'll be linked
+                        automatically when they subscribe.
                       </p>
                     </div>
                   </Show>
