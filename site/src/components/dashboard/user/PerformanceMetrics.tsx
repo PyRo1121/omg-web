@@ -1,4 +1,4 @@
-import { Component, createResource, For, Show } from 'solid-js';
+import { type Component, createResource, For, Show } from 'solid-js';
 import GlassCard from '../../ui/GlassCard';
 import { StatCard } from '../analytics/StatCard';
 import { Sparkline, TrendIndicator } from '../../ui/Sparkline';
@@ -8,8 +8,6 @@ import {
   Package,
   Repeat,
   Timer,
-  TrendingUp,
-  TrendingDown,
   CheckCircle,
   Loader2,
   AlertCircle,
@@ -94,22 +92,18 @@ const getMetricIcon = (metricType: string) => {
 };
 
 const getMetricColor = (metricType: string) => {
-  const colors: Record<string, { text: string; bg: string }> = {
+  const colors = {
     search: { text: 'text-cyan-400', bg: 'bg-cyan-500' },
     install: { text: 'text-indigo-400', bg: 'bg-indigo-500' },
     update: { text: 'text-emerald-400', bg: 'bg-emerald-500' },
     remove: { text: 'text-rose-400', bg: 'bg-rose-500' },
-  };
-  return colors[metricType] || { text: 'text-slate-400', bg: 'bg-slate-500' };
-};
-
-const getSparklineColor = (metricType: string) => {
-  const colors: Record<string, string> = {
-    startup: '#6366f1',
-    search: '#22d3ee',
-    install: '#a855f7',
-  };
-  return colors[metricType] || '#6366f1';
+  } satisfies Record<string, { text: string; bg: string }>;
+  return (
+    Object.entries(colors).find(([key]) => key === metricType)?.[1] || {
+      text: 'text-slate-400',
+      bg: 'bg-slate-500',
+    }
+  );
 };
 
 export const PerformanceMetrics: Component = () => {
