@@ -5,7 +5,7 @@
  * with support for multiple fields, operators, and nested AND/OR logic.
  */
 
-import { Component, For, Show, createSignal, createMemo, createEffect } from 'solid-js';
+import { type Component, For, Show, createSignal, createMemo, createEffect } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -73,7 +73,7 @@ interface FieldMeta {
   options?: { value: string; label: string }[];
 }
 
-const FIELD_METADATA: Record<SegmentFieldType, FieldMeta> = {
+const FIELD_METADATA = {
   tier: {
     label: 'Tier',
     icon: Layers,
@@ -104,37 +104,42 @@ const FIELD_METADATA: Record<SegmentFieldType, FieldMeta> = {
     label: 'Engagement Score',
     icon: Filter,
     type: 'number',
+    options: undefined,
   },
   last_active: {
     label: 'Last Active',
     icon: Filter,
     type: 'date',
+    options: undefined,
   },
   total_commands: {
     label: 'Total Commands',
     icon: Filter,
     type: 'number',
+    options: undefined,
   },
   machine_count: {
     label: 'Machine Count',
     icon: Filter,
     type: 'number',
+    options: undefined,
   },
   created_at: {
     label: 'Created At',
     icon: Filter,
     type: 'date',
+    options: undefined,
   },
-};
+} satisfies Record<SegmentFieldType, FieldMeta>;
 
-const OPERATORS: Record<SegmentOperator, { label: string; symbol: string }> = {
+const OPERATORS = {
   equals: { label: 'equals', symbol: '=' },
   not_equals: { label: 'not equals', symbol: '≠' },
   greater_than: { label: 'greater than', symbol: '>' },
   less_than: { label: 'less than', symbol: '<' },
   contains: { label: 'contains', symbol: '∋' },
   between: { label: 'between', symbol: '↔' },
-};
+} satisfies Record<SegmentOperator, { label: string; symbol: string }>;
 
 /** Get valid operators for a field type */
 function getOperatorsForField(field: SegmentFieldType): SegmentOperator[] {
@@ -146,8 +151,6 @@ function getOperatorsForField(field: SegmentFieldType): SegmentOperator[] {
       return ['equals', 'not_equals', 'greater_than', 'less_than', 'between'];
     case 'date':
       return ['equals', 'greater_than', 'less_than', 'between'];
-    case 'string':
-      return ['equals', 'not_equals', 'contains'];
     default:
       return ['equals'];
   }
@@ -337,7 +340,9 @@ const ConditionRow: Component<{
         onChange={value =>
           props.onUpdate({
             ...props.condition,
+            // SAFETY: SegmentSelect receives field values from FIELD_METADATA keys.
             field: value as SegmentFieldType,
+            // SAFETY: SegmentSelect field values are constrained to SegmentFieldType.
             operator: getOperatorsForField(value as SegmentFieldType)[0],
             value: '',
           })
@@ -354,6 +359,7 @@ const ConditionRow: Component<{
         onChange={value =>
           props.onUpdate({
             ...props.condition,
+            // SAFETY: SegmentSelect receives operator values from getOperatorsForField.
             operator: value as SegmentOperator,
             value: value === 'between' ? [0, 100] : '',
           })
@@ -374,6 +380,7 @@ const ConditionRow: Component<{
       <Show when={!fieldMeta().options && !isBetween()}>
         <SegmentInput
           type={inputType()}
+          // SAFETY: Non-between fields store scalar string or number values.
           value={props.condition.value as string | number}
           onChange={value => props.onUpdate({ ...props.condition, value })}
           placeholder={inputType() === 'date' ? 'YYYY-MM-DD' : 'Enter value...'}
@@ -385,10 +392,14 @@ const ConditionRow: Component<{
         <div class="flex min-w-[200px] flex-1 items-center gap-2">
           <SegmentInput
             type={inputType()}
+            // SAFETY: The between operator initializes and preserves a two-number tuple.
             value={(props.condition.value as [number, number])[0]}
             onChange={value => {
+              // SAFETY: The between operator initializes and preserves a two-number tuple.
               const current = props.condition.value as [number, number];
-              props.onUpdate({ ...props.condition, value: [value as number, current[1]] });
+              // SAFETY: SegmentInput returns a numeric value for number inputs.
+              const numericValue = value as number;
+              props.onUpdate({ ...props.condition, value: [numericValue, current[1]] });
             }}
             placeholder="Min"
             class="w-24"
@@ -396,10 +407,14 @@ const ConditionRow: Component<{
           <span class="text-nebula-500 font-mono text-xs">to</span>
           <SegmentInput
             type={inputType()}
+            // SAFETY: The between operator initializes and preserves a two-number tuple.
             value={(props.condition.value as [number, number])[1]}
             onChange={value => {
+              // SAFETY: The between operator initializes and preserves a two-number tuple.
               const current = props.condition.value as [number, number];
-              props.onUpdate({ ...props.condition, value: [current[0], value as number] });
+              // SAFETY: SegmentInput returns a numeric value for number inputs.
+              const numericValue = value as number;
+              props.onUpdate({ ...props.condition, value: [current[0], numericValue] });
             }}
             placeholder="Max"
             class="w-24"
