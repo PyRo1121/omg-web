@@ -2,8 +2,8 @@ import type { APIEvent } from '@solidjs/start/server';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
-import type { CLITelemetryReport } from '~/types/telemetry';
 import { ACHIEVEMENTS, checkAchievementProgress } from '~/lib/achievements';
+import { parseCLITelemetryReport } from '~/lib/dashboard-contract';
 
 function getEnv(event: APIEvent) {
   const env = event.nativeEvent.context.cloudflare?.env;
@@ -79,7 +79,14 @@ export async function POST(event: APIEvent) {
   try {
     const env = getEnv(event);
     const db = drizzle(env.DB, { schema });
-    const body = (await event.request.json()) as CLITelemetryReport;
+    const parsedBody = parseCLITelemetryReport(await event.request.json());
+    if (!parsedBody.ok) {
+      return new Response(JSON.stringify({ error: parsedBody.error }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const body = parsedBody.value;
 
     const license = await db
       .select()
