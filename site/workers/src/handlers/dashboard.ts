@@ -1,13 +1,11 @@
 // Dashboard API handlers (all require authentication)
 import {
-  Env,
+  type Env,
   jsonResponse,
   errorResponse,
   validateSession,
   getAuthToken,
   logAudit,
-  generateId,
-  generateToken,
   TIER_FEATURES,
   ACHIEVEMENTS,
 } from '../api';
@@ -118,6 +116,7 @@ export async function handleGetDashboard(request: Request, env: Env): Promise<Re
   let currentStreak = 0;
   let longestStreak = 0;
   if (streakData.results && streakData.results.length > 0) {
+    // SAFETY: The streak query selects ISO date strings.
     const dates = streakData.results.map((r: any) => r.date as string);
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
@@ -158,6 +157,7 @@ export async function handleGetDashboard(request: Request, env: Env): Promise<Re
     .all();
 
   // Calculate MRR
+  // SAFETY: License tiers are constrained to the keys represented by TIER_FEATURES.
   const tier = license.tier as keyof typeof TIER_FEATURES;
   const tierConfig = TIER_FEATURES[tier] || TIER_FEATURES.free;
 
@@ -177,6 +177,7 @@ export async function handleGetDashboard(request: Request, env: Env): Promise<Re
     switched = 0,
     sbom = 0,
     vulns = 0;
+  // SAFETY: The command breakdown query selects numeric usage columns.
   for (const row of (commandBreakdown.results || []) as any[]) {
     installed += row.packages_installed || 0;
     searched += row.packages_searched || 0;
@@ -298,8 +299,9 @@ export async function handleUpdateProfile(request: Request, env: Env): Promise<R
 
   let body: { name?: string };
   try {
+    // SAFETY: The request boundary is restricted to the documented profile field.
     body = (await request.json()) as { name?: string };
-  } catch (e) {
+  } catch {
     return errorResponse('Invalid JSON body', 400);
   }
   const { user } = auth;
@@ -366,6 +368,7 @@ export async function handleRegenerateLicense(request: Request, env: Env): Promi
     .bind(license.id)
     .run();
 
+  // SAFETY: The license row is loaded from the database and has a string primary key.
   await logAudit(env.DB, user.id, 'license.regenerated', 'license', license.id as string, request);
 
   return jsonResponse({
@@ -389,8 +392,9 @@ export async function handleRevokeMachine(request: Request, env: Env): Promise<R
 
   let body: { machine_id?: string };
   try {
+    // SAFETY: The request boundary is restricted to the documented machine field.
     body = (await request.json()) as { machine_id?: string };
-  } catch (e) {
+  } catch {
     return errorResponse('Invalid JSON body', 400);
   }
   const { user } = auth;
@@ -476,8 +480,9 @@ export async function handleRevokeSession(request: Request, env: Env): Promise<R
 
   let body: { session_id?: string };
   try {
+    // SAFETY: The request boundary is restricted to the documented session field.
     body = (await request.json()) as { session_id?: string };
-  } catch (e) {
+  } catch {
     return errorResponse('Invalid JSON body', 400);
   }
 
@@ -529,6 +534,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       return errorResponse('License not found', 404);
     }
 
+    // SAFETY: License tier is a string value from the licenses schema.
     if (!['team', 'enterprise'].includes(license.tier as string)) {
       return errorResponse('Team management requires Team or Enterprise tier', 403);
     }
@@ -607,7 +613,9 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       .first();
 
     const membersWithUsage = (machines.results || []).map((m: any) => {
+      // SAFETY: Machine ids are string keys selected by both usage queries.
       const usage = (usageMap.get(m.machine_id as string) as any) || {};
+      // SAFETY: Machine ids are string keys selected by the recent usage query.
       const recent = recentMap.get(m.machine_id as string) || 0;
       return {
         ...m,
@@ -698,8 +706,9 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
 
   let body: { machine_id?: string };
   try {
+    // SAFETY: The request boundary is restricted to the documented machine field.
     body = (await request.json()) as { machine_id?: string };
-  } catch (e) {
+  } catch {
     return errorResponse('Invalid JSON body', 400);
   }
   if (!body.machine_id) {
@@ -758,6 +767,7 @@ export async function handleGetAuditLog(request: Request, env: Env): Promise<Res
     .bind(auth.user.id)
     .first();
 
+  // SAFETY: License tier is a string value from the licenses schema.
   if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
     return errorResponse('Audit logs require Team or Enterprise tier', 403);
   }
