@@ -8,9 +8,18 @@
 
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 
+type DocsAnalyticsValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | DocsAnalyticsValue[]
+  | { readonly [key: string]: DocsAnalyticsValue | undefined };
+
 // Analytics event from docs site
 interface DocsAnalyticsProperties {
-  readonly [key: string]: unknown;
+  readonly [key: string]: DocsAnalyticsValue;
   readonly utm?: {
     readonly source?: string;
     readonly medium?: string;
