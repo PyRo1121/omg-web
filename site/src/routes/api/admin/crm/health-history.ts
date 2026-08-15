@@ -1,7 +1,7 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, eq, desc, gte, lte, and } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import type { APIEvent } from '@solidjs/start/server';
+import { sql, eq, desc, gte, lte, and } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
 
 export async function GET(event: APIEvent) {
   try {
@@ -11,19 +11,16 @@ export async function GET(event: APIEvent) {
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const customerId = url.searchParams.get("customerId");
-    const days = parseInt(url.searchParams.get("days") || "90");
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 365);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const customerId = url.searchParams.get('customerId');
+    const days = parseInt(url.searchParams.get('days') || '90');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '100'), 365);
+    const offset = parseInt(url.searchParams.get('offset') || '0');
 
     if (!customerId) {
-      return new Response(
-        JSON.stringify({ error: "customerId is required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'customerId is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Verify customer exists
@@ -39,13 +36,10 @@ export async function GET(event: APIEvent) {
       .get();
 
     if (!customer) {
-      return new Response(
-        JSON.stringify({ error: "Customer not found" }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Customer not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     const startDate = new Date();
@@ -70,7 +64,7 @@ export async function GET(event: APIEvent) {
       .where(
         and(
           eq(schema.customerHealthHistory.userId, customerId),
-          gte(schema.customerHealthHistory.recordedAt, startDate.getTime())
+          gte(schema.customerHealthHistory.recordedAt, startDate)
         )
       )
       .orderBy(desc(schema.customerHealthHistory.recordedAt))
@@ -90,14 +84,18 @@ export async function GET(event: APIEvent) {
       const olderScores = history.slice(Math.min(7, history.length));
 
       if (olderScores.length > 0) {
-        const recentAvg = recentScores.reduce((sum, h) => sum + h.overallScore, 0) / recentScores.length;
-        const olderAvg = olderScores.reduce((sum, h) => sum + h.overallScore, 0) / olderScores.length;
+        const recentAvg =
+          recentScores.reduce((sum, h) => sum + h.overallScore, 0) / recentScores.length;
+        const olderAvg =
+          olderScores.reduce((sum, h) => sum + h.overallScore, 0) / olderScores.length;
 
         if (recentAvg > olderAvg + 5) overallTrend = 'improving';
         else if (recentAvg < olderAvg - 5) overallTrend = 'declining';
 
-        const recentChurnAvg = recentScores.reduce((sum, h) => sum + h.churnProbability, 0) / recentScores.length;
-        const olderChurnAvg = olderScores.reduce((sum, h) => sum + h.churnProbability, 0) / olderScores.length;
+        const recentChurnAvg =
+          recentScores.reduce((sum, h) => sum + h.churnProbability, 0) / recentScores.length;
+        const olderChurnAvg =
+          olderScores.reduce((sum, h) => sum + h.churnProbability, 0) / olderScores.length;
 
         if (recentChurnAvg > olderChurnAvg + 5) churnTrend = 'increasing';
         else if (recentChurnAvg < olderChurnAvg - 5) churnTrend = 'decreasing';
@@ -119,7 +117,7 @@ export async function GET(event: APIEvent) {
       .where(
         and(
           eq(schema.customerHealthHistory.userId, customerId),
-          gte(schema.customerHealthHistory.recordedAt, startDate.getTime())
+          gte(schema.customerHealthHistory.recordedAt, startDate)
         )
       )
       .get();
@@ -148,7 +146,7 @@ export async function GET(event: APIEvent) {
       .where(
         and(
           eq(schema.customerHealthHistory.userId, customerId),
-          gte(schema.customerHealthHistory.recordedAt, startDate.getTime())
+          gte(schema.customerHealthHistory.recordedAt, startDate)
         )
       )
       .get();
@@ -160,18 +158,20 @@ export async function GET(event: APIEvent) {
           name: customer.name,
           email: customer.email,
         },
-        current: latestScore ? {
-          overallScore: latestScore.overallScore,
-          engagementScore: latestScore.engagementScore,
-          activationScore: latestScore.activationScore,
-          growthScore: latestScore.growthScore,
-          riskScore: latestScore.riskScore,
-          lifecycleStage: latestScore.lifecycleStage,
-          churnProbability: latestScore.churnProbability,
-          upgradeProbability: latestScore.upgradeProbability,
-          commandVelocity7d: latestScore.commandVelocity7d,
-          recordedAt: new Date(latestScore.recordedAt).toISOString(),
-        } : null,
+        current: latestScore
+          ? {
+              overallScore: latestScore.overallScore,
+              engagementScore: latestScore.engagementScore,
+              activationScore: latestScore.activationScore,
+              growthScore: latestScore.growthScore,
+              riskScore: latestScore.riskScore,
+              lifecycleStage: latestScore.lifecycleStage,
+              churnProbability: latestScore.churnProbability,
+              upgradeProbability: latestScore.upgradeProbability,
+              commandVelocity7d: latestScore.commandVelocity7d,
+              recordedAt: new Date(latestScore.recordedAt).toISOString(),
+            }
+          : null,
         history: history.map(h => ({
           id: h.id,
           overallScore: h.overallScore,
@@ -209,21 +209,21 @@ export async function GET(event: APIEvent) {
       {
         status: 200,
         headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "private, no-cache, no-store, must-revalidate",
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
         },
       }
     );
   } catch (error) {
-    console.error("[Admin CRM Health History] Error:", error);
+    console.error('[Admin CRM Health History] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

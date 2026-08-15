@@ -1,25 +1,26 @@
-import { createSignal, Show } from "solid-js";
-import { A, useNavigate } from "@solidjs/router";
-import { Title, Meta } from "@solidjs/meta";
-import { signIn, useSession } from "~/lib/auth-client";
-import { Terminal, Github, Mail, AlertCircle, Loader2 } from "lucide-solid";
+import { createSignal, Show } from 'solid-js';
+import { A, useNavigate } from '@solidjs/router';
+import { Title, Meta } from '@solidjs/meta';
+import { signIn, useSession } from '~/lib/auth-client';
+import { getErrorMessage } from '~/lib/error-message';
+import { Terminal, Github, Mail, AlertCircle, Loader2 } from 'lucide-solid';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const session = useSession();
-  const [email, setEmail] = createSignal("");
-  const [password, setPassword] = createSignal("");
+  const [email, setEmail] = createSignal('');
+  const [password, setPassword] = createSignal('');
   const [loading, setLoading] = createSignal(false);
-  const [error, setError] = createSignal("");
+  const [error, setError] = createSignal('');
 
-  if (session()?.user) {
-    navigate("/dashboard", { replace: true });
+  if (session()?.data?.user) {
+    navigate('/dashboard', { replace: true });
   }
 
   const handleEmailLogin = async (e: Event) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setError('');
 
     try {
       const result = await signIn.email({
@@ -28,42 +29,47 @@ export default function LoginPage() {
       });
 
       if (result.error) {
-        setError(result.error.message || "Login failed");
+        setError(result.error.message || 'Login failed');
       } else {
-        navigate("/dashboard");
+        navigate('/dashboard');
       }
     } catch (err) {
-      setError((err as Error).message || "An unexpected error occurred");
+      setError(
+        err instanceof Error
+          ? getErrorMessage(err, 'An unexpected error occurred')
+          : 'An unexpected error occurred'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOAuthLogin = async (provider: "github" | "google") => {
+  const handleOAuthLogin = async (provider: 'github' | 'google') => {
     setLoading(true);
-    setError("");
+    setError('');
 
     try {
       await signIn.social({
         provider,
-        callbackURL: "/dashboard",
+        callbackURL: '/dashboard',
       });
     } catch (err) {
-      setError((err as Error).message || "OAuth login failed");
+      setError(
+        err instanceof Error ? getErrorMessage(err, 'OAuth login failed') : 'OAuth login failed'
+      );
       setLoading(false);
     }
   };
 
   const pageBg =
-    "min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-blue-500/30 selection:text-blue-200 overflow-x-hidden relative";
-  const glassPanel =
-    "bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl";
+    'min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-blue-500/30 selection:text-blue-200 overflow-x-hidden relative';
+  const glassPanel = 'bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl';
   const glassInput =
-    "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all";
+    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all';
   const glassButton =
-    "w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed";
+    'w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed';
   const oauthButton =
-    "w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium py-3 rounded-xl transition-all";
+    'w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium py-3 rounded-xl transition-all';
 
   return (
     <>
@@ -89,7 +95,7 @@ export default function LoginPage() {
             <div class="mb-6 space-y-3">
               <button
                 type="button"
-                onClick={() => handleOAuthLogin("github")}
+                onClick={() => handleOAuthLogin('github')}
                 disabled={loading()}
                 class={oauthButton}
               >
@@ -98,7 +104,7 @@ export default function LoginPage() {
               </button>
               <button
                 type="button"
-                onClick={() => handleOAuthLogin("google")}
+                onClick={() => handleOAuthLogin('google')}
                 disabled={loading()}
                 class={oauthButton}
               >
@@ -139,11 +145,11 @@ export default function LoginPage() {
                   Email Address
                 </label>
                 <div class="relative">
-                  <Mail class="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                  <Mail class="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-slate-500" />
                   <input
                     type="email"
                     value={email()}
-                    onInput={(e) => setEmail(e.currentTarget.value)}
+                    onInput={e => setEmail(e.currentTarget.value)}
                     placeholder="dev@example.com"
                     required
                     class={`${glassInput} pl-12`}
@@ -152,13 +158,11 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label class="mb-2 ml-1 block text-sm font-medium text-slate-300">
-                  Password
-                </label>
+                <label class="mb-2 ml-1 block text-sm font-medium text-slate-300">Password</label>
                 <input
                   type="password"
                   value={password()}
-                  onInput={(e) => setPassword(e.currentTarget.value)}
+                  onInput={e => setPassword(e.currentTarget.value)}
                   placeholder="Enter your password"
                   required
                   class={glassInput}
@@ -179,14 +183,14 @@ export default function LoginPage() {
                     Signing in...
                   </span>
                 ) : (
-                  "Sign In"
+                  'Sign In'
                 )}
               </button>
             </form>
 
             <div class="mt-6 text-center">
               <p class="text-sm text-slate-400">
-                Don't have an account?{" "}
+                Don't have an account?{' '}
                 <A href="/signup" class="font-medium text-blue-400 hover:text-blue-300">
                   Sign up
                 </A>
@@ -194,10 +198,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <A
-            href="/"
-            class="mt-8 text-sm text-slate-500 transition-colors hover:text-white"
-          >
+          <A href="/" class="mt-8 text-sm text-slate-500 transition-colors hover:text-white">
             ← Back to home
           </A>
         </div>

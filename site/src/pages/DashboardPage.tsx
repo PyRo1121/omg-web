@@ -1,11 +1,5 @@
-import {
-  Component,
-  createSignal,
-  onMount,
-  Show,
-  For,
-  createMemo,
-} from 'solid-js';
+import { type Component, createSignal, onMount, Show, For, createMemo } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import {
   Monitor,
   LogOut,
@@ -50,6 +44,14 @@ import {
   Users,
 } from 'lucide-solid';
 import { signOut } from '~/lib/auth-client';
+import {
+  parseApiError,
+  parseDashboardData,
+  parseSessionToken,
+  parseTelemetryData,
+  type DashboardData,
+  type TelemetryData,
+} from '~/lib/dashboard-contract';
 import AdminDashboard from '~/components/dashboard/AdminDashboard';
 import BackgroundMesh from '~/components/3d/BackgroundMesh';
 
@@ -59,7 +61,7 @@ interface BetterAuthSession {
     name: string;
     email: string;
     emailVerified: boolean;
-    image?: string;
+    image?: string | null;
   };
   session: {
     token: string;
@@ -71,91 +73,9 @@ interface DashboardPageProps {
   session: BetterAuthSession;
 }
 
-interface DashboardData {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    emailVerified: boolean;
-    image: string | null;
-    createdAt: string;
-  };
-  sessions: Array<{
-    id: string;
-    ipAddress: string | null;
-    userAgent: string | null;
-    createdAt: string;
-    expiresAt: string;
-    isCurrent: boolean;
-  }>;
-  accounts: Array<{
-    provider: string;
-    accountId: string;
-  }>;
-}
-
-interface TelemetryData {
-  user: {
-    id: string;
-    email: string;
-    role?: string;
-  };
-  license: {
-    id: string;
-    license_key: string;
-    tier: string;
-    status: string;
-    max_machines: number;
-    expires_at: string | null;
-    features: string[];
-  };
-  usage: {
-    total_commands: number;
-    total_packages_installed: number;
-    total_packages_searched: number;
-    total_runtimes_switched: number;
-    total_sbom_generated: number;
-    total_vulnerabilities_found: number;
-    total_time_saved_ms: number;
-    time_saved_trend?: number;
-    commands_trend?: number;
-  };
-  daily: Array<{
-    date: string;
-    commands_run: number;
-    packages_installed?: number;
-    packages_searched?: number;
-    time_saved_ms: number;
-  }>;
-  machines: Array<{
-    id: string;
-    machine_id: string;
-    hostname: string | null;
-    os: string | null;
-    arch: string | null;
-    omg_version: string | null;
-    last_seen_at: string;
-    is_active: number;
-  }>;
-  achievements: Array<{
-    id: string;
-    icon: string;
-    name: string;
-    description: string;
-    unlocked: boolean;
-    unlocked_at?: string;
-    progress?: number;
-  }>;
-  global_stats?: {
-    top_package: string;
-    top_runtime: string;
-    percentile: number;
-  };
-}
-
 type TabType = 'overview' | 'analytics' | 'achievements' | 'machines' | 'settings' | 'admin';
 
-const DashboardPage: Component<DashboardPageProps> = (props) => {
+const DashboardPage: Component<DashboardPageProps> = props => {
   const [dashboardData, setDashboardData] = createSignal<DashboardData | null>(null);
   const [telemetryData, setTelemetryData] = createSignal<TelemetryData | null>(null);
   const [loading, setLoading] = createSignal(true);
@@ -176,8 +96,11 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
       if (!response.ok) {
         throw new Error('Failed to load dashboard data');
       }
-      const data = await response.json();
-      setDashboardData(data);
+      const parsed = parseDashboardData(await response.json());
+      if (!parsed.ok) {
+        throw new Error(parsed.error);
+      }
+      setDashboardData(parsed.value);
     } catch (e) {
       console.error('Dashboard error:', e);
       setError('Failed to load dashboard data');
@@ -190,32 +113,43 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
     try {
       setTelemetryLoading(true);
       setTelemetryError('');
-      
+
       // Sync license tier from external API to D1 database
       const syncResponse = await fetch('/api/telemetry/sync-license', {
         method: 'POST',
       });
-      
+
       if (!syncResponse.ok) {
         console.error('[Dashboard] License sync failed:', await syncResponse.text());
       } else {
         const syncResult = await syncResponse.json();
         console.log('[Dashboard] License synced:', syncResult);
       }
-      
+
       // Add cache-busting parameter to bypass Cloudflare edge cache
       const response = await fetch(`/api/telemetry/dashboard?_=${Date.now()}`);
       const result = await response.json();
 
       if (response.ok) {
-        console.log('[Dashboard] Telemetry data loaded. License tier:', result.license?.tier, 'User role:', result.user?.role);
-        setTelemetryData(result);
-        
-        if (result.user?.role === 'admin') {
+        const parsed = parseTelemetryData(result);
+        if (!parsed.ok) {
+          setTelemetryError(parsed.error);
+          return;
+        }
+
+        console.log(
+          '[Dashboard] Telemetry data loaded. License tier:',
+          parsed.value.license.tier,
+          'User role:',
+          parsed.value.user.role
+        );
+        setTelemetryData(parsed.value);
+
+        if (parsed.value.user.role === 'admin') {
           syncAdminAuth();
         }
       } else {
-        setTelemetryError(result.message || 'Failed to load telemetry data');
+        setTelemetryError(parseApiError(result, 'Failed to load telemetry data'));
       }
     } catch (e) {
       console.error('Telemetry error:', e);
@@ -235,10 +169,14 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
 
       console.log('[Dashboard] Fetching admin workers API token...');
       const response = await fetch('/api/admin/auth-bridge');
-      
+
       if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('omg_session_token', data.token);
+        const parsed = parseSessionToken(await response.json());
+        if (!parsed.ok) {
+          console.error('[Dashboard] Invalid admin token response:', parsed.error);
+          return;
+        }
+        localStorage.setItem('omg_session_token', parsed.value);
         console.log('[Dashboard] Admin workers API token stored');
       } else {
         console.error('[Dashboard] Failed to get admin token:', await response.text());
@@ -287,8 +225,8 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
           d.commands_run,
           d.packages_installed || 0,
           d.packages_searched || 0,
-          d.time_saved_ms
-        ])
+          d.time_saved_ms,
+        ]),
       ];
       content = rows.map(row => row.join(',')).join('\n');
       filename = `omg-telemetry-${new Date().toISOString().split('T')[0]}.csv`;
@@ -339,9 +277,10 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
   const peakDay = createMemo(() => {
     const data = telemetryData();
     if (!data || data.daily.length === 0) return null;
-    return data.daily.reduce((max, d) => 
-      d.commands_run > max.commands_run ? d : max
-    , data.daily[0]);
+    return data.daily.reduce(
+      (max, d) => (d.commands_run > max.commands_run ? d : max),
+      data.daily[0]
+    );
   });
 
   const totalPackages = createMemo(() => {
@@ -365,7 +304,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
 
   const getAchievementIcon = (emoji: string, name: string) => {
     const nameUpper = name.toUpperCase();
-    
+
     if (nameUpper.includes('FIRST') || nameUpper.includes('START')) return Rocket;
     if (nameUpper.includes('SPEED') || nameUpper.includes('FAST')) return Zap;
     if (nameUpper.includes('PACKAGE') || nameUpper.includes('INSTALL')) return Package;
@@ -383,7 +322,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
     if (nameUpper.includes('IDEA') || nameUpper.includes('INNOVATION')) return Lightbulb;
     if (nameUpper.includes('BRANCH') || nameUpper.includes('GIT')) return GitBranch;
     if (nameUpper.includes('BATTLE') || nameUpper.includes('FIGHT')) return Swords;
-    
+
     return Target;
   };
 
@@ -391,31 +330,38 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
     'min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden relative';
   const bgEffects = (
     <>
-      <div class="pointer-events-none fixed top-[-20%] left-[-10%] h-[50%] w-[50%] rounded-full bg-indigo-600/10 blur-[120px] animate-pulse-slow" />
-      <div class="pointer-events-none fixed right-[-10%] bottom-[-20%] h-[50%] w-[50%] rounded-full bg-purple-600/10 blur-[120px] animate-pulse-slow" style={{ "animation-delay": "1s" }} />
-      <div class="pointer-events-none fixed top-[20%] right-[10%] h-[30%] w-[30%] rounded-full bg-cyan-600/5 blur-[100px] animate-pulse-slow" style={{ "animation-delay": "2s" }} />
+      <div class="animate-pulse-slow pointer-events-none fixed top-[-20%] left-[-10%] h-[50%] w-[50%] rounded-full bg-indigo-600/10 blur-[120px]" />
+      <div
+        class="animate-pulse-slow pointer-events-none fixed right-[-10%] bottom-[-20%] h-[50%] w-[50%] rounded-full bg-purple-600/10 blur-[120px]"
+        style={{ 'animation-delay': '1s' }}
+      />
+      <div
+        class="animate-pulse-slow pointer-events-none fixed top-[20%] right-[10%] h-[30%] w-[30%] rounded-full bg-cyan-600/5 blur-[100px]"
+        style={{ 'animation-delay': '2s' }}
+      />
     </>
   );
 
-  const glassPanel = 'bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl hover:border-indigo-500/30 transition-all duration-300';
+  const glassPanel =
+    'bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl hover:border-indigo-500/30 transition-all duration-300';
 
   const tabs = createMemo(() => {
     const role = telemetryData()?.user?.role;
     console.log('[Tabs Memo] Computing tabs. User role:', role);
-    
-    const baseTabs: Array<{id: TabType; label: string; icon: typeof LayoutDashboard}> = [
+
+    const baseTabs: Array<{ id: TabType; label: string; icon: typeof LayoutDashboard }> = [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       { id: 'analytics', label: 'Analytics', icon: BarChart3 },
       { id: 'achievements', label: 'Achievements', icon: Award },
       { id: 'machines', label: 'Machines', icon: Monitor },
       { id: 'settings', label: 'Settings', icon: Settings },
     ];
-    
+
     if (role === 'admin') {
       console.log('[Tabs Memo] Adding admin tab');
       baseTabs.push({ id: 'admin', label: 'Admin', icon: Shield });
     }
-    
+
     console.log('[Tabs Memo] Final tabs count:', baseTabs.length);
     return baseTabs;
   });
@@ -428,31 +374,33 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
     sub?: string;
     trend?: number;
   }) => {
-    const TrendIcon = () => {
-      if (!props.trend || props.trend === 0) return Minus;
-      return props.trend > 0 ? TrendingUp : TrendingDown;
-    };
-    
+    const trendIcon =
+      !props.trend || props.trend === 0 ? Minus : props.trend > 0 ? TrendingUp : TrendingDown;
+
     const trendColor = () => {
       if (!props.trend || props.trend === 0) return 'text-slate-500';
       return props.trend > 0 ? 'text-emerald-400' : 'text-red-400';
     };
 
     return (
-      <div class={`${glassPanel} p-6 transition-all hover:border-indigo-500/30 hover:scale-[1.02] group`}>
-        <div class="flex items-start justify-between mb-4">
-          <div class={`p-3 rounded-xl bg-gradient-to-r from-${props.color}-500/20 to-purple-500/20`}>
+      <div
+        class={`${glassPanel} group p-6 transition-all hover:scale-[1.02] hover:border-indigo-500/30`}
+      >
+        <div class="mb-4 flex items-start justify-between">
+          <div
+            class={`rounded-xl bg-gradient-to-r p-3 from-${props.color}-500/20 to-purple-500/20`}
+          >
             <props.icon class={`h-6 w-6 text-${props.color}-400`} />
           </div>
           <Show when={props.trend !== undefined}>
             <div class={`flex items-center gap-1 text-xs font-medium ${trendColor()}`}>
-              <TrendIcon class="h-4 w-4" />
+              <Dynamic component={trendIcon} class="h-4 w-4" />
               <span>{Math.abs(props.trend || 0).toFixed(1)}%</span>
             </div>
           </Show>
         </div>
-        <h3 class="text-sm font-medium text-slate-400 mb-1">{props.title}</h3>
-        <div class="text-3xl font-bold gradient-text mb-2">{props.value}</div>
+        <h3 class="mb-1 text-sm font-medium text-slate-400">{props.title}</h3>
+        <div class="gradient-text mb-2 text-3xl font-bold">{props.value}</div>
         <Show when={props.sub}>
           <p class="text-xs text-slate-500">{props.sub}</p>
         </Show>
@@ -479,16 +427,13 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                 <Show when={!telemetryLoading() && telemetryData()}>
                   <button
                     onClick={loadTelemetryData}
-                    class="btn-secondary text-sm px-3 py-2"
+                    class="btn-secondary px-3 py-2 text-sm"
                     title="Refresh data"
                   >
                     <RefreshCw class="h-4 w-4" />
                   </button>
                 </Show>
-                <button
-                  onClick={handleSignOut}
-                  class="btn-secondary text-sm px-4 py-2"
-                >
+                <button onClick={handleSignOut} class="btn-secondary px-4 py-2 text-sm">
                   <LogOut class="h-4 w-4" />
                   Sign Out
                 </button>
@@ -496,17 +441,15 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
             </div>
           </header>
 
-          <div class="sticky top-0 z-20 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/10">
+          <div class="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-xl">
             <div class="px-6">
-              <nav class="flex gap-1 overflow-x-auto no-scrollbar" role="tablist">
+              <nav class="no-scrollbar flex gap-1 overflow-x-auto" role="tablist">
                 <For each={tabs()}>
-                  {(tab) => (
+                  {tab => (
                     <button
                       onClick={() => setActiveTab(tab.id)}
                       class={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all ${
-                        activeTab() === tab.id
-                          ? 'text-white'
-                          : 'text-slate-400 hover:text-white'
+                        activeTab() === tab.id ? 'text-white' : 'text-slate-400 hover:text-white'
                       }`}
                       role="tab"
                       aria-selected={activeTab() === tab.id}
@@ -514,7 +457,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                       <tab.icon class="h-4 w-4" />
                       <span>{tab.label}</span>
                       <Show when={activeTab() === tab.id}>
-                        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400" />
+                        <div class="absolute right-0 bottom-0 left-0 h-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400" />
                       </Show>
                     </button>
                   )}
@@ -525,18 +468,18 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
 
           <div class="px-6 py-6">
             <Show when={loading() || telemetryLoading()}>
-              <div class="space-y-6 animate-pulse">
+              <div class="animate-pulse space-y-6">
                 <div class="grid gap-6 lg:grid-cols-3">
-                  <div class={`${glassPanel} p-6 h-48`}>
+                  <div class={`${glassPanel} h-48 p-6`}>
                     <div class="h-16 w-16 rounded-full bg-slate-700/50" />
                   </div>
-                  <div class={`${glassPanel} p-6 lg:col-span-2 h-48`} />
+                  <div class={`${glassPanel} h-48 p-6 lg:col-span-2`} />
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                   <For each={[1, 2, 3, 4]}>
                     {() => (
-                      <div class={`${glassPanel} p-6 h-32`}>
-                        <div class="h-12 w-12 bg-slate-700/50 rounded-xl" />
+                      <div class={`${glassPanel} h-32 p-6`}>
+                        <div class="h-12 w-12 rounded-xl bg-slate-700/50" />
                       </div>
                     )}
                   </For>
@@ -545,21 +488,21 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
             </Show>
 
             <Show when={error()}>
-              <div class={`${glassPanel} p-6 text-center mb-6`}>
+              <div class={`${glassPanel} mb-6 p-6 text-center`}>
                 <p class="text-red-400">{error()}</p>
               </div>
             </Show>
 
             <Show when={telemetryError()}>
-              <div class={`${glassPanel} p-6 mb-6`}>
+              <div class={`${glassPanel} mb-6 p-6`}>
                 <div class="flex items-start gap-3">
-                  <AlertCircle class="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <AlertCircle class="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-400" />
                   <div>
-                    <h3 class="text-white font-medium mb-2">Telemetry Data Unavailable</h3>
-                    <p class="text-slate-400 text-sm mb-3">{telemetryError()}</p>
-                    <p class="text-slate-500 text-xs">
-                      Your account is set up, but telemetry data couldn't be loaded. 
-                      This might be because you haven't used the OMG CLI yet or there's a connection issue.
+                    <h3 class="mb-2 font-medium text-white">Telemetry Data Unavailable</h3>
+                    <p class="mb-3 text-sm text-slate-400">{telemetryError()}</p>
+                    <p class="text-xs text-slate-500">
+                      Your account is set up, but telemetry data couldn't be loaded. This might be
+                      because you haven't used the OMG CLI yet or there's a connection issue.
                     </p>
                   </div>
                 </div>
@@ -567,7 +510,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
             </Show>
 
             <Show when={!loading() && dashboardData() && activeTab() === 'overview'}>
-              <div class="space-y-6 animate-fade-in-up">
+              <div class="animate-fade-in-up space-y-6">
                 <div class="grid gap-6 lg:grid-cols-3">
                   <div class={`${glassPanel} p-6 lg:col-span-1`}>
                     <div class="flex items-start gap-4">
@@ -580,7 +523,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                         }
                       >
                         <img
-                          src={props.session.user.image}
+                          src={props.session.user.image ?? undefined}
                           alt={props.session.user.name}
                           class="h-16 w-16 rounded-full border-2 border-white/10"
                         />
@@ -594,23 +537,26 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                     <Show when={telemetryData()?.license}>
                       <div class="mt-6 border-t border-white/10 pt-6">
                         <h3 class="mb-4 text-sm font-medium text-slate-400">License</h3>
-                        <div class="rounded-lg bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 p-4">
-                          <div class="flex items-center gap-2 mb-3">
+                        <div class="rounded-lg border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-4">
+                          <div class="mb-3 flex items-center gap-2">
                             <Award class="h-5 w-5 text-yellow-400" />
                             <span class="font-bold text-white uppercase">
                               {telemetryData()!.license.tier}
                             </span>
                           </div>
-                          <div class="flex items-center justify-between gap-2 mb-2">
-                            <p class="text-xs text-slate-400 font-mono truncate flex-1">
+                          <div class="mb-2 flex items-center justify-between gap-2">
+                            <p class="flex-1 truncate font-mono text-xs text-slate-400">
                               {telemetryData()!.license.license_key}
                             </p>
                             <button
                               onClick={copyLicenseKey}
-                              class="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                              class="rounded-lg p-2 transition-colors hover:bg-white/10"
                               title="Copy license key"
                             >
-                              <Show when={copiedLicense()} fallback={<Copy class="h-3.5 w-3.5 text-slate-400" />}>
+                              <Show
+                                when={copiedLicense()}
+                                fallback={<Copy class="h-3.5 w-3.5 text-slate-400" />}
+                              >
                                 <Check class="h-3.5 w-3.5 text-emerald-400" />
                               </Show>
                             </button>
@@ -621,7 +567,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                   </div>
 
                   <div class={`${glassPanel} p-6 lg:col-span-2`}>
-                    <h3 class="text-lg font-bold mb-4 gradient-text">Quick Stats</h3>
+                    <h3 class="gradient-text mb-4 text-lg font-bold">Quick Stats</h3>
                     <Show when={!telemetryLoading() && telemetryData()}>
                       <div class="grid grid-cols-2 gap-4">
                         <StatCard
@@ -647,7 +593,9 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                         />
                         <StatCard
                           title="Active Machines"
-                          value={telemetryData()!.machines.filter(m => m.is_active).length.toString()}
+                          value={telemetryData()!
+                            .machines.filter(m => m.is_active)
+                            .length.toString()}
                           icon={Monitor}
                           color="cyan"
                           sub={`${telemetryData()!.machines.length} total`}
@@ -657,55 +605,77 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                   </div>
                 </div>
 
-                <Show when={!telemetryLoading() && telemetryData()?.usage.total_commands > 0}>
+                <Show
+                  when={!telemetryLoading() && (telemetryData()?.usage.total_commands ?? 0) > 0}
+                >
                   <div class={`${glassPanel} p-6`}>
-                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <h3 class="mb-4 flex items-center gap-2 text-lg font-bold">
                       <Sparkles class="h-5 w-5 text-yellow-400" />
                       <span class="gradient-text">Key Insights</span>
                     </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
                       <div>
-                        <div class="text-sm text-slate-400 mb-1">Daily Average</div>
+                        <div class="mb-1 text-sm text-slate-400">Daily Average</div>
                         <div class="text-2xl font-bold text-white">{averageCommandsPerDay()}</div>
-                        <div class="text-xs text-slate-500 mt-1">commands per day</div>
+                        <div class="mt-1 text-xs text-slate-500">commands per day</div>
                       </div>
                       <Show when={peakDay()}>
                         <div>
-                          <div class="text-sm text-slate-400 mb-1">Peak Productivity</div>
+                          <div class="mb-1 text-sm text-slate-400">Peak Productivity</div>
                           <div class="text-2xl font-bold text-white">{peakDay()!.commands_run}</div>
-                          <div class="text-xs text-slate-500 mt-1">on {formatShortDate(peakDay()!.date)}</div>
+                          <div class="mt-1 text-xs text-slate-500">
+                            on {formatShortDate(peakDay()!.date)}
+                          </div>
                         </div>
                       </Show>
                       <div>
-                        <div class="text-sm text-slate-400 mb-1">Total Packages</div>
-                        <div class="text-2xl font-bold text-white">{totalPackages().toLocaleString()}</div>
-                        <div class="text-xs text-slate-500 mt-1">installs + searches</div>
+                        <div class="mb-1 text-sm text-slate-400">Total Packages</div>
+                        <div class="text-2xl font-bold text-white">
+                          {totalPackages().toLocaleString()}
+                        </div>
+                        <div class="mt-1 text-xs text-slate-500">installs + searches</div>
                       </div>
                     </div>
                   </div>
                 </Show>
 
-                <Show when={!telemetryLoading() && telemetryData() && telemetryData()!.daily.length > 0}>
+                <Show
+                  when={!telemetryLoading() && telemetryData() && telemetryData()!.daily.length > 0}
+                >
                   <div class={`${glassPanel} p-6`}>
-                    <h3 class="text-lg font-bold mb-6 flex items-center gap-2">
+                    <h3 class="mb-6 flex items-center gap-2 text-lg font-bold">
                       <Activity class="h-5 w-5 text-indigo-400" />
                       <span class="gradient-text">Recent Activity (7 Days)</span>
                     </h3>
-                    <div class="h-48 flex items-end justify-between gap-2">
+                    <div class="flex h-48 items-end justify-between gap-2">
                       <For each={telemetryData()!.daily.slice(-7)}>
-                        {(day) => {
-                          const maxCommands = Math.max(...telemetryData()!.daily.slice(-7).map(d => d.commands_run), 1);
+                        {day => {
+                          const maxCommands = Math.max(
+                            ...telemetryData()!
+                              .daily.slice(-7)
+                              .map(d => d.commands_run),
+                            1
+                          );
                           const commandsHeight = (day.commands_run / maxCommands) * 100;
                           return (
-                            <div class="flex-1 flex flex-col items-center gap-2 group">
-                              <div class="w-full" style={{ height: '160px', display: 'flex', 'align-items': 'flex-end' }}>
+                            <div class="group flex flex-1 flex-col items-center gap-2">
+                              <div
+                                class="w-full"
+                                style={{
+                                  height: '160px',
+                                  display: 'flex',
+                                  'align-items': 'flex-end',
+                                }}
+                              >
                                 <div
-                                  class="w-full bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-t-lg transition-all group-hover:from-indigo-500 group-hover:to-indigo-300"
-                                  style={{ height: `${commandsHeight}%`, "min-height": "4px" }}
+                                  class="w-full rounded-t-lg bg-gradient-to-t from-indigo-600 to-indigo-400 transition-all group-hover:from-indigo-500 group-hover:to-indigo-300"
+                                  style={{ height: `${commandsHeight}%`, 'min-height': '4px' }}
                                   title={`${day.commands_run} commands`}
                                 />
                               </div>
-                              <span class="text-xs text-slate-500">{formatShortDate(day.date)}</span>
+                              <span class="text-xs text-slate-500">
+                                {formatShortDate(day.date)}
+                              </span>
                             </div>
                           );
                         }}
@@ -717,28 +687,30 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
             </Show>
 
             <Show when={!loading() && activeTab() === 'analytics'}>
-              <div class="space-y-6 animate-fade-in-up">
-                <div class="flex items-center justify-between mb-4">
-                  <h2 class="text-2xl font-bold gradient-text">Detailed Analytics</h2>
+              <div class="animate-fade-in-up space-y-6">
+                <div class="mb-4 flex items-center justify-between">
+                  <h2 class="gradient-text text-2xl font-bold">Detailed Analytics</h2>
                   <div class="flex items-center gap-4">
                     <div class="flex items-center gap-2 text-sm text-slate-400">
                       <Calendar class="h-4 w-4" />
                       <span>Time Range</span>
                     </div>
                     <div class="flex gap-2">
-                      <For each={[
-                        { label: '7d', value: '7d' as const },
-                        { label: '14d', value: '14d' as const },
-                        { label: '30d', value: '30d' as const },
-                        { label: '90d', value: '90d' as const }
-                      ]}>
-                        {(option) => (
+                      <For
+                        each={[
+                          { label: '7d', value: '7d' as const },
+                          { label: '14d', value: '14d' as const },
+                          { label: '30d', value: '30d' as const },
+                          { label: '90d', value: '90d' as const },
+                        ]}
+                      >
+                        {option => (
                           <button
                             onClick={() => setDateRange(option.value)}
-                            class={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                            class={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
                               dateRange() === option.value
-                                ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-                                : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 hover:text-white'
+                                ? 'border border-indigo-500/30 bg-indigo-500/20 text-indigo-400'
+                                : 'border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
                             }`}
                           >
                             {option.label}
@@ -749,7 +721,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                     <div class="flex items-center gap-2">
                       <button
                         onClick={() => exportData('csv')}
-                        class="btn-secondary text-sm px-3 py-2"
+                        class="btn-secondary px-3 py-2 text-sm"
                         title="Export as CSV"
                       >
                         <Download class="h-4 w-4" />
@@ -757,7 +729,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                       </button>
                       <button
                         onClick={() => exportData('json')}
-                        class="btn-secondary text-sm px-3 py-2"
+                        class="btn-secondary px-3 py-2 text-sm"
                         title="Export as JSON"
                       >
                         <Download class="h-4 w-4" />
@@ -768,7 +740,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                 </div>
 
                 <Show when={!telemetryLoading() && telemetryData()}>
-                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                     <StatCard
                       title="Time Saved"
                       value={formatTimeSaved()}
@@ -801,7 +773,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                     />
                   </div>
 
-                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                     <StatCard
                       title="SBOM Generated"
                       value={telemetryData()!.usage.total_sbom_generated.toLocaleString()}
@@ -825,58 +797,72 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                     />
                     <StatCard
                       title="Active Machines"
-                      value={telemetryData()!.machines.filter(m => m.is_active).length.toString()}
+                      value={telemetryData()!
+                        .machines.filter(m => m.is_active)
+                        .length.toString()}
                       icon={Monitor}
                       color="cyan"
                       sub={`${telemetryData()!.machines.length}/${telemetryData()!.license.max_machines} total`}
                     />
                   </div>
 
-                  <Show 
+                  <Show
                     when={telemetryData()!.daily.length > 0}
                     fallback={
                       <div class={`${glassPanel} p-12 text-center`}>
-                        <Activity class="h-12 w-12 text-slate-600 mx-auto mb-4" />
-                        <h3 class="text-lg font-bold text-white mb-2">No Activity Data Yet</h3>
-                        <p class="text-slate-400 text-sm mb-6 max-w-md mx-auto">
+                        <Activity class="mx-auto mb-4 h-12 w-12 text-slate-600" />
+                        <h3 class="mb-2 text-lg font-bold text-white">No Activity Data Yet</h3>
+                        <p class="mx-auto mb-6 max-w-md text-sm text-slate-400">
                           Start using the OMG CLI to see your activity trends and usage patterns.
                         </p>
                       </div>
                     }
                   >
                     <div class={`${glassPanel} p-6`}>
-                      <h3 class="text-lg font-bold mb-6 flex items-center gap-2">
+                      <h3 class="mb-6 flex items-center gap-2 text-lg font-bold">
                         <Activity class="h-5 w-5 text-indigo-400" />
                         <span class="gradient-text">Activity Trends ({dateRange()})</span>
                       </h3>
-                      <div class="h-64 flex items-end justify-between gap-2">
+                      <div class="flex h-64 items-end justify-between gap-2">
                         <For each={telemetryData()!.daily}>
-                          {(day) => {
-                            const maxCommands = Math.max(...telemetryData()!.daily.map(d => d.commands_run), 1);
-                            const maxPackages = Math.max(...telemetryData()!.daily.map(d => d.packages_installed || 0), 1);
+                          {day => {
+                            const maxCommands = Math.max(
+                              ...telemetryData()!.daily.map(d => d.commands_run),
+                              1
+                            );
+                            const maxPackages = Math.max(
+                              ...telemetryData()!.daily.map(d => d.packages_installed || 0),
+                              1
+                            );
                             const commandsHeight = (day.commands_run / maxCommands) * 100;
-                            const packagesHeight = ((day.packages_installed || 0) / maxPackages) * 100;
+                            const packagesHeight =
+                              ((day.packages_installed || 0) / maxPackages) * 100;
                             return (
-                              <div class="flex-1 flex flex-col items-center gap-2 group">
-                                <div class="w-full flex items-end gap-1" style={{ height: '200px' }}>
+                              <div class="group flex flex-1 flex-col items-center gap-2">
+                                <div
+                                  class="flex w-full items-end gap-1"
+                                  style={{ height: '200px' }}
+                                >
                                   <div
-                                    class="flex-1 bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-t-lg transition-all group-hover:from-indigo-500 group-hover:to-indigo-300"
-                                    style={{ height: `${commandsHeight}%`, "min-height": "4px" }}
+                                    class="flex-1 rounded-t-lg bg-gradient-to-t from-indigo-600 to-indigo-400 transition-all group-hover:from-indigo-500 group-hover:to-indigo-300"
+                                    style={{ height: `${commandsHeight}%`, 'min-height': '4px' }}
                                     title={`${day.commands_run} commands`}
                                   />
                                   <div
-                                    class="flex-1 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-lg transition-all group-hover:from-purple-500 group-hover:to-purple-300"
-                                    style={{ height: `${packagesHeight}%`, "min-height": "4px" }}
+                                    class="flex-1 rounded-t-lg bg-gradient-to-t from-purple-600 to-purple-400 transition-all group-hover:from-purple-500 group-hover:to-purple-300"
+                                    style={{ height: `${packagesHeight}%`, 'min-height': '4px' }}
                                     title={`${day.packages_installed || 0} packages`}
                                   />
                                 </div>
-                                <span class="text-xs text-slate-500">{formatShortDate(day.date)}</span>
+                                <span class="text-xs text-slate-500">
+                                  {formatShortDate(day.date)}
+                                </span>
                               </div>
                             );
                           }}
                         </For>
                       </div>
-                      <div class="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-white/10">
+                      <div class="mt-4 flex items-center justify-center gap-6 border-t border-white/10 pt-4">
                         <div class="flex items-center gap-2">
                           <div class="h-3 w-3 rounded bg-gradient-to-br from-indigo-600 to-indigo-400" />
                           <span class="text-xs text-slate-400">Commands</span>
@@ -891,22 +877,28 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
 
                   <Show when={telemetryData()!.global_stats}>
                     <div class={`${glassPanel} p-6`}>
-                      <h3 class="text-lg font-bold mb-6 flex items-center gap-2">
+                      <h3 class="mb-6 flex items-center gap-2 text-lg font-bold">
                         <TrendingUp class="h-5 w-5 text-emerald-400" />
                         <span class="gradient-text">Global Stats</span>
                       </h3>
-                      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
                         <div>
-                          <div class="text-sm text-slate-400 mb-1">Top Package</div>
-                          <div class="text-xl font-bold text-white">{telemetryData()!.global_stats!.top_package}</div>
+                          <div class="mb-1 text-sm text-slate-400">Top Package</div>
+                          <div class="text-xl font-bold text-white">
+                            {telemetryData()!.global_stats!.top_package}
+                          </div>
                         </div>
                         <div>
-                          <div class="text-sm text-slate-400 mb-1">Top Runtime</div>
-                          <div class="text-xl font-bold text-white">{telemetryData()!.global_stats!.top_runtime}</div>
+                          <div class="mb-1 text-sm text-slate-400">Top Runtime</div>
+                          <div class="text-xl font-bold text-white">
+                            {telemetryData()!.global_stats!.top_runtime}
+                          </div>
                         </div>
                         <div>
-                          <div class="text-sm text-slate-400 mb-1">Your Percentile</div>
-                          <div class="text-xl font-bold text-emerald-400">Top {telemetryData()!.global_stats!.percentile}%</div>
+                          <div class="mb-1 text-sm text-slate-400">Your Percentile</div>
+                          <div class="text-xl font-bold text-emerald-400">
+                            Top {telemetryData()!.global_stats!.percentile}%
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -916,12 +908,14 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
             </Show>
 
             <Show when={!loading() && activeTab() === 'achievements'}>
-              <div class="space-y-6 animate-fade-in-up">
-                <div class="flex items-center justify-between mb-4">
-                  <h2 class="text-2xl font-bold gradient-text">Achievements</h2>
+              <div class="animate-fade-in-up space-y-6">
+                <div class="mb-4 flex items-center justify-between">
+                  <h2 class="gradient-text text-2xl font-bold">Achievements</h2>
                   <Show when={!telemetryLoading() && telemetryData()}>
                     <div class="text-sm text-slate-400">
-                      <span class="text-white font-bold">{telemetryData()!.achievements.filter(a => a.unlocked).length}</span>
+                      <span class="font-bold text-white">
+                        {telemetryData()!.achievements.filter(a => a.unlocked).length}
+                      </span>
                       {' / '}
                       <span>{telemetryData()!.achievements.length}</span>
                       {' unlocked'}
@@ -930,45 +924,55 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                 </div>
 
                 <Show when={!telemetryLoading() && telemetryData()}>
-                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <For each={telemetryData()!.achievements}>
-                      {(achievement) => {
+                      {achievement => {
                         const Icon = getAchievementIcon(achievement.icon, achievement.name);
                         return (
                           <div
-                            class={`p-6 rounded-xl border transition-all hover:scale-[1.02] ${
+                            class={`rounded-xl border p-6 transition-all hover:scale-[1.02] ${
                               achievement.unlocked
                                 ? 'border-yellow-500/30 bg-yellow-500/10 shadow-lg shadow-yellow-500/10'
                                 : 'border-white/10 bg-white/5'
                             }`}
                           >
-                            <div class="flex items-start gap-3 mb-3">
-                              <div class={`p-3 rounded-lg ${achievement.unlocked ? 'bg-yellow-500/20' : 'bg-white/5'}`}>
-                                <Icon 
+                            <div class="mb-3 flex items-start gap-3">
+                              <div
+                                class={`rounded-lg p-3 ${achievement.unlocked ? 'bg-yellow-500/20' : 'bg-white/5'}`}
+                              >
+                                <Icon
                                   class={`h-6 w-6 ${
                                     achievement.unlocked ? 'text-yellow-400' : 'text-slate-600'
-                                  }`} 
+                                  }`}
                                 />
                               </div>
-                              <div class="flex-1 min-w-0">
-                                <div class="font-medium text-white mb-1 flex items-center gap-2">
+                              <div class="min-w-0 flex-1">
+                                <div class="mb-1 flex items-center gap-2 font-medium text-white">
                                   {achievement.name}
                                   <Show when={achievement.unlocked}>
-                                    <CheckCircle class="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                                    <CheckCircle class="h-4 w-4 flex-shrink-0 text-emerald-400" />
                                   </Show>
                                 </div>
                                 <div class="text-sm text-slate-400">{achievement.description}</div>
                               </div>
                             </div>
-                            <Show when={!achievement.unlocked && achievement.progress && achievement.progress > 0}>
+                            <Show
+                              when={
+                                !achievement.unlocked &&
+                                achievement.progress &&
+                                achievement.progress > 0
+                              }
+                            >
                               <div class="mt-3">
-                                <div class="flex items-center justify-between mb-1.5">
+                                <div class="mb-1.5 flex items-center justify-between">
                                   <span class="text-xs text-slate-500">Progress</span>
-                                  <span class="text-xs font-medium text-slate-400">{achievement.progress}%</span>
+                                  <span class="text-xs font-medium text-slate-400">
+                                    {achievement.progress}%
+                                  </span>
                                 </div>
-                                <div class="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                  <div 
-                                    class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+                                <div class="h-1.5 overflow-hidden rounded-full bg-white/5">
+                                  <div
+                                    class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
                                     style={{ width: `${achievement.progress}%` }}
                                   />
                                 </div>
@@ -989,12 +993,14 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
             </Show>
 
             <Show when={!loading() && activeTab() === 'machines'}>
-              <div class="space-y-6 animate-fade-in-up">
-                <div class="flex items-center justify-between mb-4">
-                  <h2 class="text-2xl font-bold gradient-text">Machines</h2>
+              <div class="animate-fade-in-up space-y-6">
+                <div class="mb-4 flex items-center justify-between">
+                  <h2 class="gradient-text text-2xl font-bold">Machines</h2>
                   <Show when={!telemetryLoading() && telemetryData()}>
                     <div class="text-sm text-slate-400">
-                      <span class="text-white font-bold">{telemetryData()!.machines.filter(m => m.is_active).length}</span>
+                      <span class="font-bold text-white">
+                        {telemetryData()!.machines.filter(m => m.is_active).length}
+                      </span>
                       {' / '}
                       <span>{telemetryData()!.license.max_machines}</span>
                       {' active'}
@@ -1007,12 +1013,12 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                     when={telemetryData()!.machines.length > 0}
                     fallback={
                       <div class={`${glassPanel} p-12 text-center`}>
-                        <Monitor class="h-16 w-16 text-slate-600 mx-auto mb-4" />
-                        <h3 class="text-lg font-bold text-white mb-2">No Machines Registered</h3>
-                        <p class="text-slate-400 text-sm mb-6 max-w-md mx-auto">
+                        <Monitor class="mx-auto mb-4 h-16 w-16 text-slate-600" />
+                        <h3 class="mb-2 text-lg font-bold text-white">No Machines Registered</h3>
+                        <p class="mx-auto mb-6 max-w-md text-sm text-slate-400">
                           Run the OMG CLI on your machine to register it and start tracking usage.
                         </p>
-                        <div class="terminal max-w-lg mx-auto">
+                        <div class="terminal mx-auto max-w-lg">
                           <div class="terminal-header">
                             <div class="terminal-dot red" />
                             <div class="terminal-dot yellow" />
@@ -1028,11 +1034,13 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                       </div>
                     }
                   >
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                       <For each={telemetryData()!.machines}>
-                        {(machine) => (
-                          <div class={`${glassPanel} p-6 hover:border-indigo-500/30 transition-all`}>
-                            <div class="flex items-center justify-between mb-4">
+                        {machine => (
+                          <div
+                            class={`${glassPanel} p-6 transition-all hover:border-indigo-500/30`}
+                          >
+                            <div class="mb-4 flex items-center justify-between">
                               <div class="flex items-center gap-3">
                                 <Monitor class="h-5 w-5 text-cyan-400" />
                                 <span class="font-medium text-white">
@@ -1040,8 +1048,8 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                                 </span>
                               </div>
                               <Show when={machine.is_active}>
-                                <span class="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-400 flex items-center gap-1">
-                                  <div class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+                                <span class="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1 text-xs text-green-400">
+                                  <div class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
                                   Active
                                 </span>
                               </Show>
@@ -1049,19 +1057,27 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                             <div class="space-y-2 text-sm">
                               <div class="flex items-center justify-between">
                                 <span class="text-slate-500">OS</span>
-                                <span class="text-slate-300">{machine.os} {machine.arch}</span>
+                                <span class="text-slate-300">
+                                  {machine.os} {machine.arch}
+                                </span>
                               </div>
                               <div class="flex items-center justify-between">
                                 <span class="text-slate-500">OMG Version</span>
-                                <span class="text-slate-300">v{machine.omg_version || 'unknown'}</span>
+                                <span class="text-slate-300">
+                                  v{machine.omg_version || 'unknown'}
+                                </span>
                               </div>
                               <div class="flex items-center justify-between">
                                 <span class="text-slate-500">Last Seen</span>
-                                <span class="text-slate-300">{formatShortDate(machine.last_seen_at)}</span>
+                                <span class="text-slate-300">
+                                  {formatShortDate(machine.last_seen_at)}
+                                </span>
                               </div>
                               <div class="flex items-center justify-between">
                                 <span class="text-slate-500">Machine ID</span>
-                                <span class="text-slate-300 font-mono text-xs">{machine.machine_id.substring(0, 12)}...</span>
+                                <span class="font-mono text-xs text-slate-300">
+                                  {machine.machine_id.substring(0, 12)}...
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -1073,30 +1089,34 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
               </div>
             </Show>
 
-            <Show when={!loading() && activeTab() === 'admin' && telemetryData()?.user.role === 'admin'}>
+            <Show
+              when={!loading() && activeTab() === 'admin' && telemetryData()?.user.role === 'admin'}
+            >
               <div class="animate-fade-in-up">
                 <AdminDashboard />
               </div>
             </Show>
 
             <Show when={!loading() && dashboardData() && activeTab() === 'settings'}>
-              <div class="space-y-6 animate-fade-in-up">
-                <h2 class="text-2xl font-bold gradient-text mb-6">Settings</h2>
+              <div class="animate-fade-in-up space-y-6">
+                <h2 class="gradient-text mb-6 text-2xl font-bold">Settings</h2>
 
                 <div class={`${glassPanel} p-6`}>
-                  <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                  <h3 class="mb-4 flex items-center gap-2 text-lg font-bold">
                     <Users class="h-5 w-5 text-indigo-400" />
                     <span class="gradient-text">Connected Accounts</span>
                   </h3>
                   <div class="space-y-3">
                     <For each={dashboardData()?.accounts || []}>
-                      {(account) => {
+                      {account => {
                         const Icon = getProviderIcon(account.provider);
                         return (
-                          <div class="flex items-center gap-3 rounded-lg bg-white/5 p-4 hover:bg-white/10 transition-colors">
+                          <div class="flex items-center gap-3 rounded-lg bg-white/5 p-4 transition-colors hover:bg-white/10">
                             <Icon class="h-5 w-5 text-slate-400" />
                             <div class="flex-1">
-                              <p class="text-sm font-medium text-white capitalize">{account.provider}</p>
+                              <p class="text-sm font-medium text-white capitalize">
+                                {account.provider}
+                              </p>
                               <p class="text-xs text-slate-500">{account.accountId}</p>
                             </div>
                           </div>
@@ -1107,13 +1127,13 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                 </div>
 
                 <div class={`${glassPanel} p-6`}>
-                  <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                  <h3 class="mb-4 flex items-center gap-2 text-lg font-bold">
                     <Monitor class="h-5 w-5 text-indigo-400" />
                     <span class="gradient-text">Active Sessions</span>
                   </h3>
                   <div class="space-y-3">
                     <For each={dashboardData()?.sessions || []}>
-                      {(session) => (
+                      {session => (
                         <div
                           class={`rounded-lg border p-4 transition-colors ${
                             session.isCurrent
@@ -1150,53 +1170,56 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
 
                 <Show when={telemetryData()?.license}>
                   <div class={`${glassPanel} p-6`}>
-                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <h3 class="mb-4 flex items-center gap-2 text-lg font-bold">
                       <Award class="h-5 w-5 text-yellow-400" />
                       <span class="gradient-text">License Details</span>
                     </h3>
-                    <div class="rounded-lg bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 p-6">
-                      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="rounded-lg border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-6">
+                      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <div>
-                          <div class="text-sm text-slate-400 mb-2">Tier</div>
+                          <div class="mb-2 text-sm text-slate-400">Tier</div>
                           <div class="text-2xl font-bold text-white uppercase">
                             {telemetryData()!.license.tier}
                           </div>
                         </div>
                         <div>
-                          <div class="text-sm text-slate-400 mb-2">Status</div>
+                          <div class="mb-2 text-sm text-slate-400">Status</div>
                           <div class="text-2xl font-bold text-emerald-400 capitalize">
                             {telemetryData()!.license.status}
                           </div>
                         </div>
                         <div>
-                          <div class="text-sm text-slate-400 mb-2">Max Machines</div>
+                          <div class="mb-2 text-sm text-slate-400">Max Machines</div>
                           <div class="text-2xl font-bold text-white">
                             {telemetryData()!.license.max_machines}
                           </div>
                         </div>
                         <div>
-                          <div class="text-sm text-slate-400 mb-2">License Key</div>
+                          <div class="mb-2 text-sm text-slate-400">License Key</div>
                           <div class="flex items-center gap-2">
-                            <code class="text-sm font-mono text-slate-300 bg-black/30 px-3 py-1.5 rounded">
+                            <code class="rounded bg-black/30 px-3 py-1.5 font-mono text-sm text-slate-300">
                               {telemetryData()!.license.license_key}
                             </code>
                             <button
                               onClick={copyLicenseKey}
-                              class="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                              class="rounded-lg p-2 transition-colors hover:bg-white/10"
                               title="Copy license key"
                             >
-                              <Show when={copiedLicense()} fallback={<Copy class="h-4 w-4 text-slate-400" />}>
+                              <Show
+                                when={copiedLicense()}
+                                fallback={<Copy class="h-4 w-4 text-slate-400" />}
+                              >
                                 <Check class="h-4 w-4 text-emerald-400" />
                               </Show>
                             </button>
                           </div>
                         </div>
                       </div>
-                      <div class="mt-6 pt-6 border-t border-white/10">
-                        <div class="text-sm text-slate-400 mb-3">Enabled Features</div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div class="mt-6 border-t border-white/10 pt-6">
+                        <div class="mb-3 text-sm text-slate-400">Enabled Features</div>
+                        <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
                           <For each={telemetryData()!.license.features}>
-                            {(feature) => (
+                            {feature => (
                               <div class="flex items-center gap-2">
                                 <CheckCircle class="h-4 w-4 text-emerald-400" />
                                 <span class="text-sm text-slate-300">{feature}</span>
@@ -1210,17 +1233,17 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                 </Show>
 
                 <div class={`${glassPanel} p-6`}>
-                  <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                  <h3 class="mb-4 flex items-center gap-2 text-lg font-bold">
                     <Download class="h-5 w-5 text-indigo-400" />
                     <span class="gradient-text">Export Data</span>
                   </h3>
-                  <p class="text-slate-400 text-sm mb-4">
+                  <p class="mb-4 text-sm text-slate-400">
                     Download your telemetry data in CSV or JSON format for analysis or backup.
                   </p>
                   <div class="flex gap-3">
                     <button
                       onClick={() => exportData('csv')}
-                      class="btn-secondary text-sm px-4 py-2"
+                      class="btn-secondary px-4 py-2 text-sm"
                       disabled={telemetryLoading() || !telemetryData()}
                     >
                       <Download class="h-4 w-4" />
@@ -1228,7 +1251,7 @@ const DashboardPage: Component<DashboardPageProps> = (props) => {
                     </button>
                     <button
                       onClick={() => exportData('json')}
-                      class="btn-secondary text-sm px-4 py-2"
+                      class="btn-secondary px-4 py-2 text-sm"
                       disabled={telemetryLoading() || !telemetryData()}
                     >
                       <Download class="h-4 w-4" />

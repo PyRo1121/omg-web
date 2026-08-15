@@ -1,0 +1,5 @@
+[allowlist]
+description = "Verified non-secret test fixture and ignored generated build output"
+commits = ["f0d14d71ad349545da565d47e611101d997e71a1"]
+paths = ['''^site/\.vinxi/''', '''^site/dist/_worker\.js/''']
+regexes = ['''privacy-test-key-123''']

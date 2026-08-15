@@ -1,36 +1,37 @@
-import { createSignal, Show } from "solid-js";
-import { A, useNavigate } from "@solidjs/router";
-import { Title, Meta } from "@solidjs/meta";
-import { signUp, signIn, useSession } from "~/lib/auth-client";
-import { Terminal, Github, Mail, User, AlertCircle, Loader2 } from "lucide-solid";
+import { createSignal, Show } from 'solid-js';
+import { A, useNavigate } from '@solidjs/router';
+import { Title, Meta } from '@solidjs/meta';
+import { signUp, signIn, useSession } from '~/lib/auth-client';
+import { getErrorMessage } from '~/lib/error-message';
+import { Terminal, Github, Mail, User, AlertCircle, Loader2 } from 'lucide-solid';
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const session = useSession();
-  const [name, setName] = createSignal("");
-  const [email, setEmail] = createSignal("");
-  const [password, setPassword] = createSignal("");
-  const [confirmPassword, setConfirmPassword] = createSignal("");
+  const [name, setName] = createSignal('');
+  const [email, setEmail] = createSignal('');
+  const [password, setPassword] = createSignal('');
+  const [confirmPassword, setConfirmPassword] = createSignal('');
   const [loading, setLoading] = createSignal(false);
-  const [error, setError] = createSignal("");
+  const [error, setError] = createSignal('');
 
-  if (session()?.user) {
-    navigate("/dashboard", { replace: true });
+  if (session()?.data?.user) {
+    navigate('/dashboard', { replace: true });
   }
 
   const handleSignup = async (e: Event) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setError('');
 
     if (password() !== confirmPassword()) {
-      setError("Passwords do not match");
+      setError('Passwords do not match');
       setLoading(false);
       return;
     }
 
     if (password().length < 8) {
-      setError("Password must be at least 8 characters");
+      setError('Password must be at least 8 characters');
       setLoading(false);
       return;
     }
@@ -43,7 +44,7 @@ export default function SignupPage() {
       });
 
       if (result.error) {
-        setError(result.error.message || "Signup failed");
+        setError(result.error.message || 'Signup failed');
       } else {
         // Auto-provision license for new user
         try {
@@ -54,40 +55,45 @@ export default function SignupPage() {
         } catch (err) {
           console.warn('License auto-provision failed (non-critical):', err);
         }
-        navigate("/dashboard");
+        navigate('/dashboard');
       }
     } catch (err) {
-      setError((err as Error).message || "An unexpected error occurred");
+      setError(
+        err instanceof Error
+          ? getErrorMessage(err, 'An unexpected error occurred')
+          : 'An unexpected error occurred'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOAuthLogin = async (provider: "github" | "google") => {
+  const handleOAuthLogin = async (provider: 'github' | 'google') => {
     setLoading(true);
-    setError("");
+    setError('');
 
     try {
       await signIn.social({
         provider,
-        callbackURL: "/dashboard",
+        callbackURL: '/dashboard',
       });
     } catch (err) {
-      setError((err as Error).message || "OAuth signup failed");
+      setError(
+        err instanceof Error ? getErrorMessage(err, 'OAuth signup failed') : 'OAuth signup failed'
+      );
       setLoading(false);
     }
   };
 
   const pageBg =
-    "min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-blue-500/30 selection:text-blue-200 overflow-x-hidden relative";
-  const glassPanel =
-    "bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl";
+    'min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-blue-500/30 selection:text-blue-200 overflow-x-hidden relative';
+  const glassPanel = 'bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl';
   const glassInput =
-    "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all";
+    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all';
   const glassButton =
-    "w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed";
+    'w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed';
   const oauthButton =
-    "w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium py-3 rounded-xl transition-all";
+    'w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium py-3 rounded-xl transition-all';
 
   return (
     <>
@@ -113,7 +119,7 @@ export default function SignupPage() {
             <div class="mb-6 space-y-3">
               <button
                 type="button"
-                onClick={() => handleOAuthLogin("github")}
+                onClick={() => handleOAuthLogin('github')}
                 disabled={loading()}
                 class={oauthButton}
               >
@@ -122,7 +128,7 @@ export default function SignupPage() {
               </button>
               <button
                 type="button"
-                onClick={() => handleOAuthLogin("google")}
+                onClick={() => handleOAuthLogin('google')}
                 disabled={loading()}
                 class={oauthButton}
               >
@@ -159,15 +165,13 @@ export default function SignupPage() {
 
             <form onSubmit={handleSignup} class="space-y-4">
               <div>
-                <label class="mb-2 ml-1 block text-sm font-medium text-slate-300">
-                  Full Name
-                </label>
+                <label class="mb-2 ml-1 block text-sm font-medium text-slate-300">Full Name</label>
                 <div class="relative">
-                  <User class="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                  <User class="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-slate-500" />
                   <input
                     type="text"
                     value={name()}
-                    onInput={(e) => setName(e.currentTarget.value)}
+                    onInput={e => setName(e.currentTarget.value)}
                     placeholder="John Doe"
                     required
                     class={`${glassInput} pl-12`}
@@ -180,11 +184,11 @@ export default function SignupPage() {
                   Email Address
                 </label>
                 <div class="relative">
-                  <Mail class="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                  <Mail class="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-slate-500" />
                   <input
                     type="email"
                     value={email()}
-                    onInput={(e) => setEmail(e.currentTarget.value)}
+                    onInput={e => setEmail(e.currentTarget.value)}
                     placeholder="dev@example.com"
                     required
                     class={`${glassInput} pl-12`}
@@ -193,13 +197,11 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label class="mb-2 ml-1 block text-sm font-medium text-slate-300">
-                  Password
-                </label>
+                <label class="mb-2 ml-1 block text-sm font-medium text-slate-300">Password</label>
                 <input
                   type="password"
                   value={password()}
-                  onInput={(e) => setPassword(e.currentTarget.value)}
+                  onInput={e => setPassword(e.currentTarget.value)}
                   placeholder="At least 8 characters"
                   required
                   minLength={8}
@@ -214,7 +216,7 @@ export default function SignupPage() {
                 <input
                   type="password"
                   value={confirmPassword()}
-                  onInput={(e) => setConfirmPassword(e.currentTarget.value)}
+                  onInput={e => setConfirmPassword(e.currentTarget.value)}
                   placeholder="Confirm your password"
                   required
                   class={glassInput}
@@ -235,14 +237,14 @@ export default function SignupPage() {
                     Creating account...
                   </span>
                 ) : (
-                  "Create Account"
+                  'Create Account'
                 )}
               </button>
             </form>
 
             <div class="mt-6 text-center">
               <p class="text-sm text-slate-400">
-                Already have an account?{" "}
+                Already have an account?{' '}
                 <A href="/login" class="font-medium text-blue-400 hover:text-blue-300">
                   Sign in
                 </A>
@@ -250,10 +252,7 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <A
-            href="/"
-            class="mt-8 text-sm text-slate-500 transition-colors hover:text-white"
-          >
+          <A href="/" class="mt-8 text-sm text-slate-500 transition-colors hover:text-white">
             ← Back to home
           </A>
         </div>

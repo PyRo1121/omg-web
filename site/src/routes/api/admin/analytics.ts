@@ -1,13 +1,13 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, gte, and, eq } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import type { APIEvent } from '@solidjs/start/server';
+import { sql, gte, and, eq } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
 
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
     if (adminCheck instanceof Response) return adminCheck;
-    
+
     const { db } = adminCheck;
 
     const totalUsers = await db
@@ -84,13 +84,13 @@ export async function GET(event: APIEvent) {
     const newUsersLast7Days = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(schema.user)
-      .where(gte(schema.user.createdAt, sevenDaysAgo.getTime()))
+      .where(gte(schema.user.createdAt, sevenDaysAgo))
       .get();
 
     const newUsersLast30Days = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(schema.user)
-      .where(gte(schema.user.createdAt, thirtyDaysAgo.getTime()))
+      .where(gte(schema.user.createdAt, thirtyDaysAgo))
       .get();
 
     return new Response(
@@ -120,7 +120,8 @@ export async function GET(event: APIEvent) {
             totalPackagesSearched: Number(last30DaysStats?.totalPackagesSearched || 0),
             totalRuntimesSwitched: Number(last30DaysStats?.totalRuntimesSwitched || 0),
             totalTimeSavedMs: Number(last30DaysStats?.totalTimeSaved || 0),
-            totalTimeSavedHours: Math.round(Number(last30DaysStats?.totalTimeSaved || 0) / 1000 / 60 / 60 * 10) / 10,
+            totalTimeSavedHours:
+              Math.round((Number(last30DaysStats?.totalTimeSaved || 0) / 1000 / 60 / 60) * 10) / 10,
           },
           dailyTrend: dailyUsageTrend.map(d => ({
             date: d.date,
@@ -132,21 +133,21 @@ export async function GET(event: APIEvent) {
       {
         status: 200,
         headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "private, no-cache, no-store, must-revalidate",
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
         },
       }
     );
   } catch (error) {
-    console.error("[Admin Analytics API] Error:", error);
+    console.error('[Admin Analytics API] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

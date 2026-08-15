@@ -1,13 +1,16 @@
-import { APIEvent } from "@solidjs/start/server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { createAuth, CloudflareEnv } from "~/lib/auth";
+import type { APIEvent } from '@solidjs/start/server';
+import { drizzle } from 'drizzle-orm/d1';
+import { eq } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { createAuth, type CloudflareEnv } from '~/lib/auth';
+import { parseWorkerSessionResponse } from '~/lib/dashboard-contract';
 
-function getEnv(event: APIEvent): CloudflareEnv & { WORKERS_API_URL?: string; ADMIN_API_SECRET?: string } {
-  const env = (event.nativeEvent as any).context?.cloudflare?.env;
-  if (!env) throw new Error("Cloudflare environment not available");
-  
+function getEnv(
+  event: APIEvent
+): CloudflareEnv & { WORKERS_API_URL?: string; ADMIN_API_SECRET?: string } {
+  const env = event.nativeEvent.context.cloudflare?.env;
+  if (!env) throw new Error('Cloudflare environment not available');
+
   return {
     DB: env.DB,
     BETTER_AUTH_KV: env.BETTER_AUTH_KV,
@@ -17,7 +20,7 @@ function getEnv(event: APIEvent): CloudflareEnv & { WORKERS_API_URL?: string; AD
     GITHUB_CLIENT_SECRET: env.GITHUB_CLIENT_SECRET,
     GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: env.GOOGLE_CLIENT_SECRET,
-    WORKERS_API_URL: env.WORKERS_API_URL || "https://api.pyro1121.com",
+    WORKERS_API_URL: env.WORKERS_API_URL || 'https://api.pyro1121.com',
     ADMIN_API_SECRET: env.ADMIN_API_SECRET,
   };
 }
@@ -26,15 +29,15 @@ export async function GET(event: APIEvent) {
   try {
     const env = getEnv(event);
     const auth = createAuth(env);
-    
+
     const session = await auth.api.getSession({
       headers: event.request.headers,
     });
 
     if (!session?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -49,9 +52,9 @@ export async function GET(event: APIEvent) {
       .get();
 
     if (userRecord?.role !== 'admin') {
-      return new Response(JSON.stringify({ error: "Forbidden - Admin access required" }), {
+      return new Response(JSON.stringify({ error: 'Forbidden - Admin access required' }), {
         status: 403,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -59,18 +62,18 @@ export async function GET(event: APIEvent) {
     const adminSecret = env.ADMIN_API_SECRET;
 
     if (!adminSecret) {
-      console.error("[Auth Bridge] ADMIN_API_SECRET not configured");
-      return new Response(JSON.stringify({ error: "Admin API not configured" }), {
+      console.error('[Auth Bridge] ADMIN_API_SECRET not configured');
+      return new Response(JSON.stringify({ error: 'Admin API not configured' }), {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
     const response = await fetch(`${workersApiUrl}/api/admin/create-session`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "X-Admin-Secret": adminSecret,
+        'Content-Type': 'application/json',
+        'X-Admin-Secret': adminSecret,
       },
       body: JSON.stringify({
         email: session.user.email,
@@ -81,33 +84,46 @@ export async function GET(event: APIEvent) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[Auth Bridge] Workers API error:", errorText);
-      return new Response(JSON.stringify({ error: "Failed to create workers session" }), {
+      console.error('[Auth Bridge] Workers API error:', errorText);
+      return new Response(JSON.stringify({ error: 'Failed to create workers session' }), {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const data = await response.json() as { token: string; expiresAt: string };
+    const parsed = parseWorkerSessionResponse(await response.json());
+    if (!parsed.ok) {
+      console.error('[Auth Bridge] Invalid Workers API response:', parsed.error);
+      return new Response(JSON.stringify({ error: 'Invalid workers session response' }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-    return new Response(JSON.stringify({
-      token: data.token,
-      expiresAt: data.expiresAt,
-    }), {
-      status: 200,
-      headers: { 
-        "Content-Type": "application/json",
-        "Cache-Control": "private, no-cache, no-store, must-revalidate",
-      },
-    });
+    return new Response(
+      JSON.stringify({
+        token: parsed.value.token,
+        expiresAt: parsed.value.expiresAt,
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+        },
+      }
+    );
   } catch (error) {
-    console.error("[Auth Bridge] Error:", error);
-    return new Response(JSON.stringify({ 
-      error: "Internal server error",
-      message: error instanceof Error ? error.message : "Unknown error"
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error('[Auth Bridge] Error:', error);
+    return new Response(
+      JSON.stringify({
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }

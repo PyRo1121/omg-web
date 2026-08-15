@@ -1,29 +1,42 @@
-import { APIEvent } from "@solidjs/start/server";
-import { sql, eq, desc, and } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { requireAdmin } from "~/lib/admin";
+import type { APIEvent } from '@solidjs/start/server';
+import { sql, eq, desc, and } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { requireAdmin } from '~/lib/admin';
+import { parseAdminCrmNoteInput } from '~/lib/dashboard-contract';
+
+type NoteType = 'general' | 'call' | 'meeting' | 'support' | 'escalation';
+
+function parseNoteType(value: string | undefined): NoteType | undefined {
+  switch (value) {
+    case 'general':
+    case 'call':
+    case 'meeting':
+    case 'support':
+    case 'escalation':
+      return value;
+    default:
+      return undefined;
+  }
+}
 
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
     if (adminCheck instanceof Response) return adminCheck;
 
-    const { db, userId: adminId } = adminCheck;
+    const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const customerId = url.searchParams.get("customerId");
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
-    const noteType = url.searchParams.get("type");
+    const customerId = url.searchParams.get('customerId');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+    const offset = parseInt(url.searchParams.get('offset') || '0');
+    const noteType = url.searchParams.get('type');
 
     if (!customerId) {
-      return new Response(
-        JSON.stringify({ error: "customerId is required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'customerId is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Verify customer exists
@@ -35,19 +48,17 @@ export async function GET(event: APIEvent) {
       .get();
 
     if (!customer) {
-      return new Response(
-        JSON.stringify({ error: "Customer not found" }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Customer not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Build query conditions
     const conditions = [eq(schema.customerNote.userId, customerId)];
-    if (noteType) {
-      conditions.push(eq(schema.customerNote.noteType, noteType as any));
+    const parsedNoteType = parseNoteType(noteType ?? undefined);
+    if (parsedNoteType) {
+      conditions.push(eq(schema.customerNote.noteType, parsedNoteType));
     }
 
     // Get notes with author info
@@ -66,10 +77,7 @@ export async function GET(event: APIEvent) {
       .from(schema.customerNote)
       .innerJoin(schema.user, eq(schema.customerNote.authorId, schema.user.id))
       .where(and(...conditions))
-      .orderBy(
-        desc(schema.customerNote.isPinned),
-        desc(schema.customerNote.createdAt)
-      )
+      .orderBy(desc(schema.customerNote.isPinned), desc(schema.customerNote.createdAt))
       .limit(limit)
       .offset(offset)
       .all();
@@ -105,21 +113,21 @@ export async function GET(event: APIEvent) {
       {
         status: 200,
         headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "private, no-cache, no-store, must-revalidate",
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
         },
       }
     );
   } catch (error) {
-    console.error("[Admin CRM Notes GET] Error:", error);
+    console.error('[Admin CRM Notes GET] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }
@@ -132,17 +140,21 @@ export async function POST(event: APIEvent) {
 
     const { db, userId: adminId } = adminCheck;
 
-    const body = await event.request.json();
-    const { customerId, content, noteType, isPinned } = body;
+    const parsedBody = parseAdminCrmNoteInput(await event.request.json());
+    if (!parsedBody.ok) {
+      return new Response(JSON.stringify({ error: parsedBody.error }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { customerId, content, noteType, isPinned } = parsedBody.value;
 
     if (!customerId || !content) {
-      return new Response(
-        JSON.stringify({ error: "customerId and content are required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'customerId and content are required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Verify customer exists
@@ -154,18 +166,14 @@ export async function POST(event: APIEvent) {
       .get();
 
     if (!customer) {
-      return new Response(
-        JSON.stringify({ error: "Customer not found" }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Customer not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Validate note type
-    const validNoteTypes = ["general", "call", "meeting", "support", "escalation"];
-    const type = noteType && validNoteTypes.includes(noteType) ? noteType : "general";
+    const type = parseNoteType(noteType) ?? 'general';
 
     const noteId = crypto.randomUUID();
     const now = new Date();
@@ -222,19 +230,19 @@ export async function POST(event: APIEvent) {
       }),
       {
         status: 201,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   } catch (error) {
-    console.error("[Admin CRM Notes POST] Error:", error);
+    console.error('[Admin CRM Notes POST] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }
@@ -245,19 +253,23 @@ export async function PUT(event: APIEvent) {
     const adminCheck = await requireAdmin(event);
     if (adminCheck instanceof Response) return adminCheck;
 
-    const { db, userId: adminId } = adminCheck;
+    const { db } = adminCheck;
 
-    const body = await event.request.json();
-    const { noteId, content, noteType, isPinned } = body;
+    const parsedBody = parseAdminCrmNoteInput(await event.request.json());
+    if (!parsedBody.ok) {
+      return new Response(JSON.stringify({ error: parsedBody.error }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { noteId, content, noteType, isPinned } = parsedBody.value;
 
     if (!noteId) {
-      return new Response(
-        JSON.stringify({ error: "noteId is required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'noteId is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Verify note exists
@@ -269,17 +281,14 @@ export async function PUT(event: APIEvent) {
       .get();
 
     if (!existingNote) {
-      return new Response(
-        JSON.stringify({ error: "Note not found" }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Note not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Build update object
-    const updates: Record<string, any> = {
+    const updates: Partial<typeof schema.customerNote.$inferInsert> = {
       updatedAt: new Date(),
     };
 
@@ -287,9 +296,9 @@ export async function PUT(event: APIEvent) {
       updates.content = content.trim();
     }
     if (noteType !== undefined) {
-      const validNoteTypes = ["general", "call", "meeting", "support", "escalation"];
-      if (validNoteTypes.includes(noteType)) {
-        updates.noteType = noteType;
+      const parsedNoteType = parseNoteType(noteType);
+      if (parsedNoteType) {
+        updates.noteType = parsedNoteType;
       }
     }
     if (isPinned !== undefined) {
@@ -302,23 +311,20 @@ export async function PUT(event: APIEvent) {
       .where(eq(schema.customerNote.id, noteId))
       .run();
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error("[Admin CRM Notes PUT] Error:", error);
+    console.error('[Admin CRM Notes PUT] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }
@@ -332,16 +338,13 @@ export async function DELETE(event: APIEvent) {
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
-    const noteId = url.searchParams.get("noteId");
+    const noteId = url.searchParams.get('noteId');
 
     if (!noteId) {
-      return new Response(
-        JSON.stringify({ error: "noteId is required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'noteId is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Verify note exists
@@ -353,37 +356,28 @@ export async function DELETE(event: APIEvent) {
       .get();
 
     if (!existingNote) {
-      return new Response(
-        JSON.stringify({ error: "Note not found" }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Note not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    await db
-      .delete(schema.customerNote)
-      .where(eq(schema.customerNote.id, noteId))
-      .run();
+    await db.delete(schema.customerNote).where(eq(schema.customerNote.id, noteId)).run();
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error("[Admin CRM Notes DELETE] Error:", error);
+    console.error('[Admin CRM Notes DELETE] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

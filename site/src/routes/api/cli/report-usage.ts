@@ -1,13 +1,13 @@
-import { APIEvent } from "@solidjs/start/server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, and } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import type { CLITelemetryReport } from "~/types/telemetry";
-import { ACHIEVEMENTS, checkAchievementProgress } from "~/lib/achievements";
+import type { APIEvent } from '@solidjs/start/server';
+import { drizzle } from 'drizzle-orm/d1';
+import { eq, and } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import type { CLITelemetryReport } from '~/types/telemetry';
+import { ACHIEVEMENTS, checkAchievementProgress } from '~/lib/achievements';
 
 function getEnv(event: APIEvent) {
-  const env = (event.nativeEvent as any).context?.cloudflare?.env;
-  if (!env) throw new Error("Environment not available");
+  const env = event.nativeEvent.context.cloudflare?.env;
+  if (!env) throw new Error('Environment not available');
   return env;
 }
 
@@ -22,7 +22,7 @@ async function updateAchievements(
     sbom_generated: number;
     vulnerabilities_found: number;
     time_saved_ms: number;
-  },
+  }
 ) {
   for (const achievement of ACHIEVEMENTS) {
     const progress = checkAchievementProgress(achievement, stats);
@@ -88,21 +88,18 @@ export async function POST(event: APIEvent) {
       .limit(1)
       .get();
 
-    if (!license || license.status !== "active") {
-      return new Response(JSON.stringify({ error: "Invalid or inactive license" }), {
+    if (!license || license.status !== 'active') {
+      return new Response(JSON.stringify({ error: 'Invalid or inactive license' }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    let machine = await db
+    const machine = await db
       .select()
       .from(schema.machine)
       .where(
-        and(
-          eq(schema.machine.licenseId, license.id),
-          eq(schema.machine.machineId, body.machine_id)
-        )
+        and(eq(schema.machine.licenseId, license.id), eq(schema.machine.machineId, body.machine_id))
       )
       .limit(1)
       .get();
@@ -119,13 +116,13 @@ export async function POST(event: APIEvent) {
       if (machines.length >= license.maxMachines) {
         return new Response(
           JSON.stringify({
-            error: "Maximum machines reached",
+            error: 'Maximum machines reached',
             current: machines.length,
             max: license.maxMachines,
           }),
           {
             status: 403,
-            headers: { "Content-Type": "application/json" },
+            headers: { 'Content-Type': 'application/json' },
           }
         );
       }
@@ -161,16 +158,11 @@ export async function POST(event: APIEvent) {
         .run();
     }
 
-    const today = now.toISOString().split("T")[0];
+    const today = now.toISOString().split('T')[0];
     const existingUsage = await db
       .select()
       .from(schema.usageDaily)
-      .where(
-        and(
-          eq(schema.usageDaily.licenseId, license.id),
-          eq(schema.usageDaily.date, today)
-        )
-      )
+      .where(and(eq(schema.usageDaily.licenseId, license.id), eq(schema.usageDaily.date, today)))
       .limit(1)
       .get();
 
@@ -179,12 +171,9 @@ export async function POST(event: APIEvent) {
         .update(schema.usageDaily)
         .set({
           commandsRun: existingUsage.commandsRun + (body.commands_run || 0),
-          packagesInstalled:
-            existingUsage.packagesInstalled + (body.packages_installed || 0),
-          packagesSearched:
-            existingUsage.packagesSearched + (body.packages_searched || 0),
-          runtimesSwitched:
-            existingUsage.runtimesSwitched + (body.runtimes_switched || 0),
+          packagesInstalled: existingUsage.packagesInstalled + (body.packages_installed || 0),
+          packagesSearched: existingUsage.packagesSearched + (body.packages_searched || 0),
+          runtimesSwitched: existingUsage.runtimesSwitched + (body.runtimes_switched || 0),
           sbomGenerated: existingUsage.sbomGenerated + (body.sbom_generated || 0),
           vulnerabilitiesFound:
             existingUsage.vulnerabilitiesFound + (body.vulnerabilities_found || 0),
@@ -215,17 +204,12 @@ export async function POST(event: APIEvent) {
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
+    const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
 
     const totalStats = await db
       .select()
       .from(schema.usageDaily)
-      .where(
-        and(
-          eq(schema.usageDaily.licenseId, license.id),
-          eq(schema.usageDaily.date, dateStr)
-        )
-      )
+      .where(and(eq(schema.usageDaily.licenseId, license.id), eq(schema.usageDaily.date, dateStr)))
       .all();
 
     const stats = {
@@ -242,18 +226,18 @@ export async function POST(event: APIEvent) {
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error("[CLI Report Usage] Error:", error);
+    console.error('[CLI Report Usage] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

@@ -1,12 +1,12 @@
-import { APIEvent } from "@solidjs/start/server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, desc, gte, sql, and, count } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { createAuth, CloudflareEnv } from "~/lib/auth";
+import type { APIEvent } from '@solidjs/start/server';
+import { drizzle } from 'drizzle-orm/d1';
+import { eq, desc, gte, sql, and, count } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { createAuth, type CloudflareEnv } from '~/lib/auth';
 
 function getEnv(event: APIEvent): CloudflareEnv {
-  const env = (event.nativeEvent as any).context?.cloudflare?.env;
-  if (!env) throw new Error("Cloudflare environment not available");
+  const env = event.nativeEvent.context.cloudflare?.env;
+  if (!env) throw new Error('Cloudflare environment not available');
 
   return {
     DB: env.DB,
@@ -54,9 +54,9 @@ export async function GET(event: APIEvent) {
     });
 
     if (!session?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -72,9 +72,9 @@ export async function GET(event: APIEvent) {
       .get();
 
     if (!license) {
-      return new Response(JSON.stringify({ error: "No license found" }), {
+      return new Response(JSON.stringify({ error: 'No license found' }), {
         status: 404,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -118,10 +118,7 @@ export async function GET(event: APIEvent) {
       })
       .from(schema.usageDaily)
       .where(
-        and(
-          eq(schema.usageDaily.licenseId, licenseId),
-          gte(schema.usageDaily.date, weekAgoStr)
-        )
+        and(eq(schema.usageDaily.licenseId, licenseId), gte(schema.usageDaily.date, weekAgoStr))
       )
       .get();
 
@@ -139,9 +136,12 @@ export async function GET(event: APIEvent) {
       )
       .get();
 
-    const commandsTrend = lastWeekStats?.totalCommands && Number(lastWeekStats.totalCommands) > 0
-      ? ((Number(thisWeekStats?.totalCommands || 0) - Number(lastWeekStats.totalCommands)) / Number(lastWeekStats.totalCommands)) * 100
-      : 0;
+    const commandsTrend =
+      lastWeekStats?.totalCommands && Number(lastWeekStats.totalCommands) > 0
+        ? ((Number(thisWeekStats?.totalCommands || 0) - Number(lastWeekStats.totalCommands)) /
+            Number(lastWeekStats.totalCommands)) *
+          100
+        : 0;
 
     // Active machines count
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -151,8 +151,8 @@ export async function GET(event: APIEvent) {
       .where(eq(schema.machine.licenseId, licenseId))
       .all();
 
-    const activeMachines = machines.filter(m =>
-      m.isActive && m.lastSeenAt.getTime() > oneDayAgo.getTime()
+    const activeMachines = machines.filter(
+      m => m.isActive && m.lastSeenAt.getTime() > oneDayAgo.getTime()
     );
 
     // Command distribution from commandUsage
@@ -165,7 +165,7 @@ export async function GET(event: APIEvent) {
       .where(
         and(
           eq(schema.commandUsage.licenseId, licenseId),
-          gte(schema.commandUsage.createdAt, startOfMonth.getTime())
+          gte(schema.commandUsage.createdAt, startOfMonth)
         )
       )
       .groupBy(schema.commandUsage.command)
@@ -218,10 +218,7 @@ export async function GET(event: APIEvent) {
       })
       .from(schema.usageDaily)
       .where(
-        and(
-          eq(schema.usageDaily.licenseId, licenseId),
-          gte(schema.usageDaily.date, monthAgoStr)
-        )
+        and(eq(schema.usageDaily.licenseId, licenseId), gte(schema.usageDaily.date, monthAgoStr))
       )
       .orderBy(schema.usageDaily.date)
       .all();
@@ -248,20 +245,20 @@ export async function GET(event: APIEvent) {
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "private, no-cache, no-store, must-revalidate",
+        'Content-Type': 'application/json',
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
       },
     });
   } catch (error) {
-    console.error("[User Usage API] Error:", error);
+    console.error('[User Usage API] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

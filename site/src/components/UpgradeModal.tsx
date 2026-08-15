@@ -1,4 +1,5 @@
-import { Component, createSignal, Show, For } from 'solid-js';
+import { type Component, createSignal, Show, For } from 'solid-js';
+import { parseCheckoutResponse } from '../lib/dashboard-contract';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -75,18 +76,41 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
         }),
       });
 
-      const data = await res.json();
+      const parsed = parseCheckoutResponse(await res.json());
+      if (!parsed.ok) {
+        setError(parsed.error);
+        setStep('details');
+        return;
+      }
 
-      if (data.url) {
+      if (parsed.value.url) {
+        let checkoutUrl: URL;
+        try {
+          checkoutUrl = new URL(parsed.value.url);
+        } catch {
+          setError('Checkout returned an invalid redirect.');
+          setStep('details');
+          return;
+        }
+
+        if (checkoutUrl.protocol !== 'https:' || checkoutUrl.hostname !== 'checkout.stripe.com') {
+          setError('Checkout returned an untrusted redirect.');
+          setStep('details');
+          return;
+        }
+
         // Small delay for animation
         setTimeout(() => {
-          window.location.href = data.url;
+          const redirectLink = document.createElement('a');
+          redirectLink.href = checkoutUrl.toString();
+          redirectLink.rel = 'noopener noreferrer';
+          redirectLink.click();
         }, 800);
       } else {
-        setError(data.error || 'Failed to create checkout session');
+        setError(parsed.value.error || 'Failed to create checkout session');
         setStep('details');
       }
-    } catch (_e) {
+    } catch {
       setError('Network error. Please try again.');
       setStep('details');
     } finally {

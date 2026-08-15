@@ -1,14 +1,14 @@
-import { APIEvent } from "@solidjs/start/server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import * as schema from "../../db/auth-schema";
-import { createAuth, CloudflareEnv } from "~/lib/auth";
+import type { APIEvent } from '@solidjs/start/server';
+import { drizzle } from 'drizzle-orm/d1';
+import { eq } from 'drizzle-orm';
+import * as schema from '../../db/auth-schema';
+import { createAuth, type CloudflareEnv } from '~/lib/auth';
 
 function getEnv(event: APIEvent): CloudflareEnv {
-  const env = (event.nativeEvent as any).context?.cloudflare?.env;
-  
+  const env = event.nativeEvent.context.cloudflare?.env;
+
   if (!env) {
-    throw new Error("Cloudflare environment not available");
+    throw new Error('Cloudflare environment not available');
   }
 
   return {
@@ -27,15 +27,15 @@ export async function GET(event: APIEvent) {
   try {
     const env = getEnv(event);
     const auth = createAuth(env);
-    
+
     const session = await auth.api.getSession({
       headers: event.request.headers,
     });
 
     if (!session?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -63,7 +63,7 @@ export async function GET(event: APIEvent) {
         image: session.user.image || null,
         createdAt: session.user.createdAt,
       },
-      sessions: userSessions.map((s) => ({
+      sessions: userSessions.map(s => ({
         id: s.id,
         ipAddress: s.ipAddress,
         userAgent: s.userAgent,
@@ -71,7 +71,7 @@ export async function GET(event: APIEvent) {
         expiresAt: new Date(s.expiresAt).toISOString(),
         isCurrent: s.token === currentSessionToken,
       })),
-      accounts: userAccounts.map((a) => ({
+      accounts: userAccounts.map(a => ({
         provider: a.providerId,
         accountId: a.accountId,
       })),
@@ -79,16 +79,13 @@ export async function GET(event: APIEvent) {
 
     return new Response(JSON.stringify(response), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error("Dashboard API error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    console.error('Dashboard API error:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

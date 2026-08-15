@@ -1,12 +1,12 @@
-import { APIEvent } from "@solidjs/start/server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, desc, gte, and, sql } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { createAuth, CloudflareEnv } from "~/lib/auth";
+import type { APIEvent } from '@solidjs/start/server';
+import { drizzle } from 'drizzle-orm/d1';
+import { eq, desc, gte, and, sql } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { createAuth, type CloudflareEnv } from '~/lib/auth';
 
 function getEnv(event: APIEvent): CloudflareEnv {
-  const env = (event.nativeEvent as any).context?.cloudflare?.env;
-  if (!env) throw new Error("Cloudflare environment not available");
+  const env = event.nativeEvent.context.cloudflare?.env;
+  if (!env) throw new Error('Cloudflare environment not available');
 
   return {
     DB: env.DB,
@@ -66,9 +66,9 @@ export async function GET(event: APIEvent) {
     });
 
     if (!session?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -84,9 +84,9 @@ export async function GET(event: APIEvent) {
       .get();
 
     if (!license) {
-      return new Response(JSON.stringify({ error: "No license found" }), {
+      return new Response(JSON.stringify({ error: 'No license found' }), {
         status: 404,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -94,12 +94,11 @@ export async function GET(event: APIEvent) {
 
     // Parse query parameters
     const url = new URL(event.request.url);
-    const days = parseInt(url.searchParams.get("days") || "30");
+    const days = parseInt(url.searchParams.get('days') || '30');
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString().split('T')[0];
-    const startTimestamp = startDate.getTime();
 
     // Calculate average durations by command type from commandUsage
     const commandPerformance = await db
@@ -115,7 +114,7 @@ export async function GET(event: APIEvent) {
       .where(
         and(
           eq(schema.commandUsage.licenseId, licenseId),
-          gte(schema.commandUsage.createdAt, startTimestamp),
+          gte(schema.commandUsage.createdAt, startDate),
           sql`${schema.commandUsage.durationMs} IS NOT NULL`
         )
       )
@@ -139,7 +138,10 @@ export async function GET(event: APIEvent) {
     const updateMetric = commandPerformance.find(p => p.command === 'update');
 
     const totalCommands = commandPerformance.reduce((sum, p) => sum + Number(p.count), 0);
-    const successfulCommands = commandPerformance.reduce((sum, p) => sum + Number(p.successCount), 0);
+    const successfulCommands = commandPerformance.reduce(
+      (sum, p) => sum + Number(p.successCount),
+      0
+    );
 
     // Get total time saved from usageDaily
     const timeSavedResult = await db
@@ -148,10 +150,7 @@ export async function GET(event: APIEvent) {
       })
       .from(schema.usageDaily)
       .where(
-        and(
-          eq(schema.usageDaily.licenseId, licenseId),
-          gte(schema.usageDaily.date, startDateStr)
-        )
+        and(eq(schema.usageDaily.licenseId, licenseId), gte(schema.usageDaily.date, startDateStr))
       )
       .get();
 
@@ -166,7 +165,7 @@ export async function GET(event: APIEvent) {
       .where(
         and(
           eq(schema.commandUsage.licenseId, licenseId),
-          gte(schema.commandUsage.createdAt, startTimestamp),
+          gte(schema.commandUsage.createdAt, startDate),
           sql`${schema.commandUsage.durationMs} IS NOT NULL`
         )
       )
@@ -204,9 +203,7 @@ export async function GET(event: APIEvent) {
       }
     });
 
-    const trends = Array.from(trendsMap.values()).sort((a, b) =>
-      a.date.localeCompare(b.date)
-    );
+    const trends = Array.from(trendsMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
     // Build sparkline data (last 14 data points)
     const recentTrends = trends.slice(-14);
@@ -223,9 +220,8 @@ export async function GET(event: APIEvent) {
         avgInstallMs: Math.round(Number(installMetric?.avgDuration) || 0),
         avgUpdateMs: Math.round(Number(updateMetric?.avgDuration) || 0),
         totalTimeSavedMs: Number(timeSavedResult?.totalTimeSaved || 0),
-        commandSuccessRate: totalCommands > 0
-          ? Math.round((successfulCommands / totalCommands) * 100)
-          : 100,
+        commandSuccessRate:
+          totalCommands > 0 ? Math.round((successfulCommands / totalCommands) * 100) : 100,
       },
       metrics,
       trends,
@@ -235,20 +231,20 @@ export async function GET(event: APIEvent) {
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "private, no-cache, no-store, must-revalidate",
+        'Content-Type': 'application/json',
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
       },
     });
   } catch (error) {
-    console.error("[Performance API] Error:", error);
+    console.error('[Performance API] Error:', error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

@@ -1,6 +1,6 @@
 // License validation handlers (for CLI activation)
 import {
-  Env,
+  type Env,
   jsonResponse,
   errorResponse,
   generateId,
@@ -131,7 +131,7 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
     }
   }
 
-  const token = env.JWT_PRIVATE_KEY 
+  const token = env.JWT_PRIVATE_KEY
     ? await generateLicenseJWT(license, machineId, env.JWT_PRIVATE_KEY, 'EdDSA')
     : await generateLicenseJWT(license, machineId, env.JWT_SECRET, 'HS256');
 
@@ -144,7 +144,9 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
   const activeMachines = await env.DB.prepare(
     `SELECT machine_id, hostname, os, arch, omg_version, is_active, first_seen_at, last_seen_at, user_name, user_email
      FROM machines WHERE license_id = ?`
-  ).bind(license.id).all();
+  )
+    .bind(license.id)
+    .all();
 
   // Fetch recent usage data for dashboard sync (last 30 days)
   const recentUsage = await env.DB.prepare(
@@ -152,7 +154,9 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
             sbom_generated, vulnerabilities_found, time_saved_ms
      FROM usage_daily WHERE license_id = ? AND date >= date('now', '-30 days')
      ORDER BY date DESC`
-  ).bind(license.id).all();
+  )
+    .bind(license.id)
+    .all();
 
   return jsonResponse({
     valid: true,
@@ -185,7 +189,13 @@ export async function handleGetLicense(request: Request, env: Env): Promise<Resp
   `
   )
     .bind(email)
-    .first();
+    .first<{
+      license_key: string;
+      tier: string;
+      status: string;
+      expires_at: string | null;
+      max_machines: number | null;
+    }>();
 
   if (!result) {
     return jsonResponse({ found: false });
@@ -341,22 +351,30 @@ export async function handleReportUsage(request: Request, env: Env): Promise<Res
   // Process granular package stats
   if (body.installed_packages) {
     for (const [pkg, count] of Object.entries(body.installed_packages)) {
-      await env.DB.prepare(`
+      await env.DB.prepare(
+        `
         INSERT INTO analytics_packages (package_name, install_count, last_seen_at)
         VALUES (?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(package_name) DO UPDATE SET install_count = install_count + ?, last_seen_at = CURRENT_TIMESTAMP
-      `).bind(pkg, count, count).run();
+      `
+      )
+        .bind(pkg, count, count)
+        .run();
     }
   }
 
   // Process granular runtime stats
   if (body.runtime_usage_counts) {
     for (const [runtime, count] of Object.entries(body.runtime_usage_counts)) {
-      await env.DB.prepare(`
+      await env.DB.prepare(
+        `
         INSERT INTO analytics_daily (date, metric, dimension, value)
         VALUES (?, 'version', ?, ?)
         ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + ?
-      `).bind(today, runtime, count, count).run();
+      `
+      )
+        .bind(today, runtime, count, count)
+        .run();
     }
   }
 
@@ -433,9 +451,8 @@ async function generateLicenseJWT(
   const payloadB64 = base64UrlEncode(JSON.stringify(payload));
   const data = `${headerB64}.${payloadB64}`;
 
-  const signature = algorithm === 'EdDSA'
-    ? await eddsaSign(secret, data)
-    : await hmacSign(secret, data);
+  const signature =
+    algorithm === 'EdDSA' ? await eddsaSign(secret, data) : await hmacSign(secret, data);
 
   return `${data}.${signature}`;
 }
@@ -444,7 +461,10 @@ function base64UrlEncode(data: Uint8Array | string): string {
   if (typeof data === 'string') {
     return btoa(data).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
-  return btoa(String.fromCharCode(...data)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return btoa(String.fromCharCode(...data))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 function base64UrlDecode(data: string): string {
@@ -467,7 +487,9 @@ async function hmacSign(secret: string, data: string): Promise<string> {
 
 async function eddsaSign(privateKeyDer: string, data: string): Promise<string> {
   const encoder = new TextEncoder();
-  const keyData = base64UrlDecode(privateKeyDer.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, ''));
+  const keyData = base64UrlDecode(
+    privateKeyDer.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '')
+  );
   const keyBuffer = new Uint8Array(keyData.length);
   for (let i = 0; i < keyData.length; i++) {
     keyBuffer[i] = keyData.charCodeAt(i);
@@ -488,7 +510,7 @@ async function eddsaSign(privateKeyDer: string, data: string): Promise<string> {
 // Handle analytics events (batch)
 export async function handleAnalytics(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json() as {
+    const body = (await request.json()) as {
       events?: Array<{
         event_type: string;
         event_name: string;
@@ -514,63 +536,91 @@ export async function handleAnalytics(request: Request, env: Env): Promise<Respo
 
     for (const event of events) {
       // Store event
-      statements.push(env.DB.prepare(`
+      statements.push(
+        env.DB.prepare(
+          `
         INSERT INTO analytics_events (id, event_type, event_name, properties, timestamp, session_id, machine_id, license_key, version, platform, duration_ms, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      `).bind(
-        crypto.randomUUID(),
-        event.event_type,
-        event.event_name,
-        JSON.stringify(event.properties || {}),
-        event.timestamp,
-        event.session_id,
-        event.machine_id,
-        event.license_key || null,
-        event.version,
-        event.platform,
-        event.duration_ms || null
-      ));
+      `
+        ).bind(
+          crypto.randomUUID(),
+          event.event_type,
+          event.event_name,
+          JSON.stringify(event.properties || {}),
+          event.timestamp,
+          event.session_id,
+          event.machine_id,
+          event.license_key || null,
+          event.version,
+          event.platform,
+          event.duration_ms || null
+        )
+      );
 
       if (event.event_type === 'command') {
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_daily (date, metric, dimension, value)
           VALUES (?, 'commands', ?, 1)
           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1
-        `).bind(today, event.event_name));
+        `
+          ).bind(today, event.event_name)
+        );
 
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_daily (date, metric, dimension, value)
           VALUES (?, 'total_commands', 'all', 1)
           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1
-        `).bind(today));
+        `
+          ).bind(today)
+        );
 
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_daily (date, metric, dimension, value)
           VALUES (?, 'platform', ?, 1)
           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1
-        `).bind(today, event.platform));
+        `
+          ).bind(today, event.platform)
+        );
 
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_daily (date, metric, dimension, value)
           VALUES (?, 'version', ?, 1)
           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1
-        `).bind(today, event.version));
+        `
+          ).bind(today, event.version)
+        );
       }
 
       if (event.event_type === 'error') {
         const errorMsg = (event.properties?.message as string) || 'unknown error';
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_errors (error_message, occurrences, last_occurred_at)
           VALUES (?, 1, CURRENT_TIMESTAMP)
           ON CONFLICT(error_message) DO UPDATE SET occurrences = occurrences + 1, last_occurred_at = CURRENT_TIMESTAMP
-        `).bind(errorMsg));
+        `
+          ).bind(errorMsg)
+        );
 
         const errorType = (event.properties?.error_type as string) || 'unknown';
-        statements.push(env.DB.prepare(`
+        statements.push(
+          env.DB.prepare(
+            `
           INSERT INTO analytics_daily (date, metric, dimension, value)
           VALUES (?, 'errors', ?, 1)
           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1
-        `).bind(today, errorType));
+        `
+          ).bind(today, errorType)
+        );
       }
     }
 
@@ -580,12 +630,14 @@ export async function handleAnalytics(request: Request, env: Env): Promise<Respo
     }
 
     // Track unique active machines today
-    const uniqueMachines = [...new Set(events.map((e) => e.machine_id))];
+    const uniqueMachines = [...new Set(events.map(e => e.machine_id))];
     for (const machineId of uniqueMachines) {
-      await env.DB.prepare(`
+      await env.DB.prepare(
+        `
         INSERT OR IGNORE INTO analytics_active_users (date, machine_id)
         VALUES (?, ?)
-      `)
+      `
+      )
         .bind(today, machineId)
         .run();
     }

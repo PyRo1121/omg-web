@@ -1,11 +1,12 @@
-import { APIEvent } from "@solidjs/start/server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
+import type { APIEvent } from '@solidjs/start/server';
+import { drizzle } from 'drizzle-orm/d1';
+import { eq } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { parseLicenseValidationRequest } from '~/lib/dashboard-contract';
 
 function getEnv(event: APIEvent) {
-  const env = (event.nativeEvent as any).context?.cloudflare?.env;
-  if (!env) throw new Error("Environment not available");
+  const env = event.nativeEvent.context.cloudflare?.env;
+  if (!env) throw new Error('Environment not available');
   return env;
 }
 
@@ -13,12 +14,11 @@ export async function POST(event: APIEvent) {
   try {
     const env = getEnv(event);
     const db = drizzle(env.DB, { schema });
-    const body = await event.request.json();
-
-    if (!body.license_key) {
-      return new Response(JSON.stringify({ error: "License key required" }), {
+    const parsedBody = parseLicenseValidationRequest(await event.request.json());
+    if (!parsedBody.ok) {
+      return new Response(JSON.stringify({ error: parsedBody.error }), {
         status: 400,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -31,21 +31,24 @@ export async function POST(event: APIEvent) {
         expiresAt: schema.license.expiresAt,
       })
       .from(schema.license)
-      .where(eq(schema.license.licenseKey, body.license_key))
+      .where(eq(schema.license.licenseKey, parsedBody.value.license_key))
       .limit(1)
       .get();
 
     if (!license) {
-      return new Response(JSON.stringify({ 
-        valid: false, 
-        error: "License not found" 
-      }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          error: 'License not found',
+        }),
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
-    if (license.status !== "active") {
+    if (license.status !== 'active') {
       return new Response(
         JSON.stringify({
           valid: false,
@@ -54,7 +57,7 @@ export async function POST(event: APIEvent) {
         }),
         {
           status: 403,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         }
       );
     }
@@ -62,19 +65,19 @@ export async function POST(event: APIEvent) {
     if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
       await db
         .update(schema.license)
-        .set({ status: "expired" })
+        .set({ status: 'expired' })
         .where(eq(schema.license.id, license.id))
         .run();
 
       return new Response(
         JSON.stringify({
           valid: false,
-          error: "License has expired",
+          error: 'License has expired',
           expired_at: license.expiresAt,
         }),
         {
           status: 403,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         }
       );
     }
@@ -95,23 +98,23 @@ export async function POST(event: APIEvent) {
       }),
       {
         status: 200,
-        headers: { 
-          "Content-Type": "application/json",
-          "Cache-Control": "private, max-age=300"
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, max-age=300',
         },
       }
     );
   } catch (error) {
-    console.error("[CLI Validate License] Error:", error);
+    console.error('[CLI Validate License] Error:', error);
     return new Response(
       JSON.stringify({
         valid: false,
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }

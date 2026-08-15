@@ -1,10 +1,12 @@
+/// <reference path="../src/cloudflare-test.d.ts" />
+
 /**
  * Telemetry API Tests
  * Tests for POST /api/cli/event and POST /api/cli/batch endpoints
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { env, createExecutionContext, waitOnExecutionContext, SELF } from 'cloudflare:test';
+import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import worker from '../src/worker';
 
 describe('Telemetry API', () => {
@@ -16,23 +18,37 @@ describe('Telemetry API', () => {
 
   beforeEach(async () => {
     // Set up test database with a customer and license
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       INSERT INTO customers (id, email, company, tier, created_at)
       VALUES (?, ?, ?, ?, datetime('now'))
-    `).bind(TEST_CUSTOMER_ID, 'test@example.com', 'Test Corp', 'pro').run();
+    `
+    )
+      .bind(TEST_CUSTOMER_ID, 'test@example.com', 'Test Corp', 'pro')
+      .run();
 
-    await env.DB.prepare(`
+    await env.DB.prepare(
+      `
       INSERT INTO licenses (id, customer_id, license_key, tier, status, max_machines, created_at)
       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-    `).bind(TEST_LICENSE_ID, TEST_CUSTOMER_ID, TEST_LICENSE_KEY, 'pro', 'active', 3).run();
+    `
+    )
+      .bind(TEST_LICENSE_ID, TEST_CUSTOMER_ID, TEST_LICENSE_KEY, 'pro', 'active', 3)
+      .run();
   });
 
   afterEach(async () => {
     // Clean up test data
-    await env.DB.prepare('DELETE FROM command_event WHERE license_id = ?').bind(TEST_LICENSE_ID).run();
+    await env.DB.prepare('DELETE FROM command_event WHERE license_id = ?')
+      .bind(TEST_LICENSE_ID)
+      .run();
     await env.DB.prepare('DELETE FROM session WHERE license_id = ?').bind(TEST_LICENSE_ID).run();
-    await env.DB.prepare('DELETE FROM performance_metric WHERE license_id = ?').bind(TEST_LICENSE_ID).run();
-    await env.DB.prepare('DELETE FROM feature_usage WHERE license_id = ?').bind(TEST_LICENSE_ID).run();
+    await env.DB.prepare('DELETE FROM performance_metric WHERE license_id = ?')
+      .bind(TEST_LICENSE_ID)
+      .run();
+    await env.DB.prepare('DELETE FROM feature_usage WHERE license_id = ?')
+      .bind(TEST_LICENSE_ID)
+      .run();
     await env.DB.prepare('DELETE FROM licenses WHERE id = ?').bind(TEST_LICENSE_ID).run();
     await env.DB.prepare('DELETE FROM customers WHERE id = ?').bind(TEST_CUSTOMER_ID).run();
   });
@@ -70,9 +86,9 @@ describe('Telemetry API', () => {
       expect(body).toHaveProperty('event_id');
 
       // Verify event was stored in database
-      const stored = await env.DB.prepare(
-        'SELECT * FROM command_event WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      const stored = await env.DB.prepare('SELECT * FROM command_event WHERE license_id = ?')
+        .bind(TEST_LICENSE_ID)
+        .first();
 
       expect(stored).toBeTruthy();
       expect(stored?.command).toBe('search');
@@ -105,9 +121,9 @@ describe('Telemetry API', () => {
 
       expect(response.status).toBe(200);
 
-      const stored = await env.DB.prepare(
-        'SELECT * FROM session WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      const stored = await env.DB.prepare('SELECT * FROM session WHERE license_id = ?')
+        .bind(TEST_LICENSE_ID)
+        .first();
 
       expect(stored).toBeTruthy();
       expect(stored?.session_id).toBe('sess-123');
@@ -139,9 +155,9 @@ describe('Telemetry API', () => {
 
       expect(response.status).toBe(200);
 
-      const stored = await env.DB.prepare(
-        'SELECT * FROM performance_metric WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      const stored = await env.DB.prepare('SELECT * FROM performance_metric WHERE license_id = ?')
+        .bind(TEST_LICENSE_ID)
+        .first();
 
       expect(stored).toBeTruthy();
       expect(stored?.metric_type).toBe('search_latency');
@@ -173,9 +189,9 @@ describe('Telemetry API', () => {
 
       expect(response.status).toBe(200);
 
-      const stored = await env.DB.prepare(
-        'SELECT * FROM feature_usage WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      const stored = await env.DB.prepare('SELECT * FROM feature_usage WHERE license_id = ?')
+        .bind(TEST_LICENSE_ID)
+        .first();
 
       expect(stored).toBeTruthy();
       expect(stored?.feature).toBe('sbom_generation');
@@ -238,10 +254,14 @@ describe('Telemetry API', () => {
 
     it('should return 401 when license is inactive', async () => {
       // Create an inactive license
-      await env.DB.prepare(`
+      await env.DB.prepare(
+        `
         INSERT INTO licenses (id, customer_id, license_key, tier, status, max_machines, created_at)
         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-      `).bind('inactive-license-id', TEST_CUSTOMER_ID, 'inactive-key', 'pro', 'suspended', 3).run();
+      `
+      )
+        .bind('inactive-license-id', TEST_CUSTOMER_ID, 'inactive-key', 'pro', 'suspended', 3)
+        .run();
 
       const request = new Request('http://localhost/api/cli/event', {
         method: 'POST',
@@ -373,17 +393,23 @@ describe('Telemetry API', () => {
       // Verify all events were stored
       const commands = await env.DB.prepare(
         'SELECT COUNT(*) as count FROM command_event WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      )
+        .bind(TEST_LICENSE_ID)
+        .first();
       expect(commands?.count).toBe(1);
 
       const perf = await env.DB.prepare(
         'SELECT COUNT(*) as count FROM performance_metric WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      )
+        .bind(TEST_LICENSE_ID)
+        .first();
       expect(perf?.count).toBe(1);
 
       const features = await env.DB.prepare(
         'SELECT COUNT(*) as count FROM feature_usage WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      )
+        .bind(TEST_LICENSE_ID)
+        .first();
       expect(features?.count).toBe(1);
     });
 
@@ -510,7 +536,9 @@ describe('Telemetry API', () => {
       // Verify count
       const count = await env.DB.prepare(
         'SELECT COUNT(*) as count FROM command_event WHERE license_id = ?'
-      ).bind(TEST_LICENSE_ID).first();
+      )
+        .bind(TEST_LICENSE_ID)
+        .first();
       expect(count?.count).toBe(100);
     });
   });

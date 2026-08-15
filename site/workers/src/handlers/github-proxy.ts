@@ -45,7 +45,12 @@ export async function handleGitHubProxy(request: Request, env: Env, ctx: Executi
     }
     
     if (age < STALE_TTL) {
-      ctx.waitUntil(refreshCache(env, cache, cacheKey));
+      // Never let background refresh failures bubble as uncaught Worker exceptions.
+      ctx.waitUntil(
+        refreshCache(env, cache, cacheKey).catch((error) => {
+          console.error('GitHub cache background refresh failed:', error);
+        })
+      );
       
       return new Response(cachedResponse.body, {
         headers: { 
@@ -62,15 +67,21 @@ export async function handleGitHubProxy(request: Request, env: Env, ctx: Executi
 }
 
 async function refreshCache(env: Env, cache: Cache, cacheKey: Request): Promise<Response> {
-  const ghResponse = await fetch(
-    'https://api.github.com/repos/PyRo1121/omg/stats/commit_activity',
-    { 
-      headers: { 
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'OMG-Package-Manager-Site/1.0'
-      } 
-    }
-  );
+  let ghResponse: Response;
+  try {
+    ghResponse = await fetch(
+      'https://api.github.com/repos/PyRo1121/omg/stats/commit_activity',
+      {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'OMG-Package-Manager-Site/1.0'
+        }
+      }
+    );
+  } catch (error) {
+    console.error('GitHub API network error:', error);
+    return errorResponse('GitHub API unreachable', 503);
+  }
 
   const remaining = ghResponse.headers.get('X-RateLimit-Remaining');
   if (remaining && parseInt(remaining) < 10) {
@@ -111,7 +122,11 @@ async function refreshCache(env: Env, cache: Cache, cacheKey: Request): Promise<
     }
   });
 
-  await cache.put(cacheKey, response.clone());
+  try {
+    await cache.put(cacheKey, response.clone());
+  } catch (error) {
+    console.warn('Failed to write GitHub response to cache:', error);
+  }
   
   return response;
 }

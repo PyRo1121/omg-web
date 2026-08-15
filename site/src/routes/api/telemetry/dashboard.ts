@@ -1,15 +1,15 @@
-import { APIEvent } from "@solidjs/start/server";
-import { drizzle } from "drizzle-orm/d1";
-import { eq, desc, gte, sql, and } from "drizzle-orm";
-import * as schema from "~/db/auth-schema";
-import { createAuth, CloudflareEnv } from "~/lib/auth";
-import { ACHIEVEMENTS, checkAchievementProgress, getIconByName } from "~/lib/achievements";
-import type { TelemetryDashboardResponse } from "~/types/telemetry";
+import type { APIEvent } from '@solidjs/start/server';
+import { drizzle } from 'drizzle-orm/d1';
+import { eq, desc, gte, sql, and } from 'drizzle-orm';
+import * as schema from '~/db/auth-schema';
+import { createAuth, type CloudflareEnv } from '~/lib/auth';
+import { ACHIEVEMENTS, checkAchievementProgress } from '~/lib/achievements';
+import type { TelemetryDashboardResponse } from '~/types/telemetry';
 
 function getEnv(event: APIEvent): CloudflareEnv {
-  const env = (event.nativeEvent as any).context?.cloudflare?.env;
-  if (!env) throw new Error("Cloudflare environment not available");
-  
+  const env = event.nativeEvent.context.cloudflare?.env;
+  if (!env) throw new Error('Cloudflare environment not available');
+
   return {
     DB: env.DB,
     BETTER_AUTH_KV: env.BETTER_AUTH_KV,
@@ -23,27 +23,27 @@ function getEnv(event: APIEvent): CloudflareEnv {
 }
 
 function getTierFeatures(tier: string): string[] {
-  const features: Record<string, string[]> = {
-    free: ["1 machine", "Basic telemetry", "Community support"],
-    team: ["25 machines", "Advanced analytics", "Team dashboard", "Email support"],
-    enterprise: ["Unlimited machines", "Custom integrations", "Dedicated support", "SLA"],
-  };
-  return features[tier] || features.free;
+  const features = new Map([
+    ['free', ['1 machine', 'Basic telemetry', 'Community support']],
+    ['team', ['25 machines', 'Advanced analytics', 'Team dashboard', 'Email support']],
+    ['enterprise', ['Unlimited machines', 'Custom integrations', 'Dedicated support', 'SLA']],
+  ]);
+  return [...(features.get(tier) ?? features.get('free') ?? [])];
 }
 
 export async function GET(event: APIEvent) {
   try {
     const env = getEnv(event);
     const auth = createAuth(env);
-    
+
     const session = await auth.api.getSession({
       headers: event.request.headers,
     });
 
     if (!session?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -59,24 +59,30 @@ export async function GET(event: APIEvent) {
       .limit(1)
       .get();
 
-    console.log('[Dashboard API] License found:', license ? `id=${license.id}, tier=${license.tier}` : 'null');
+    console.log(
+      '[Dashboard API] License found:',
+      license ? `id=${license.id}, tier=${license.tier}` : 'null'
+    );
 
     if (!license) {
       console.log('[Dashboard API] No license found, creating new "free" license');
       const licenseKey = crypto.randomUUID();
       const licenseId = crypto.randomUUID();
-      
-      await db.insert(schema.license).values({
-        id: licenseId,
-        userId: userId,
-        licenseKey: licenseKey,
-        tier: "free",
-        status: "active",
-        maxMachines: 1,
-        expiresAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }).run();
+
+      await db
+        .insert(schema.license)
+        .values({
+          id: licenseId,
+          userId: userId,
+          licenseKey: licenseKey,
+          tier: 'free',
+          status: 'active',
+          maxMachines: 1,
+          expiresAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .run();
 
       license = await db
         .select()
@@ -84,14 +90,17 @@ export async function GET(event: APIEvent) {
         .where(eq(schema.license.id, licenseId))
         .limit(1)
         .get();
-      
-      console.log('[Dashboard API] Created new license:', license ? `id=${license.id}, tier=${license.tier}` : 'failed');
+
+      console.log(
+        '[Dashboard API] Created new license:',
+        license ? `id=${license.id}, tier=${license.tier}` : 'failed'
+      );
     }
 
     if (!license) {
-      return new Response(JSON.stringify({ error: "Failed to create license" }), {
+      return new Response(JSON.stringify({ error: 'Failed to create license' }), {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -118,10 +127,7 @@ export async function GET(event: APIEvent) {
       })
       .from(schema.usageDaily)
       .where(
-        and(
-          eq(schema.usageDaily.licenseId, license.id),
-          gte(schema.usageDaily.date, dateStr30)
-        )
+        and(eq(schema.usageDaily.licenseId, license.id), gte(schema.usageDaily.date, dateStr30))
       )
       .get();
 
@@ -143,10 +149,7 @@ export async function GET(event: APIEvent) {
       .select()
       .from(schema.usageDaily)
       .where(
-        and(
-          eq(schema.usageDaily.licenseId, license.id),
-          gte(schema.usageDaily.date, dateStr14)
-        )
+        and(eq(schema.usageDaily.licenseId, license.id), gte(schema.usageDaily.date, dateStr14))
       )
       .orderBy(desc(schema.usageDaily.date))
       .all();
@@ -162,10 +165,7 @@ export async function GET(event: APIEvent) {
       })
       .from(schema.usageDaily)
       .where(
-        and(
-          eq(schema.usageDaily.licenseId, license.id),
-          gte(schema.usageDaily.date, dateStr7)
-        )
+        and(eq(schema.usageDaily.licenseId, license.id), gte(schema.usageDaily.date, dateStr7))
       )
       .get();
 
@@ -184,12 +184,16 @@ export async function GET(event: APIEvent) {
       )
       .get();
 
-    const commandsTrend = previousWeekStats?.totalCommands 
-      ? ((Number(lastWeekStats?.totalCommands || 0) - Number(previousWeekStats.totalCommands)) / Number(previousWeekStats.totalCommands)) * 100
+    const commandsTrend = previousWeekStats?.totalCommands
+      ? ((Number(lastWeekStats?.totalCommands || 0) - Number(previousWeekStats.totalCommands)) /
+          Number(previousWeekStats.totalCommands)) *
+        100
       : 0;
 
-    const timeSavedTrend = previousWeekStats?.totalTimeSaved 
-      ? ((Number(lastWeekStats?.totalTimeSaved || 0) - Number(previousWeekStats.totalTimeSaved)) / Number(previousWeekStats.totalTimeSaved)) * 100
+    const timeSavedTrend = previousWeekStats?.totalTimeSaved
+      ? ((Number(lastWeekStats?.totalTimeSaved || 0) - Number(previousWeekStats.totalTimeSaved)) /
+          Number(previousWeekStats.totalTimeSaved)) *
+        100
       : 0;
 
     const userAchievements = await db
@@ -213,13 +217,21 @@ export async function GET(event: APIEvent) {
       .where(eq(schema.userAchievement.userId, userId))
       .all();
 
-    const achievementMap = new Map(
-      userAchievements.map((a) => [a.achievementId, a])
-    );
+    const achievementMap = new Map(userAchievements.map(a => [a.achievementId, a]));
 
-    const achievements = ACHIEVEMENTS.map((def) => {
+    const achievementStats = {
+      commands_run: usageStats.total_commands,
+      packages_searched: usageStats.total_packages_searched,
+      packages_installed: usageStats.total_packages_installed,
+      runtimes_switched: usageStats.total_runtimes_switched,
+      sbom_generated: usageStats.total_sbom_generated,
+      vulnerabilities_found: usageStats.total_vulnerabilities_found,
+      time_saved_ms: usageStats.total_time_saved_ms,
+    };
+
+    const achievements = ACHIEVEMENTS.map(def => {
       const userAch = achievementMap.get(def.id);
-      const progress = userAch?.progress || checkAchievementProgress(def, usageStats);
+      const progress = userAch?.progress || checkAchievementProgress(def, achievementStats);
       const isUnlocked = userAch?.isUnlocked || progress >= 100;
 
       return {
@@ -248,9 +260,10 @@ export async function GET(event: APIEvent) {
       .having(sql`SUM(${schema.usageDaily.commandsRun}) < ${usageStats.total_commands}`)
       .all();
 
-    const percentile = totalUsers?.count && totalUsers.count > 0
-      ? Math.round((userRank.length / Number(totalUsers.count)) * 100)
-      : 0;
+    const percentile =
+      totalUsers?.count && totalUsers.count > 0
+        ? Math.round((userRank.length / Number(totalUsers.count)) * 100)
+        : 0;
 
     console.log('[Dashboard API] Returning tier to frontend:', license.tier);
 
@@ -261,14 +274,21 @@ export async function GET(event: APIEvent) {
       .limit(1)
       .get();
 
-    console.log('[Dashboard API] User role query - userId:', userId, 'userRecord:', userRecord, 'role:', userRecord?.role);
+    console.log(
+      '[Dashboard API] User role query - userId:',
+      userId,
+      'userRecord:',
+      userRecord,
+      'role:',
+      userRecord?.role
+    );
 
     const response: TelemetryDashboardResponse = {
       user: {
         id: session.user.id,
         email: session.user.email,
         name: session.user.name,
-        role: userRecord?.role || "user",
+        role: userRecord?.role || 'user',
       },
       license: {
         id: license.id,
@@ -279,7 +299,7 @@ export async function GET(event: APIEvent) {
         expires_at: license.expiresAt?.toISOString() || null,
         features: getTierFeatures(license.tier),
       },
-      machines: machines.map((m) => ({
+      machines: machines.map(m => ({
         id: m.id,
         machine_id: m.machineId,
         hostname: m.hostname,
@@ -294,7 +314,7 @@ export async function GET(event: APIEvent) {
         commands_trend: Math.round(commandsTrend * 10) / 10,
         time_saved_trend: Math.round(timeSavedTrend * 10) / 10,
       },
-      daily: dailyUsage.map((d) => ({
+      daily: dailyUsage.map(d => ({
         date: d.date,
         commands_run: d.commandsRun,
         packages_installed: d.packagesInstalled,
@@ -302,30 +322,33 @@ export async function GET(event: APIEvent) {
         time_saved_ms: d.timeSavedMs,
       })),
       achievements,
-      global_stats: usageStats.total_commands > 0 ? {
-        top_package: "Coming Soon",
-        top_runtime: "Coming Soon",
-        percentile: Math.max(percentile, 1),
-      } : undefined,
+      global_stats:
+        usageStats.total_commands > 0
+          ? {
+              top_package: 'Coming Soon',
+              top_runtime: 'Coming Soon',
+              percentile: Math.max(percentile, 1),
+            }
+          : undefined,
     };
 
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "private, no-cache, no-store, must-revalidate",
+        'Content-Type': 'application/json',
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
       },
     });
   } catch (error) {
-    console.error("[Telemetry API] Error:", error);
+    console.error('[Telemetry API] Error:', error);
     return new Response(
-      JSON.stringify({ 
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error"
+      JSON.stringify({
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   }
