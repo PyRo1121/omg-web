@@ -1,4 +1,4 @@
-import { Component, Show, createMemo } from 'solid-js';
+import { type Component, Show, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Crown, Sparkles, Users, Building2 } from 'lucide-solid';
@@ -19,9 +19,8 @@ interface TierBadgeProps {
   class?: string;
 }
 
-const tierConfig: Record<
-  Tier,
-  {
+type TierConfig = {
+  [K in Tier]: {
     label: string;
     icon: typeof Crown;
     color: string;
@@ -30,8 +29,10 @@ const tierConfig: Record<
     gradient: string;
     glow: string;
     ringColor: string;
-  }
-> = {
+  };
+};
+
+const tierConfig: TierConfig = {
   free: {
     label: 'Free',
     icon: Sparkles,

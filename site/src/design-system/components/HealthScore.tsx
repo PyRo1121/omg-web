@@ -1,4 +1,4 @@
-import { Component, createMemo, Show, splitProps, For, Switch, Match } from 'solid-js';
+import { type Component, createMemo, Show, splitProps, For, Switch, Match } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -27,17 +27,18 @@ const getHealthLevel = (score: number): HealthLevel => {
   return 'excellent';
 };
 
-const healthConfig: Record<
-  HealthLevel,
-  {
+type HealthConfig = {
+  [K in HealthLevel]: {
     color: string;
     bg: string;
     glow: string;
     text: string;
     gradient: string;
     label: string;
-  }
-> = {
+  };
+};
+
+const healthConfig: HealthConfig = {
   critical: {
     color: 'var(--health-critical, #ef4444)',
     bg: 'bg-flare-500/10',
