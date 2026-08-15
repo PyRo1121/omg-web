@@ -1,4 +1,4 @@
-import { Component, Show, For, createMemo, createSignal, onMount } from 'solid-js';
+import { type Component, Show, For, createMemo, createSignal, onMount } from 'solid-js';
 import {
   DollarSign,
   TrendingUp,
@@ -43,7 +43,7 @@ interface RevenueDashboardProps {
   previousMRR?: number;
 }
 
-const TIER_COLORS: Record<string, { gradient: string; glow: string; accent: string }> = {
+const TIER_COLORS = {
   enterprise: {
     gradient: 'linear-gradient(135deg, var(--color-solar-600), var(--color-solar-400))',
     glow: 'rgba(245, 158, 11, 0.3)',
@@ -64,7 +64,7 @@ const TIER_COLORS: Record<string, { gradient: string; glow: string; accent: stri
     glow: 'rgba(113, 113, 122, 0.2)',
     accent: 'var(--color-nebula-400)',
   },
-};
+} satisfies Record<string, { gradient: string; glow: string; accent: string }>;
 
 function formatCurrency(value: number): string {
   if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
@@ -337,7 +337,9 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = props => {
           <div class="space-y-6">
             <For each={defaultTiers()}>
               {tier => {
-                const colors = TIER_COLORS[tier.tier] || TIER_COLORS.free;
+                const colors =
+                  Object.entries(TIER_COLORS).find(([key]) => key === tier.tier)?.[1] ??
+                  TIER_COLORS.free;
 
                 return (
                   <div class="space-y-3">
