@@ -1,4 +1,4 @@
-import { Component, For } from 'solid-js';
+import { type Component, For } from 'solid-js';
 import { Package, Search, Repeat, FileCode } from 'lucide-solid';
 
 interface FeatureAdoptionData {
@@ -57,7 +57,7 @@ export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props 
   };
 
   const getColorClasses = (color: string) => {
-    const colors: Record<string, { bg: string; text: string; bar: string }> = {
+    const colors = {
       indigo: {
         bg: 'bg-indigo-500/20',
         text: 'text-indigo-400',
@@ -78,8 +78,8 @@ export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props 
         text: 'text-emerald-400',
         bar: 'bg-emerald-500',
       },
-    };
-    return colors[color] || colors.indigo;
+    } satisfies Record<string, { bg: string; text: string; bar: string }>;
+    return Object.entries(colors).find(([key]) => key === color)?.[1] ?? colors.indigo;
   };
 
   return (
