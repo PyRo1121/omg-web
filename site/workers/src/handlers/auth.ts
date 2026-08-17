@@ -1,4 +1,8 @@
 // Authentication handlers
+import { runPromise, either } from 'effect/Effect';
+import { Struct, String as SchemaString, optional } from '@effect/schema/Schema';
+import type { Schema } from '@effect/schema';
+import { decodeJsonBody } from '../body';
 import {
   type Env,
   jsonResponse,
@@ -10,6 +14,35 @@ import {
   logAudit,
   verifyTurnstile,
 } from '../api';
+
+/** The send OTP request body. */
+const SendCodeRequestSchema = Struct({
+  email: optional(SchemaString),
+  turnstileToken: optional(SchemaString),
+});
+
+/** The verify OTP request body. */
+const VerifyCodeRequestSchema = Struct({
+  email: optional(SchemaString),
+  code: optional(SchemaString),
+});
+
+/** The session token request body. */
+const SessionTokenRequestSchema = Struct({
+  token: optional(SchemaString),
+});
+
+/**
+ * Decode the request body with the given schema and fail with a 400 response
+ * when the body is malformed.
+ */
+async function decodeBody<S extends Schema.Schema.AnyNoContext>(
+  request: Request,
+  schema: S
+): Promise<Schema.Schema.Type<S> | Response> {
+  const result = await runPromise(decodeJsonBody(request, schema).pipe(either));
+  return result._tag === 'Left' ? errorResponse('Invalid JSON body', 400) : result.right;
+}
 
 // Send OTP email via Resend
 async function sendOTPEmail(
@@ -62,8 +95,9 @@ async function sendOTPEmail(
 
 // Send OTP code to email
 export async function handleSendCode(request: Request, env: Env): Promise<Response> {
-  // SAFETY: The request boundary is restricted to the documented optional auth fields.
-  const body = (await request.json()) as { email?: string; turnstileToken?: string };
+  const bodyResult = await decodeBody(request, SendCodeRequestSchema);
+  if (bodyResult instanceof Response) return bodyResult;
+  const body = bodyResult;
   const email = body.email?.toLowerCase().trim();
   const turnstileToken = body.turnstileToken;
 
@@ -134,8 +168,9 @@ export async function handleSendCode(request: Request, env: Env): Promise<Respon
 // Verify OTP and create session
 export async function handleVerifyCode(request: Request, env: Env): Promise<Response> {
   try {
-    // SAFETY: The request boundary is restricted to the documented optional auth fields.
-    const body = (await request.json()) as { email?: string; code?: string };
+    const bodyResult = await decodeBody(request, VerifyCodeRequestSchema);
+    if (bodyResult instanceof Response) return bodyResult;
+    const body = bodyResult;
     const email = body.email?.toLowerCase().trim();
     const code = body.code?.trim();
 
@@ -244,8 +279,9 @@ export async function handleVerifyCode(request: Request, env: Env): Promise<Resp
 
 // Verify session token
 export async function handleVerifySession(request: Request, env: Env): Promise<Response> {
-  // SAFETY: The request boundary is restricted to the documented optional token field.
-  const body = (await request.json()) as { token?: string };
+  const bodyResult = await decodeBody(request, SessionTokenRequestSchema);
+  if (bodyResult instanceof Response) return bodyResult;
+  const body = bodyResult;
   const token = body.token;
 
   if (!token) {
@@ -266,8 +302,9 @@ export async function handleVerifySession(request: Request, env: Env): Promise<R
 
 // Logout (invalidate session)
 export async function handleLogout(request: Request, env: Env): Promise<Response> {
-  // SAFETY: The request boundary is restricted to the documented optional token field.
-  const body = (await request.json()) as { token?: string };
+  const bodyResult = await decodeBody(request, SessionTokenRequestSchema);
+  if (bodyResult instanceof Response) return bodyResult;
+  const body = bodyResult;
   const token = body.token;
 
   if (token) {
