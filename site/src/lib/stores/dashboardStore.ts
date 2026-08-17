@@ -2,6 +2,10 @@ import { createStore } from 'solid-js/store';
 import { createEffect } from 'solid-js';
 import { debounce } from '@solid-primitives/scheduled';
 import type { AdminTab, SavedView, DateRange } from '~/types';
+import {
+  decodePersistedDashboardState,
+  type PersistedDashboardState,
+} from '~/lib/contracts/dashboard-store';
 
 export interface DashboardState {
   navigation: {
@@ -33,6 +37,19 @@ export interface DashboardState {
 const STORAGE_KEY = 'omg-dashboard-state';
 const STORAGE_VERSION = 1;
 
+function mergePersisted(
+  defaults: DashboardState,
+  persisted: PersistedDashboardState['state']
+): DashboardState {
+  return {
+    ...defaults,
+    navigation: { ...defaults.navigation, activeTab: persisted.navigation.activeTab },
+    filters: { ...defaults.filters, ...persisted.filters },
+    views: { ...defaults.views, saved: [...persisted.views.saved] },
+    crm: { ...defaults.crm, viewMode: persisted.crm.viewMode },
+  };
+}
+
 function getInitialState(): DashboardState {
   const browserWindow = 'window' in globalThis ? globalThis.window : undefined;
   if (!browserWindow) {
@@ -43,31 +60,13 @@ function getInitialState(): DashboardState {
     const stored = browserWindow.localStorage.getItem(STORAGE_KEY);
     if (!stored) return createDefaultState();
 
-    const parsed = JSON.parse(stored);
-    if (parsed.version !== STORAGE_VERSION) {
-      console.log('[DashboardStore] Version mismatch, using defaults');
+    const persisted = decodePersistedDashboardState(JSON.parse(stored));
+    if (!persisted) {
+      console.warn('[DashboardStore] Invalid or unsupported state, using defaults');
       return createDefaultState();
     }
 
-    return {
-      ...createDefaultState(),
-      navigation: {
-        ...createDefaultState().navigation,
-        activeTab: parsed.state.navigation?.activeTab || 'overview',
-      },
-      filters: {
-        ...createDefaultState().filters,
-        ...parsed.state.filters,
-      },
-      views: {
-        ...createDefaultState().views,
-        saved: parsed.state.views?.saved || [],
-      },
-      crm: {
-        ...createDefaultState().crm,
-        viewMode: parsed.state.crm?.viewMode || 'table',
-      },
-    };
+    return mergePersisted(createDefaultState(), persisted.state);
   } catch (error) {
     console.error('[DashboardStore] Failed to restore state:', error);
     return createDefaultState();

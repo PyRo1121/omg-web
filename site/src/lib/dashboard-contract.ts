@@ -1,4 +1,8 @@
 import type { CLITelemetryReport } from '../types/telemetry';
+import {
+  decodeDashboardData,
+  type DashboardData as ContractDashboardData,
+} from './contracts/dashboard';
 import { decodeTelemetryDashboard, type TelemetryDashboard } from './contracts/telemetry-dashboard';
 
 // Boundary parser internals intentionally inspect unknown JSON values and dynamic object fields.
@@ -6,28 +10,7 @@ import { decodeTelemetryDashboard, type TelemetryDashboard } from './contracts/t
 // oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns, anti-slop/no-reflect-get -- Safe JSON boundary parsing requires these operations.
 
 /** Data returned by the authenticated account dashboard endpoint. */
-export interface DashboardData {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    emailVerified: boolean;
-    image: string | null;
-    createdAt: string;
-  };
-  sessions: Array<{
-    id: string;
-    ipAddress: string | null;
-    userAgent: string | null;
-    createdAt: string;
-    expiresAt: string;
-    isCurrent: boolean;
-  }>;
-  accounts: Array<{
-    provider: string;
-    accountId: string;
-  }>;
-}
+export type DashboardData = ContractDashboardData;
 
 /** The telemetry dashboard payload consumed by the account dashboard. */
 export type TelemetryData = TelemetryDashboard;
@@ -121,9 +104,6 @@ export interface ExternalLicenseResponse {
 export type ParseResult<T> =
   { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string };
 
-type DashboardSession = DashboardData['sessions'][number];
-type DashboardAccount = DashboardData['accounts'][number];
-
 function isObject(value: unknown): value is object {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -144,51 +124,8 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function isNullableString(value: unknown): value is string | null {
-  return value === null || isString(value);
-}
-
 function isArrayOf<T>(value: unknown, guard: (item: unknown) => item is T): value is T[] {
   return Array.isArray(value) && value.every(guard);
-}
-
-function isDashboardSession(value: unknown): value is DashboardSession {
-  return (
-    isObject(value) &&
-    isString(field(value, 'id')) &&
-    isNullableString(field(value, 'ipAddress')) &&
-    isNullableString(field(value, 'userAgent')) &&
-    isString(field(value, 'createdAt')) &&
-    isString(field(value, 'expiresAt')) &&
-    isBoolean(field(value, 'isCurrent'))
-  );
-}
-
-function isDashboardAccount(value: unknown): value is DashboardAccount {
-  return (
-    isObject(value) && isString(field(value, 'provider')) && isString(field(value, 'accountId'))
-  );
-}
-
-function isDashboardUser(value: unknown): value is DashboardData['user'] {
-  return (
-    isObject(value) &&
-    isString(field(value, 'id')) &&
-    isString(field(value, 'name')) &&
-    isString(field(value, 'email')) &&
-    isBoolean(field(value, 'emailVerified')) &&
-    isNullableString(field(value, 'image')) &&
-    isString(field(value, 'createdAt'))
-  );
-}
-
-function isDashboardData(value: unknown): value is DashboardData {
-  return (
-    isObject(value) &&
-    isDashboardUser(field(value, 'user')) &&
-    isArrayOf(field(value, 'sessions'), isDashboardSession) &&
-    isArrayOf(field(value, 'accounts'), isDashboardAccount)
-  );
 }
 
 /**
@@ -198,8 +135,9 @@ function isDashboardData(value: unknown): value is DashboardData {
  * @returns A typed payload or a safe parse failure.
  */
 export function parseDashboardData(value: unknown): ParseResult<DashboardData> {
-  return isDashboardData(value)
-    ? { ok: true, value }
+  const decoded = decodeDashboardData(value);
+  return decoded
+    ? { ok: true, value: decoded }
     : { ok: false, error: 'Dashboard response has an invalid shape' };
 }
 
