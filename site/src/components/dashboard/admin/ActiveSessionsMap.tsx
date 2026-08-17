@@ -2,7 +2,7 @@ import { type Component, For, Show, createSignal, createMemo, onMount } from 'so
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Globe, MapPin, Users, Activity, Laptop, Server, Clock } from 'lucide-solid';
-import type { SessionEvent } from '../../../hooks/useRealtimeData';
+import type { SessionEvent } from '../../../hooks/telemetry-message';
 import { LiveIndicator } from '../../../design-system';
 
 function cn(...inputs: ClassValue[]) {

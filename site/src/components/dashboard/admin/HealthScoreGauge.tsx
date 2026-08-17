@@ -11,7 +11,7 @@ import {
   ThumbsUp,
   Info,
 } from 'lucide-solid';
-import type { HealthUpdate } from '../../../hooks/useRealtimeData';
+import type { HealthUpdate } from '../../../hooks/telemetry-message';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

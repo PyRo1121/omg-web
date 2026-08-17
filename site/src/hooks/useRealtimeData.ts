@@ -1,74 +1,17 @@
-import { createSignal, createEffect, onCleanup, Accessor } from 'solid-js';
+import { createSignal, onCleanup, type Accessor } from 'solid-js';
+import {
+  parseTelemetryMessage,
+  type CommandEvent,
+  type SessionEvent,
+  type HealthUpdate,
+  type TelemetryMessage,
+} from './telemetry-message';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export interface CommandEvent {
-  id: string;
-  license_key: string;
-  license_tier: 'free' | 'pro' | 'team' | 'enterprise';
-  user_email?: string;
-  command: string;
-  package_name?: string;
-  duration_ms: number;
-  status: 'success' | 'error';
-  error_message?: string;
-  platform: string;
-  version: string;
-  hostname?: string;
-  machine_id: string;
-  geo?: {
-    country_code: string;
-    country: string;
-    region?: string;
-    city?: string;
-    latitude?: number;
-    longitude?: number;
-  };
-  timestamp: string;
-}
-
-export interface SessionEvent {
-  session_id: string;
-  license_key: string;
-  license_tier: 'free' | 'pro' | 'team' | 'enterprise';
-  machine_id: string;
-  hostname?: string;
-  platform: string;
-  version: string;
-  geo?: {
-    country_code: string;
-    country: string;
-    region?: string;
-    city?: string;
-    latitude?: number;
-    longitude?: number;
-  };
-  started_at: string;
-  last_activity_at: string;
-  command_count: number;
-  is_active: boolean;
-}
-
-export interface HealthUpdate {
-  overall_score: number;
-  engagement_score: number;
-  adoption_score: number;
-  satisfaction_score: number;
-  previous_score?: number;
-  trend: 'up' | 'down' | 'stable';
-  updated_at: string;
-}
-
-export type TelemetryEventType =
-  'command_event' | 'session_start' | 'session_end' | 'health_update';
-
-export interface TelemetryMessage {
-  type: TelemetryEventType;
-  data: CommandEvent | SessionEvent | HealthUpdate;
-  timestamp: string;
-}
+export type { CommandEvent, SessionEvent, HealthUpdate, TelemetryMessage };
 
 export interface RealtimeConnectionState {
   status: 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -177,7 +120,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
 
   // Calculate exponential backoff delay
   const getReconnectDelay = (attempt: number): number => {
-    const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, attempt), MAX_RECONNECT_DELAY);
+    const delay = Math.min(BASE_RECONNECT_DELAY * 2 ** attempt, MAX_RECONNECT_DELAY);
     // Add jitter (0-25% of delay)
     const jitter = delay * Math.random() * 0.25;
     return delay + jitter;
@@ -187,7 +130,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
   const handleMessage = (message: TelemetryMessage): void => {
     switch (message.type) {
       case 'command_event': {
-        const event = message.data as CommandEvent;
+        const event = message.data;
         setCommands(prev => {
           const updated = [event, ...prev];
           // Keep only the latest N commands
@@ -198,7 +141,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
       }
 
       case 'session_start': {
-        const session = message.data as SessionEvent;
+        const session = message.data;
         setActiveSessions(prev => {
           const updated = new Map(prev);
           updated.set(session.session_id, { ...session, is_active: true });
@@ -209,7 +152,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
       }
 
       case 'session_end': {
-        const session = message.data as SessionEvent;
+        const session = message.data;
         setActiveSessions(prev => {
           const updated = new Map(prev);
           updated.delete(session.session_id);
@@ -220,7 +163,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
       }
 
       case 'health_update': {
-        const update = message.data as HealthUpdate;
+        const update = message.data;
         setHealth(update);
         onHealth?.(update);
         break;
@@ -253,14 +196,18 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
 
       ws.onmessage = event => {
         try {
-          const message = JSON.parse(event.data) as TelemetryMessage;
+          const message = parseTelemetryMessage(JSON.parse(event.data));
+          if (!message) {
+            console.warn('[useRealtimeData] Dropping unrecognized telemetry message');
+            return;
+          }
           handleMessage(message);
         } catch (err) {
           console.error('[useRealtimeData] Failed to parse message:', err);
         }
       };
 
-      ws.onerror = event => {
+      ws.onerror = _event => {
         const error = new Error('WebSocket connection error');
         setConnectionState(prev => ({
           ...prev,
@@ -270,7 +217,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
         onError?.(error);
       };
 
-      ws.onclose = event => {
+      ws.onclose = _event => {
         ws = null;
 
         if (isManualDisconnect) {

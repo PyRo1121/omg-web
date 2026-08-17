@@ -11,7 +11,6 @@ export * from './components/MetricRing';
 export * from './components/layouts/DashboardLayout';
 
 export * from './components/SegmentBuilder';
-export * from './components/DrilldownTable';
 export * from './components/AlertThresholdCard';
 export * from './components/ComparisonChart';
 export * from './components/ForecastWidget';

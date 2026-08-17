@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal, createEffect, createMemo, onCleanup } from 'solid-js';
+import { type Component, For, Show, createSignal, createEffect, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -16,7 +16,7 @@ import {
   User,
   Shield,
 } from 'lucide-solid';
-import type { CommandEvent } from '../../../hooks/useRealtimeData';
+import type { CommandEvent } from '../../../hooks/telemetry-message';
 import { LiveIndicator } from '../../../design-system';
 
 function cn(...inputs: ClassValue[]) {
@@ -43,15 +43,18 @@ type TierFilter = 'all' | 'free' | 'pro' | 'team' | 'enterprise';
 // Constants
 // ============================================================================
 
-const COMMAND_TYPE_CONFIG: Record<
-  string,
-  {
+type CommandTypeKey = 'install' | 'search' | 'update' | 'remove' | 'info' | 'default';
+
+type CommandTypeConfig = {
+  [K in CommandTypeKey]: {
     icon: typeof Terminal;
     color: string;
     bg: string;
     label: string;
-  }
-> = {
+  };
+};
+
+const COMMAND_TYPE_CONFIG: CommandTypeConfig = {
   install: { icon: Package, color: 'text-aurora-400', bg: 'bg-aurora-500/10', label: 'INSTALL' },
   search: { icon: Search, color: 'text-electric-400', bg: 'bg-electric-500/10', label: 'SEARCH' },
   update: { icon: RefreshCw, color: 'text-photon-400', bg: 'bg-photon-500/10', label: 'UPDATE' },
@@ -60,18 +63,44 @@ const COMMAND_TYPE_CONFIG: Record<
   default: { icon: Terminal, color: 'text-indigo-400', bg: 'bg-indigo-500/10', label: 'CMD' },
 };
 
-const TIER_CONFIG: Record<string, { color: string; bg: string; border: string }> = {
+type TierConfig = {
+  [K in CommandEvent['license_tier']]: { color: string; bg: string; border: string };
+};
+
+const TIER_CONFIG: TierConfig = {
   free: { color: 'text-nebula-400', bg: 'bg-nebula-500/10', border: 'border-nebula-500/20' },
   pro: { color: 'text-electric-400', bg: 'bg-electric-500/10', border: 'border-electric-500/20' },
   team: { color: 'text-photon-400', bg: 'bg-photon-500/10', border: 'border-photon-500/20' },
   enterprise: { color: 'text-solar-400', bg: 'bg-solar-500/10', border: 'border-solar-500/20' },
 };
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
+function parseCommandFilter(value: string): CommandFilter {
+  return value === 'install' ||
+    value === 'search' ||
+    value === 'update' ||
+    value === 'remove' ||
+    value === 'info'
+    ? value
+    : 'all';
+}
 
-const getCommandType = (command: string): string => {
+function parseStatusFilter(value: string): StatusFilter {
+  return value === 'success' || value === 'error' ? value : 'all';
+}
+
+function parseTierFilter(value: string): TierFilter {
+  return value === 'free' || value === 'pro' || value === 'team' || value === 'enterprise'
+    ? value
+    : 'all';
+}
+
+function durationColor(ms: number): string {
+  if (ms < 100) return 'text-aurora-400';
+  if (ms < 1000) return 'text-solar-400';
+  return 'text-flare-400';
+}
+
+const getCommandType = (command: string): CommandTypeKey => {
   const cmd = command.toLowerCase();
   if (cmd.includes('install') || cmd.includes('add')) return 'install';
   if (cmd.includes('search') || cmd.includes('find')) return 'search';
@@ -113,10 +142,8 @@ interface CommandItemProps {
 
 const CommandItem: Component<CommandItemProps> = props => {
   const commandType = createMemo(() => getCommandType(props.command.command));
-  const config = createMemo(
-    () => COMMAND_TYPE_CONFIG[commandType()] || COMMAND_TYPE_CONFIG.default
-  );
-  const tierConfig = createMemo(() => TIER_CONFIG[props.command.license_tier] || TIER_CONFIG.free);
+  const config = createMemo(() => COMMAND_TYPE_CONFIG[commandType()]);
+  const tierConfig = createMemo(() => TIER_CONFIG[props.command.license_tier]);
 
   return (
     <div
@@ -197,15 +224,7 @@ const CommandItem: Component<CommandItemProps> = props => {
           {/* Duration */}
           <div class="flex items-center gap-1">
             <Clock size={10} />
-            <span
-              class={
-                props.command.duration_ms < 100
-                  ? 'text-aurora-400'
-                  : props.command.duration_ms < 1000
-                    ? 'text-solar-400'
-                    : 'text-flare-400'
-              }
-            >
+            <span class={durationColor(props.command.duration_ms)}>
               {formatDuration(props.command.duration_ms)}
             </span>
           </div>
@@ -259,7 +278,7 @@ const FilterBar: Component<FilterBarProps> = props => {
         <Filter size={12} class="text-nebula-500" />
         <select
           value={props.commandFilter}
-          onChange={e => props.onCommandFilterChange(e.currentTarget.value as CommandFilter)}
+          onChange={e => props.onCommandFilterChange(parseCommandFilter(e.currentTarget.value))}
           class="text-2xs rounded-lg border border-white/10 bg-white/5 px-2 py-1 font-bold text-white focus:border-indigo-500 focus:outline-none"
         >
           <option value="all">All Commands</option>
@@ -274,7 +293,7 @@ const FilterBar: Component<FilterBarProps> = props => {
       {/* Status Filter */}
       <select
         value={props.statusFilter}
-        onChange={e => props.onStatusFilterChange(e.currentTarget.value as StatusFilter)}
+        onChange={e => props.onStatusFilterChange(parseStatusFilter(e.currentTarget.value))}
         class="text-2xs rounded-lg border border-white/10 bg-white/5 px-2 py-1 font-bold text-white focus:border-indigo-500 focus:outline-none"
       >
         <option value="all">All Status</option>
@@ -285,7 +304,7 @@ const FilterBar: Component<FilterBarProps> = props => {
       {/* Tier Filter */}
       <select
         value={props.tierFilter}
-        onChange={e => props.onTierFilterChange(e.currentTarget.value as TierFilter)}
+        onChange={e => props.onTierFilterChange(parseTierFilter(e.currentTarget.value))}
         class="text-2xs rounded-lg border border-white/10 bg-white/5 px-2 py-1 font-bold text-white focus:border-indigo-500 focus:outline-none"
       >
         <option value="all">All Tiers</option>
@@ -398,6 +417,7 @@ export const RealTimeCommandFeed: Component<RealTimeCommandFeedProps> = props =>
 
             {/* Pause/Play Button */}
             <button
+              type="button"
               onClick={() => setIsPaused(!isPaused())}
               class={cn(
                 'text-2xs flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-bold transition-colors',
@@ -422,6 +442,7 @@ export const RealTimeCommandFeed: Component<RealTimeCommandFeedProps> = props =>
             {/* Clear Button */}
             <Show when={props.onClear}>
               <button
+                type="button"
                 onClick={props.onClear}
                 class="bg-flare-500/10 text-2xs text-flare-400 hover:bg-flare-500/20 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-bold transition-colors"
               >
@@ -457,7 +478,7 @@ export const RealTimeCommandFeed: Component<RealTimeCommandFeedProps> = props =>
 
       {/* Command Stream */}
       <div
-        ref={feedRef}
+        ref={el => (feedRef = el)}
         class="relative h-[400px] overflow-y-auto font-mono text-xs"
         style={{ 'scrollbar-width': 'none', '-ms-overflow-style': 'none' }}
         onMouseEnter={() => setIsHovering(true)}
