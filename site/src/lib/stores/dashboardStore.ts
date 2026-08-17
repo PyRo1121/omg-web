@@ -58,7 +58,7 @@ function getInitialState(): DashboardState {
 
   try {
     const stored = browserWindow.localStorage.getItem(STORAGE_KEY);
-    if (!stored) return createDefaultState();
+    if (!stored) {return createDefaultState();}
 
     const persisted = decodePersistedDashboardState(JSON.parse(stored));
     if (!persisted) {
@@ -146,7 +146,7 @@ export function createDashboardStore() {
 
     goToPreviousTab() {
       const history = state.navigation.tabHistory;
-      if (history.length === 0) return;
+      if (history.length === 0) {return;}
       const previousTab = history[history.length - 1];
       setState('navigation', {
         activeTab: previousTab,
@@ -172,7 +172,7 @@ export function createDashboardStore() {
 
     saveView() {
       const viewName = state.views.newViewName.trim();
-      if (!viewName) return;
+      if (!viewName) {return;}
 
       const newView: SavedView = {
         id: `view-${Date.now()}`,

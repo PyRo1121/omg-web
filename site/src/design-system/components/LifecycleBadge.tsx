@@ -1,4 +1,4 @@
-import { Component, createMemo, Show, For } from 'solid-js';
+import { type Component, createMemo, Show, For } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -11,7 +11,7 @@ import {
   TrendingDown,
   XCircle,
   RefreshCw,
-  LucideIcon,
+  type LucideIcon,
 } from 'lucide-solid';
 
 function cn(...inputs: ClassValue[]) {
@@ -49,7 +49,9 @@ interface StageConfig {
   order: number;
 }
 
-const stageConfig: Record<LifecycleStage, StageConfig> = {
+type StageConfigMap = { [K in LifecycleStage]: StageConfig };
+
+const stageConfig: StageConfigMap = {
   new: {
     icon: Sparkles,
     label: 'New',

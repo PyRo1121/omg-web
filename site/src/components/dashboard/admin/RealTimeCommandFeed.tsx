@@ -95,18 +95,18 @@ function parseTierFilter(value: string): TierFilter {
 }
 
 function durationColor(ms: number): string {
-  if (ms < 100) return 'text-aurora-400';
-  if (ms < 1000) return 'text-solar-400';
+  if (ms < 100) {return 'text-aurora-400';}
+  if (ms < 1000) {return 'text-solar-400';}
   return 'text-flare-400';
 }
 
 const getCommandType = (command: string): CommandTypeKey => {
   const cmd = command.toLowerCase();
-  if (cmd.includes('install') || cmd.includes('add')) return 'install';
-  if (cmd.includes('search') || cmd.includes('find')) return 'search';
-  if (cmd.includes('update') || cmd.includes('upgrade')) return 'update';
-  if (cmd.includes('remove') || cmd.includes('uninstall')) return 'remove';
-  if (cmd.includes('info') || cmd.includes('show')) return 'info';
+  if (cmd.includes('install') || cmd.includes('add')) {return 'install';}
+  if (cmd.includes('search') || cmd.includes('find')) {return 'search';}
+  if (cmd.includes('update') || cmd.includes('upgrade')) {return 'update';}
+  if (cmd.includes('remove') || cmd.includes('uninstall')) {return 'remove';}
+  if (cmd.includes('info') || cmd.includes('show')) {return 'info';}
   return 'default';
 };
 
@@ -121,13 +121,13 @@ const formatTimestamp = (timestamp: string): string => {
 };
 
 const formatDuration = (ms: number): string => {
-  if (ms < 1) return '<1ms';
-  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 1) {return '<1ms';}
+  if (ms < 1000) {return `${Math.round(ms)}ms`;}
   return `${(ms / 1000).toFixed(2)}s`;
 };
 
 const formatLicenseKey = (key: string): string => {
-  if (!key || key.length < 8) return key;
+  if (!key || key.length < 8) {return key;}
   return `${key.slice(0, 4)}...${key.slice(-4)}`;
 };
 

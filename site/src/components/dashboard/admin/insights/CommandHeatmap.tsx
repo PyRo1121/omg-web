@@ -1,5 +1,5 @@
-import { Component, For, createMemo, createSignal, Show, onMount } from 'solid-js';
-import { Activity, Maximize2, Minimize2, Flame, Clock, Calendar, TrendingUp } from 'lucide-solid';
+import { type Component, For, createMemo, createSignal, Show, onMount } from 'solid-js';
+import { Activity, Maximize2, Minimize2, Flame, Clock, Calendar } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -42,7 +42,7 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
   });
 
   const maxCount = createMemo(() => {
-    if (props.data.length === 0) return 1;
+    if (props.data.length === 0) {return 1;}
     return Math.max(...props.data.map(d => d.event_count));
   });
 
@@ -54,20 +54,20 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
   };
 
   const getHeatmapLevel = (count: number): number => {
-    if (count === 0) return 0;
+    if (count === 0) {return 0;}
     const intensity = count / maxCount();
-    if (intensity > 0.875) return 8;
-    if (intensity > 0.75) return 7;
-    if (intensity > 0.625) return 6;
-    if (intensity > 0.5) return 5;
-    if (intensity > 0.375) return 4;
-    if (intensity > 0.25) return 3;
-    if (intensity > 0.125) return 2;
+    if (intensity > 0.875) {return 8;}
+    if (intensity > 0.75) {return 7;}
+    if (intensity > 0.625) {return 6;}
+    if (intensity > 0.5) {return 5;}
+    if (intensity > 0.375) {return 4;}
+    if (intensity > 0.25) {return 3;}
+    if (intensity > 0.125) {return 2;}
     return 1;
   };
 
   const peakActivity = createMemo(() => {
-    if (props.data.length === 0) return { day: 0, hour: 0, count: 0 };
+    if (props.data.length === 0) {return { day: 0, hour: 0, count: 0 };}
     const peak = props.data.reduce(
       (max, d) => (d.event_count > max.event_count ? d : max),
       props.data[0]
@@ -96,7 +96,7 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
   });
 
   const avgEventsPerDay = createMemo(() => {
-    if (props.data.length === 0) return 0;
+    if (props.data.length === 0) {return 0;}
     return Math.round(totalEvents() / 7);
   });
 

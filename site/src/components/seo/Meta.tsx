@@ -151,7 +151,7 @@ const SeoMeta: Component<SeoMetaProps> = props => {
 
   // Build BreadcrumbList schema from props
   const breadcrumbSchema = createMemo((): BreadcrumbListSchema | null => {
-    if (!props.breadcrumbs || props.breadcrumbs.length === 0) return null;
+    if (!props.breadcrumbs || props.breadcrumbs.length === 0) {return null;}
 
     return {
       '@type': 'BreadcrumbList',
@@ -216,7 +216,7 @@ const SeoMeta: Component<SeoMetaProps> = props => {
 
       {/* Canonical URL */}
       <Show when={canonicalUrl()}>
-        <Link rel="canonical" href={canonicalUrl()!} />
+        <Link rel="canonical" href={canonicalUrl()} />
       </Show>
 
       {/* Open Graph */}
@@ -229,7 +229,7 @@ const SeoMeta: Component<SeoMetaProps> = props => {
       <SolidMeta property="og:image:width" content="1200" />
       <SolidMeta property="og:image:height" content="630" />
       <Show when={canonicalUrl()}>
-        <SolidMeta property="og:url" content={canonicalUrl()!} />
+        <SolidMeta property="og:url" content={canonicalUrl()} />
       </Show>
       <SolidMeta property="og:locale" content="en_US" />
 

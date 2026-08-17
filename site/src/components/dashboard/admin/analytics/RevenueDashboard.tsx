@@ -67,14 +67,14 @@ const TIER_COLORS = {
 } satisfies Record<string, { gradient: string; glow: string; accent: string }>;
 
 function formatCurrency(value: number): string {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
+  if (value >= 1000000) {return `$${(value / 1000000).toFixed(1)}M`;}
+  if (value >= 1000) {return `$${(value / 1000).toFixed(1)}K`;}
   return `$${value.toLocaleString()}`;
 }
 
 function formatMonth(monthStr: string): string {
   const parts = monthStr.split('-');
-  if (parts.length < 2) return monthStr;
+  if (parts.length < 2) {return monthStr;}
   const months = [
     'Jan',
     'Feb',
@@ -112,13 +112,13 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = props => {
   const maxRevenue = createMemo(() => Math.max(...monthlyData().map(m => m.revenue), 1));
 
   const mrrChange = createMemo(() => {
-    if (!props.previousMRR || props.previousMRR === 0) return null;
+    if (!props.previousMRR || props.previousMRR === 0) {return null;}
     return ((props.data.mrr - props.previousMRR) / props.previousMRR) * 100;
   });
 
   const avgTransactionValue = createMemo(() => {
     const recent = props.data.monthly_revenue?.[0];
-    if (!recent || recent.transactions === 0) return 0;
+    if (!recent || recent.transactions === 0) {return 0;}
     return Math.round(recent.revenue / recent.transactions);
   });
 
@@ -127,7 +127,7 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = props => {
   );
 
   const defaultTiers = createMemo<RevenueByTier[]>(() => {
-    if (props.revenueByTier) return props.revenueByTier;
+    if (props.revenueByTier) {return props.revenueByTier;}
     const mrr = props.data.mrr || 0;
     return [
       {

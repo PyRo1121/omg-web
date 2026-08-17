@@ -66,9 +66,9 @@ const LIFECYCLE_CONFIG: LifecycleConfig = {
 };
 
 const getScoreColor = (score: number): string => {
-  if (score >= 80) return '#10b981';
-  if (score >= 60) return '#22d3d3';
-  if (score >= 40) return '#f59e0b';
+  if (score >= 80) {return '#10b981';}
+  if (score >= 60) {return '#22d3d3';}
+  if (score >= 40) {return '#f59e0b';}
   return '#ef4444';
 };
 
@@ -103,7 +103,7 @@ const RadarChart: Component<RadarChartProps> = props => {
 
   const pathData = createMemo(() => {
     const pts = points();
-    if (pts.length === 0) return '';
+    if (pts.length === 0) {return '';}
     return `${pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')} Z`;
   });
 
@@ -382,9 +382,9 @@ export const CustomerHealthHub: Component<CustomerHealthHubProps> = props => {
 
   const riskLevel = createMemo(() => {
     const churn = props.health.predicted_churn_probability;
-    if (churn >= 0.7) return { level: 'critical', color: 'text-flare-500', bg: 'bg-flare-500/10' };
-    if (churn >= 0.4) return { level: 'high', color: 'text-flare-400', bg: 'bg-flare-500/10' };
-    if (churn >= 0.2) return { level: 'medium', color: 'text-solar-400', bg: 'bg-solar-500/10' };
+    if (churn >= 0.7) {return { level: 'critical', color: 'text-flare-500', bg: 'bg-flare-500/10' };}
+    if (churn >= 0.4) {return { level: 'high', color: 'text-flare-400', bg: 'bg-flare-500/10' };}
+    if (churn >= 0.2) {return { level: 'medium', color: 'text-solar-400', bg: 'bg-solar-500/10' };}
     return { level: 'low', color: 'text-aurora-400', bg: 'bg-aurora-500/10' };
   });
 

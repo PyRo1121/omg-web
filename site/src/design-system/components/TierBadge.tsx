@@ -1,4 +1,4 @@
-import { type Component, Show, createMemo } from 'solid-js';
+import { type Component, Show, createMemo, For } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Crown, Sparkles, Users, Building2 } from 'lucide-solid';
@@ -238,7 +238,7 @@ interface TierSelectorProps {
 export const TierSelector: Component<TierSelectorProps> = props => {
   return (
     <div class={cn('grid grid-cols-4 gap-3', props.class)}>
-      {tierOrder.map(tier => {
+      <For each={tierOrder}>{tier => {
         const config = tierConfig[tier];
         const isSelected = tier === props.value;
         const isDisabled = props.disabledTiers?.includes(tier);
@@ -269,7 +269,7 @@ export const TierSelector: Component<TierSelectorProps> = props => {
             </p>
           </button>
         );
-      })}
+      }}</For>
     </div>
   );
 };

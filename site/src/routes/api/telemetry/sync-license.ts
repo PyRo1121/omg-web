@@ -19,7 +19,7 @@ function parseLicenseTier(value: string | undefined): LicenseTier {
 
 function getEnv(event: APIEvent): CloudflareEnv {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) throw new Error('Cloudflare environment not available');
+  if (!env) {throw new Error('Cloudflare environment not available');}
 
   return {
     DB: env.DB,
@@ -229,7 +229,7 @@ async function syncMachines(
     last_seen_at?: string;
   }>
 ): Promise<number> {
-  if (!machines || machines.length === 0) return 0;
+  if (!machines || machines.length === 0) {return 0;}
 
   let synced = 0;
 
@@ -309,7 +309,7 @@ async function syncUsage(
     time_saved_ms: number;
   }>
 ): Promise<number> {
-  if (!usage || usage.length === 0) return 0;
+  if (!usage || usage.length === 0) {return 0;}
 
   let synced = 0;
 

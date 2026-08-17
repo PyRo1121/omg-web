@@ -1,4 +1,4 @@
-import { type Component, Show, createSignal, createMemo, createEffect, onMount } from 'solid-js';
+import { type Component, Show, createSignal, createMemo, createEffect, onMount, For } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -98,15 +98,15 @@ const HEALTH_ZONES = {
 // ============================================================================
 
 const getHealthZone = (score: number): HealthZone => {
-  if (score <= 20) return 'critical';
-  if (score <= 33) return 'poor';
-  if (score <= 66) return 'fair';
-  if (score <= 85) return 'good';
+  if (score <= 20) {return 'critical';}
+  if (score <= 33) {return 'poor';}
+  if (score <= 66) {return 'fair';}
+  if (score <= 85) {return 'good';}
   return 'excellent';
 };
 
 const getTrendDiff = (current: number, previous?: number): number | null => {
-  if (previous === undefined) return null;
+  if (previous === undefined) {return null;}
   return current - previous;
 };
 
@@ -191,7 +191,7 @@ const BreakdownTooltip: Component<BreakdownTooltipProps> = props => {
           </span>
         </div>
         <div class="space-y-3">
-          {subScores.map(sub => (
+          <For each={subScores}>{sub => (
             <div>
               <div class="mb-1 flex items-center justify-between">
                 <div class="flex items-center gap-1.5">
@@ -212,7 +212,7 @@ const BreakdownTooltip: Component<BreakdownTooltipProps> = props => {
                 />
               </div>
             </div>
-          ))}
+          )}</For>
         </div>
       </div>
     </Show>
@@ -279,8 +279,8 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = props => {
   });
 
   const handleMouseEnter = (e: MouseEvent) => {
-    if (!props.showBreakdown || !props.health) return;
-    if (!(e.currentTarget instanceof HTMLElement)) return;
+    if (!props.showBreakdown || !props.health) {return;}
+    if (!(e.currentTarget instanceof HTMLElement)) {return;}
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltipPos({
       x: rect.left + rect.width / 2,
@@ -360,7 +360,7 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = props => {
         />
 
         {/* Tick marks */}
-        {[0, 25, 50, 75, 100].map(tick => {
+        <For each={[0, 25, 50, 75, 100]}>{tick => {
           const angle = Math.PI * (1 - tick / 100);
           const innerR = radius() - config().strokeWidth - 4;
           const outerR = radius() - config().strokeWidth + 2;
@@ -378,7 +378,7 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = props => {
               stroke-linecap="round"
             />
           );
-        })}
+        }}</For>
 
         {/* Needle/indicator */}
         {(() => {

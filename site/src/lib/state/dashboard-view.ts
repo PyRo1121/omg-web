@@ -83,7 +83,7 @@ const loadTelemetryPipeline = Effect.gen(function* () {
  */
 function syncAdminAuth(): void {
   const existingToken = window.localStorage.getItem('omg_session_token');
-  if (existingToken) return;
+  if (existingToken) {return;}
 
   const pipeline = Effect.gen(function* () {
     const response = yield* Effect.tryPromise({

@@ -1,5 +1,6 @@
 // AI Insights Handler - Using Cloudflare AI Gateway with Meta.com
-import { Env, jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
+import type { Env} from '../api';
+import { jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
 
 // Simple in-memory rate limiter (5 requests per minute per user)
 // TODO: Replace with Cloudflare Rate Limiting API in production for distributed rate limiting
@@ -26,10 +27,10 @@ function checkRateLimit(userId: string): boolean {
 
 export async function handleGetSmartInsights(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
-  if (!token) return errorResponse('Unauthorized', 401);
+  if (!token) {return errorResponse('Unauthorized', 401);}
 
   const auth = await validateSession(env.DB, token);
-  if (!auth) return errorResponse('Invalid session', 401);
+  if (!auth) {return errorResponse('Invalid session', 401);}
 
   // Rate limiting: 5 requests per minute
   if (!checkRateLimit(auth.user.id)) {

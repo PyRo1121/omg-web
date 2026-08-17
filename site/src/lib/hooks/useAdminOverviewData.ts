@@ -55,7 +55,7 @@ export function useAdminOverviewData() {
   const commandHealth = createMemo<CommandHealth>(() => {
     const health = dashboardQuery.data?.overview?.command_health;
     const total = (health?.success || 0) + (health?.failure || 0);
-    if (total === 0) return { success: 95, failure: 5 };
+    if (total === 0) {return { success: 95, failure: 5 };}
     return {
       success: ((health?.success || 0) / total) * 100,
       failure: ((health?.failure || 0) / total) * 100,
@@ -86,7 +86,7 @@ export function useAdminOverviewData() {
 }
 
 function getCountryName(code: string): string {
-  const countries: Record<string, string> = {
+  const countries = {
     US: 'United States',
     DE: 'Germany',
     GB: 'United Kingdom',
@@ -101,6 +101,10 @@ function getCountryName(code: string): string {
     ES: 'Spain',
     IT: 'Italy',
     KR: 'South Korea',
-  };
-  return countries[code] || code || 'Unknown';
+  } as const;
+  if (code in countries) {
+    // SAFETY: The `in` guard above confirms the code is a lookup table key.
+    return countries[code as keyof typeof countries];
+  }
+  return code || 'Unknown';
 }

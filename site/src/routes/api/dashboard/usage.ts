@@ -6,7 +6,7 @@ import { createAuth, type CloudflareEnv } from '~/lib/auth';
 
 function getEnv(event: APIEvent): CloudflareEnv {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) throw new Error('Cloudflare environment not available');
+  if (!env) {throw new Error('Cloudflare environment not available');}
 
   return {
     DB: env.DB,

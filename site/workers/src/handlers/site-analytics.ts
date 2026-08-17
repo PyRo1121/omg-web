@@ -82,22 +82,22 @@ function parseUserAgent(ua: string): ParsedUserAgent {
     device = /ipad|tablet/i.test(ua) ? 'tablet' : 'mobile';
   }
 
-  if (/chrome/i.test(ua) && !/edge|edg/i.test(ua)) browser = 'Chrome';
-  else if (/firefox/i.test(ua)) browser = 'Firefox';
-  else if (/safari/i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari';
-  else if (/edge|edg/i.test(ua)) browser = 'Edge';
+  if (/chrome/i.test(ua) && !/edge|edg/i.test(ua)) {browser = 'Chrome';}
+  else if (/firefox/i.test(ua)) {browser = 'Firefox';}
+  else if (/safari/i.test(ua) && !/chrome/i.test(ua)) {browser = 'Safari';}
+  else if (/edge|edg/i.test(ua)) {browser = 'Edge';}
 
-  if (/windows/i.test(ua)) os = 'Windows';
-  else if (/mac os/i.test(ua)) os = 'macOS';
-  else if (/linux/i.test(ua)) os = 'Linux';
-  else if (/android/i.test(ua)) os = 'Android';
-  else if (/ios|iphone|ipad/i.test(ua)) os = 'iOS';
+  if (/windows/i.test(ua)) {os = 'Windows';}
+  else if (/mac os/i.test(ua)) {os = 'macOS';}
+  else if (/linux/i.test(ua)) {os = 'Linux';}
+  else if (/android/i.test(ua)) {os = 'Android';}
+  else if (/ios|iphone|ipad/i.test(ua)) {os = 'iOS';}
 
   return { device, browser, os };
 }
 
 function extractReferrerDomain(referrer: string | null): string {
-  if (!referrer) return 'direct';
+  if (!referrer) {return 'direct';}
   try {
     const url = new URL(referrer);
     return url.hostname.replace(/^www\./, '');
@@ -111,7 +111,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     if (env.API_RATE_LIMITER) {
       const { success } = await env.API_RATE_LIMITER.limit({ key: `site_analytics:${ip}` });
-      if (!success) return errorResponse('Rate limit exceeded', 429);
+      if (!success) {return errorResponse('Rate limit exceeded', 429);}
     }
 
     const body: TrackingBatch = await request.json();
@@ -131,7 +131,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     const hour = new Date().getUTCHours();
 
     for (const event of body.events) {
-      if (!event.event_type || !event.event_name || !event.session_id) continue;
+      if (!event.event_type || !event.event_name || !event.session_id) {continue;}
 
       const eventId = generateId();
       const props = event.properties || {};

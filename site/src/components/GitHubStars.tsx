@@ -1,4 +1,5 @@
-import { Component, createResource, Suspense, Show } from 'solid-js';
+import type { Component} from 'solid-js';
+import { createResource, Suspense, Show } from 'solid-js';
 
 const GITHUB_REPO_URL = 'https://github.com/PyRo1121/omg';
 const GITHUB_API_URL = 'https://api.github.com/repos/PyRo1121/omg';

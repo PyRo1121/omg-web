@@ -1,4 +1,4 @@
-import { ParentProps, Match, Switch } from 'solid-js';
+import { type ParentProps, Match, Switch } from 'solid-js';
 import { Info, AlertTriangle, XCircle, Lightbulb, CheckCircle } from 'lucide-solid';
 
 type CalloutType = 'info' | 'warning' | 'danger' | 'tip' | 'success';
@@ -7,14 +7,6 @@ interface CalloutProps extends ParentProps {
   type?: CalloutType;
   title?: string;
 }
-
-const iconMap = {
-  info: Info,
-  warning: AlertTriangle,
-  danger: XCircle,
-  tip: Lightbulb,
-  success: CheckCircle,
-};
 
 const styleMap = {
   info: 'border-blue-500/50 bg-blue-500/10 text-blue-200',
@@ -42,7 +34,6 @@ const defaultTitles = {
 
 export function Callout(props: CalloutProps) {
   const type = () => props.type || 'info';
-  const Icon = () => iconMap[type()];
   const title = () => props.title || defaultTitles[type()];
 
   return (

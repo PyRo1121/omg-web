@@ -1,4 +1,4 @@
-import { createSignal, For, ParentProps, createContext, useContext, Show, JSX } from 'solid-js';
+import { createSignal, type ParentProps, createContext, useContext, Show } from 'solid-js';
 
 interface TabsContextValue {
   activeTab: () => string;
@@ -33,7 +33,7 @@ interface TabProps extends ParentProps {
 
 export function Tab(props: TabProps) {
   const ctx = useContext(TabsContext);
-  if (!ctx) throw new Error('Tab must be used within Tabs');
+  if (!ctx) {throw new Error('Tab must be used within Tabs');}
 
   const isActive = () => ctx.activeTab() === props.value;
 
@@ -60,7 +60,7 @@ interface TabPanelProps extends ParentProps {
 
 export function TabPanel(props: TabPanelProps) {
   const ctx = useContext(TabsContext);
-  if (!ctx) throw new Error('TabPanel must be used within Tabs');
+  if (!ctx) {throw new Error('TabPanel must be used within Tabs');}
 
   return (
     <Show when={ctx.activeTab() === props.value}>

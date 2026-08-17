@@ -14,7 +14,7 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       retry: (failureCount, error: any) => {
-        if (error.response?.status && error.response.status < 500) return false;
+        if (error.response?.status && error.response.status < 500) {return false;}
         return failureCount < 2;
       },
       throwOnError: (error: any) => error.response?.status >= 500,

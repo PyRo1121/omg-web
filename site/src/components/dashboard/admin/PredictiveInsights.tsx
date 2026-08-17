@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal, createMemo } from 'solid-js';
+import { type Component, For, Show, createSignal, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -73,7 +73,9 @@ interface HealthTrend {
   actionRecommendation: string;
 }
 
-const PRIORITY_CONFIG: Record<Priority, { color: string; bg: string; label: string }> = {
+type PriorityConfig = { [K in Priority]: { color: string; bg: string; label: string } };
+
+const PRIORITY_CONFIG: PriorityConfig = {
   urgent: { color: 'text-flare-400', bg: 'bg-flare-500/10', label: 'Urgent' },
   high: { color: 'text-solar-400', bg: 'bg-solar-500/10', label: 'High' },
   medium: { color: 'text-indigo-400', bg: 'bg-indigo-500/10', label: 'Medium' },
@@ -100,9 +102,9 @@ const ChurnPredictionCard: Component<{
   onAction: (action: string) => void;
 }> = props => {
   const riskLevel = createMemo((): Priority => {
-    if (props.prediction.probability >= 0.7) return 'urgent';
-    if (props.prediction.probability >= 0.5) return 'high';
-    if (props.prediction.probability >= 0.3) return 'medium';
+    if (props.prediction.probability >= 0.7) {return 'urgent';}
+    if (props.prediction.probability >= 0.5) {return 'high';}
+    if (props.prediction.probability >= 0.3) {return 'medium';}
     return 'low';
   });
 
@@ -194,9 +196,9 @@ const ExpansionOpportunityCard: Component<{
   onAction: (action: string) => void;
 }> = props => {
   const opportunityLevel = createMemo((): Priority => {
-    if (props.prediction.probability >= 0.7) return 'urgent';
-    if (props.prediction.probability >= 0.5) return 'high';
-    if (props.prediction.probability >= 0.3) return 'medium';
+    if (props.prediction.probability >= 0.7) {return 'urgent';}
+    if (props.prediction.probability >= 0.5) {return 'high';}
+    if (props.prediction.probability >= 0.3) {return 'medium';}
     return 'low';
   });
 
@@ -284,15 +286,20 @@ const AnomalyAlertCard: Component<{
   onAcknowledge: () => void;
   onResolve: () => void;
 }> = props => {
-  const severityConfig: Record<string, { color: string; bg: string; icon: typeof AlertTriangle }> =
-    {
-      critical: { color: 'text-flare-400', bg: 'bg-flare-500/10', icon: AlertTriangle },
-      high: { color: 'text-solar-400', bg: 'bg-solar-500/10', icon: Bell },
-      medium: { color: 'text-indigo-400', bg: 'bg-indigo-500/10', icon: Activity },
-      low: { color: 'text-nebula-400', bg: 'bg-nebula-500/10', icon: Activity },
-    };
+  const severityConfig = {
+    critical: { color: 'text-flare-400', bg: 'bg-flare-500/10', icon: AlertTriangle },
+    high: { color: 'text-solar-400', bg: 'bg-solar-500/10', icon: Bell },
+    medium: { color: 'text-indigo-400', bg: 'bg-indigo-500/10', icon: Activity },
+    low: { color: 'text-nebula-400', bg: 'bg-nebula-500/10', icon: Activity },
+  } as const;
 
-  const config = () => severityConfig[props.alert.severity] || severityConfig.medium;
+  type SeverityKey = keyof typeof severityConfig;
+
+  const getSeverityConfig = (severity: string) =>
+    // SAFETY: The `in` guard confirms the severity is a configured key.
+    severity in severityConfig ? severityConfig[severity as SeverityKey] : severityConfig.medium;
+
+  const config = () => getSeverityConfig(props.alert.severity);
   const IconComponent = config().icon;
 
   return (
@@ -404,7 +411,7 @@ export const PredictiveInsights: Component = () => {
   const usersQuery = useAdminCRMUsers(1, 100, '');
 
   const churnPredictions = createMemo((): ChurnPrediction[] => {
-    if (!metricsQuery.data?.churn_risk_segments) return [];
+    if (!metricsQuery.data?.churn_risk_segments) {return [];}
 
     const expansionOps = metricsQuery.data.expansion_opportunities || [];
 
@@ -438,7 +445,7 @@ export const PredictiveInsights: Component = () => {
   });
 
   const expansionPredictions = createMemo((): ExpansionPrediction[] => {
-    if (!metricsQuery.data?.expansion_opportunities) return [];
+    if (!metricsQuery.data?.expansion_opportunities) {return [];}
 
     return metricsQuery.data.expansion_opportunities.map(opp => {
       const probability = opp.priority === 'urgent' ? 0.85 : opp.priority === 'high' ? 0.65 : 0.4;
@@ -516,7 +523,7 @@ export const PredictiveInsights: Component = () => {
   });
 
   const healthTrends = createMemo((): HealthTrend[] => {
-    if (!usersQuery.data?.users) return [];
+    if (!usersQuery.data?.users) {return [];}
 
     return usersQuery.data.users.slice(0, 8).map(user => {
       const score = user.engagement_score || 50;
@@ -582,7 +589,10 @@ export const PredictiveInsights: Component = () => {
         <div class="flex items-center gap-3">
           <select
             value={timeHorizon()}
-            onChange={e => setTimeHorizon(e.currentTarget.value as TimeHorizon)}
+            onChange={e =>
+              // SAFETY: The select only offers the TimeHorizon option values.
+              setTimeHorizon(e.currentTarget.value as TimeHorizon)
+            }
             class="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white transition-all focus:outline-none"
           >
             <option value="30d">Next 30 Days</option>

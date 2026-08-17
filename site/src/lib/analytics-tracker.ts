@@ -46,7 +46,7 @@ function getSessionId(): string {
 }
 
 function getUtmParams(): UtmParams {
-  if (!('window' in globalThis)) return {};
+  if (!('window' in globalThis)) {return {};}
   const params = new URLSearchParams(globalThis.window.location.search);
   const utm: UtmParams = {};
   const values = {
@@ -56,21 +56,21 @@ function getUtmParams(): UtmParams {
     content: params.get('utm_content'),
     term: params.get('utm_term'),
   };
-  if (values.source) utm.source = values.source;
-  if (values.medium) utm.medium = values.medium;
-  if (values.campaign) utm.campaign = values.campaign;
-  if (values.content) utm.content = values.content;
-  if (values.term) utm.term = values.term;
+  if (values.source) {utm.source = values.source;}
+  if (values.medium) {utm.medium = values.medium;}
+  if (values.campaign) {utm.campaign = values.campaign;}
+  if (values.content) {utm.content = values.content;}
+  if (values.term) {utm.term = values.term;}
   return utm;
 }
 
 function getReferrer(): string {
-  if (!('document' in globalThis)) return 'direct';
+  if (!('document' in globalThis)) {return 'direct';}
   const ref = globalThis.document.referrer;
-  if (!ref) return 'direct';
+  if (!ref) {return 'direct';}
   try {
     const url = new URL(ref);
-    if (url.hostname === globalThis.window.location.hostname) return 'internal';
+    if (url.hostname === globalThis.window.location.hostname) {return 'internal';}
     return url.hostname;
   } catch {
     return 'direct';
@@ -78,7 +78,7 @@ function getReferrer(): string {
 }
 
 async function flushEvents(): Promise<void> {
-  if (eventQueue.length === 0) return;
+  if (eventQueue.length === 0) {return;}
 
   const events = [...eventQueue];
   eventQueue = [];
@@ -100,7 +100,7 @@ async function flushEvents(): Promise<void> {
 }
 
 function scheduleFlush(): void {
-  if (flushTimeout) return;
+  if (flushTimeout) {return;}
   flushTimeout = setTimeout(() => {
     flushTimeout = null;
     flushEvents();
@@ -108,7 +108,7 @@ function scheduleFlush(): void {
 }
 
 function getPagePath(): string {
-  if (!('window' in globalThis)) return '';
+  if (!('window' in globalThis)) {return '';}
   return globalThis.window.location.pathname;
 }
 
@@ -122,7 +122,7 @@ function queueEvent(event: Omit<AnalyticsEvent, 'timestamp' | 'session_id'>): vo
 }
 
 export function trackPageview(path?: string): void {
-  if (!('window' in globalThis)) return;
+  if (!('window' in globalThis)) {return;}
 
   queueEvent({
     event_type: 'pageview',
@@ -192,7 +192,7 @@ export function trackPerformance(metrics: {
 }
 
 export function initAnalytics(): void {
-  if (!('window' in globalThis)) return;
+  if (!('window' in globalThis)) {return;}
 
   trackPageview();
 

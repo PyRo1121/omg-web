@@ -54,7 +54,7 @@ const HomePage: Component = () => {
 
   const fetchLicense = async () => {
     const userEmail = email();
-    if (!userEmail) return;
+    if (!userEmail) {return;}
 
     setLoading(true);
     setNotFound(false);

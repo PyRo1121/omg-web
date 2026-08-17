@@ -1,4 +1,4 @@
-import { APIEvent } from '@solidjs/start/server';
+import type { APIEvent } from '@solidjs/start/server';
 import { sql, desc, eq } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
@@ -6,17 +6,16 @@ import { requireAdmin } from '~/lib/admin';
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
-    const search = url.searchParams.get('search') || '';
     const offset = (page - 1) * limit;
 
-    let query = db
+    const query = db
       .select({
         id: schema.user.id,
         name: schema.user.name,

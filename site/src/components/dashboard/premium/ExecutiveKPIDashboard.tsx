@@ -1,4 +1,12 @@
-import { Component, For, Show, createMemo, createSignal, createEffect, onCleanup } from 'solid-js';
+import {
+  type Component,
+  For,
+  Show,
+  createMemo,
+  createSignal,
+  createEffect,
+  onCleanup,
+} from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -58,7 +66,7 @@ const AnimatedCounter: Component<AnimatedCounterProps> = props => {
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration(), 1);
-      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+      const easeOutQuart = 1 - (1 - progress) ** 4;
       const current = startValue + (target - startValue) * easeOutQuart;
       setDisplayValue(current);
 
@@ -73,8 +81,8 @@ const AnimatedCounter: Component<AnimatedCounterProps> = props => {
 
   const formattedValue = createMemo(() => {
     const val = displayValue();
-    if (val >= 1000000) return `${(val / 1000000).toFixed(decimals())}M`;
-    if (val >= 1000) return `${(val / 1000).toFixed(decimals())}k`;
+    if (val >= 1000000) {return `${(val / 1000000).toFixed(decimals())}M`;}
+    if (val >= 1000) {return `${(val / 1000).toFixed(decimals())}k`;}
     return val.toFixed(decimals());
   });
 
@@ -189,7 +197,7 @@ const KPICard: Component<KPICardProps> = props => {
   const IconComponent = props.icon;
 
   const targetProgress = createMemo(() => {
-    if (!props.target || props.target === 0) return null;
+    if (!props.target || props.target === 0) {return null;}
     return Math.min(100, (props.value / props.target) * 100);
   });
 
@@ -224,7 +232,7 @@ const KPICard: Component<KPICardProps> = props => {
                 {props.title}
               </span>
               <Show when={props.tooltip}>
-                <Tooltip content={props.tooltip!} position="top">
+                <Tooltip content={props.tooltip} position="top">
                   <HelpCircle
                     size={12}
                     class="text-nebula-600 hover:text-nebula-400 cursor-help transition-colors"
@@ -384,14 +392,14 @@ const StickinessMeter: Component<StickinessMeterProps> = props => {
 
   const dailyToWeekly = createMemo(() => (props.wau > 0 ? (props.dau / props.wau) * 100 : 0));
 
-  const getHealthLabel = (stickiness: number): { label: string; color: string; bg: string } => {
+  const getHealthLabel = (stickiness: number) => {
     if (stickiness >= 25)
-      return { label: 'Excellent', color: 'text-aurora-400', bg: 'bg-aurora-500/10' };
+      {return { label: 'Excellent', color: 'text-aurora-400', bg: 'bg-aurora-500/10' } as const;}
     if (stickiness >= 15)
-      return { label: 'Good', color: 'text-electric-400', bg: 'bg-electric-500/10' };
+      {return { label: 'Good', color: 'text-electric-400', bg: 'bg-electric-500/10' } as const;}
     if (stickiness >= 10)
-      return { label: 'Average', color: 'text-solar-400', bg: 'bg-solar-500/10' };
-    return { label: 'Needs Work', color: 'text-flare-400', bg: 'bg-flare-500/10' };
+      {return { label: 'Average', color: 'text-solar-400', bg: 'bg-solar-500/10' } as const;}
+    return { label: 'Needs Work', color: 'text-flare-400', bg: 'bg-flare-500/10' } as const;
   };
 
   const health = createMemo(() => getHealthLabel(dailyToMonthly()));
@@ -499,12 +507,18 @@ const ChurnRiskOverview: Component<ChurnRiskOverviewProps> = props => {
     () => props.segments?.reduce((sum, s) => sum + s.user_count, 0) || props.atRiskCount
   );
 
-  const riskColors: Record<string, { color: string; bg: string }> = {
+  const riskColors = {
     low: { color: 'text-aurora-400', bg: 'bg-aurora-500' },
     medium: { color: 'text-solar-400', bg: 'bg-solar-500' },
     high: { color: 'text-flare-400', bg: 'bg-flare-400' },
     critical: { color: 'text-flare-500', bg: 'bg-flare-500' },
-  };
+  } as const;
+
+  type RiskLevel = keyof typeof riskColors;
+
+  const getRiskColor = (level: string) =>
+    // SAFETY: The `in` guard confirms the level is a configured risk level.
+    level in riskColors ? riskColors[level as RiskLevel] : riskColors.medium;
 
   return (
     <div class="bg-void-850 shadow-card relative overflow-hidden rounded-3xl border border-white/5 p-6">
@@ -544,7 +558,7 @@ const ChurnRiskOverview: Component<ChurnRiskOverviewProps> = props => {
               {segment => {
                 const percentage =
                   totalAtRisk() > 0 ? (segment.user_count / totalAtRisk()) * 100 : 0;
-                const config = riskColors[segment.risk_segment] || riskColors.medium;
+                const config = getRiskColor(segment.risk_segment);
                 return (
                   <div class="flex items-center gap-3">
                     <div class={cn('h-2 w-2 rounded-full', config.bg)} />
@@ -591,13 +605,13 @@ const ExpansionPipeline: Component<ExpansionPipelineProps> = props => {
   const opportunityCount = createMemo(() => props.opportunities?.length || 0);
 
   const priorityCounts = createMemo(() => {
-    if (!props.opportunities) return { high: 0, medium: 0, low: 0 };
+    if (!props.opportunities) {return { high: 0, medium: 0, low: 0 };}
     return props.opportunities.reduce(
       (acc, o) => {
         const priority = o.priority?.toLowerCase() || 'medium';
-        if (priority === 'high' || priority === 'urgent') acc.high++;
-        else if (priority === 'medium') acc.medium++;
-        else acc.low++;
+        if (priority === 'high' || priority === 'urgent') {acc.high++;}
+        else if (priority === 'medium') {acc.medium++;}
+        else {acc.low++;}
         return acc;
       },
       { high: 0, medium: 0, low: 0 }

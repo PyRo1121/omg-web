@@ -1,4 +1,5 @@
-import { Component, Show, For, createSignal, createMemo, JSX } from 'solid-js';
+import type { Component, JSX } from 'solid-js';
+import { Show, For, createSignal, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -234,14 +235,14 @@ const ThresholdVisualizer: Component<{
 
   const getZoneClass = () => {
     const value = props.currentValue;
-    if (value === undefined) return 'normal';
+    if (value === undefined) {return 'normal';}
 
     const { criticalMin, criticalMax, warningMin, warningMax } = props.threshold;
 
-    if (criticalMin !== undefined && value <= criticalMin) return 'critical';
-    if (criticalMax !== undefined && value >= criticalMax) return 'critical';
-    if (warningMin !== undefined && value <= warningMin) return 'warning';
-    if (warningMax !== undefined && value >= warningMax) return 'warning';
+    if (criticalMin !== undefined && value <= criticalMin) {return 'critical';}
+    if (criticalMax !== undefined && value >= criticalMax) {return 'critical';}
+    if (warningMin !== undefined && value <= warningMin) {return 'warning';}
+    if (warningMax !== undefined && value >= warningMax) {return 'warning';}
 
     return 'normal';
   };
@@ -350,14 +351,14 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = props => {
 
   const getZoneClass = () => {
     const value = props.currentValue;
-    if (value === undefined || !props.config.enabled) return 'normal';
+    if (value === undefined || !props.config.enabled) {return 'normal';}
 
     const { criticalMin, criticalMax, warningMin, warningMax } = props.config.threshold;
 
-    if (criticalMin !== undefined && value <= criticalMin) return 'critical';
-    if (criticalMax !== undefined && value >= criticalMax) return 'critical';
-    if (warningMin !== undefined && value <= warningMin) return 'warning';
-    if (warningMax !== undefined && value >= warningMax) return 'warning';
+    if (criticalMin !== undefined && value <= criticalMin) {return 'critical';}
+    if (criticalMax !== undefined && value >= criticalMax) {return 'critical';}
+    if (warningMin !== undefined && value <= warningMin) {return 'warning';}
+    if (warningMax !== undefined && value >= warningMax) {return 'warning';}
 
     return 'normal';
   };

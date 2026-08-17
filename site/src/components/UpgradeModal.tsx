@@ -51,7 +51,7 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
   };
 
   const handleBack = () => {
-    if (step() === 'details') setStep('select');
+    if (step() === 'details') {setStep('select');}
   };
 
   const handleCheckout = async () => {

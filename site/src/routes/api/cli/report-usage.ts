@@ -7,7 +7,7 @@ import { parseCLITelemetryReport } from '~/lib/dashboard-contract';
 
 function getEnv(event: APIEvent) {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) throw new Error('Environment not available');
+  if (!env) {throw new Error('Environment not available');}
   return env;
 }
 

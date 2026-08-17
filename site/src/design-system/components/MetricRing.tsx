@@ -1,4 +1,4 @@
-import { Component, createMemo, Show, For, splitProps } from 'solid-js';
+import { type Component, createMemo, Show, For, splitProps } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -34,16 +34,17 @@ interface NestedMetricRingsProps {
   class?: string;
 }
 
-const sizeConfig: Record<
-  RingSize,
-  {
+type RingSizeConfig = {
+  [K in RingSize]: {
     diameter: number;
     strokeWidth: number;
     fontSize: string;
     labelSize: string;
     gradeSize: string;
-  }
-> = {
+  };
+};
+
+const sizeConfig: RingSizeConfig = {
   sm: {
     diameter: 48,
     strokeWidth: 4,
@@ -68,22 +69,23 @@ const sizeConfig: Record<
 };
 
 const getGradeFromScore = (score: number): HealthGrade => {
-  if (score >= 95) return 'A+';
-  if (score >= 85) return 'A';
-  if (score >= 70) return 'B';
-  if (score >= 50) return 'C';
-  if (score >= 30) return 'D';
+  if (score >= 95) {return 'A+';}
+  if (score >= 85) {return 'A';}
+  if (score >= 70) {return 'B';}
+  if (score >= 50) {return 'C';}
+  if (score >= 30) {return 'D';}
   return 'F';
 };
 
-const gradeColors: Record<
-  HealthGrade,
-  {
+type GradeColors = {
+  [K in HealthGrade]: {
     color: string;
     glow: string;
     textClass: string;
-  }
-> = {
+  };
+};
+
+const gradeColors: GradeColors = {
   'A+': {
     color: 'var(--grade-a-plus, #059669)',
     glow: 'var(--grade-a-plus-glow)',
@@ -117,7 +119,7 @@ const gradeColors: Record<
 };
 
 const getScoreColor = (score: number, customColor?: string): string => {
-  if (customColor) return customColor;
+  if (customColor) {return customColor;}
   const grade = getGradeFromScore(score);
   return gradeColors[grade].color;
 };

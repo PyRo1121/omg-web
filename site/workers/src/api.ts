@@ -329,7 +329,7 @@ export async function validateSession(
     .bind(token)
     .first<SessionRow>();
 
-  if (!session) return null;
+  if (!session) {return null;}
 
   return {
     user: {
@@ -402,7 +402,7 @@ export async function verifyTurnstile(
     const formData = new URLSearchParams();
     formData.append('secret', secretKey);
     formData.append('response', token);
-    if (ip) formData.append('remoteip', ip);
+    if (ip) {formData.append('remoteip', ip);}
 
     const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',

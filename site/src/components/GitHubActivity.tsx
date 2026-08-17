@@ -1,4 +1,4 @@
-import { type Component, createSignal, onMount, Show } from 'solid-js';
+import { type Component, createSignal, onMount, Show, For } from 'solid-js';
 import { parseGitHubActivity } from '../lib/dashboard-contract';
 
 interface CachedData {
@@ -24,9 +24,9 @@ const GitHubActivity: Component = () => {
   const getCachedData = (): CachedData | null => {
     try {
       const cached = localStorage.getItem(CACHE_KEY);
-      if (!cached) return null;
+      if (!cached) {return null;}
       const parsed: CachedData = JSON.parse(cached);
-      if (Date.now() - parsed.timestamp > CACHE_TTL) return null;
+      if (Date.now() - parsed.timestamp > CACHE_TTL) {return null;}
       return parsed;
     } catch (error) {
       if (error instanceof Error) {
@@ -156,7 +156,7 @@ const GitHubActivity: Component = () => {
 
       <Show when={!loading() && data().length > 0}>
         <div class="flex items-end gap-3" style={{ height: '140px' }}>
-          {data().map(item => {
+          <For each={data()}>{item => {
             const maxVal = Math.max(...data().map(d => d.value));
             const barHeight = Math.max((item.value / maxVal) * 120, 8);
             return (
@@ -176,7 +176,7 @@ const GitHubActivity: Component = () => {
                 </div>
               </div>
             );
-          })}
+          }}</For>
         </div>
       </Show>
 

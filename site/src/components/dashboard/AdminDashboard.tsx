@@ -113,7 +113,7 @@ function transformToExecutiveKPI(
 function transformToAdvancedMetrics(
   metrics: api.AdminAdvancedMetrics | undefined
 ): AdvancedMetrics | undefined {
-  if (!metrics) return undefined;
+  if (!metrics) {return undefined;}
   return {
     engagement: {
       dau: metrics.engagement?.dau || 0,
@@ -215,10 +215,10 @@ function transformFirehoseEvents(events: RawFirehoseEvent[]): FirehoseEvent[] {
 
 function mapEventType(eventName: string): FirehoseEvent['event_type'] {
   const lower = eventName.toLowerCase();
-  if (lower.includes('install')) return 'install';
-  if (lower.includes('search')) return 'search';
-  if (lower.includes('runtime') || lower.includes('use ')) return 'runtime_switch';
-  if (lower.includes('error') || lower.includes('fail')) return 'error';
+  if (lower.includes('install')) {return 'install';}
+  if (lower.includes('search')) {return 'search';}
+  if (lower.includes('runtime') || lower.includes('use ')) {return 'runtime_switch';}
+  if (lower.includes('error') || lower.includes('fail')) {return 'error';}
   return 'command';
 }
 
@@ -330,7 +330,7 @@ export const AdminDashboard: Component = () => {
   const commandHealth = createMemo((): CommandHealth => {
     const health = dashboardQuery.data?.overview?.command_health;
     const total = (health?.success || 0) + (health?.failure || 0);
-    if (total === 0) return { success: 95, failure: 5 };
+    if (total === 0) {return { success: 95, failure: 5 };}
     return {
       success: ((health?.success || 0) / total) * 100,
       failure: ((health?.failure || 0) / total) * 100,

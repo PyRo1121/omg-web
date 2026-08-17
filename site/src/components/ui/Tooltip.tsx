@@ -1,4 +1,4 @@
-import { Component, JSX, Show, createSignal } from 'solid-js';
+import { type Component, type JSX, Show, createSignal } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
 interface TooltipProps {
@@ -12,11 +12,11 @@ export const Tooltip: Component<TooltipProps> = props => {
   const [isVisible, setIsVisible] = createSignal(false);
   const [tooltipPos, setTooltipPos] = createSignal({ x: 0, y: 0 });
   let timeoutId: number | undefined;
-  let triggerRef: HTMLDivElement | undefined;
 
   const delay = () => props.delay || 200;
 
   const handleMouseEnter = (e: MouseEvent) => {
+    // SAFETY: The handler is attached to a div element rendered by this component.
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
 
@@ -76,7 +76,6 @@ export const Tooltip: Component<TooltipProps> = props => {
   return (
     <>
       <div
-        ref={triggerRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         class="inline-block"

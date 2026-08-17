@@ -1,4 +1,5 @@
-import { Component, For, Show, createMemo, createSignal } from 'solid-js';
+import type { Component} from 'solid-js';
+import { For, Show, createMemo, createSignal } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -80,7 +81,7 @@ export const Heatmap: Component<HeatmapProps> = props => {
   );
 
   const getCellColor = (value: number) => {
-    if (value === 0) return scale()[0];
+    if (value === 0) {return scale()[0];}
     const intensity = value / maxValue();
     const index = Math.min(Math.floor(intensity * (scale().length - 1)) + 1, scale().length - 1);
     return scale()[index];
@@ -190,13 +191,13 @@ export const Sparkline: Component<SparklineProps> = props => {
 
   const linePath = createMemo(() => {
     const pts = points();
-    if (pts.length === 0) return '';
+    if (pts.length === 0) {return '';}
     return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ');
   });
 
   const areaPath = createMemo(() => {
     const pts = points();
-    if (pts.length === 0) return '';
+    if (pts.length === 0) {return '';}
     let path = `M 0,${height()}`;
     pts.forEach(p => {
       path += ` L ${p.x},${p.y}`;

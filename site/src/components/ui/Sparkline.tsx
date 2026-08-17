@@ -19,7 +19,7 @@ export const Sparkline: Component<SparklineProps> = props => {
 
   const points = () => {
     const data = props.data || [];
-    if (data.length === 0) return '';
+    if (data.length === 0) {return '';}
 
     const max = Math.max(...data, 1);
     const min = Math.min(...data, 0);
@@ -39,7 +39,7 @@ export const Sparkline: Component<SparklineProps> = props => {
 
   const areaPath = () => {
     const data = props.data || [];
-    if (data.length === 0) return '';
+    if (data.length === 0) {return '';}
 
     const max = Math.max(...data, 1);
     const min = Math.min(...data, 0);
@@ -54,7 +54,7 @@ export const Sparkline: Component<SparklineProps> = props => {
       return { x, y };
     });
 
-    if (pts.length === 0) return '';
+    if (pts.length === 0) {return '';}
 
     let path = `M ${pts[0].x},${height - padding}`;
     pts.forEach(pt => {
@@ -67,7 +67,7 @@ export const Sparkline: Component<SparklineProps> = props => {
 
   const lastPoint = () => {
     const data = props.data || [];
-    if (data.length === 0) return null;
+    if (data.length === 0) {return null;}
 
     const max = Math.max(...data, 1);
     const min = Math.min(...data, 0);
@@ -200,7 +200,7 @@ interface TrendIndicatorProps {
 
 export const TrendIndicator: Component<TrendIndicatorProps> = props => {
   const change = () => {
-    if (props.previousValue === 0) return props.value > 0 ? 100 : 0;
+    if (props.previousValue === 0) {return props.value > 0 ? 100 : 0;}
     return ((props.value - props.previousValue) / props.previousValue) * 100;
   };
 

@@ -1,4 +1,5 @@
-import { Component, createSignal, createEffect, Show, For } from 'solid-js';
+import type { Component} from 'solid-js';
+import { createSignal, createEffect, Show, For } from 'solid-js';
 import { LineChart, BarChart3, Globe, MousePointerClick, Zap, ExternalLink } from 'lucide-solid';
 import * as api from '../../../lib/api';
 
@@ -27,7 +28,7 @@ export const DocsAnalytics: Component = () => {
 
   const formatDuration = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
-    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 60) {return `${seconds}s`;}
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}m ${remainingSeconds}s`;

@@ -1,4 +1,5 @@
-import { Component, For, Show, createSignal } from 'solid-js';
+import type { Component} from 'solid-js';
+import { For, Show, createSignal } from 'solid-js';
 import {
   TrendingUp,
   TrendingDown,
@@ -21,8 +22,8 @@ const _formatCurrency = (cents: number) => {
 };
 
 const formatCompactCurrency = (value: number) => {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
+  if (value >= 1000000) {return `$${(value / 1000000).toFixed(1)}M`;}
+  if (value >= 1000) {return `$${(value / 1000).toFixed(1)}K`;}
   return `$${value}`;
 };
 

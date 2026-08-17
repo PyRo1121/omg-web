@@ -1,4 +1,4 @@
-import { Component, For, Show, createMemo } from 'solid-js';
+import { type Component, For, Show, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { TrendingUp, TrendingDown, Minus, Calendar, ArrowRight } from 'lucide-solid';
@@ -36,7 +36,9 @@ export interface ComparisonChartProps {
   class?: string;
 }
 
-const PERIOD_LABELS: Record<ComparisonPeriod, { current: string; previous: string }> = {
+type PeriodLabels = { [K in ComparisonPeriod]: { current: string; previous: string } };
+
+const PERIOD_LABELS: PeriodLabels = {
   week: { current: 'This Week', previous: 'Last Week' },
   month: { current: 'This Month', previous: 'Last Month' },
   quarter: { current: 'This Quarter', previous: 'Last Quarter' },
@@ -66,7 +68,7 @@ const Sparkline: Component<{
 
   const path = createMemo(() => {
     const data = props.data;
-    if (data.length < 2) return '';
+    if (data.length < 2) {return '';}
 
     const max = Math.max(...data);
     const min = Math.min(...data);
@@ -207,7 +209,7 @@ const DualAxisChart: Component<{
   );
 
   const createPath = (data: DataPoint[], max: number): string => {
-    if (data.length < 2) return '';
+    if (data.length < 2) {return '';}
     const padding = 20;
     return data
       .map((point, i) => {
@@ -317,7 +319,7 @@ export const ComparisonChart: Component<ComparisonChartProps> = props => {
   const previousTotal = createMemo(() => props.data.previous.reduce((sum, d) => sum + d.value, 0));
 
   const percentageChange = createMemo(() => {
-    if (previousTotal() === 0) return currentTotal() > 0 ? 100 : 0;
+    if (previousTotal() === 0) {return currentTotal() > 0 ? 100 : 0;}
     return ((currentTotal() - previousTotal()) / previousTotal()) * 100;
   });
 

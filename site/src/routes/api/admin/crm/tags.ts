@@ -7,7 +7,7 @@ import { parseAdminCrmTagInput } from '~/lib/dashboard-contract';
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db } = adminCheck;
 
@@ -126,7 +126,7 @@ export async function GET(event: APIEvent) {
 export async function POST(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db, userId: adminId } = adminCheck;
 
@@ -310,7 +310,7 @@ export async function POST(event: APIEvent) {
 export async function PUT(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db } = adminCheck;
 
@@ -365,9 +365,9 @@ export async function PUT(event: APIEvent) {
 
     // Build update object
     const updates: Partial<typeof schema.customerTag.$inferInsert> = {};
-    if (name !== undefined) updates.name = name.trim();
-    if (color !== undefined) updates.color = color;
-    if (description !== undefined) updates.description = description?.trim() || null;
+    if (name !== undefined) {updates.name = name.trim();}
+    if (color !== undefined) {updates.color = color;}
+    if (description !== undefined) {updates.description = description?.trim() || null;}
 
     if (Object.keys(updates).length > 0) {
       await db
@@ -399,7 +399,7 @@ export async function PUT(event: APIEvent) {
 export async function DELETE(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db } = adminCheck;
 

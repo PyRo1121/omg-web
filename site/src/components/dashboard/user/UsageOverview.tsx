@@ -1,4 +1,4 @@
-import { Component, createResource, For, Show } from 'solid-js';
+import { type Component, createResource, For, Show } from 'solid-js';
 import GlassCard from '../../ui/GlassCard';
 import { StatCard } from '../analytics/StatCard';
 import { Sparkline } from '../../ui/Sparkline';
@@ -78,7 +78,7 @@ const getCommandIcon = (command: string) => {
 };
 
 const getCommandColor = (command: string) => {
-  const colors: Record<string, { bg: string; text: string; bar: string }> = {
+  const colors = {
     install: { bg: 'bg-indigo-500/20', text: 'text-indigo-400', bar: 'bg-indigo-500' },
     search: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', bar: 'bg-cyan-500' },
     update: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', bar: 'bg-emerald-500' },
@@ -88,32 +88,46 @@ const getCommandColor = (command: string) => {
     list: { bg: 'bg-blue-500/20', text: 'text-blue-400', bar: 'bg-blue-500' },
     sbom: { bg: 'bg-green-500/20', text: 'text-green-400', bar: 'bg-green-500' },
     audit: { bg: 'bg-orange-500/20', text: 'text-orange-400', bar: 'bg-orange-500' },
-  };
-  return colors[command] || { bg: 'bg-slate-500/20', text: 'text-slate-400', bar: 'bg-slate-500' };
+  } as const;
+
+  type CommandKey = keyof typeof colors;
+
+  // SAFETY: The `in` guard confirms the command is a configured key.
+  return command in colors
+    ? colors[command as CommandKey]
+    : { bg: 'bg-slate-500/20', text: 'text-slate-400', bar: 'bg-slate-500' };
 };
 
 const getFeatureDisplayName = (feature: string) => {
-  const names: Record<string, string> = {
+  const names = {
     aur: 'AUR Support',
     daemon: 'Daemon Mode',
     sbom: 'SBOM Generation',
     fleet: 'Fleet Management',
     runtimes: 'Runtime Switching',
     audit: 'Security Audit',
-  };
-  return names[feature] || feature;
+  } as const;
+
+  type FeatureNameKey = keyof typeof names;
+
+  // SAFETY: The `in` guard confirms the feature is a configured key.
+  return feature in names ? names[feature as FeatureNameKey] : feature;
 };
 
 const getFeatureIcon = (feature: string) => {
-  const icons: Record<string, typeof Package> = {
+  const icons = {
     aur: Package,
     daemon: Zap,
     sbom: Shield,
     fleet: Monitor,
     runtimes: Repeat,
     audit: Shield,
-  };
-  return icons[feature] || Terminal;
+  } as const;
+
+  type FeatureKey = keyof typeof icons;
+
+  // SAFETY: The `in` guard confirms the feature is a configured key.
+  return feature in icons ? icons[feature as FeatureKey] : Terminal;
 };
 
 export const UsageOverview: Component = () => {

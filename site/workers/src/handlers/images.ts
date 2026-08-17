@@ -1,4 +1,5 @@
-import { Env, errorResponse } from '../api';
+import type { Env} from '../api';
+import { errorResponse } from '../api';
 
 export async function handleImageOptimization(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -11,7 +12,7 @@ export async function handleImageOptimization(request: Request, env: Env): Promi
   const cacheKey = new URL(request.url);
   const cache = caches.default;
 
-  let cachedResponse = await cache.match(cacheKey);
+  const cachedResponse = await cache.match(cacheKey);
   if (cachedResponse) {
     return new Response(cachedResponse.body, {
       headers: {
@@ -45,12 +46,12 @@ export async function handleImageOptimization(request: Request, env: Env): Promi
 }
 
 function getContentType(path: string): string {
-  if (path.endsWith('.png')) return 'image/png';
-  if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg';
-  if (path.endsWith('.webp')) return 'image/webp';
-  if (path.endsWith('.avif')) return 'image/avif';
-  if (path.endsWith('.gif')) return 'image/gif';
-  if (path.endsWith('.svg')) return 'image/svg+xml';
+  if (path.endsWith('.png')) {return 'image/png';}
+  if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {return 'image/jpeg';}
+  if (path.endsWith('.webp')) {return 'image/webp';}
+  if (path.endsWith('.avif')) {return 'image/avif';}
+  if (path.endsWith('.gif')) {return 'image/gif';}
+  if (path.endsWith('.svg')) {return 'image/svg+xml';}
 
   return 'image/png';
 }

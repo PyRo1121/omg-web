@@ -1,4 +1,4 @@
-import { Component, Show, For, createSignal, createEffect, onCleanup } from 'solid-js';
+import { type Component, Show, For, createSignal, createEffect, onCleanup } from 'solid-js';
 import {
   X,
   Calendar,
@@ -44,6 +44,7 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
 
   createEffect(() => {
     if (props.userId) {
+      // SAFETY: Only HTMLElements can receive focus through drawer interactions.
       previousActiveElement = document.activeElement as HTMLElement | null;
 
       setTimeout(() => {
@@ -127,12 +128,6 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
     createTagMutation.mutate({ name, color });
   };
 
-  const _healthScoreColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-400 bg-emerald-500/10';
-    if (score >= 60) return 'text-amber-400 bg-amber-500/10';
-    return 'text-rose-400 bg-rose-500/10';
-  };
-
   const SectionButton = (sectionProps: {
     id: typeof activeSection extends () => infer T ? T : never;
     label: string;
@@ -159,7 +154,7 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
         />
 
         <div
-          ref={drawerRef}
+          ref={el => (drawerRef = el)}
           role="dialog"
           aria-modal="true"
           aria-labelledby="drawer-title"

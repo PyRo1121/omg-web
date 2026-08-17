@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal, createEffect, createMemo, onCleanup } from 'solid-js';
+import { type Component, For, Show, createSignal, createEffect, createMemo, onCleanup } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { FirehoseEvent, GeoDistribution, CommandHealth, AdvancedMetrics } from './types';
@@ -28,10 +28,7 @@ interface RealTimeCommandCenterProps {
   onRefresh?: () => void;
 }
 
-const EVENT_TYPE_CONFIG: Record<
-  string,
-  { icon: typeof Terminal; color: string; bg: string; label: string }
-> = {
+const EVENT_TYPE_CONFIG = {
   command: { icon: Terminal, color: 'text-indigo-400', bg: 'bg-indigo-500/10', label: 'CMD' },
   install: { icon: Package, color: 'text-aurora-400', bg: 'bg-aurora-500/10', label: 'INSTALL' },
   search: { icon: Search, color: 'text-electric-400', bg: 'bg-electric-500/10', label: 'SEARCH' },
@@ -42,7 +39,13 @@ const EVENT_TYPE_CONFIG: Record<
     label: 'RUNTIME',
   },
   error: { icon: AlertCircle, color: 'text-flare-400', bg: 'bg-flare-500/10', label: 'ERROR' },
-};
+} as const;
+
+type EventTypeKey = keyof typeof EVENT_TYPE_CONFIG;
+
+const getEventTypeConfig = (eventType: string) =>
+  // SAFETY: The `in` guard confirms the event type is a configured key.
+  eventType in EVENT_TYPE_CONFIG ? EVENT_TYPE_CONFIG[eventType as EventTypeKey] : EVENT_TYPE_CONFIG.command;
 
 const formatTimestamp = (timestamp: string): string => {
   const date = new Date(timestamp);
@@ -55,14 +58,14 @@ const formatTimestamp = (timestamp: string): string => {
 };
 
 const formatDuration = (ms: number): string => {
-  if (ms < 1) return '<1ms';
-  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 1) {return '<1ms';}
+  if (ms < 1000) {return `${Math.round(ms)}ms`;}
   return `${(ms / 1000).toFixed(2)}s`;
 };
 
 const CommandStreamItem: Component<{ event: FirehoseEvent; index: number }> = props => {
   const config = createMemo(
-    () => EVENT_TYPE_CONFIG[props.event.event_type] || EVENT_TYPE_CONFIG.command
+    () => getEventTypeConfig(props.event.event_type)
   );
 
   return (
@@ -122,7 +125,7 @@ const GlobeVisualization: Component<GlobeVisualizationProps> = props => {
   const maxCount = createMemo(() => Math.max(...props.data.map(d => d.count), 1));
 
   const getCountryFlag = (code: string): string => {
-    if (!code || code.length !== 2) return '🌍';
+    if (!code || code.length !== 2) {return '🌍';}
     const codePoints = code
       .toUpperCase()
       .split('')
@@ -327,7 +330,7 @@ const ActivityHeatmapWrapper: Component<ActivityHeatmapWrapperProps> = props => 
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 
   const formattedData = createMemo(() => {
-    if (!props.heatmapData || props.heatmapData.length === 0) return [];
+    if (!props.heatmapData || props.heatmapData.length === 0) {return [];}
 
     return props.heatmapData.map(item => ({
       x: parseInt(item.hour, 10),
@@ -460,7 +463,7 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
         </div>
 
         <div
-          ref={streamRef}
+          ref={el => (streamRef = el)}
           class="relative h-[400px] overflow-y-auto font-mono text-xs"
           style={{ 'scrollbar-width': 'none', '-ms-overflow-style': 'none' }}
         >

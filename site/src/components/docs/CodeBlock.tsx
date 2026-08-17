@@ -1,5 +1,7 @@
-import { Component, createResource, Show } from 'solid-js';
-import { createHighlighterCore, HighlighterCore } from 'shiki/core';
+import type { Component} from 'solid-js';
+import { createResource, Show } from 'solid-js';
+import type { HighlighterCore } from 'shiki/core';
+import { createHighlighterCore } from 'shiki/core';
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
 
 let highlighterPromise: Promise<HighlighterCore> | null = null;
@@ -48,7 +50,7 @@ const CodeBlock: Component<CodeBlockProps> = props => {
 
   const highlightedHtml = () => {
     const h = highlighter();
-    if (!h) return '';
+    if (!h) {return '';}
 
     try {
       return h.codeToHtml(code(), {

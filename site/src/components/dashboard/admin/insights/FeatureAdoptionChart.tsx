@@ -52,7 +52,7 @@ export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props 
 
   const getAdoptionRate = (adopters: number): string => {
     const totalUsers = props.data.total_active_users ?? 0;
-    if (totalUsers === 0) return '0';
+    if (totalUsers === 0) {return '0';}
     return ((adopters / totalUsers) * 100).toFixed(1);
   };
 

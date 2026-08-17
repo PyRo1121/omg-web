@@ -1,4 +1,5 @@
-import { Component, createSignal, onMount, onCleanup, Show, For } from 'solid-js';
+import type { Component} from 'solid-js';
+import { createSignal, onMount, onCleanup, Show, For } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import { Command } from 'cmdk-solid';
 import {
@@ -115,8 +116,8 @@ const CommandPalette: Component = () => {
     const query = search().toLowerCase();
 
     for (const cmd of commands) {
-      if (query && !cmd.label.toLowerCase().includes(query)) continue;
-      if (!groups[cmd.group]) groups[cmd.group] = [];
+      if (query && !cmd.label.toLowerCase().includes(query)) {continue;}
+      if (!groups[cmd.group]) {groups[cmd.group] = [];}
       groups[cmd.group].push(cmd);
     }
 

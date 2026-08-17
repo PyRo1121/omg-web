@@ -205,7 +205,7 @@ function calculateActiveDaysScore(usageDaily: UsageDailyRecord[]): number {
 
 function calculateCommandsTrendScore(usageDaily: UsageDailyRecord[]): number {
   // 10 points if increasing, 5 if stable, 0 if declining
-  if (usageDaily.length < 7) return 5; // Default to stable if insufficient data
+  if (usageDaily.length < 7) {return 5;} // Default to stable if insufficient data
 
   const sortedDays = [...usageDaily].sort((a, b) => a.date.localeCompare(b.date));
 
@@ -217,14 +217,14 @@ function calculateCommandsTrendScore(usageDaily: UsageDailyRecord[]): number {
   const firstHalfAvg = firstHalf.reduce((sum, d) => sum + d.commandsRun, 0) / firstHalf.length;
   const secondHalfAvg = secondHalf.reduce((sum, d) => sum + d.commandsRun, 0) / secondHalf.length;
 
-  if (secondHalfAvg > firstHalfAvg * 1.1) return 10; // Growing (>10% increase)
-  if (secondHalfAvg < firstHalfAvg * 0.9) return 0; // Declining (>10% decrease)
+  if (secondHalfAvg > firstHalfAvg * 1.1) {return 10;} // Growing (>10% increase)
+  if (secondHalfAvg < firstHalfAvg * 0.9) {return 0;} // Declining (>10% decrease)
   return 5; // Stable
 }
 
 function calculateSessionDurationScore(sessions: SessionRecord[]): number {
   // Max 10 points based on average session duration
-  if (sessions.length === 0) return 0;
+  if (sessions.length === 0) {return 0;}
 
   const avgMinutes = sessions.reduce((sum, s) => sum + s.activeMinutes, 0) / sessions.length;
 
@@ -277,7 +277,7 @@ function calculateAdvancedFeatureScore(featureUsage: FeatureUsageRecord[]): numb
 
 function calculateVersionCurrencyScore(currentVersion: string, latestVersion: string): number {
   // 20 points for running latest version, scaled down for older versions
-  if (!currentVersion || !latestVersion) return 10;
+  if (!currentVersion || !latestVersion) {return 10;}
 
   // Simple version comparison (assumes semantic versioning)
   const current = parseVersion(currentVersion);
@@ -303,7 +303,7 @@ interface VersionParts {
 
 function parseVersion(version: string): VersionParts {
   const match = version.match(/(\d+)\.(\d+)\.(\d+)/);
-  if (!match) return { major: 0, minor: 0, patch: 0 };
+  if (!match) {return { major: 0, minor: 0, patch: 0 };}
   return {
     major: parseInt(match[1], 10),
     minor: parseInt(match[2], 10),
@@ -338,7 +338,7 @@ function calculateAdoptionScore(data: HealthDataInput): AdoptionScore {
 
 function calculateErrorRateScore(commandEvents: CommandEventRecord[]): number {
   // Lower error rate = higher score
-  if (commandEvents.length === 0) return 50; // Default to neutral
+  if (commandEvents.length === 0) {return 50;} // Default to neutral
 
   const failedCommands = commandEvents.filter(e => !e.success).length;
   const errorRate = failedCommands / commandEvents.length;
@@ -357,13 +357,13 @@ function calculateTimeSavedScore(usageDaily: UsageDailyRecord[], industryAvgMs: 
   // If saving less = proportionally less
   const ratio = avgDailyTimeSaved / industryAvgMs;
 
-  if (ratio >= 1) return 30;
+  if (ratio >= 1) {return 30;}
   return Math.round(ratio * 30);
 }
 
 function calculateAchievementProgressScore(total: number, unlocked: number): number {
   // Max 30 points based on achievement completion
-  if (total === 0) return 15; // Default if no achievements defined
+  if (total === 0) {return 15;} // Default if no achievements defined
 
   const completionRate = unlocked / total;
   return Math.round(completionRate * 30);
@@ -403,9 +403,9 @@ function calculateTicketVolumeScore(tickets: SupportTicket[]): number {
 
   // 0 tickets = 40 points, 1 ticket = 30, 2 = 20, 3+ = 10
   const count = recentTickets.length;
-  if (count === 0) return 40;
-  if (count === 1) return 30;
-  if (count === 2) return 20;
+  if (count === 0) {return 40;}
+  if (count === 1) {return 30;}
+  if (count === 2) {return 20;}
   return 10;
 }
 
@@ -415,7 +415,7 @@ function calculateResolutionSatisfactionScore(tickets: SupportTicket[]): number 
     .filter(t => t.status === 'resolved' || t.status === 'closed')
     .filter(t => t.satisfactionRating !== undefined);
 
-  if (resolvedWithRating.length === 0) return 30; // Default if no rated tickets
+  if (resolvedWithRating.length === 0) {return 30;} // Default if no rated tickets
 
   const avgRating =
     resolvedWithRating.reduce((sum, t) => sum + (t.satisfactionRating ?? 0), 0) /
@@ -427,7 +427,7 @@ function calculateResolutionSatisfactionScore(tickets: SupportTicket[]): number 
 
 function calculateNpsContribution(npsScore: number | undefined): number {
   // NPS is -100 to 100, scale to 0-30 points
-  if (npsScore === undefined) return 15; // Default to neutral
+  if (npsScore === undefined) {return 15;} // Default to neutral
 
   // -100 = 0 points, 0 = 15 points, 100 = 30 points
   return Math.round(((npsScore + 100) / 200) * 30);
@@ -492,9 +492,9 @@ export function calculateHealthScore(data: HealthDataInput): HealthScoreResult {
 
 function determineChurnRisk(score: number): ChurnRisk {
   // Primary assessment based on score
-  if (score >= 75) return 'low';
-  if (score >= 50) return 'medium';
-  if (score >= 25) return 'high';
+  if (score >= 75) {return 'low';}
+  if (score >= 50) {return 'medium';}
+  if (score >= 25) {return 'high';}
   return 'critical';
 }
 
@@ -513,18 +513,18 @@ export function calculateChurnRisk(score: HealthScoreResult, trends: HealthTrend
   let riskPoints = 0;
 
   // Score-based risk (0-40 points)
-  if (score.overallScore < 25) riskPoints += 40;
-  else if (score.overallScore < 50) riskPoints += 25;
-  else if (score.overallScore < 75) riskPoints += 10;
+  if (score.overallScore < 25) {riskPoints += 40;}
+  else if (score.overallScore < 50) {riskPoints += 25;}
+  else if (score.overallScore < 75) {riskPoints += 10;}
 
   // Trend-based risk (0-30 points)
-  if (trends.engagementTrend === 'declining') riskPoints += 20;
-  else if (trends.engagementTrend === 'stable') riskPoints += 5;
+  if (trends.engagementTrend === 'declining') {riskPoints += 20;}
+  else if (trends.engagementTrend === 'stable') {riskPoints += 5;}
 
   // Inactivity risk (0-20 points)
-  if (trends.daysSinceLastActivity > 14) riskPoints += 20;
-  else if (trends.daysSinceLastActivity > 7) riskPoints += 10;
-  else if (trends.daysSinceLastActivity > 3) riskPoints += 5;
+  if (trends.daysSinceLastActivity > 14) {riskPoints += 20;}
+  else if (trends.daysSinceLastActivity > 7) {riskPoints += 10;}
+  else if (trends.daysSinceLastActivity > 3) {riskPoints += 5;}
 
   // Velocity decline (0-10 points)
   if (trends.commandVelocity7d < trends.commandVelocity30d * 0.5) {
@@ -532,9 +532,9 @@ export function calculateChurnRisk(score: HealthScoreResult, trends: HealthTrend
   }
 
   // Convert points to risk level
-  if (riskPoints >= 60) return 'critical';
-  if (riskPoints >= 40) return 'high';
-  if (riskPoints >= 20) return 'medium';
+  if (riskPoints >= 60) {return 'critical';}
+  if (riskPoints >= 40) {return 'high';}
+  if (riskPoints >= 20) {return 'medium';}
   return 'low';
 }
 
@@ -752,9 +752,9 @@ export function predictChurnProbability(history: ChurnHistoryRecord[]): ChurnPre
   logit += weights.supportTickets * current.supportTickets;
 
   // Tier one-hot encoding
-  if (current.tier === 'free') logit += weights.tierFree;
-  else if (current.tier === 'team') logit += weights.tierTeam;
-  else logit += weights.tierEnterprise;
+  if (current.tier === 'free') {logit += weights.tierFree;}
+  else if (current.tier === 'team') {logit += weights.tierTeam;}
+  else {logit += weights.tierEnterprise;}
 
   // Apply sigmoid function to get probability
   const probability = 1 / (1 + Math.exp(-logit));
@@ -887,10 +887,10 @@ export function calculateHealthTrends(
  * @returns Status label
  */
 export function getHealthStatusLabel(score: number): string {
-  if (score >= 80) return 'Excellent';
-  if (score >= 60) return 'Good';
-  if (score >= 40) return 'Fair';
-  if (score >= 20) return 'Poor';
+  if (score >= 80) {return 'Excellent';}
+  if (score >= 60) {return 'Good';}
+  if (score >= 40) {return 'Fair';}
+  if (score >= 20) {return 'Poor';}
   return 'Critical';
 }
 
@@ -900,10 +900,10 @@ export function getHealthStatusLabel(score: number): string {
  * @returns Hex color code
  */
 export function getHealthScoreColor(score: number): string {
-  if (score >= 80) return '#10b981'; // Green
-  if (score >= 60) return '#22c55e'; // Light green
-  if (score >= 40) return '#f59e0b'; // Amber
-  if (score >= 20) return '#ef4444'; // Red
+  if (score >= 80) {return '#10b981';} // Green
+  if (score >= 60) {return '#22c55e';} // Light green
+  if (score >= 40) {return '#f59e0b';} // Amber
+  if (score >= 20) {return '#ef4444';} // Red
   return '#dc2626'; // Dark red
 }
 

@@ -1,4 +1,4 @@
-import { Component, Show, For, createMemo, Switch, Match } from 'solid-js';
+import { type Component, Show, For, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AlertTriangle, AlertCircle, Info, CheckCircle, TrendingDown, Shield } from 'lucide-solid';
@@ -19,9 +19,8 @@ interface RiskIndicatorProps {
   class?: string;
 }
 
-const riskConfig: Record<
-  RiskLevel,
-  {
+type RiskConfig = {
+  [K in RiskLevel]: {
     label: string;
     icon: typeof AlertTriangle;
     color: string;
@@ -30,8 +29,10 @@ const riskConfig: Record<
     gradient: string;
     glow: string;
     barColor: string;
-  }
-> = {
+  };
+};
+
+const riskConfig: RiskConfig = {
   critical: {
     label: 'Critical Risk',
     icon: AlertTriangle,

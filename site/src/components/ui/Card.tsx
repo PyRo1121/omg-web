@@ -43,7 +43,7 @@ export const Card: Component<CardProps> = props => {
       } ${props.onClick ? 'cursor-pointer' : ''} ${props.class || ''}`}
       onClick={props.onClick}
       onKeyDown={e => {
-        if (props.onClick && (e.key === 'Enter' || e.key === ' ')) props.onClick();
+        if (props.onClick && (e.key === 'Enter' || e.key === ' ')) {props.onClick();}
       }}
       tabIndex={props.onClick ? 0 : undefined}
     >
@@ -147,7 +147,7 @@ export const MetricCard: Component<MetricCardProps> = props => {
       }`}
       onClick={props.onClick}
       onKeyDown={e => {
-        if (props.onClick && (e.key === 'Enter' || e.key === ' ')) props.onClick();
+        if (props.onClick && (e.key === 'Enter' || e.key === ' ')) {props.onClick();}
       }}
       tabIndex={props.onClick ? 0 : undefined}
     >

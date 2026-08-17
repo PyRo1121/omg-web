@@ -1,4 +1,5 @@
-import { Component, Show, For, createSignal } from 'solid-js';
+import type { Component} from 'solid-js';
+import { Show, For, createSignal } from 'solid-js';
 import {
   useAdminAdvancedMetrics,
   useAdminCohorts,
@@ -210,7 +211,7 @@ export const InsightsTab: Component = () => {
                     <MessageSquare size={14} />
                   </button>
                 </div>
-                <EngagementMetrics data={metricsQuery.data!.engagement!} />
+                <EngagementMetrics data={metricsQuery.data!.engagement} />
               </div>
             </Show>
           </Show>
@@ -229,7 +230,7 @@ export const InsightsTab: Component = () => {
                   metricsQuery.data!.churn_risk_segments
                 }
               >
-                <ChurnRiskSegments data={metricsQuery.data!.churn_risk_segments!} />
+                <ChurnRiskSegments data={metricsQuery.data!.churn_risk_segments} />
               </Show>
               <Show
                 when={
@@ -237,31 +238,31 @@ export const InsightsTab: Component = () => {
                   metricsQuery.data!.expansion_opportunities
                 }
               >
-                <ExpansionOpportunities data={metricsQuery.data!.expansion_opportunities!} />
+                <ExpansionOpportunities data={metricsQuery.data!.expansion_opportunities} />
               </Show>
             </div>
           </Show>
 
           <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
             <Show when={metricsQuery.data!.time_to_value}>
-              <TimeToValueMetrics data={metricsQuery.data!.time_to_value!} />
+              <TimeToValueMetrics data={metricsQuery.data!.time_to_value} />
             </Show>
           </Show>
 
           <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
             <div class="grid gap-6 lg:grid-cols-2">
               <Show when={metricsQuery.data!.feature_adoption}>
-                <FeatureAdoptionChart data={metricsQuery.data!.feature_adoption!} />
+                <FeatureAdoptionChart data={metricsQuery.data!.feature_adoption} />
               </Show>
               <Show when={metricsQuery.data!.command_heatmap}>
-                <CommandHeatmap data={metricsQuery.data!.command_heatmap!} />
+                <CommandHeatmap data={metricsQuery.data!.command_heatmap} />
               </Show>
             </div>
           </Show>
 
           <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
             <Show when={metricsQuery.data!.runtime_adoption}>
-              <RuntimeAdoptionChart data={metricsQuery.data!.runtime_adoption!} />
+              <RuntimeAdoptionChart data={metricsQuery.data!.runtime_adoption} />
             </Show>
           </Show>
 

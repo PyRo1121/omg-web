@@ -94,7 +94,7 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props 
 
   const formatDuration = (ms: number | undefined | null) => {
     const val = ms ?? 0;
-    if (val < 1000) return `${Math.round(val)}ms`;
+    if (val < 1000) {return `${Math.round(val)}ms`;}
     return `${(val / 1000).toFixed(1)}s`;
   };
 
@@ -106,7 +106,7 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props 
   );
 
   const avgSwitchesPerUser = createMemo(() => {
-    if (totalUsers() === 0) return 0;
+    if (totalUsers() === 0) {return 0;}
     return totalSwitches() / totalUsers();
   });
 

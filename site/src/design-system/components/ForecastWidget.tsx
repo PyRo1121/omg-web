@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal, createMemo } from 'solid-js';
+import { type Component, For, Show, createSignal, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { TrendingUp, TrendingDown, Minus, LineChart, Info, ChevronDown } from 'lucide-solid';
@@ -50,15 +50,16 @@ export interface ForecastWidgetProps {
   class?: string;
 }
 
-const SCENARIO_CONFIG: Record<
-  ForecastScenario,
-  {
+type ScenarioConfig = {
+  [K in ForecastScenario]: {
     label: string;
     color: string;
     bgColor: string;
     description: string;
-  }
-> = {
+  };
+};
+
+const SCENARIO_CONFIG: ScenarioConfig = {
   conservative: {
     label: 'Conservative',
     color: 'var(--color-plasma-500)',
@@ -187,7 +188,7 @@ const ForecastChart: Component<{
   });
 
   const confidenceAreaPath = createMemo(() => {
-    if (!props.showConfidenceBands) return '';
+    if (!props.showConfidenceBands) {return '';}
 
     const startIndex = props.historical.length - 1;
     const lastHistorical = props.historical[startIndex];
@@ -443,7 +444,7 @@ export const ForecastWidget: Component<ForecastWidgetProps> = props => {
   const projectedChange = createMemo(() => {
     const start = lastHistorical().value;
     const end = lastProjection().point.value;
-    if (start === 0) return end > 0 ? 100 : 0;
+    if (start === 0) {return end > 0 ? 100 : 0;}
     return ((end - start) / start) * 100;
   });
 

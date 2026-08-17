@@ -1,4 +1,4 @@
-import { Component, For, Show, createMemo, createSignal } from 'solid-js';
+import { type Component, For, Show, createMemo, createSignal } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -57,10 +57,16 @@ interface CRMTag {
   color: string;
 }
 
-const noteTypeConfig: Record<
-  NoteType,
-  { icon: typeof MessageSquare; color: string; bg: string; label: string }
-> = {
+type NoteTypeConfig = {
+  [K in NoteType]: {
+    icon: typeof MessageSquare;
+    color: string;
+    bg: string;
+    label: string;
+  };
+};
+
+const noteTypeConfig: NoteTypeConfig = {
   general: { icon: MessageSquare, color: 'text-nebula-400', bg: 'bg-nebula-500/10', label: 'Note' },
   call: { icon: Phone, color: 'text-plasma-400', bg: 'bg-plasma-500/10', label: 'Call' },
   email: { icon: Mail, color: 'text-indigo-400', bg: 'bg-indigo-500/10', label: 'Email' },
@@ -75,10 +81,16 @@ const noteTypeConfig: Record<
   },
 };
 
-const taskTypeConfig: Record<
-  TaskType,
-  { icon: typeof Clock; color: string; bg: string; label: string }
-> = {
+type TaskTypeConfig = {
+  [K in TaskType]: {
+    icon: typeof Clock;
+    color: string;
+    bg: string;
+    label: string;
+  };
+};
+
+const taskTypeConfig: TaskTypeConfig = {
   followup: { icon: Phone, color: 'text-plasma-400', bg: 'bg-plasma-500/10', label: 'Follow-up' },
   onboarding: { icon: User, color: 'text-photon-400', bg: 'bg-photon-500/10', label: 'Onboarding' },
   renewal: { icon: Calendar, color: 'text-solar-400', bg: 'bg-solar-500/10', label: 'Renewal' },
@@ -86,10 +98,15 @@ const taskTypeConfig: Record<
   support: { icon: HelpCircle, color: 'text-flare-400', bg: 'bg-flare-500/10', label: 'Support' },
 };
 
-const commTypeConfig: Record<
-  CommunicationType,
-  { icon: typeof Mail; color: string; label: string }
-> = {
+type CommTypeConfig = {
+  [K in CommunicationType]: {
+    icon: typeof Mail;
+    color: string;
+    label: string;
+  };
+};
+
+const commTypeConfig: CommTypeConfig = {
   email: { icon: Mail, color: 'text-indigo-400', label: 'Email' },
   chat: { icon: MessageSquare, color: 'text-electric-400', label: 'Chat' },
   phone: { icon: Phone, color: 'text-aurora-400', label: 'Phone' },
@@ -186,7 +203,11 @@ export const NotesList: Component<NotesListProps> = props => {
                 const IconComponent = config.icon;
                 return (
                   <button
-                    onClick={() => setNewNoteType(type as NoteType)}
+                    type="button"
+                    onClick={() =>
+                      // SAFETY: The entry key comes from noteTypeConfig's own NoteType keys.
+                      setNewNoteType(type as NoteType)
+                    }
                     class={cn(
                       'rounded-lg p-2 transition-colors',
                       newNoteType() === type
@@ -549,17 +570,23 @@ interface CustomerCardProps {
 }
 
 export const CustomerCard: Component<CustomerCardProps> = props => {
-  const tierColors: Record<string, string> = {
+  const tierColors = {
     enterprise: 'text-solar-400 bg-solar-500/10 border-solar-500/25',
     team: 'text-electric-400 bg-electric-500/10 border-electric-500/25',
     pro: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/25',
     free: 'text-nebula-400 bg-nebula-500/10 border-nebula-500/25',
-  };
+  } as const;
+
+  type TierKey = keyof typeof tierColors;
+
+  const getTierColor = (tier: string) =>
+    // SAFETY: The `in` guard confirms the tier is a configured key.
+    tier in tierColors ? tierColors[tier as TierKey] : tierColors.free;
 
   const healthColor = () => {
-    if (props.healthScore >= 80) return 'text-aurora-400';
-    if (props.healthScore >= 60) return 'text-electric-400';
-    if (props.healthScore >= 40) return 'text-solar-400';
+    if (props.healthScore >= 80) {return 'text-aurora-400';}
+    if (props.healthScore >= 60) {return 'text-electric-400';}
+    if (props.healthScore >= 40) {return 'text-solar-400';}
     return 'text-flare-400';
   };
 
@@ -593,7 +620,7 @@ export const CustomerCard: Component<CustomerCardProps> = props => {
         <span
           class={cn(
             'text-2xs rounded-full border px-2 py-0.5 font-black uppercase',
-            tierColors[props.tier.toLowerCase()] || tierColors.free
+            getTierColor(props.tier.toLowerCase())
           )}
         >
           {props.tier}

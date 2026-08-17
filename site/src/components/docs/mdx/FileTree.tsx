@@ -1,4 +1,4 @@
-import { For, Show, createSignal, ParentProps } from 'solid-js';
+import { For, Show, createSignal } from 'solid-js';
 import { ChevronRight, ChevronDown, Folder, File } from 'lucide-solid';
 
 interface FileTreeItem {

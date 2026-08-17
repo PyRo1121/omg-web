@@ -287,7 +287,7 @@ const ReportPreview: Component<{
   );
 
   const chartData = createMemo(() => {
-    if (!props.data) return [];
+    if (!props.data) {return [];}
     const metrics = selectedMetrics();
     return metrics.map(metric => ({
       label: metric.name,
@@ -297,8 +297,8 @@ const ReportPreview: Component<{
   });
 
   const formatValue = (value: number, format: 'number' | 'currency' | 'percent') => {
-    if (format === 'currency') return `$${value.toLocaleString()}`;
-    if (format === 'percent') return `${value.toFixed(1)}%`;
+    if (format === 'currency') {return `$${value.toLocaleString()}`;}
+    if (format === 'percent') {return `${value.toFixed(1)}%`;}
     return value.toLocaleString();
   };
 
@@ -431,10 +431,10 @@ function isReportObject(value: ReportDataValue | undefined): value is ReportData
 }
 
 function getNestedValue(obj: ReportData | undefined, path: string): ReportDataValue | undefined {
-  if (!obj) return undefined;
+  if (!obj) {return undefined;}
   let current: ReportDataValue | undefined = obj;
   for (const key of path.split('.')) {
-    if (!isReportObject(current)) return undefined;
+    if (!isReportObject(current)) {return undefined;}
     current = current[key];
   }
   return current;

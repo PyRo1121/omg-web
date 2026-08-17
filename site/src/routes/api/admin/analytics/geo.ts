@@ -1,12 +1,12 @@
 import type { APIEvent } from '@solidjs/start/server';
-import { sql, gte, desc, eq } from 'drizzle-orm';
+import { sql, gte, desc } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
 
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db } = adminCheck;
 

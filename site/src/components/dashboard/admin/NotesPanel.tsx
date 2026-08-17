@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal } from 'solid-js';
+import { type Component, For, Show, createSignal } from 'solid-js';
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { Plus, Edit, Trash2, Star, Mail, Zap, User, CheckCircle, FileText } from '../../ui/Icons';
 import { apiRequest, formatRelativeTime } from '../../../lib/api';
@@ -21,7 +21,7 @@ interface NotesPanelProps {
   onRefresh?: () => void;
 }
 
-const NOTE_TYPE_ICONS: Record<string, typeof FileText> = {
+const NOTE_TYPE_ICONS = {
   general: FileText,
   call: Zap,
   email: Mail,
@@ -29,9 +29,15 @@ const NOTE_TYPE_ICONS: Record<string, typeof FileText> = {
   support: CheckCircle,
   sales: Star,
   success: CheckCircle,
-};
+} as const;
 
-const NOTE_TYPE_COLORS: Record<string, string> = {
+type NoteTypeKey = keyof typeof NOTE_TYPE_ICONS;
+
+const getNoteTypeIcon = (noteType: string) =>
+  // SAFETY: The `in` guard confirms the note type is a configured key.
+  noteType in NOTE_TYPE_ICONS ? NOTE_TYPE_ICONS[noteType as NoteTypeKey] : FileText;
+
+const NOTE_TYPE_COLORS = {
   general: 'text-slate-400 bg-slate-500/10',
   call: 'text-emerald-400 bg-emerald-500/10',
   email: 'text-indigo-400 bg-indigo-500/10',
@@ -39,7 +45,13 @@ const NOTE_TYPE_COLORS: Record<string, string> = {
   support: 'text-amber-400 bg-amber-500/10',
   sales: 'text-pink-400 bg-pink-500/10',
   success: 'text-cyan-400 bg-cyan-500/10',
-};
+} as const;
+
+const getNoteTypeColor = (noteType: string) =>
+  // SAFETY: The `in` guard confirms the note type is a configured key.
+  noteType in NOTE_TYPE_COLORS
+    ? NOTE_TYPE_COLORS[noteType as NoteTypeKey]
+    : NOTE_TYPE_COLORS.general;
 
 export const NotesPanel: Component<NotesPanelProps> = props => {
   const queryClient = useQueryClient();
@@ -109,7 +121,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
   }));
 
   const handleSubmit = () => {
-    if (!newNoteContent().trim()) return;
+    if (!newNoteContent().trim()) {return;}
     createNoteMutation.mutate({
       content: newNoteContent(),
       note_type: newNoteType(),
@@ -117,14 +129,14 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
   };
 
   const handleUpdate = (noteId: string) => {
-    if (!editContent().trim()) return;
+    if (!editContent().trim()) {return;}
     updateNoteMutation.mutate({ noteId, content: editContent() });
   };
 
   const sortedNotes = () => {
     return [...props.notes].sort((a, b) => {
-      if (a.is_pinned && !b.is_pinned) return -1;
-      if (!a.is_pinned && b.is_pinned) return 1;
+      if (a.is_pinned && !b.is_pinned) {return -1;}
+      if (!a.is_pinned && b.is_pinned) {return 1;}
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   };
@@ -134,6 +146,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
       <div class="flex items-center justify-between">
         <h4 class="text-sm font-bold text-white">Notes & Activity</h4>
         <button
+          type="button"
           onClick={() => setIsAdding(!isAdding())}
           class="flex items-center gap-1.5 rounded-xl bg-indigo-500/10 px-3 py-1.5 text-xs font-bold text-indigo-400 transition-all hover:bg-indigo-500/20"
         >
@@ -147,7 +160,10 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
           <div class="flex items-center gap-2">
             <select
               value={newNoteType()}
-              onChange={e => setNewNoteType(e.currentTarget.value as Note['note_type'])}
+              onChange={e =>
+                // SAFETY: The select only offers the Note note_type option values.
+                setNewNoteType(e.currentTarget.value as Note['note_type'])
+              }
               class="appearance-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
             >
               <option value="general">General</option>
@@ -168,12 +184,14 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
           />
           <div class="flex items-center justify-end gap-2">
             <button
+              type="button"
               onClick={() => setIsAdding(false)}
               class="px-4 py-2 text-sm font-bold text-slate-400 transition-colors hover:text-white"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={!newNoteContent().trim() || createNoteMutation.isPending}
               class="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
@@ -187,8 +205,8 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
       <div class="space-y-3">
         <For each={sortedNotes()}>
           {note => {
-            const Icon = NOTE_TYPE_ICONS[note.note_type] || FileText;
-            const colorClass = NOTE_TYPE_COLORS[note.note_type] || NOTE_TYPE_COLORS.general;
+            const Icon = getNoteTypeIcon(note.note_type);
+            const colorClass = getNoteTypeColor(note.note_type);
             const isEditing = editingNote() === note.id;
 
             return (
@@ -217,6 +235,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
                       </div>
                       <div class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                         <button
+                          type="button"
                           onClick={() =>
                             togglePinMutation.mutate({ noteId: note.id, isPinned: note.is_pinned })
                           }
@@ -230,6 +249,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
                           <Star size={12} class={note.is_pinned ? 'fill-current' : ''} />
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
                             setEditingNote(note.id);
                             setEditContent(note.content);
@@ -239,6 +259,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
                           <Edit size={12} />
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
                             if (confirm('Delete this note?')) {
                               deleteNoteMutation.mutate(note.id);
@@ -268,12 +289,14 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
                         />
                         <div class="flex items-center justify-end gap-2">
                           <button
+                            type="button"
                             onClick={() => setEditingNote(null)}
                             class="px-3 py-1.5 text-xs font-bold text-slate-400 transition-colors hover:text-white"
                           >
                             Cancel
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleUpdate(note.id)}
                             disabled={updateNoteMutation.isPending}
                             class="rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-600 disabled:opacity-50"

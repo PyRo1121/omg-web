@@ -20,10 +20,10 @@ interface HealthScoreProps {
 }
 
 const getHealthLevel = (score: number): HealthLevel => {
-  if (score <= 20) return 'critical';
-  if (score <= 40) return 'poor';
-  if (score <= 60) return 'fair';
-  if (score <= 80) return 'good';
+  if (score <= 20) {return 'critical';}
+  if (score <= 40) {return 'poor';}
+  if (score <= 60) {return 'fair';}
+  if (score <= 80) {return 'good';}
   return 'excellent';
 };
 

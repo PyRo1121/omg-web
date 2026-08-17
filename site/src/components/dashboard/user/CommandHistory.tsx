@@ -52,10 +52,10 @@ interface Filters {
 async function fetchCommandHistory(filters: Filters): Promise<CommandHistoryResponse> {
   const params = new URLSearchParams();
   params.set('limit', '50');
-  if (filters.command) params.set('command', filters.command);
-  if (filters.startDate) params.set('startDate', filters.startDate);
-  if (filters.endDate) params.set('endDate', filters.endDate);
-  if (filters.success) params.set('success', filters.success);
+  if (filters.command) {params.set('command', filters.command);}
+  if (filters.startDate) {params.set('startDate', filters.startDate);}
+  if (filters.endDate) {params.set('endDate', filters.endDate);}
+  if (filters.success) {params.set('success', filters.success);}
 
   const response = await fetch(`/api/dashboard/commands?${params}`, {
     credentials: 'include',
@@ -102,9 +102,9 @@ const getCommandColor = (command: string) => {
 };
 
 const formatDuration = (ms: number | null): string => {
-  if (ms === null) return '-';
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms === null) {return '-';}
+  if (ms < 1000) {return `${ms}ms`;}
+  if (ms < 60000) {return `${(ms / 1000).toFixed(1)}s`;}
   return `${(ms / 60000).toFixed(1)}m`;
 };
 
@@ -116,10 +116,10 @@ const formatRelativeTime = (dateStr: string): string => {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 1) {return 'Just now';}
+  if (diffMins < 60) {return `${diffMins}m ago`;}
+  if (diffHours < 24) {return `${diffHours}h ago`;}
+  if (diffDays < 7) {return `${diffDays}d ago`;}
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 

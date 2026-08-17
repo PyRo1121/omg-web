@@ -1,4 +1,4 @@
-import { type Component, createSignal, Show } from 'solid-js';
+import { type Component, createSignal, Show, For } from 'solid-js';
 import { Copy, Check } from 'lucide-solid';
 
 export interface CopyButtonProps {
@@ -21,7 +21,7 @@ const CopyButton: Component<CopyButtonProps> = props => {
   let rippleId = 0;
 
   const handleCopy = async (e: MouseEvent) => {
-    if (!(e.currentTarget instanceof HTMLButtonElement)) return;
+    if (!(e.currentTarget instanceof HTMLButtonElement)) {return;}
     const button = e.currentTarget;
     const rect = button.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -92,7 +92,7 @@ const CopyButton: Component<CopyButtonProps> = props => {
       aria-label={copied() ? 'Copied to clipboard' : `Copy ${props.label || 'to clipboard'}`}
       title={copied() ? 'Copied!' : 'Copy to clipboard'}
     >
-      {ripples().map(ripple => (
+      <For each={ripples()}>{ripple => (
         <span
           class="animate-ripple pointer-events-none absolute rounded-full bg-white/20"
           style={{
@@ -103,7 +103,7 @@ const CopyButton: Component<CopyButtonProps> = props => {
             transform: 'translate(-50%, -50%)',
           }}
         />
-      ))}
+      )}</For>
 
       <span class="relative flex items-center justify-center">
         <span

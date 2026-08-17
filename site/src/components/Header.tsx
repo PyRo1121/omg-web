@@ -1,4 +1,4 @@
-import { Component, createSignal, onMount, onCleanup, Show } from 'solid-js';
+import { type Component, createSignal, onMount, onCleanup, Show } from 'solid-js';
 import { A, useNavigate } from '@solidjs/router';
 import { useSession } from '~/lib/auth-client';
 
@@ -13,7 +13,7 @@ const Header: Component = () => {
   onMount(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {return;}
 
       if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -28,6 +28,7 @@ const Header: Component = () => {
     };
 
     const handleClickOutside = (e: MouseEvent) => {
+      // SAFETY: The click target is always an Element when it reaches this handler.
       if (userMenuOpen() && !(e.target as Element).closest('.user-menu-container')) {
         setUserMenuOpen(false);
       }

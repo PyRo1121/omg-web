@@ -7,6 +7,20 @@ import {
   logAudit,
 } from '../api';
 
+/**
+ * Parse a stored JSON string, returning `fallback` when the value is empty or malformed.
+ * Persisted fields must never crash a read path on corrupt data.
+ */
+function parseJsonField<T>(value: string | null | undefined, fallback: T): T {
+  if (value === null || value === undefined || value.length === 0) return fallback;
+  try {
+    // SAFETY: JSON.parse returns unknown; T expresses the stored shape the caller knows.
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 interface NotificationSetting {
   type: string;
   enabled: boolean;
@@ -219,7 +233,7 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
         enabled: !!existing.enabled,
         threshold: existing.threshold ?? def.threshold,
         // SAFETY: Persisted notification channels are stored as JSON text.
-        channels: existing.channels ? JSON.parse(existing.channels as string) : def.channels,
+        channels: parseJsonField(existing.channels, def.channels),
       };
     }
     return def;
@@ -349,7 +363,12 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
     return errorResponse('Audit logs require Team or Enterprise tier', 403);
   }
 
-  const url = new URL(request.url);
+  let url: URL;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return errorResponse('Invalid request URL', 400);
+  }
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
   const offset = parseInt(url.searchParams.get('offset') || '0');
   const action = url.searchParams.get('action');
@@ -382,9 +401,10 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
     .first();
 
   return jsonResponse({
+    // SAFETY: Audit metadata is stored as JSON text; malformed rows fall back to null.
     logs: (logs.results || []).map((log: any) => ({
       ...log,
-      metadata: log.metadata ? JSON.parse(log.metadata) : null,
+      metadata: log.metadata ? parseJsonField(log.metadata, null) : null,
     })),
     total: countResult?.total || 0,
     limit,

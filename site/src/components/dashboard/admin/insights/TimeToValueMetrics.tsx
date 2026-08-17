@@ -1,4 +1,5 @@
-import { Component, createSignal, createMemo, onMount, Show } from 'solid-js';
+import type { Component} from 'solid-js';
+import { createSignal, createMemo, onMount, Show } from 'solid-js';
 import { Rocket, Clock, Award, TrendingUp, Target, Zap, CheckCircle } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -136,9 +137,9 @@ export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = props => {
   const activationHealth = createMemo(() => {
     const days = activationDays();
     if (days <= 1)
-      return { status: 'excellent', color: 'var(--color-aurora-400)', label: 'Excellent' };
-    if (days <= 3) return { status: 'good', color: 'var(--color-electric-400)', label: 'Good' };
-    if (days <= 7) return { status: 'fair', color: 'var(--color-solar-400)', label: 'Fair' };
+      {return { status: 'excellent', color: 'var(--color-aurora-400)', label: 'Excellent' };}
+    if (days <= 3) {return { status: 'good', color: 'var(--color-electric-400)', label: 'Good' };}
+    if (days <= 7) {return { status: 'fair', color: 'var(--color-solar-400)', label: 'Fair' };}
     return { status: 'slow', color: 'var(--color-flare-400)', label: 'Needs Work' };
   });
 

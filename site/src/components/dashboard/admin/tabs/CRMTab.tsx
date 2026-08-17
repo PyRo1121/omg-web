@@ -23,11 +23,11 @@ export const CRMTab: Component<CRMTabProps> = props => {
   const [search, setSearch] = createSignal('');
 
   const isMobile = () => {
-    if (!('window' in globalThis)) return false;
+    if (!('window' in globalThis)) {return false;}
     return globalThis.window.innerWidth < 768;
   };
   const effectiveViewMode = () => {
-    if (isMobile()) return 'cards';
+    if (isMobile()) {return 'cards';}
     return viewMode();
   };
 
@@ -138,7 +138,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
                     <th class="px-6 py-4">Machines</th>
                     <th class="px-6 py-4">Commands</th>
                     <th class="px-6 py-4">Joined</th>
-                    <th class="px-6 py-4"></th>
+                    <th class="px-6 py-4" />
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-white/5">

@@ -18,21 +18,21 @@
     "test:ui": "vitest --ui"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.21.3",
-    "@cloudflare/workers-types": "^4.20250117.0",
-    "@typescript-eslint/eslint-plugin": "^8.67.0",
-    "@typescript-eslint/parser": "^8.67.0",
-    "eslint": "^10.8.1",
-    "prettier": "^3.4.0",
-    "typescript": "^5.7.3",
-    "vitest": "^4.0.0",
-    "wrangler": "^4.123.0"
+    "@cloudflare/vitest-pool-workers": "0.21.3",
+    "@cloudflare/workers-types": "4.20260702.1",
+    "@typescript-eslint/eslint-plugin": "8.67.0",
+    "@typescript-eslint/parser": "8.67.0",
+    "eslint": "10.8.1",
+    "prettier": "3.8.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10",
+    "wrangler": "4.123.0"
   },
   "dependencies": {
-    "@effect/schema": "^0.75.5",
-    "@sentry/cloudflare": "^10.36.0",
-    "@sentry/solid": "^10.36.0",
-    "effect": "^3.22.1"
+    "@effect/schema": "0.75.5",
+    "@sentry/cloudflare": "10.36.0",
+    "@sentry/solid": "10.36.0",
+    "effect": "3.22.1"
   },
   "type": "module"
 }

@@ -1,4 +1,4 @@
-import { Component, onMount, onCleanup } from 'solid-js';
+import { type Component, onMount, onCleanup } from 'solid-js';
 import {
   Scene,
   PerspectiveCamera,
@@ -13,7 +13,7 @@ const BackgroundMesh: Component = () => {
   let containerRef: HTMLDivElement | undefined;
 
   onMount(() => {
-    if (!containerRef) return;
+    if (!containerRef) {return;}
 
     const scene = new Scene();
     const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -45,6 +45,7 @@ const BackgroundMesh: Component = () => {
       const elapsedTime = clock.getElapsedTime();
 
       // Animate vertices
+      // SAFETY: Three.js BufferAttribute position arrays are always Float32Array.
       const positions = geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < positions.length; i += 3) {
         const x = positions[i];
@@ -86,7 +87,11 @@ const BackgroundMesh: Component = () => {
   });
 
   return (
-    <div ref={containerRef} class="pointer-events-none fixed inset-0 z-[-1]" aria-hidden="true" />
+    <div
+      ref={el => (containerRef = el)}
+      class="pointer-events-none fixed inset-0 z-[-1]"
+      aria-hidden="true"
+    />
   );
 };
 

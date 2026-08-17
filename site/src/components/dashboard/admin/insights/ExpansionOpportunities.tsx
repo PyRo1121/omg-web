@@ -1,4 +1,4 @@
-import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
+import { type Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import {
   TrendingUp,
   ArrowUpCircle,
@@ -10,7 +10,6 @@ import {
   Target,
   Crown,
   Zap,
-  Star,
   Sparkles,
 } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
@@ -50,7 +49,9 @@ interface PriorityConfig {
   rank: number;
 }
 
-const PRIORITY_CONFIG: Record<PriorityLevel, PriorityConfig> = {
+type PriorityConfigMap = { [K in PriorityLevel]: PriorityConfig };
+
+const PRIORITY_CONFIG: PriorityConfigMap = {
   urgent: {
     color: 'var(--color-flare-400)',
     bgColor: 'rgba(239, 68, 68, 0.1)',
@@ -100,7 +101,9 @@ interface OpportunityConfig {
   gradient: string;
 }
 
-const OPPORTUNITY_TYPE_CONFIG: Record<OpportunityType, OpportunityConfig> = {
+type OpportunityTypeConfigMap = { [K in OpportunityType]: OpportunityConfig };
+
+const OPPORTUNITY_TYPE_CONFIG: OpportunityTypeConfigMap = {
   upsell_to_pro: {
     icon: Zap,
     label: 'Upgrade to Pro',
@@ -133,14 +136,15 @@ const OPPORTUNITY_TYPE_CONFIG: Record<OpportunityType, OpportunityConfig> = {
 
 function getPriorityLevel(priority: string): PriorityLevel {
   const lower = priority.toLowerCase();
-  if (lower === 'urgent') return 'urgent';
-  if (lower === 'high') return 'high';
-  if (lower === 'medium') return 'medium';
+  if (lower === 'urgent') {return 'urgent';}
+  if (lower === 'high') {return 'high';}
+  if (lower === 'medium') {return 'medium';}
   return 'low';
 }
 
 function getOpportunityTypeConfig(type: string): OpportunityConfig {
   return (
+    // SAFETY: The fallback object handles unrecognized type strings.
     OPPORTUNITY_TYPE_CONFIG[type as OpportunityType] || {
       icon: TrendingUp,
       label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),

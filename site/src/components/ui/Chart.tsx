@@ -1,4 +1,5 @@
-import { Component, For, Show, createSignal } from 'solid-js';
+import type { Component} from 'solid-js';
+import { For, Show, createSignal } from 'solid-js';
 
 interface BarChartProps {
   data: Array<{ label: string; value: number; secondaryValue?: number; color?: string }>;
@@ -121,11 +122,11 @@ export const ActivityHeatmap: Component<HeatmapProps> = props => {
   };
 
   const getColor = (value: number) => {
-    if (value === 0) return 'bg-slate-800/50';
+    if (value === 0) {return 'bg-slate-800/50';}
     const intensity = value / max();
-    if (intensity < 0.25) return 'bg-indigo-900/50';
-    if (intensity < 0.5) return 'bg-indigo-700/60';
-    if (intensity < 0.75) return 'bg-indigo-500/70';
+    if (intensity < 0.25) {return 'bg-indigo-900/50';}
+    if (intensity < 0.5) {return 'bg-indigo-700/60';}
+    if (intensity < 0.75) {return 'bg-indigo-500/70';}
     return 'bg-indigo-400';
   };
 
@@ -293,13 +294,13 @@ export const AreaChart: Component<AreaChartProps> = props => {
 
   const linePath = () => {
     const pts = points();
-    if (pts.length === 0) return '';
+    if (pts.length === 0) {return '';}
     return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ');
   };
 
   const areaPath = () => {
     const pts = points();
-    if (pts.length === 0) return '';
+    if (pts.length === 0) {return '';}
     let path = `M ${padding.left},${padding.top + chartHeight}`;
     pts.forEach(p => {
       path += ` L ${p.x},${p.y}`;

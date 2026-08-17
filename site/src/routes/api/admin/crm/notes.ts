@@ -22,7 +22,7 @@ function parseNoteType(value: string | undefined): NoteType | undefined {
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db } = adminCheck;
 
@@ -136,7 +136,7 @@ export async function GET(event: APIEvent) {
 export async function POST(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db, userId: adminId } = adminCheck;
 
@@ -251,7 +251,7 @@ export async function POST(event: APIEvent) {
 export async function PUT(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db } = adminCheck;
 
@@ -333,7 +333,7 @@ export async function PUT(event: APIEvent) {
 export async function DELETE(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db } = adminCheck;
 

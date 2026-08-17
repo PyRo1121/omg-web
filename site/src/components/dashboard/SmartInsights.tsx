@@ -1,4 +1,5 @@
-import { Component, createResource, Show, createSignal } from 'solid-js';
+import type { Component} from 'solid-js';
+import { createResource, Show, createSignal } from 'solid-js';
 import * as api from '../../lib/api';
 import { Lightbulb, Sparkles, RefreshCw, Zap, Shield, Users, Target } from '../ui/Icons';
 
@@ -15,17 +16,17 @@ export const SmartInsights: Component<SmartInsightsProps> = props => {
   const getInsightCategory = (text: string): InsightCategory => {
     const lower = text.toLowerCase();
     if (lower.includes('time') || lower.includes('speed') || lower.includes('efficient'))
-      return 'efficiency';
+      {return 'efficiency';}
     if (
       lower.includes('security') ||
       lower.includes('vulnerability') ||
       lower.includes('compliance')
     )
-      return 'security';
+      {return 'security';}
     if (lower.includes('team') || lower.includes('fleet') || lower.includes('member'))
-      return 'collaboration';
+      {return 'collaboration';}
     if (lower.includes('optimize') || lower.includes('improve') || lower.includes('reduce'))
-      return 'optimization';
+      {return 'optimization';}
     return 'health';
   };
 

@@ -1,4 +1,5 @@
-import { Component, JSX, Show, splitProps, ParentComponent } from 'solid-js';
+import type { Component, JSX, ParentComponent } from 'solid-js';
+import { Show, splitProps } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-solid';

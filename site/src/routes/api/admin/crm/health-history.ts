@@ -6,7 +6,7 @@ import { requireAdmin } from '~/lib/admin';
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) return adminCheck;
+    if (adminCheck instanceof Response) {return adminCheck;}
 
     const { db } = adminCheck;
 
@@ -89,16 +89,16 @@ export async function GET(event: APIEvent) {
         const olderAvg =
           olderScores.reduce((sum, h) => sum + h.overallScore, 0) / olderScores.length;
 
-        if (recentAvg > olderAvg + 5) overallTrend = 'improving';
-        else if (recentAvg < olderAvg - 5) overallTrend = 'declining';
+        if (recentAvg > olderAvg + 5) {overallTrend = 'improving';}
+        else if (recentAvg < olderAvg - 5) {overallTrend = 'declining';}
 
         const recentChurnAvg =
           recentScores.reduce((sum, h) => sum + h.churnProbability, 0) / recentScores.length;
         const olderChurnAvg =
           olderScores.reduce((sum, h) => sum + h.churnProbability, 0) / olderScores.length;
 
-        if (recentChurnAvg > olderChurnAvg + 5) churnTrend = 'increasing';
-        else if (recentChurnAvg < olderChurnAvg - 5) churnTrend = 'decreasing';
+        if (recentChurnAvg > olderChurnAvg + 5) {churnTrend = 'increasing';}
+        else if (recentChurnAvg < olderChurnAvg - 5) {churnTrend = 'decreasing';}
       }
     }
 

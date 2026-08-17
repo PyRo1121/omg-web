@@ -56,7 +56,7 @@ export const AuditLogTab: Component = () => {
     const allLogs = auditQuery.data?.logs || [];
     const query = searchQuery().toLowerCase().trim();
 
-    if (!query) return allLogs;
+    if (!query) {return allLogs;}
 
     // Filter by user email or IP address
     return allLogs.filter(

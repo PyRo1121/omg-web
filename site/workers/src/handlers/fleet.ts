@@ -20,10 +20,10 @@ const FleetPushRequestSchema = Struct({
 
 export async function handleFleetPush(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
-  if (!token) return errorResponse('Unauthorized', 401);
+  if (!token) {return errorResponse('Unauthorized', 401);}
 
   const auth = await validateSession(env.DB, token);
-  if (!auth) return errorResponse('Invalid session', 401);
+  if (!auth) {return errorResponse('Invalid session', 401);}
 
   // Fetch license
   const license = await env.DB.prepare(

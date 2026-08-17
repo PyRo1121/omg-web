@@ -1,4 +1,4 @@
-import { ParentProps, Show, createSignal, createEffect } from 'solid-js';
+import { type ParentProps, Show, createSignal, createEffect } from 'solid-js';
 import { A, useLocation } from '@solidjs/router';
 import { Menu, X, Search, ChevronLeft, ChevronRight } from 'lucide-solid';
 import { createShortcut } from '@solid-primitives/keyboard';
@@ -44,7 +44,6 @@ export function DocsLayout(props: DocsLayoutProps) {
     location.pathname;
     setMobileNavOpen(false);
   });
-
   return (
     <div class="min-h-screen bg-[#0a0a0a]">
       <Header />

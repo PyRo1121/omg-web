@@ -1,4 +1,4 @@
-import { Component, JSX, Show, createEffect, onCleanup } from 'solid-js';
+import { type Component, type JSX, Show, createEffect, onCleanup } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
 interface DialogProps {
@@ -15,10 +15,8 @@ interface DialogProps {
 }
 
 export const Dialog: Component<DialogProps> = props => {
-  let ref: HTMLDivElement | undefined;
-
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') props.onClose();
+    if (e.key === 'Escape') {props.onClose();}
   };
 
   createEffect(() => {
@@ -51,7 +49,6 @@ export const Dialog: Component<DialogProps> = props => {
           />
 
           <div
-            ref={ref}
             class="animate-in zoom-in-95 relative w-full max-w-lg transform overflow-hidden rounded-[2rem] border border-white/10 bg-[#0a0a0b] p-8 text-left shadow-2xl transition-all duration-200"
           >
             <div class="mb-6">

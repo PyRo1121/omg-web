@@ -9,7 +9,7 @@ const ThemeSwitcher: Component = () => {
   const [resolvedTheme, setResolvedTheme] = createSignal<'light' | 'dark'>('dark');
 
   const getSystemTheme = (): 'light' | 'dark' => {
-    if (!('window' in globalThis)) return 'dark';
+    if (!('window' in globalThis)) {return 'dark';}
     return globalThis.window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
 
@@ -29,8 +29,8 @@ const ThemeSwitcher: Component = () => {
   const cycleTheme = () => {
     const current = theme();
     let next: Theme = 'system';
-    if (current === 'system') next = 'light';
-    else if (current === 'light') next = 'dark';
+    if (current === 'system') {next = 'light';}
+    else if (current === 'light') {next = 'dark';}
     setTheme(next);
     localStorage.setItem(STORAGE_KEY, next);
   };
@@ -91,8 +91,8 @@ const ThemeSwitcher: Component = () => {
 
   const getIcon = () => {
     const currentTheme = theme();
-    if (currentTheme === 'light') return <SunIcon />;
-    if (currentTheme === 'dark') return <MoonIcon />;
+    if (currentTheme === 'light') {return <SunIcon />;}
+    if (currentTheme === 'dark') {return <MoonIcon />;}
     return <MonitorIcon />;
   };
 

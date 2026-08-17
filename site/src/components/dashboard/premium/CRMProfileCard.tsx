@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal, createMemo } from 'solid-js';
+import { type Component, For, Show, createSignal, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { CRMCustomer, CustomerTag } from './types';
@@ -17,7 +17,6 @@ import {
 } from 'lucide-solid';
 import { HealthScore, TierBadge } from '../../../design-system';
 import type { Tier } from '../../../design-system/components/TierBadge';
-import type { LifecycleStage } from '../../../design-system/components/LifecycleBadge';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -30,7 +29,11 @@ interface CRMProfileCardProps {
   compact?: boolean;
 }
 
-const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
+type StatusConfig = {
+  [K in CRMCustomer['status']]: { color: string; bg: string; label: string };
+};
+
+const STATUS_CONFIG: StatusConfig = {
   active: { color: 'text-aurora-400', bg: 'bg-aurora-500/10', label: 'Active' },
   suspended: { color: 'text-solar-400', bg: 'bg-solar-500/10', label: 'Suspended' },
   cancelled: { color: 'text-flare-400', bg: 'bg-flare-500/10', label: 'Cancelled' },
@@ -44,11 +47,11 @@ const formatRelativeTime = (date: string): string => {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  if (diffMins < 1) {return 'just now';}
+  if (diffMins < 60) {return `${diffMins}m ago`;}
+  if (diffHours < 24) {return `${diffHours}h ago`;}
+  if (diffDays < 7) {return `${diffDays}d ago`;}
+  if (diffDays < 30) {return `${Math.floor(diffDays / 7)}w ago`;}
   return `${Math.floor(diffDays / 30)}mo ago`;
 };
 
@@ -84,6 +87,7 @@ const QuickActionButton: Component<QuickActionButtonProps> = props => {
 
   return (
     <button
+      type="button"
       onClick={props.onClick}
       class={cn(
         'flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold transition-all duration-200',
@@ -110,7 +114,6 @@ const handleNote = (customerId: string, onQuickAction?: (action: string, id: str
 };
 
 export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
-  const [isHovered, setIsHovered] = createSignal(false);
   const [showActions, setShowActions] = createSignal(false);
 
   const statusConfig = createMemo(
@@ -120,12 +123,11 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
   const tierValue = createMemo(() => {
     const tier = props.customer.tier.toLowerCase();
     if (['free', 'pro', 'team', 'enterprise'].includes(tier)) {
+      // SAFETY: The includes() guard confirms the tier is one of the Tier literals.
       return tier as Tier;
     }
-    return 'free' as Tier;
+    return 'free';
   });
-
-  const _lifecycleStage = createMemo(() => props.customer.health.lifecycle_stage as LifecycleStage);
 
   const isAtRisk = createMemo(() =>
     ['at_risk', 'churning'].includes(props.customer.health.lifecycle_stage)
@@ -135,11 +137,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
 
   if (props.compact) {
     return (
-      <div
-        class="group relative flex items-center gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.04]"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+      <div class="group relative flex items-center gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.04]">
         <div class="to-photon-500/20 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 text-sm font-black text-white">
           {props.customer.email.charAt(0).toUpperCase()}
         </div>
@@ -160,10 +158,12 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
 
         <HealthScore score={props.customer.health.overall_score} size="sm" variant="ring" />
 
-        <Show when={isHovered()}>
+        <Show when={props.onViewDetail}>
           <button
+            type="button"
             onClick={() => props.onViewDetail?.(props.customer.id)}
-            class="text-nebula-400 rounded-lg bg-white/5 p-2 transition-all hover:bg-white/10 hover:text-white"
+            class="text-nebula-400 rounded-lg bg-white/5 p-2 opacity-0 transition-all group-hover:opacity-100 hover:bg-white/10 hover:text-white focus-visible:opacity-100"
+            aria-label="View customer detail"
           >
             <Eye size={16} />
           </button>
@@ -173,14 +173,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
   }
 
   return (
-    <div
-      class="group bg-void-850 shadow-card hover:shadow-card-hover relative overflow-hidden rounded-3xl border border-white/5 transition-all duration-300 hover:border-white/10"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        setShowActions(false);
-      }}
-    >
+    <div class="group bg-void-850 shadow-card hover:shadow-card-hover relative overflow-hidden rounded-3xl border border-white/5 transition-all duration-300 hover:border-white/10">
       <div class="pointer-events-none absolute -top-16 -right-16 h-32 w-32 rounded-full bg-indigo-500/5 opacity-0 blur-[60px] transition-opacity duration-500 group-hover:opacity-100" />
 
       <Show when={isAtRisk()}>
@@ -259,6 +252,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
             />
 
             <button
+              type="button"
               onClick={() => setShowActions(!showActions())}
               class="text-nebula-500 rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
             >
@@ -323,7 +317,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
           </div>
 
           <div class="flex items-center gap-1">
-            <Show when={isHovered() || showActions()}>
+            <div class="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100">
               <QuickActionButton
                 icon={Mail}
                 label="Email"
@@ -339,9 +333,10 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
                 label="Note"
                 onClick={() => handleNote(props.customer.id, props.onQuickAction)}
               />
-            </Show>
+            </div>
 
             <button
+              type="button"
               onClick={() => props.onViewDetail?.(props.customer.id)}
               class="flex items-center gap-1.5 rounded-lg bg-indigo-500/10 px-3 py-2 text-xs font-bold text-indigo-400 transition-all hover:bg-indigo-500/20"
             >
@@ -357,6 +352,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
         <div class="border-t border-white/5 bg-white/[0.02] p-4">
           <div class="grid grid-cols-3 gap-2">
             <button
+              type="button"
               onClick={() => props.onQuickAction?.('edit', props.customer.id)}
               class="text-nebula-400 flex items-center justify-center gap-2 rounded-xl bg-white/5 py-2 text-xs font-bold transition-all hover:bg-white/10 hover:text-white"
             >
@@ -364,6 +360,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
               Edit
             </button>
             <button
+              type="button"
               onClick={() => props.onQuickAction?.('upgrade', props.customer.id)}
               class="flex items-center justify-center gap-2 rounded-xl bg-indigo-500/10 py-2 text-xs font-bold text-indigo-400 transition-all hover:bg-indigo-500/20"
             >
@@ -371,6 +368,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
               Upgrade
             </button>
             <button
+              type="button"
               onClick={() => props.onQuickAction?.('suspend', props.customer.id)}
               class="bg-flare-500/10 text-flare-400 hover:bg-flare-500/20 flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition-all"
             >
@@ -391,14 +389,13 @@ interface CRMProfileCardTableRowProps {
 }
 
 export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = props => {
-  const [_isHovered, setIsHovered] = createSignal(false);
-
   const tierValue = createMemo(() => {
     const tier = props.customer.tier.toLowerCase();
     if (['free', 'pro', 'team', 'enterprise'].includes(tier)) {
+      // SAFETY: The includes() guard confirms the tier is one of the Tier literals.
       return tier as Tier;
     }
-    return 'free' as Tier;
+    return 'free';
   });
 
   const statusConfig = createMemo(
@@ -410,11 +407,7 @@ export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = pr
   );
 
   return (
-    <tr
-      class="group transition-colors hover:bg-white/[0.02]"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <tr class="group transition-colors hover:bg-white/[0.02]">
       <td class="px-4 py-3">
         <div class="flex items-center gap-3">
           <div
@@ -474,6 +467,7 @@ export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = pr
       <td class="px-4 py-3">
         <div class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           <button
+            type="button"
             onClick={() => handleEmail(props.customer.email)}
             class="text-nebula-500 rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
             title="Send Email"
@@ -481,6 +475,7 @@ export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = pr
             <Mail size={14} />
           </button>
           <button
+            type="button"
             onClick={() => props.onViewDetail?.(props.customer.id)}
             class="text-nebula-500 rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
             title="View Details"

@@ -1,4 +1,5 @@
-import { Component, mergeProps, createSignal, onMount, Show } from 'solid-js';
+import type { Component} from 'solid-js';
+import { mergeProps, createSignal, onMount, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import GlassCard from '../../ui/GlassCard';
 import { LiveIndicator } from '../../ui/Chart';

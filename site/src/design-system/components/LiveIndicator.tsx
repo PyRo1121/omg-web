@@ -1,4 +1,5 @@
-import { Component, createSignal, onCleanup, Show, For, splitProps } from 'solid-js';
+import type { Component} from 'solid-js';
+import { createSignal, onCleanup, Show, For, splitProps } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 

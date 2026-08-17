@@ -300,7 +300,7 @@ export async function handleUpdateProfile(request: Request, env: Env): Promise<R
   let body: { name?: string };
   try {
     // SAFETY: The request boundary is restricted to the documented profile field.
-    body = (await request.json()) as { name?: string };
+    body = (await request.json());
   } catch {
     return errorResponse('Invalid JSON body', 400);
   }
@@ -393,7 +393,7 @@ export async function handleRevokeMachine(request: Request, env: Env): Promise<R
   let body: { machine_id?: string };
   try {
     // SAFETY: The request boundary is restricted to the documented machine field.
-    body = (await request.json()) as { machine_id?: string };
+    body = (await request.json());
   } catch {
     return errorResponse('Invalid JSON body', 400);
   }
@@ -481,7 +481,7 @@ export async function handleRevokeSession(request: Request, env: Env): Promise<R
   let body: { session_id?: string };
   try {
     // SAFETY: The request boundary is restricted to the documented session field.
-    body = (await request.json()) as { session_id?: string };
+    body = (await request.json());
   } catch {
     return errorResponse('Invalid JSON body', 400);
   }
@@ -614,7 +614,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
 
     const membersWithUsage = (machines.results || []).map((m: any) => {
       // SAFETY: Machine ids are string keys selected by both usage queries.
-      const usage = (usageMap.get(m.machine_id as string) as any) || {};
+      const usage = (usageMap.get(m.machine_id as string)) || {};
       // SAFETY: Machine ids are string keys selected by the recent usage query.
       const recent = recentMap.get(m.machine_id as string) || 0;
       return {
@@ -707,7 +707,7 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
   let body: { machine_id?: string };
   try {
     // SAFETY: The request boundary is restricted to the documented machine field.
-    body = (await request.json()) as { machine_id?: string };
+    body = (await request.json());
   } catch {
     return errorResponse('Invalid JSON body', 400);
   }
@@ -790,9 +790,9 @@ export async function handleGetAuditLog(request: Request, env: Env): Promise<Res
 // Placeholder for policies
 export async function handleGetTeamPolicies(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
-  if (!token) return errorResponse('Unauthorized', 401);
+  if (!token) {return errorResponse('Unauthorized', 401);}
   const auth = await validateSession(env.DB, token);
-  if (!auth) return errorResponse('Invalid session', 401);
+  if (!auth) {return errorResponse('Invalid session', 401);}
 
   // Return empty list for now (Production-ready placeholder)
   return jsonResponse({ policies: [] });
@@ -801,9 +801,9 @@ export async function handleGetTeamPolicies(request: Request, env: Env): Promise
 // Placeholder for notifications
 export async function handleGetNotifications(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
-  if (!token) return errorResponse('Unauthorized', 401);
+  if (!token) {return errorResponse('Unauthorized', 401);}
   const auth = await validateSession(env.DB, token);
-  if (!auth) return errorResponse('Invalid session', 401);
+  if (!auth) {return errorResponse('Invalid session', 401);}
 
   return jsonResponse({ settings: [] });
 }

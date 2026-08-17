@@ -42,7 +42,7 @@ export function transformToExecutiveKPI(
 export function transformToAdvancedMetrics(
   metrics: AdminAdvancedMetrics | undefined
 ): AdvancedMetrics | undefined {
-  if (!metrics) return undefined;
+  if (!metrics) {return undefined;}
   return {
     engagement: {
       dau: metrics.engagement?.dau || 0,
@@ -186,10 +186,10 @@ export function transformFirehoseEvents(events: RawFirehoseEvent[]): FirehoseEve
 
 function mapEventType(eventName: string): FirehoseEvent['event_type'] {
   const lower = eventName.toLowerCase();
-  if (lower.includes('install')) return 'install';
-  if (lower.includes('search')) return 'search';
-  if (lower.includes('runtime') || lower.includes('use ')) return 'runtime_switch';
-  if (lower.includes('error') || lower.includes('fail')) return 'error';
+  if (lower.includes('install')) {return 'install';}
+  if (lower.includes('search')) {return 'search';}
+  if (lower.includes('runtime') || lower.includes('use ')) {return 'runtime_switch';}
+  if (lower.includes('error') || lower.includes('fail')) {return 'error';}
   return 'command';
 }
 
@@ -282,8 +282,8 @@ export function transformToCRMCustomer(user: AdminUser): CRMCustomer {
   const stage = mapLifecycleStage(user.lifecycle_stage);
   const churnProbability = stage === 'at_risk' ? 0.6 : stage === 'churned' ? 0.9 : 0.1;
   let velocityTrend: CustomerHealth['command_velocity_trend'] = 'declining';
-  if (score > 60) velocityTrend = 'growing';
-  else if (score > 40) velocityTrend = 'stable';
+  if (score > 60) {velocityTrend = 'growing';}
+  else if (score > 40) {velocityTrend = 'stable';}
   const status = mapCustomerStatus(user.status);
   const mrr = getTierMrr(user.tier);
 

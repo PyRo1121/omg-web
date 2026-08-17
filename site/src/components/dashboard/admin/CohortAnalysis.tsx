@@ -1,4 +1,5 @@
-import { Component, For, Show, createMemo } from 'solid-js';
+import type { Component} from 'solid-js';
+import { For, Show, createMemo } from 'solid-js';
 import { useAdminCohorts } from '../../../lib/api-hooks';
 import { TrendingUp } from 'lucide-solid';
 import { CardSkeleton } from '../../ui/Skeleton';
@@ -31,10 +32,10 @@ export const CohortAnalysis: Component = () => {
   });
 
   const getRetentionColor = (rate: number) => {
-    if (rate >= 80) return 'bg-emerald-500';
-    if (rate >= 60) return 'bg-cyan-500';
-    if (rate >= 40) return 'bg-amber-500';
-    if (rate >= 20) return 'bg-orange-500';
+    if (rate >= 80) {return 'bg-emerald-500';}
+    if (rate >= 60) {return 'bg-cyan-500';}
+    if (rate >= 40) {return 'bg-amber-500';}
+    if (rate >= 20) {return 'bg-orange-500';}
     return 'bg-rose-500';
   };
 
@@ -42,7 +43,7 @@ export const CohortAnalysis: Component = () => {
     const weekData = cohortData.find(d => d.weeks_since_signup === weekIndex);
     const week0Data = cohortData.find(d => d.weeks_since_signup === 0);
 
-    if (!weekData || !week0Data || week0Data.active_users === 0) return null;
+    if (!weekData || !week0Data || week0Data.active_users === 0) {return null;}
 
     return Math.round((weekData.active_users / week0Data.active_users) * 100);
   };

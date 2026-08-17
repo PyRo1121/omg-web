@@ -21,6 +21,7 @@ export async function setupDatabase(db: D1Database) {
       await db.prepare(statement).run();
     } catch (e) {
       // Ignore "already exists" errors
+      // SAFETY: D1 rejects statements with Error-shaped errors that carry a message.
       if (!(e as Error).message.includes('already exists')) {
         console.error('Failed to execute statement:', statement, e);
       }
@@ -48,7 +49,7 @@ export async function clearAllTables(db: D1Database) {
   for (const table of tables) {
     try {
       await db.prepare(`DELETE FROM ${table}`).run();
-    } catch (e) {
+    } catch {
       // Ignore if table doesn't exist
     }
   }

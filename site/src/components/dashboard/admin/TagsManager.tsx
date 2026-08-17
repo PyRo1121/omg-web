@@ -1,4 +1,5 @@
-import { Component, For, Show, createSignal } from 'solid-js';
+import type { Component} from 'solid-js';
+import { For, Show, createSignal } from 'solid-js';
 import { createMutation, createQuery, useQueryClient } from '@tanstack/solid-query';
 import { Plus, X } from '../../ui/Icons';
 import { apiRequest } from '../../../lib/api';
@@ -90,7 +91,7 @@ export const TagsManager: Component<TagsManagerProps> = props => {
   }));
 
   const handleCreateTag = () => {
-    if (!newTagName().trim()) return;
+    if (!newTagName().trim()) {return;}
     createTagMutation.mutate({
       name: newTagName().trim(),
       color: newTagColor(),

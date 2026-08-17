@@ -9,7 +9,7 @@ function getEnv(
   event: APIEvent
 ): CloudflareEnv & { WORKERS_API_URL?: string; ADMIN_API_SECRET?: string } {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) throw new Error('Cloudflare environment not available');
+  if (!env) {throw new Error('Cloudflare environment not available');}
 
   return {
     DB: env.DB,
