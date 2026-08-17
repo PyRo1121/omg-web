@@ -44,14 +44,7 @@ import {
   Users,
 } from 'lucide-solid';
 import { signOut } from '~/lib/auth-client';
-import {
-  parseApiError,
-  parseDashboardData,
-  parseSessionToken,
-  parseTelemetryData,
-  type DashboardData,
-  type TelemetryData,
-} from '~/lib/dashboard-contract';
+import { createDashboardView } from '~/lib/state/dashboard-view';
 import AdminDashboard from '~/components/dashboard/AdminDashboard';
 import BackgroundMesh from '~/components/3d/BackgroundMesh';
 
@@ -76,115 +69,22 @@ interface DashboardPageProps {
 type TabType = 'overview' | 'analytics' | 'achievements' | 'machines' | 'settings' | 'admin';
 
 const DashboardPage: Component<DashboardPageProps> = props => {
-  const [dashboardData, setDashboardData] = createSignal<DashboardData | null>(null);
-  const [telemetryData, setTelemetryData] = createSignal<TelemetryData | null>(null);
-  const [loading, setLoading] = createSignal(true);
-  const [telemetryLoading, setTelemetryLoading] = createSignal(true);
-  const [error, setError] = createSignal('');
-  const [telemetryError, setTelemetryError] = createSignal('');
+  const {
+    dashboardData,
+    telemetryData,
+    loading,
+    error,
+    setError,
+    telemetryLoading,
+    telemetryError,
+    loadAll,
+    loadTelemetry,
+  } = createDashboardView();
   const [copiedLicense, setCopiedLicense] = createSignal(false);
   const [dateRange, setDateRange] = createSignal<'7d' | '14d' | '30d' | '90d'>('30d');
   const [activeTab, setActiveTab] = createSignal<TabType>('overview');
 
-  onMount(async () => {
-    await Promise.all([loadDashboardData(), loadTelemetryData()]);
-  });
-
-  const loadDashboardData = async () => {
-    try {
-      const response = await fetch('/api/dashboard');
-      if (!response.ok) {
-        throw new Error('Failed to load dashboard data');
-      }
-      const parsed = parseDashboardData(await response.json());
-      if (!parsed.ok) {
-        throw new Error(parsed.error);
-      }
-      setDashboardData(parsed.value);
-    } catch (e) {
-      console.error('Dashboard error:', e);
-      setError('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadTelemetryData = async () => {
-    try {
-      setTelemetryLoading(true);
-      setTelemetryError('');
-
-      // Sync license tier from external API to D1 database
-      const syncResponse = await fetch('/api/telemetry/sync-license', {
-        method: 'POST',
-      });
-
-      if (!syncResponse.ok) {
-        console.error('[Dashboard] License sync failed:', await syncResponse.text());
-      } else {
-        const syncResult = await syncResponse.json();
-        console.log('[Dashboard] License synced:', syncResult);
-      }
-
-      // Add cache-busting parameter to bypass Cloudflare edge cache
-      const response = await fetch(`/api/telemetry/dashboard?_=${Date.now()}`);
-      const result = await response.json();
-
-      if (response.ok) {
-        const parsed = parseTelemetryData(result);
-        if (!parsed.ok) {
-          setTelemetryError(parsed.error);
-          return;
-        }
-
-        console.log(
-          '[Dashboard] Telemetry data loaded. License tier:',
-          parsed.value.license.tier,
-          'User role:',
-          parsed.value.user.role
-        );
-        setTelemetryData(parsed.value);
-
-        if (parsed.value.user.role === 'admin') {
-          syncAdminAuth();
-        }
-      } else {
-        setTelemetryError(parseApiError(result, 'Failed to load telemetry data'));
-      }
-    } catch (e) {
-      console.error('Telemetry error:', e);
-      setTelemetryError('Failed to load telemetry data');
-    } finally {
-      setTelemetryLoading(false);
-    }
-  };
-
-  const syncAdminAuth = async () => {
-    try {
-      const existingToken = localStorage.getItem('omg_session_token');
-      if (existingToken) {
-        console.log('[Dashboard] Admin token already exists in localStorage');
-        return;
-      }
-
-      console.log('[Dashboard] Fetching admin workers API token...');
-      const response = await fetch('/api/admin/auth-bridge');
-
-      if (response.ok) {
-        const parsed = parseSessionToken(await response.json());
-        if (!parsed.ok) {
-          console.error('[Dashboard] Invalid admin token response:', parsed.error);
-          return;
-        }
-        localStorage.setItem('omg_session_token', parsed.value);
-        console.log('[Dashboard] Admin workers API token stored');
-      } else {
-        console.error('[Dashboard] Failed to get admin token:', await response.text());
-      }
-    } catch (e) {
-      console.error('[Dashboard] Admin auth sync error:', e);
-    }
-  };
+  onMount(() => loadAll());
 
   const handleSignOut = async () => {
     try {
@@ -302,7 +202,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     }
   };
 
-  const getAchievementIcon = (emoji: string, name: string) => {
+  const getAchievementIcon = (_emoji: string, name: string) => {
     const nameUpper = name.toUpperCase();
 
     if (nameUpper.includes('FIRST') || nameUpper.includes('START')) return Rocket;
@@ -426,7 +326,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
               <div class="flex items-center gap-3">
                 <Show when={!telemetryLoading() && telemetryData()}>
                   <button
-                    onClick={loadTelemetryData}
+                    onClick={loadTelemetry}
                     class="btn-secondary px-3 py-2 text-sm"
                     title="Refresh data"
                   >
