@@ -1,4 +1,14 @@
 import { type Env, jsonResponse, errorResponse, generateId, logAudit } from '../api';
+import { runPromise, either } from 'effect/Effect';
+import { Struct, String as SchemaString, optional } from '@effect/schema/Schema';
+import { decodeJsonBody } from '../body';
+
+/** The request body schema. */
+const AdminSessionRequestSchema = Struct({
+  email: SchemaString,
+  name: optional(SchemaString),
+  betterAuthUserId: optional(SchemaString),
+});
 
 export async function handleCreateAdminSession(request: Request, env: Env): Promise<Response> {
   try {
@@ -8,12 +18,13 @@ export async function handleCreateAdminSession(request: Request, env: Env): Prom
       return errorResponse('Unauthorized', 401);
     }
 
-    // SAFETY: The admin session endpoint consumes the documented identity fields.
-    const body = (await request.json()) as {
-      email: string;
-      name?: string;
-      betterAuthUserId?: string;
-    };
+    const bodyResult = await runPromise(
+      decodeJsonBody(request, AdminSessionRequestSchema).pipe(either)
+    );
+    if (bodyResult._tag === 'Left') {
+      return errorResponse('Invalid JSON body', 400);
+    }
+    const body = bodyResult.right;
 
     if (!body.email) {
       return errorResponse('Email required', 400);

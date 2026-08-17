@@ -6,6 +6,17 @@ import {
   getAuthToken,
   type License,
 } from '../api';
+import { runPromise, either } from 'effect/Effect';
+import { Struct, String as SchemaString, Number as SchemaNumber } from '@effect/schema/Schema';
+import { decodeJsonBody } from '../body';
+
+/** The request body schema. */
+const FleetPushRequestSchema = Struct({
+  team: SchemaString,
+  message: SchemaString,
+  lock_content: SchemaString,
+  machine_count: SchemaNumber,
+});
 
 export async function handleFleetPush(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
@@ -31,13 +42,13 @@ export async function handleFleetPush(request: Request, env: Env): Promise<Respo
   }
 
   try {
-    // SAFETY: The fleet endpoint consumes the documented push payload fields.
-    const body = (await request.json()) as {
-      team: string;
-      message: string;
-      lock_content: string;
-      machine_count: number;
-    };
+    const bodyResult = await runPromise(
+      decodeJsonBody(request, FleetPushRequestSchema).pipe(either)
+    );
+    if (bodyResult._tag === 'Left') {
+      return errorResponse('Invalid JSON body', 400);
+    }
+    const body = bodyResult.right;
 
     // Validate payload
     if (!body.lock_content) {
