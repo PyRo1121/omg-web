@@ -20,7 +20,9 @@ interface StepsProps extends ParentProps {}
 export function Steps(props: StepsProps) {
   const children = () => {
     const c = props.children;
-    if (Array.isArray(c)) {return c;}
+    if (Array.isArray(c)) {
+      return c;
+    }
     return [c];
   };
 

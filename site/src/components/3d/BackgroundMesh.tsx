@@ -13,7 +13,9 @@ const BackgroundMesh: Component = () => {
   let containerRef: HTMLDivElement | undefined;
 
   onMount(() => {
-    if (!containerRef) {return;}
+    if (!containerRef) {
+      return;
+    }
 
     const scene = new Scene();
     const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);

@@ -1,4 +1,12 @@
-import { type Component, For, Show, createSignal, createEffect, createMemo, onCleanup } from 'solid-js';
+import {
+  type Component,
+  For,
+  Show,
+  createSignal,
+  createEffect,
+  createMemo,
+  onCleanup,
+} from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { FirehoseEvent, GeoDistribution, CommandHealth, AdvancedMetrics } from './types';
@@ -45,7 +53,9 @@ type EventTypeKey = keyof typeof EVENT_TYPE_CONFIG;
 
 const getEventTypeConfig = (eventType: string) =>
   // SAFETY: The `in` guard confirms the event type is a configured key.
-  eventType in EVENT_TYPE_CONFIG ? EVENT_TYPE_CONFIG[eventType as EventTypeKey] : EVENT_TYPE_CONFIG.command;
+  eventType in EVENT_TYPE_CONFIG
+    ? EVENT_TYPE_CONFIG[eventType as EventTypeKey]
+    : EVENT_TYPE_CONFIG.command;
 
 const formatTimestamp = (timestamp: string): string => {
   const date = new Date(timestamp);
@@ -58,15 +68,17 @@ const formatTimestamp = (timestamp: string): string => {
 };
 
 const formatDuration = (ms: number): string => {
-  if (ms < 1) {return '<1ms';}
-  if (ms < 1000) {return `${Math.round(ms)}ms`;}
+  if (ms < 1) {
+    return '<1ms';
+  }
+  if (ms < 1000) {
+    return `${Math.round(ms)}ms`;
+  }
   return `${(ms / 1000).toFixed(2)}s`;
 };
 
 const CommandStreamItem: Component<{ event: FirehoseEvent; index: number }> = props => {
-  const config = createMemo(
-    () => getEventTypeConfig(props.event.event_type)
-  );
+  const config = createMemo(() => getEventTypeConfig(props.event.event_type));
 
   return (
     <div
@@ -125,7 +137,9 @@ const GlobeVisualization: Component<GlobeVisualizationProps> = props => {
   const maxCount = createMemo(() => Math.max(...props.data.map(d => d.count), 1));
 
   const getCountryFlag = (code: string): string => {
-    if (!code || code.length !== 2) {return '🌍';}
+    if (!code || code.length !== 2) {
+      return '🌍';
+    }
     const codePoints = code
       .toUpperCase()
       .split('')
@@ -330,7 +344,9 @@ const ActivityHeatmapWrapper: Component<ActivityHeatmapWrapperProps> = props => 
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 
   const formattedData = createMemo(() => {
-    if (!props.heatmapData || props.heatmapData.length === 0) {return [];}
+    if (!props.heatmapData || props.heatmapData.length === 0) {
+      return [];
+    }
 
     return props.heatmapData.map(item => ({
       x: parseInt(item.hour, 10),

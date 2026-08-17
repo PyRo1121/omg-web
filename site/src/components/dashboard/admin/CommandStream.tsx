@@ -33,9 +33,15 @@ export const CommandStream: Component<CommandStreamProps> = props => {
   });
 
   const getEventIcon = (name: string) => {
-    if (name.includes('security')) {return <Shield size={12} class="text-rose-400" />;}
-    if (name.includes('install')) {return <Zap size={12} class="text-emerald-400" />;}
-    if (name.includes('heartbeat')) {return <Globe size={12} class="text-indigo-400" />;}
+    if (name.includes('security')) {
+      return <Shield size={12} class="text-rose-400" />;
+    }
+    if (name.includes('install')) {
+      return <Zap size={12} class="text-emerald-400" />;
+    }
+    if (name.includes('heartbeat')) {
+      return <Globe size={12} class="text-indigo-400" />;
+    }
     return <Terminal size={12} class="text-slate-400" />;
   };
 

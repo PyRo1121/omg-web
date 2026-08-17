@@ -121,7 +121,9 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
   }));
 
   const handleSubmit = () => {
-    if (!newNoteContent().trim()) {return;}
+    if (!newNoteContent().trim()) {
+      return;
+    }
     createNoteMutation.mutate({
       content: newNoteContent(),
       note_type: newNoteType(),
@@ -129,14 +131,20 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
   };
 
   const handleUpdate = (noteId: string) => {
-    if (!editContent().trim()) {return;}
+    if (!editContent().trim()) {
+      return;
+    }
     updateNoteMutation.mutate({ noteId, content: editContent() });
   };
 
   const sortedNotes = () => {
     return [...props.notes].sort((a, b) => {
-      if (a.is_pinned && !b.is_pinned) {return -1;}
-      if (!a.is_pinned && b.is_pinned) {return 1;}
+      if (a.is_pinned && !b.is_pinned) {
+        return -1;
+      }
+      if (!a.is_pinned && b.is_pinned) {
+        return 1;
+      }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   };

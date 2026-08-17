@@ -136,9 +136,15 @@ const OPPORTUNITY_TYPE_CONFIG: OpportunityTypeConfigMap = {
 
 function getPriorityLevel(priority: string): PriorityLevel {
   const lower = priority.toLowerCase();
-  if (lower === 'urgent') {return 'urgent';}
-  if (lower === 'high') {return 'high';}
-  if (lower === 'medium') {return 'medium';}
+  if (lower === 'urgent') {
+    return 'urgent';
+  }
+  if (lower === 'high') {
+    return 'high';
+  }
+  if (lower === 'medium') {
+    return 'medium';
+  }
   return 'low';
 }
 

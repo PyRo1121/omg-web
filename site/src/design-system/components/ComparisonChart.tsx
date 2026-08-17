@@ -68,7 +68,9 @@ const Sparkline: Component<{
 
   const path = createMemo(() => {
     const data = props.data;
-    if (data.length < 2) {return '';}
+    if (data.length < 2) {
+      return '';
+    }
 
     const max = Math.max(...data);
     const min = Math.min(...data);
@@ -209,7 +211,9 @@ const DualAxisChart: Component<{
   );
 
   const createPath = (data: DataPoint[], max: number): string => {
-    if (data.length < 2) {return '';}
+    if (data.length < 2) {
+      return '';
+    }
     const padding = 20;
     return data
       .map((point, i) => {
@@ -319,7 +323,9 @@ export const ComparisonChart: Component<ComparisonChartProps> = props => {
   const previousTotal = createMemo(() => props.data.previous.reduce((sum, d) => sum + d.value, 0));
 
   const percentageChange = createMemo(() => {
-    if (previousTotal() === 0) {return currentTotal() > 0 ? 100 : 0;}
+    if (previousTotal() === 0) {
+      return currentTotal() > 0 ? 100 : 0;
+    }
     return ((currentTotal() - previousTotal()) / previousTotal()) * 100;
   });
 

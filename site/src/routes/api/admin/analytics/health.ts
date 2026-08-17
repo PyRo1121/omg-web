@@ -6,7 +6,9 @@ import { requireAdmin } from '~/lib/admin';
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) {return adminCheck;}
+    if (adminCheck instanceof Response) {
+      return adminCheck;
+    }
 
     const { db } = adminCheck;
 

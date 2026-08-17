@@ -102,9 +102,15 @@ const ChurnPredictionCard: Component<{
   onAction: (action: string) => void;
 }> = props => {
   const riskLevel = createMemo((): Priority => {
-    if (props.prediction.probability >= 0.7) {return 'urgent';}
-    if (props.prediction.probability >= 0.5) {return 'high';}
-    if (props.prediction.probability >= 0.3) {return 'medium';}
+    if (props.prediction.probability >= 0.7) {
+      return 'urgent';
+    }
+    if (props.prediction.probability >= 0.5) {
+      return 'high';
+    }
+    if (props.prediction.probability >= 0.3) {
+      return 'medium';
+    }
     return 'low';
   });
 
@@ -196,9 +202,15 @@ const ExpansionOpportunityCard: Component<{
   onAction: (action: string) => void;
 }> = props => {
   const opportunityLevel = createMemo((): Priority => {
-    if (props.prediction.probability >= 0.7) {return 'urgent';}
-    if (props.prediction.probability >= 0.5) {return 'high';}
-    if (props.prediction.probability >= 0.3) {return 'medium';}
+    if (props.prediction.probability >= 0.7) {
+      return 'urgent';
+    }
+    if (props.prediction.probability >= 0.5) {
+      return 'high';
+    }
+    if (props.prediction.probability >= 0.3) {
+      return 'medium';
+    }
     return 'low';
   });
 
@@ -411,7 +423,9 @@ export const PredictiveInsights: Component = () => {
   const usersQuery = useAdminCRMUsers(1, 100, '');
 
   const churnPredictions = createMemo((): ChurnPrediction[] => {
-    if (!metricsQuery.data?.churn_risk_segments) {return [];}
+    if (!metricsQuery.data?.churn_risk_segments) {
+      return [];
+    }
 
     const expansionOps = metricsQuery.data.expansion_opportunities || [];
 
@@ -445,7 +459,9 @@ export const PredictiveInsights: Component = () => {
   });
 
   const expansionPredictions = createMemo((): ExpansionPrediction[] => {
-    if (!metricsQuery.data?.expansion_opportunities) {return [];}
+    if (!metricsQuery.data?.expansion_opportunities) {
+      return [];
+    }
 
     return metricsQuery.data.expansion_opportunities.map(opp => {
       const probability = opp.priority === 'urgent' ? 0.85 : opp.priority === 'high' ? 0.65 : 0.4;
@@ -523,7 +539,9 @@ export const PredictiveInsights: Component = () => {
   });
 
   const healthTrends = createMemo((): HealthTrend[] => {
-    if (!usersQuery.data?.users) {return [];}
+    if (!usersQuery.data?.users) {
+      return [];
+    }
 
     return usersQuery.data.users.slice(0, 8).map(user => {
       const score = user.engagement_score || 50;

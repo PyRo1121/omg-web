@@ -13,7 +13,9 @@ const Header: Component = () => {
   onMount(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {return;}
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
 
       if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();

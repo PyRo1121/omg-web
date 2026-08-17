@@ -69,11 +69,21 @@ const sizeConfig: RingSizeConfig = {
 };
 
 const getGradeFromScore = (score: number): HealthGrade => {
-  if (score >= 95) {return 'A+';}
-  if (score >= 85) {return 'A';}
-  if (score >= 70) {return 'B';}
-  if (score >= 50) {return 'C';}
-  if (score >= 30) {return 'D';}
+  if (score >= 95) {
+    return 'A+';
+  }
+  if (score >= 85) {
+    return 'A';
+  }
+  if (score >= 70) {
+    return 'B';
+  }
+  if (score >= 50) {
+    return 'C';
+  }
+  if (score >= 30) {
+    return 'D';
+  }
   return 'F';
 };
 
@@ -119,7 +129,9 @@ const gradeColors: GradeColors = {
 };
 
 const getScoreColor = (score: number, customColor?: string): string => {
-  if (customColor) {return customColor;}
+  if (customColor) {
+    return customColor;
+  }
   const grade = getGradeFromScore(score);
   return gradeColors[grade].color;
 };

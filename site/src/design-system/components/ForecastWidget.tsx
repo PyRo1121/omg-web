@@ -188,7 +188,9 @@ const ForecastChart: Component<{
   });
 
   const confidenceAreaPath = createMemo(() => {
-    if (!props.showConfidenceBands) {return '';}
+    if (!props.showConfidenceBands) {
+      return '';
+    }
 
     const startIndex = props.historical.length - 1;
     const lastHistorical = props.historical[startIndex];
@@ -444,7 +446,9 @@ export const ForecastWidget: Component<ForecastWidgetProps> = props => {
   const projectedChange = createMemo(() => {
     const start = lastHistorical().value;
     const end = lastProjection().point.value;
-    if (start === 0) {return end > 0 ? 100 : 0;}
+    if (start === 0) {
+      return end > 0 ? 100 : 0;
+    }
     return ((end - start) / start) * 100;
   });
 

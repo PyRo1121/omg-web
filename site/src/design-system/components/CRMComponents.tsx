@@ -584,9 +584,15 @@ export const CustomerCard: Component<CustomerCardProps> = props => {
     tier in tierColors ? tierColors[tier as TierKey] : tierColors.free;
 
   const healthColor = () => {
-    if (props.healthScore >= 80) {return 'text-aurora-400';}
-    if (props.healthScore >= 60) {return 'text-electric-400';}
-    if (props.healthScore >= 40) {return 'text-solar-400';}
+    if (props.healthScore >= 80) {
+      return 'text-aurora-400';
+    }
+    if (props.healthScore >= 60) {
+      return 'text-electric-400';
+    }
+    if (props.healthScore >= 40) {
+      return 'text-solar-400';
+    }
     return 'text-flare-400';
   };
 

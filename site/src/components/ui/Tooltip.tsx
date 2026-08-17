@@ -75,11 +75,7 @@ export const Tooltip: Component<TooltipProps> = props => {
 
   return (
     <>
-      <div
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        class="inline-block"
-      >
+      <div onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} class="inline-block">
         {props.children}
       </div>
 

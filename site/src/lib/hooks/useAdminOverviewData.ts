@@ -55,7 +55,9 @@ export function useAdminOverviewData() {
   const commandHealth = createMemo<CommandHealth>(() => {
     const health = dashboardQuery.data?.overview?.command_health;
     const total = (health?.success || 0) + (health?.failure || 0);
-    if (total === 0) {return { success: 95, failure: 5 };}
+    if (total === 0) {
+      return { success: 95, failure: 5 };
+    }
     return {
       success: ((health?.success || 0) / total) * 100,
       failure: ((health?.failure || 0) / total) * 100,

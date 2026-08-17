@@ -72,12 +72,16 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
 
   const getRetentionRate = (cohortMonth: string, monthIndex: number) => {
     const cohort = cohortMap().find(([month]) => month === cohortMonth);
-    if (!cohort) {return null;}
+    if (!cohort) {
+      return null;
+    }
 
     const monthData = cohort[1].get(monthIndex);
     const baseData = cohort[1].get(0);
 
-    if (!monthData || !baseData || baseData.active_users === 0) {return null;}
+    if (!monthData || !baseData || baseData.active_users === 0) {
+      return null;
+    }
 
     if (monthData.retention_rate !== undefined) {
       return monthData.retention_rate;
@@ -88,13 +92,17 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
 
   const getActiveUsers = (cohortMonth: string, monthIndex: number) => {
     const cohort = cohortMap().find(([month]) => month === cohortMonth);
-    if (!cohort) {return null;}
+    if (!cohort) {
+      return null;
+    }
     return cohort[1].get(monthIndex)?.active_users ?? null;
   };
 
   const getBaseUsers = (cohortMonth: string) => {
     const cohort = cohortMap().find(([month]) => month === cohortMonth);
-    if (!cohort) {return 0;}
+    if (!cohort) {
+      return 0;
+    }
     return cohort[1].get(0)?.active_users ?? 0;
   };
 
@@ -122,10 +130,18 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
 
   const overallHealth = createMemo(() => {
     const month3Avg = avgRetentionByMonth()[3];
-    if (month3Avg === null) {return { label: 'N/A', color: 'var(--color-nebula-400)' };}
-    if (month3Avg >= 60) {return { label: 'Excellent', color: 'var(--color-aurora-400)' };}
-    if (month3Avg >= 40) {return { label: 'Good', color: 'var(--color-electric-400)' };}
-    if (month3Avg >= 25) {return { label: 'Fair', color: 'var(--color-solar-400)' };}
+    if (month3Avg === null) {
+      return { label: 'N/A', color: 'var(--color-nebula-400)' };
+    }
+    if (month3Avg >= 60) {
+      return { label: 'Excellent', color: 'var(--color-aurora-400)' };
+    }
+    if (month3Avg >= 40) {
+      return { label: 'Good', color: 'var(--color-electric-400)' };
+    }
+    if (month3Avg >= 25) {
+      return { label: 'Fair', color: 'var(--color-solar-400)' };
+    }
     return { label: 'Needs Work', color: 'var(--color-flare-400)' };
   });
 

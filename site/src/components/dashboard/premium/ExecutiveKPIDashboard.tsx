@@ -81,8 +81,12 @@ const AnimatedCounter: Component<AnimatedCounterProps> = props => {
 
   const formattedValue = createMemo(() => {
     const val = displayValue();
-    if (val >= 1000000) {return `${(val / 1000000).toFixed(decimals())}M`;}
-    if (val >= 1000) {return `${(val / 1000).toFixed(decimals())}k`;}
+    if (val >= 1000000) {
+      return `${(val / 1000000).toFixed(decimals())}M`;
+    }
+    if (val >= 1000) {
+      return `${(val / 1000).toFixed(decimals())}k`;
+    }
     return val.toFixed(decimals());
   });
 
@@ -197,7 +201,9 @@ const KPICard: Component<KPICardProps> = props => {
   const IconComponent = props.icon;
 
   const targetProgress = createMemo(() => {
-    if (!props.target || props.target === 0) {return null;}
+    if (!props.target || props.target === 0) {
+      return null;
+    }
     return Math.min(100, (props.value / props.target) * 100);
   });
 
@@ -393,12 +399,15 @@ const StickinessMeter: Component<StickinessMeterProps> = props => {
   const dailyToWeekly = createMemo(() => (props.wau > 0 ? (props.dau / props.wau) * 100 : 0));
 
   const getHealthLabel = (stickiness: number) => {
-    if (stickiness >= 25)
-      {return { label: 'Excellent', color: 'text-aurora-400', bg: 'bg-aurora-500/10' } as const;}
-    if (stickiness >= 15)
-      {return { label: 'Good', color: 'text-electric-400', bg: 'bg-electric-500/10' } as const;}
-    if (stickiness >= 10)
-      {return { label: 'Average', color: 'text-solar-400', bg: 'bg-solar-500/10' } as const;}
+    if (stickiness >= 25) {
+      return { label: 'Excellent', color: 'text-aurora-400', bg: 'bg-aurora-500/10' } as const;
+    }
+    if (stickiness >= 15) {
+      return { label: 'Good', color: 'text-electric-400', bg: 'bg-electric-500/10' } as const;
+    }
+    if (stickiness >= 10) {
+      return { label: 'Average', color: 'text-solar-400', bg: 'bg-solar-500/10' } as const;
+    }
     return { label: 'Needs Work', color: 'text-flare-400', bg: 'bg-flare-500/10' } as const;
   };
 
@@ -605,13 +614,19 @@ const ExpansionPipeline: Component<ExpansionPipelineProps> = props => {
   const opportunityCount = createMemo(() => props.opportunities?.length || 0);
 
   const priorityCounts = createMemo(() => {
-    if (!props.opportunities) {return { high: 0, medium: 0, low: 0 };}
+    if (!props.opportunities) {
+      return { high: 0, medium: 0, low: 0 };
+    }
     return props.opportunities.reduce(
       (acc, o) => {
         const priority = o.priority?.toLowerCase() || 'medium';
-        if (priority === 'high' || priority === 'urgent') {acc.high++;}
-        else if (priority === 'medium') {acc.medium++;}
-        else {acc.low++;}
+        if (priority === 'high' || priority === 'urgent') {
+          acc.high++;
+        } else if (priority === 'medium') {
+          acc.medium++;
+        } else {
+          acc.low++;
+        }
         return acc;
       },
       { high: 0, medium: 0, low: 0 }
