@@ -1,4 +1,5 @@
-import type { CLITelemetryReport, TelemetryDashboardResponse } from '../types/telemetry';
+import type { CLITelemetryReport } from '../types/telemetry';
+import { decodeTelemetryDashboard, type TelemetryDashboard } from './contracts/telemetry-dashboard';
 
 // Boundary parser internals intentionally inspect unknown JSON values and dynamic object fields.
 // The narrow suppression is limited to this parser module; callers receive typed contract values.
@@ -29,7 +30,7 @@ export interface DashboardData {
 }
 
 /** The telemetry dashboard payload consumed by the account dashboard. */
-export type TelemetryData = TelemetryDashboardResponse;
+export type TelemetryData = TelemetryDashboard;
 
 /** A license lookup response used by the public landing page. */
 export type LicenseLookup =
@@ -122,13 +123,6 @@ export type ParseResult<T> =
 
 type DashboardSession = DashboardData['sessions'][number];
 type DashboardAccount = DashboardData['accounts'][number];
-type TelemetryUser = TelemetryData['user'];
-type TelemetryLicense = TelemetryData['license'];
-type TelemetryUsage = TelemetryData['usage'];
-type TelemetryDaily = TelemetryData['daily'][number];
-type TelemetryMachine = TelemetryData['machines'][number];
-type TelemetryAchievement = TelemetryData['achievements'][number];
-type TelemetryGlobalStats = NonNullable<TelemetryData['global_stats']>;
 
 function isObject(value: unknown): value is object {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -152,14 +146,6 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isNullableString(value: unknown): value is string | null {
   return value === null || isString(value);
-}
-
-function isOptionalNumber(value: unknown): value is number | undefined {
-  return value === undefined || isFiniteNumber(value);
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every(isString);
 }
 
 function isArrayOf<T>(value: unknown, guard: (item: unknown) => item is T): value is T[] {
@@ -205,109 +191,6 @@ function isDashboardData(value: unknown): value is DashboardData {
   );
 }
 
-function isTelemetryUser(value: unknown): value is TelemetryUser {
-  return (
-    isObject(value) &&
-    isString(field(value, 'id')) &&
-    isString(field(value, 'email')) &&
-    isString(field(value, 'name')) &&
-    isString(field(value, 'role'))
-  );
-}
-
-function isTelemetryLicense(value: unknown): value is TelemetryLicense {
-  return (
-    isObject(value) &&
-    isString(field(value, 'id')) &&
-    isString(field(value, 'license_key')) &&
-    isString(field(value, 'tier')) &&
-    isString(field(value, 'status')) &&
-    isFiniteNumber(field(value, 'max_machines')) &&
-    isNullableString(field(value, 'expires_at')) &&
-    isStringArray(field(value, 'features'))
-  );
-}
-
-function isTelemetryUsage(value: unknown): value is TelemetryUsage {
-  return (
-    isObject(value) &&
-    isFiniteNumber(field(value, 'total_commands')) &&
-    isFiniteNumber(field(value, 'total_packages_installed')) &&
-    isFiniteNumber(field(value, 'total_packages_searched')) &&
-    isFiniteNumber(field(value, 'total_runtimes_switched')) &&
-    isFiniteNumber(field(value, 'total_sbom_generated')) &&
-    isFiniteNumber(field(value, 'total_vulnerabilities_found')) &&
-    isFiniteNumber(field(value, 'total_time_saved_ms')) &&
-    isOptionalNumber(field(value, 'commands_trend')) &&
-    isOptionalNumber(field(value, 'time_saved_trend'))
-  );
-}
-
-function isTelemetryDaily(value: unknown): value is TelemetryDaily {
-  return (
-    isObject(value) &&
-    isString(field(value, 'date')) &&
-    isFiniteNumber(field(value, 'commands_run')) &&
-    isFiniteNumber(field(value, 'packages_installed')) &&
-    isFiniteNumber(field(value, 'packages_searched')) &&
-    isFiniteNumber(field(value, 'time_saved_ms'))
-  );
-}
-
-function isTelemetryMachine(value: unknown): value is TelemetryMachine {
-  return (
-    isObject(value) &&
-    isString(field(value, 'id')) &&
-    isString(field(value, 'machine_id')) &&
-    isNullableString(field(value, 'hostname')) &&
-    isNullableString(field(value, 'os')) &&
-    isNullableString(field(value, 'arch')) &&
-    isNullableString(field(value, 'omg_version')) &&
-    isString(field(value, 'last_seen_at')) &&
-    isFiniteNumber(field(value, 'is_active'))
-  );
-}
-
-function isTelemetryAchievement(value: unknown): value is TelemetryAchievement {
-  return (
-    isObject(value) &&
-    isString(field(value, 'id')) &&
-    isString(field(value, 'achievement_id')) &&
-    isString(field(value, 'name')) &&
-    isString(field(value, 'description')) &&
-    isString(field(value, 'icon')) &&
-    isString(field(value, 'category')) &&
-    isFiniteNumber(field(value, 'points')) &&
-    isFiniteNumber(field(value, 'progress')) &&
-    isBoolean(field(value, 'unlocked')) &&
-    isNullableString(field(value, 'unlocked_at'))
-  );
-}
-
-function isTelemetryGlobalStats(value: unknown): value is TelemetryGlobalStats {
-  return (
-    isObject(value) &&
-    isString(field(value, 'top_package')) &&
-    isString(field(value, 'top_runtime')) &&
-    isFiniteNumber(field(value, 'percentile'))
-  );
-}
-
-function isTelemetryData(value: unknown): value is TelemetryData {
-  if (!isObject(value)) return false;
-
-  const globalStats = field(value, 'global_stats');
-  return (
-    isTelemetryUser(field(value, 'user')) &&
-    isTelemetryLicense(field(value, 'license')) &&
-    isTelemetryUsage(field(value, 'usage')) &&
-    isArrayOf(field(value, 'daily'), isTelemetryDaily) &&
-    isArrayOf(field(value, 'machines'), isTelemetryMachine) &&
-    isArrayOf(field(value, 'achievements'), isTelemetryAchievement) &&
-    (globalStats === undefined || isTelemetryGlobalStats(globalStats))
-  );
-}
-
 /**
  * Parse the account dashboard response at the network boundary.
  *
@@ -327,8 +210,9 @@ export function parseDashboardData(value: unknown): ParseResult<DashboardData> {
  * @returns A typed payload or a safe parse failure.
  */
 export function parseTelemetryData(value: unknown): ParseResult<TelemetryData> {
-  return isTelemetryData(value)
-    ? { ok: true, value }
+  const decoded = decodeTelemetryDashboard(value);
+  return decoded
+    ? { ok: true, value: decoded }
     : { ok: false, error: 'Telemetry response has an invalid shape' };
 }
 
