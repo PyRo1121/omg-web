@@ -33,6 +33,7 @@
     "better-auth": "^1.6.29",
     "clsx": "^2.1.1",
     "cmdk-solid": "^1.1.2",
+    "defu": "^6.1.6",
     "drizzle-orm": "^0.45.2",
     "kysely": "^0.28.11",
     "kysely-d1": "^0.4.0",
