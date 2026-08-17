@@ -123,9 +123,9 @@ export function createDashboardStore() {
 
   const browserWindow = 'window' in globalThis ? globalThis.window : undefined;
   if (browserWindow) {
-    const debouncedPersist = debounce((state: ReturnType<typeof persistableState>) => {
+    const debouncedPersist = debounce((snapshot: ReturnType<typeof persistableState>) => {
       try {
-        browserWindow.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        browserWindow.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
       } catch (error) {
         console.error('[DashboardStore] Failed to persist state:', error);
       }

@@ -81,7 +81,7 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props 
   });
 
   const sortedRuntimes = createMemo(() =>
-    [...(props.data || [])].sort((a, b) => (b.unique_users ?? 0) - (a.unique_users ?? 0))
+    [...(props.data || [])].toSorted((a, b) => (b.unique_users ?? 0) - (a.unique_users ?? 0))
   );
 
   const displayedRuntimes = createMemo(() =>

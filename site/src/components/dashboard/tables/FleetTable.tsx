@@ -29,27 +29,27 @@ export const FleetTable: Component<FleetTableProps> = props => {
   const columns: ColumnDef<api.Machine>[] = [
     {
       id: 'select',
-      header: (props) => (
+      header: (tableProps) => (
         <div class="px-1">
           <input
             type="checkbox"
             class="rounded border-white/10 bg-white/5 text-blue-500 focus:ring-blue-500/20"
-            checked={props.table.getIsAllRowsSelected()}
+            checked={tableProps.table.getIsAllRowsSelected()}
             ref={el => {
-              if (el) {el.indeterminate = props.table.getIsSomeRowsSelected();}
+              if (el) {el.indeterminate = tableProps.table.getIsSomeRowsSelected();}
             }}
-            onChange={props.table.getToggleAllRowsSelectedHandler()}
+            onChange={tableProps.table.getToggleAllRowsSelectedHandler()}
           />
         </div>
       ),
-      cell: (props) => (
+      cell: (cellProps) => (
         <div class="px-1">
           <input
             type="checkbox"
             class="rounded border-white/10 bg-white/5 text-blue-500 focus:ring-blue-500/20"
-            checked={props.row.getIsSelected()}
-            disabled={!props.row.getCanSelect()}
-            onChange={props.row.getToggleSelectedHandler()}
+            checked={cellProps.row.getIsSelected()}
+            disabled={!cellProps.row.getCanSelect()}
+            onChange={cellProps.row.getToggleSelectedHandler()}
           />
         </div>
       ),

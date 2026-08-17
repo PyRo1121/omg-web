@@ -119,7 +119,7 @@ export const ChurnRiskSegments: Component<ChurnRiskSegmentsProps> = props => {
   });
 
   const sortedSegments = createMemo(() =>
-    [...props.data].sort((a, b) => {
+    [...props.data].toSorted((a, b) => {
       const riskA = RISK_CONFIG[getRiskLevel(a.risk_segment)].priority;
       const riskB = RISK_CONFIG[getRiskLevel(b.risk_segment)].priority;
       return riskB - riskA;

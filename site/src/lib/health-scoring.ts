@@ -207,7 +207,7 @@ function calculateCommandsTrendScore(usageDaily: UsageDailyRecord[]): number {
   // 10 points if increasing, 5 if stable, 0 if declining
   if (usageDaily.length < 7) {return 5;} // Default to stable if insufficient data
 
-  const sortedDays = [...usageDaily].sort((a, b) => a.date.localeCompare(b.date));
+  const sortedDays = [...usageDaily].toSorted((a, b) => a.date.localeCompare(b.date));
 
   // Split into first half and second half
   const midpoint = Math.floor(sortedDays.length / 2);
@@ -865,7 +865,7 @@ export function calculateHealthTrends(
   const daysActive30d = last30Days.filter(d => d.commandsRun > 0).length;
 
   // Calculate days since last activity
-  const sortedUsage = [...usageDaily].sort((a, b) => b.date.localeCompare(a.date));
+  const sortedUsage = [...usageDaily].toSorted((a, b) => b.date.localeCompare(a.date));
   const lastActiveDate = sortedUsage.find(d => d.commandsRun > 0)?.date;
   const daysSinceLastActivity = lastActiveDate
     ? Math.floor((now - new Date(lastActiveDate).getTime()) / (24 * 60 * 60 * 1000))

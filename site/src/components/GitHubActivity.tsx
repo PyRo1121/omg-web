@@ -28,20 +28,20 @@ const GitHubActivity: Component = () => {
       const parsed: CachedData = JSON.parse(cached);
       if (Date.now() - parsed.timestamp > CACHE_TTL) {return null;}
       return parsed;
-    } catch (error) {
-      if (error instanceof Error) {
-        console.warn('Ignoring invalid GitHub activity cache:', error.message);
+    } catch (err) {
+      if (err instanceof Error) {
+        console.warn('Ignoring invalid GitHub activity cache:', err.message);
       }
       return null;
     }
   };
 
-  const setCachedData = (data: Array<{ label: string; value: number }>, total: number) => {
+  const setCachedData = (activity: Array<{ label: string; value: number }>, total: number) => {
     try {
-      const cache: CachedData = { data, total, timestamp: Date.now() };
+      const cache: CachedData = { data: activity, total, timestamp: Date.now() };
       localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-    } catch (error) {
-      console.warn('Unable to cache GitHub activity:', error);
+    } catch (err) {
+      console.warn('Unable to cache GitHub activity:', err);
     }
   };
 

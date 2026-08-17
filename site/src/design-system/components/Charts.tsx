@@ -121,7 +121,7 @@ export const Heatmap: Component<HeatmapProps> = props => {
                 </div>
               </Show>
               <For each={Array(xCount()).fill(0)}>
-                {(_, x) => {
+                {(_row, x) => {
                   const value = getValue(x(), y());
                   return (
                     <div

@@ -49,7 +49,7 @@ export const NotesSection: Component<NotesSectionProps> = props => {
   };
 
   const sortedNotes = () =>
-    [...props.notes].sort((a, b) => {
+    [...props.notes].toSorted((a, b) => {
       // Pinned notes first
       if (a.is_pinned && !b.is_pinned) {return -1;}
       if (!a.is_pinned && b.is_pinned) {return 1;}

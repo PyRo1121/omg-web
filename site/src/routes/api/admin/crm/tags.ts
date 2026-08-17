@@ -233,11 +233,11 @@ export async function POST(event: APIEvent) {
         });
       }
 
-      const tagId = crypto.randomUUID();
+      const newTagId = crypto.randomUUID();
       await db
         .insert(schema.customerTag)
         .values({
-          id: tagId,
+          id: newTagId,
           name: name.trim(),
           color: color || '#6366f1',
           description: description?.trim() || null,
@@ -260,7 +260,7 @@ export async function POST(event: APIEvent) {
             .values({
               id: crypto.randomUUID(),
               userId: customerId,
-              tagId: tagId,
+              tagId: newTagId,
               assignedBy: adminId,
               createdAt: new Date(),
             })
@@ -272,7 +272,7 @@ export async function POST(event: APIEvent) {
         JSON.stringify({
           success: true,
           tag: {
-            id: tagId,
+            id: newTagId,
             name: name.trim(),
             color: color || '#6366f1',
             description: description?.trim() || null,

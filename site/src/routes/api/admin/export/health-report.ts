@@ -3,6 +3,14 @@ import { sql, desc, eq } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
 
+const addRiskBucket = (score: number): string => {
+      if (score >= 80) {return 'excellent';}
+      if (score >= 60) {return 'good';}
+      if (score >= 40) {return 'fair';}
+      if (score >= 20) {return 'poor';}
+      return 'critical';
+    };
+
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
@@ -45,13 +53,7 @@ export async function GET(event: APIEvent) {
       .all();
 
     // Calculate risk bucket
-    const addRiskBucket = (score: number): string => {
-      if (score >= 80) {return 'excellent';}
-      if (score >= 60) {return 'good';}
-      if (score >= 40) {return 'fair';}
-      if (score >= 20) {return 'poor';}
-      return 'critical';
-    };
+    
 
     if (format === 'json') {
       const exportData = healthData.map(row => ({

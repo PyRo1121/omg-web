@@ -266,7 +266,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     return baseTabs;
   });
 
-  const StatCard = (props: {
+  const StatCard = (cardProps: {
     title: string;
     value: string;
     icon: Component<{ class?: string }>;
@@ -275,11 +275,11 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     trend?: number;
   }) => {
     const trendIcon =
-      !props.trend || props.trend === 0 ? Minus : props.trend > 0 ? TrendingUp : TrendingDown;
+      !cardProps.trend || cardProps.trend === 0 ? Minus : cardProps.trend > 0 ? TrendingUp : TrendingDown;
 
     const trendColor = () => {
-      if (!props.trend || props.trend === 0) {return 'text-slate-500';}
-      return props.trend > 0 ? 'text-emerald-400' : 'text-red-400';
+      if (!cardProps.trend || cardProps.trend === 0) {return 'text-slate-500';}
+      return cardProps.trend > 0 ? 'text-emerald-400' : 'text-red-400';
     };
 
     return (
@@ -288,21 +288,21 @@ const DashboardPage: Component<DashboardPageProps> = props => {
       >
         <div class="mb-4 flex items-start justify-between">
           <div
-            class={`rounded-xl bg-gradient-to-r p-3 from-${props.color}-500/20 to-purple-500/20`}
+            class={`rounded-xl bg-gradient-to-r p-3 from-${cardProps.color}-500/20 to-purple-500/20`}
           >
-            <props.icon class={`h-6 w-6 text-${props.color}-400`} />
+            <cardProps.icon class={`h-6 w-6 text-${cardProps.color}-400`} />
           </div>
-          <Show when={props.trend !== undefined}>
+          <Show when={cardProps.trend !== undefined}>
             <div class={`flex items-center gap-1 text-xs font-medium ${trendColor()}`}>
               <Dynamic component={trendIcon} class="h-4 w-4" />
-              <span>{Math.abs(props.trend || 0).toFixed(1)}%</span>
+              <span>{Math.abs(cardProps.trend || 0).toFixed(1)}%</span>
             </div>
           </Show>
         </div>
-        <h3 class="mb-1 text-sm font-medium text-slate-400">{props.title}</h3>
-        <div class="gradient-text mb-2 text-3xl font-bold">{props.value}</div>
-        <Show when={props.sub}>
-          <p class="text-xs text-slate-500">{props.sub}</p>
+        <h3 class="mb-1 text-sm font-medium text-slate-400">{cardProps.title}</h3>
+        <div class="gradient-text mb-2 text-3xl font-bold">{cardProps.value}</div>
+        <Show when={cardProps.sub}>
+          <p class="text-xs text-slate-500">{cardProps.sub}</p>
         </Show>
       </div>
     );

@@ -436,7 +436,7 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = props => {
                 </tr>
               </thead>
               <tbody class="divide-y divide-white/5">
-                <For each={props.data.monthly_revenue?.slice(-6).reverse() || []}>
+                <For each={props.data.monthly_revenue?.slice(-6).toReversed() || []}>
                   {(month, index) => {
                     const monthlyRevenue = props.data.monthly_revenue || [];
                     const currentIndex = monthlyRevenue.length - 1 - index();

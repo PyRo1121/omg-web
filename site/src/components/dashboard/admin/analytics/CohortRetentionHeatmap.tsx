@@ -66,7 +66,7 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
     }
 
     return Array.from(groupedByMonth.entries())
-      .sort((a, b) => b[0].localeCompare(a[0]))
+      .toSorted((a, b) => b[0].localeCompare(a[0]))
       .slice(0, 12);
   });
 

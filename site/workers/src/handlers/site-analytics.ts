@@ -312,7 +312,7 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
     }
 
     const sortedGeo = Array.from(combined.values())
-      .sort((a, b) => b.total_engagement - a.total_engagement)
+      .toSorted((a, b) => b.total_engagement - a.total_engagement)
       .slice(0, 50);
 
     const totalEngagement = sortedGeo.reduce((sum, g) => sum + g.total_engagement, 0);

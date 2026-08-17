@@ -104,7 +104,7 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
       day: dayIndex,
       total: HOURS.reduce((sum, hour) => sum + getCountForCell(dayIndex, hour), 0),
     }));
-    return dayTotals.sort((a, b) => b.total - a.total).slice(0, 3);
+    return dayTotals.toSorted((a, b) => b.total - a.total).slice(0, 3);
   });
 
   const busyHours = createMemo(() => {
@@ -112,7 +112,7 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
       hour,
       total: DAYS.reduce((sum, _, dayIndex) => sum + getCountForCell(dayIndex, hour), 0),
     }));
-    return hourTotals.sort((a, b) => b.total - a.total).slice(0, 3);
+    return hourTotals.toSorted((a, b) => b.total - a.total).slice(0, 3);
   });
 
   const avgEventsPerDay = createMemo(() => {

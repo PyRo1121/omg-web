@@ -24,7 +24,7 @@ export const CommandStream: Component<CommandStreamProps> = props => {
   createEffect(() => {
     if (props.events.length > 0) {
       // Sync events to local display state - reversed to show latest at bottom
-      setDisplayedEvents([...props.events].reverse().slice(-50));
+      setDisplayedEvents([...props.events].toReversed().slice(-50));
 
       if (terminalRef) {
         terminalRef.scrollTop = terminalRef.scrollHeight;

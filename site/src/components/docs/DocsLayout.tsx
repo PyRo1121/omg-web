@@ -41,7 +41,8 @@ export function DocsLayout(props: DocsLayoutProps) {
   createShortcut(['Control', 'K'], () => setSearchOpen(true));
 
   createEffect(() => {
-    location.pathname;
+    // Track pathname changes to close the mobile nav.
+    void location.pathname;
     setMobileNavOpen(false);
   });
   return (

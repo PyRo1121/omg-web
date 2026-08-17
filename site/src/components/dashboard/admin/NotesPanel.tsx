@@ -138,7 +138,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
   };
 
   const sortedNotes = () => {
-    return [...props.notes].sort((a, b) => {
+    return [...props.notes].toSorted((a, b) => {
       if (a.is_pinned && !b.is_pinned) {
         return -1;
       }

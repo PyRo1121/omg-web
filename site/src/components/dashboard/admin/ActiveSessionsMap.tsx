@@ -356,7 +356,7 @@ interface StatsPanelProps {
 const StatsPanel: Component<StatsPanelProps> = props => {
   const topCountries = createMemo(() => {
     const sorted = Array.from(props.sessionsByCountry.entries())
-      .sort((a, b) => b[1].length - a[1].length)
+      .toSorted((a, b) => b[1].length - a[1].length)
       .slice(0, 5);
     return sorted;
   });

@@ -27,7 +27,7 @@ export const CohortAnalysis: Component = () => {
 
     // Sort cohorts by date (newest first) and limit to 12
     return Array.from(map.entries())
-      .sort((a, b) => b[0].localeCompare(a[0]))
+      .toSorted((a, b) => b[0].localeCompare(a[0]))
       .slice(0, 12);
   });
 

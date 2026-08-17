@@ -186,9 +186,6 @@ const tierOrder: Tier[] = ['free', 'pro', 'team', 'enterprise'];
 
 export const TierComparison: Component<TierComparisonProps> = props => {
   const currentIndex = createMemo(() => tierOrder.indexOf(props.currentTier));
-  const _recommendedIndex = createMemo(() =>
-    props.recommendedTier ? tierOrder.indexOf(props.recommendedTier) : -1
-  );
 
   return (
     <div class={cn('flex items-center gap-2', props.class)}>
@@ -246,6 +243,7 @@ export const TierSelector: Component<TierSelectorProps> = props => {
 
         return (
           <button
+            type="button"
             onClick={() => !isDisabled && props.onChange(tier)}
             disabled={isDisabled}
             class={cn(

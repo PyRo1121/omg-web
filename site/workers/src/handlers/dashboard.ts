@@ -630,7 +630,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     // Calculate fleet compliance (version drift)
     const versions = (machines.results || []).map((m: any) => m.omg_version || 'unknown');
     const uniqueVersions = [...new Set(versions)];
-    const latestVersion = uniqueVersions.sort().reverse()[0] || 'unknown';
+    const latestVersion = uniqueVersions.toSorted().toReversed()[0] || 'unknown';
     const complianceRate =
       (versions.filter(v => v === latestVersion).length / (versions.length || 1)) * 100;
 

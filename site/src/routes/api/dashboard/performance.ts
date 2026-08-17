@@ -203,7 +203,7 @@ export async function GET(event: APIEvent) {
       }
     });
 
-    const trends = Array.from(trendsMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    const trends = Array.from(trendsMap.values()).toSorted((a, b) => a.date.localeCompare(b.date));
 
     // Build sparkline data (last 14 data points)
     const recentTrends = trends.slice(-14);

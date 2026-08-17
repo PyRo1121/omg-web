@@ -186,15 +186,15 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
     try {
       ws = new WebSocket(wsUrl);
 
-      ws.onopen = () => {
+      ws.addEventListener('open', () => {
         setConnectionState({
           status: 'connected',
           reconnectAttempt: 0,
           lastConnectedAt: new Date().toISOString(),
         });
-      };
+      });
 
-      ws.onmessage = event => {
+      ws.addEventListener('message', event => {
         try {
           const message = parseTelemetryMessage(JSON.parse(event.data));
           if (!message) {
@@ -205,9 +205,9 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
         } catch (err) {
           console.error('[useRealtimeData] Failed to parse message:', err);
         }
-      };
+      });
 
-      ws.onerror = _event => {
+      ws.addEventListener('error', () => {
         const error = new Error('WebSocket connection error');
         setConnectionState(prev => ({
           ...prev,
@@ -215,9 +215,9 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
           error: error.message,
         }));
         onError?.(error);
-      };
+      });
 
-      ws.onclose = _event => {
+      ws.addEventListener('close', _event => {
         ws = null;
 
         if (isManualDisconnect) {
@@ -250,7 +250,7 @@ export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDat
             error: autoReconnect ? 'Max reconnection attempts reached' : 'Connection closed',
           });
         }
-      };
+      });
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to connect');
       setConnectionState({

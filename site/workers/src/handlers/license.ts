@@ -4,6 +4,11 @@ import { Struct, String as SchemaString, optional } from '@effect/schema/Schema'
 import { decodeJsonBody } from '../body';
 import { type Env, jsonResponse, errorResponse, generateId, logAudit, TIER_FEATURES } from '../api';
 
+const maskKey = (key: string) => {
+    if (key.length <= 8) return `****${key.slice(-4)}`;
+    return `${key.slice(0, 4)}••••${key.slice(-4)}`;
+  };
+
 type LicenseRecord = Record<string, string | number | boolean | null>;
 type AnalyticsProperties = Record<string, string | number | boolean | null>;
 
@@ -229,10 +234,7 @@ export async function handleGetLicense(request: Request, env: Env): Promise<Resp
     .first();
 
   // Mask the license key for public lookup to prevent harvesting
-  const maskKey = (key: string) => {
-    if (key.length <= 8) return `****${key.slice(-4)}`;
-    return `${key.slice(0, 4)}••••${key.slice(-4)}`;
-  };
+  
 
   return jsonResponse({
     found: true,

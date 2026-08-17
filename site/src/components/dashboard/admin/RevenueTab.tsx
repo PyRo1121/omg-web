@@ -9,17 +9,10 @@ import {
   Calendar,
   Sparkles,
 } from '../../ui/Icons';
-import { useAdminRevenue, useAdminCohorts } from '../../../lib/api-hooks';
+import { useAdminRevenue } from '../../../lib/api-hooks';
 import { CardSkeleton } from '../../ui/Skeleton';
 
-const _formatCurrency = (cents: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
-};
+
 
 const formatCompactCurrency = (value: number) => {
   if (value >= 1000000) {return `$${(value / 1000000).toFixed(1)}M`;}
@@ -29,12 +22,10 @@ const formatCompactCurrency = (value: number) => {
 
 export const RevenueTab: Component = () => {
   const revenueQuery = useAdminRevenue();
-  const cohortsQuery = useAdminCohorts();
   const [selectedPeriod, setSelectedPeriod] = createSignal<'7d' | '30d' | '90d' | '1y'>('30d');
 
   const revenue = () => revenueQuery.data;
-  const _cohorts = () => cohortsQuery.data?.cohorts || [];
-
+  
   const maxMonthlyRevenue = () => {
     const monthly = revenue()?.monthly_revenue || [];
     return Math.max(...monthly.map(m => m.revenue), 1);
@@ -271,7 +262,7 @@ export const RevenueTab: Component = () => {
                 </tr>
               </thead>
               <tbody class="divide-y divide-white/5">
-                <For each={revenue()?.monthly_revenue?.slice(-6).reverse() || []}>
+                <For each={revenue()?.monthly_revenue?.slice(-6).toReversed() || []}>
                   {(month, index) => {
                     const monthlyRevenue = revenue()?.monthly_revenue || [];
                     const prevIndex = monthlyRevenue.length - 2 - index();

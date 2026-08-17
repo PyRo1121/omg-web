@@ -97,7 +97,7 @@ export async function GET(event: APIEvent) {
     }
 
     // Calculate retention for each cohort
-    const sortedCohorts = Array.from(usersByCohort.keys()).sort();
+    const sortedCohorts = Array.from(usersByCohort.keys()).toSorted();
 
     for (const cohortWeek of sortedCohorts) {
       const cohortUsers = usersByCohort.get(cohortWeek)!;

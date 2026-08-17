@@ -1,5 +1,5 @@
 import type { Component} from 'solid-js';
-import { createSignal, onCleanup, Show, For, splitProps } from 'solid-js';
+import { createSignal, Show, For, splitProps } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -171,36 +171,8 @@ interface StreamCounterProps {
 }
 
 export const StreamCounter: Component<StreamCounterProps> = props => {
-  const [displayCount, setDisplayCount] = createSignal(props.count);
-  const [isAnimating, setIsAnimating] = createSignal(false);
-
-  let prevCount = props.count;
-
-  const _updateDisplay = () => {
-    if (props.count !== prevCount) {
-      setIsAnimating(true);
-      const diff = props.count - prevCount;
-      const steps = Math.min(Math.abs(diff), 20);
-      const increment = diff / steps;
-      let current = prevCount;
-      let step = 0;
-
-      const interval = setInterval(() => {
-        step++;
-        current += increment;
-        setDisplayCount(Math.round(current));
-        if (step >= steps) {
-          clearInterval(interval);
-          setDisplayCount(props.count);
-          setIsAnimating(false);
-        }
-      }, 30);
-
-      prevCount = props.count;
-    }
-  };
-
-  onCleanup(() => {});
+  const [displayCount] = createSignal(props.count);
+  const [isAnimating] = createSignal(false);
 
   return (
     <div class={cn('inline-flex items-center gap-3', props.class)}>
