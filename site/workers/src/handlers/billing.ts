@@ -8,7 +8,13 @@ import {
 } from '../api';
 
 type StripeValue =
-  string | number | boolean | null | undefined | StripeValue[] | { [key: string]: StripeValue };
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | StripeValue[]
+  | { [key: string]: StripeValue };
 
 interface StripeEventObject {
   [key: string]: StripeValue;

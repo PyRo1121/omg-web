@@ -1,4 +1,7 @@
 // License validation handlers (for CLI activation)
+import { runPromise, either } from 'effect/Effect';
+import { Struct, String as SchemaString, optional } from '@effect/schema/Schema';
+import { decodeJsonBody } from '../body';
 import { type Env, jsonResponse, errorResponse, generateId, logAudit, TIER_FEATURES } from '../api';
 
 type LicenseRecord = Record<string, string | number | boolean | null>;
@@ -23,7 +26,12 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
       return errorResponse('Invalid JSON body');
     }
   } else {
-    const url = new URL(request.url);
+    let url: URL;
+    try {
+      url = new URL(request.url);
+    } catch {
+      return errorResponse('Invalid request URL', 400);
+    }
     licenseKey = url.searchParams.get('key');
     machineId = url.searchParams.get('machine_id');
     userName = url.searchParams.get('user_name');
@@ -175,7 +183,12 @@ export async function handleValidateLicense(request: Request, env: Env): Promise
 
 // Get license info by email (for dashboard lookup before auth)
 export async function handleGetLicense(request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
+  let url: URL;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return errorResponse('Invalid request URL', 400);
+  }
   const email = url.searchParams.get('email')?.toLowerCase().trim();
 
   if (!email) {
@@ -399,15 +412,22 @@ export async function handleReportUsage(request: Request, env: Env): Promise<Res
 }
 
 // Handle install ping (anonymous telemetry)
+
+/** The install ping payload sent by the CLI on first run. */
+const InstallPingBodySchema = Struct({
+  install_id: optional(SchemaString),
+  timestamp: optional(SchemaString),
+  version: optional(SchemaString),
+  platform: optional(SchemaString),
+  backend: optional(SchemaString),
+});
+
 export async function handleInstallPing(request: Request, env: Env): Promise<Response> {
-  // SAFETY: The request boundary is restricted to the documented install fields.
-  const body = (await request.json()) as {
-    install_id?: string;
-    timestamp?: string;
-    version?: string;
-    platform?: string;
-    backend?: string;
-  };
+  const bodyResult = await runPromise(decodeJsonBody(request, InstallPingBodySchema).pipe(either));
+  if (bodyResult._tag === 'Left') {
+    return errorResponse('Invalid JSON body', 400);
+  }
+  const body = bodyResult.right;
 
   if (!body.install_id) {
     return errorResponse('Install ID required');

@@ -29,7 +29,10 @@
     "wrangler": "^4.123.0"
   },
   "dependencies": {
+    "@effect/schema": "^0.75.5",
     "@sentry/cloudflare": "^10.36.0",
-    "@sentry/solid": "^10.36.0"
-  }
+    "@sentry/solid": "^10.36.0",
+    "effect": "^3.22.1"
+  },
+  "type": "module"
 }
