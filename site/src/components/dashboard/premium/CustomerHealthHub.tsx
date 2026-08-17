@@ -1,4 +1,4 @@
-import { Component, Show, For, createMemo, createSignal } from 'solid-js';
+import { type Component, Show, For, createMemo, createSignal } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { CustomerHealth, LifecycleStage } from './types';
@@ -29,18 +29,6 @@ interface CustomerHealthHubProps {
   showDetails?: boolean;
 }
 
-const _ALL_LIFECYCLE_STAGES: LifecycleStage[] = [
-  'new',
-  'onboarding',
-  'activated',
-  'engaged',
-  'power_user',
-  'at_risk',
-  'churning',
-  'churned',
-  'reactivated',
-];
-
 const POSITIVE_JOURNEY: LifecycleStage[] = [
   'new',
   'onboarding',
@@ -49,15 +37,16 @@ const POSITIVE_JOURNEY: LifecycleStage[] = [
   'power_user',
 ];
 
-const LIFECYCLE_CONFIG: Record<
-  LifecycleStage,
-  {
+type LifecycleConfig = {
+  [K in LifecycleStage]: {
     icon: typeof Sparkles;
     label: string;
     color: string;
     bg: string;
-  }
-> = {
+  };
+};
+
+const LIFECYCLE_CONFIG: LifecycleConfig = {
   new: { icon: Sparkles, label: 'New', color: 'text-plasma-400', bg: 'bg-plasma-500' },
   onboarding: { icon: Rocket, label: 'Onboarding', color: 'text-photon-400', bg: 'bg-photon-500' },
   activated: { icon: Zap, label: 'Activated', color: 'text-electric-400', bg: 'bg-electric-500' },
@@ -72,6 +61,8 @@ const LIFECYCLE_CONFIG: Record<
     color: 'text-aurora-400',
     bg: 'bg-aurora-500',
   },
+  trial: { icon: Sparkles, label: 'Trial', color: 'text-plasma-400', bg: 'bg-plasma-500' },
+  active: { icon: Activity, label: 'Active', color: 'text-electric-400', bg: 'bg-electric-500' },
 };
 
 const getScoreColor = (score: number): string => {
@@ -113,13 +104,19 @@ const RadarChart: Component<RadarChartProps> = props => {
   const pathData = createMemo(() => {
     const pts = points();
     if (pts.length === 0) return '';
-    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+    return `${pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')} Z`;
   });
 
   const gridLevels = [0.25, 0.5, 0.75, 1];
 
   return (
-    <svg width={size()} height={size()} class="overflow-visible">
+    <svg
+      width={size()}
+      height={size()}
+      class="overflow-visible"
+      role="img"
+      aria-label="Radar chart of customer health scores"
+    >
       <defs>
         <linearGradient id="radar-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#6366f1" stop-opacity="0.4" />
@@ -144,7 +141,7 @@ const RadarChart: Component<RadarChartProps> = props => {
               y: center() + r * Math.sin(angle),
             };
           });
-          const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+          const d = `${pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')} Z`;
           return <path d={d} fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" />;
         }}
       </For>
@@ -305,17 +302,23 @@ const LifecycleJourney: Component<LifecycleJourneyProps> = props => {
             const isCompleted = () => i() < currentIndex();
             const isCurrent = () => i() === currentIndex();
             const IconComponent = config.icon;
+            const circleClass = isCurrent()
+              ? 'scale-125 border-white shadow-lg'
+              : isCompleted()
+                ? 'border-transparent'
+                : 'border-void-600 bg-void-850';
+            const labelClass = isCurrent()
+              ? 'text-white'
+              : isCompleted()
+                ? config.color
+                : 'text-nebula-600';
 
             return (
               <div class="relative z-10 flex flex-col items-center">
                 <div
                   class={cn(
                     'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-500',
-                    isCurrent()
-                      ? 'scale-125 border-white shadow-lg'
-                      : isCompleted()
-                        ? 'border-transparent'
-                        : 'border-void-600 bg-void-850'
+                    circleClass
                   )}
                   style={{
                     'background-color':
@@ -352,7 +355,7 @@ const LifecycleJourney: Component<LifecycleJourneyProps> = props => {
                 <span
                   class={cn(
                     'text-2xs mt-3 font-bold tracking-wider uppercase transition-colors',
-                    isCurrent() ? 'text-white' : isCompleted() ? config.color : 'text-nebula-600'
+                    labelClass
                   )}
                 >
                   {config.label}

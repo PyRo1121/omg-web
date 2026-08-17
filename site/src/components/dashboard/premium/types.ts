@@ -24,7 +24,9 @@ export type LifecycleStage =
   | 'at_risk'
   | 'churning'
   | 'churned'
-  | 'reactivated';
+  | 'reactivated'
+  | 'trial'
+  | 'active';
 
 export interface CustomerNote {
   id: string;
@@ -97,7 +99,7 @@ export interface AdvancedMetrics {
   retention: {
     cohorts: Array<{
       cohort_date: string;
-      week_number: string;
+      week_number: number;
       retained_users: number;
       retention_rate: number;
     }>;

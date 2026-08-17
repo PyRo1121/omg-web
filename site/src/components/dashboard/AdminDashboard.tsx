@@ -1,4 +1,4 @@
-import { Component, createSignal, createMemo, For, Show, Switch, Match } from 'solid-js';
+import { type Component, createMemo, For, Show, Switch, Match } from 'solid-js';
 import {
   Activity,
   Users,
@@ -128,7 +128,8 @@ function transformToAdvancedMetrics(
       cohorts:
         metrics.retention?.cohorts?.map(c => ({
           cohort_date: c.cohort_date,
-          week_number: c.week_number,
+          // SAFETY: The advanced metrics endpoint returns the week offset as an integer.
+          week_number: Number(c.week_number),
           retained_users: c.retained_users,
           retention_rate: 0,
         })) || [],
@@ -150,6 +151,7 @@ function transformToAdvancedMetrics(
       })) || [],
     churn_risk_segments:
       metrics.churn_risk_segments?.map(s => ({
+        // SAFETY: The advanced metrics endpoint constrains risk segment strings to these values.
         risk_segment: s.risk_segment as 'low' | 'medium' | 'high' | 'critical',
         user_count: s.user_count,
         tier: s.tier,
@@ -159,8 +161,10 @@ function transformToAdvancedMetrics(
       metrics.expansion_opportunities?.map(o => ({
         email: o.email,
         tier: o.tier,
+        // SAFETY: The advanced metrics endpoint constrains opportunity type strings to these values.
         opportunity_type: o.opportunity_type as
           'usage_based' | 'feature_gate' | 'team_growth' | 'enterprise',
+        // SAFETY: The advanced metrics endpoint constrains priority strings to these values.
         priority: o.priority as 'low' | 'medium' | 'high' | 'urgent',
         potential_arr: 0,
       })) || [],
@@ -229,7 +233,7 @@ function transformGeoDistribution(data: { dimension: string; count: number }[]):
 }
 
 function getCountryName(code: string): string {
-  const countries: Record<string, string> = {
+  const countries = {
     US: 'United States',
     DE: 'Germany',
     GB: 'United Kingdom',
@@ -244,12 +248,17 @@ function getCountryName(code: string): string {
     ES: 'Spain',
     IT: 'Italy',
     KR: 'South Korea',
-  };
-  return countries[code] || code || 'Unknown';
+  } as const;
+  if (code in countries) {
+    // SAFETY: The `in` guard above confirms the code is a lookup table key.
+    return countries[code as keyof typeof countries];
+  }
+  return code || 'Unknown';
 }
 
 function transformToCRMCustomer(user: api.AdminUser): CRMCustomer {
   const score = user.engagement_score || 50;
+  // SAFETY: The customer API constrains lifecycle stage strings to the union below.
   const stage = (user.lifecycle_stage || 'active') as CustomerHealth['lifecycle_stage'];
 
   return {
@@ -257,6 +266,7 @@ function transformToCRMCustomer(user: api.AdminUser): CRMCustomer {
     email: user.email,
     company: user.company || undefined,
     tier: user.tier || 'free',
+    // SAFETY: The customer API constrains status strings to the union below.
     status: (user.status as 'active' | 'suspended' | 'cancelled') || 'active',
     health: {
       overall_score: score,
@@ -414,6 +424,7 @@ export const AdminDashboard: Component = () => {
     actions.setTab(nextTab);
 
     setTimeout(() => {
+      // SAFETY: The tab buttons always render with these aria attributes.
       const nextButton = document.querySelector(
         `[role="tab"][aria-controls="tabpanel-${nextTab}"]`
       ) as HTMLElement;
@@ -480,7 +491,10 @@ export const AdminDashboard: Component = () => {
             <Calendar size={14} class="text-nebula-500" />
             <select
               value={store.filters.dateRange}
-              onChange={e => actions.setDateRange(e.currentTarget.value as DateRange)}
+              onChange={e =>
+                // SAFETY: The date range select only offers the DateRange option values.
+                actions.setDateRange(e.currentTarget.value as DateRange)
+              }
               class="bg-transparent text-sm font-bold text-white focus:outline-none"
             >
               <option value="7d">Last 7 days</option>
