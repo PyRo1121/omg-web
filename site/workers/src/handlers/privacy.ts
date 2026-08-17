@@ -483,7 +483,12 @@ export async function handleOptOut(request: Request, env: Env): Promise<Response
  * GET /api/privacy/status
  */
 export async function handlePrivacyStatus(request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
+  let url: URL;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return errorResponse('Invalid request URL', 400);
+  }
   const licenseKey = url.searchParams.get('license_key');
 
   const baseResponse = {

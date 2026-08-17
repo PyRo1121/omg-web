@@ -8,18 +8,20 @@
     "node": ">=22"
   },
   "scripts": {
-    "typecheck": "npm run typecheck:tools && npm run typecheck:site && npm run typecheck:workers && npm run typecheck:router && npm run typecheck:releases",
-    "typecheck:tools": "tsc --project tsconfig.json --noEmit",
-    "typecheck:site": "tsc --project site/tsconfig.json --noEmit",
-    "typecheck:workers": "tsc --project site/workers/tsconfig.json --noEmit",
-    "typecheck:router": "wrangler types workers/router/worker-configuration.d.ts --config workers/router/wrangler.toml --check && tsc --project workers/router/tsconfig.json --noEmit",
-    "typecheck:releases": "tsc --project workers/releases/tsconfig.json --noEmit",
-    "lint:anti-slop": "oxlint --config oxlint.config.ts site/src site/workers/src site/workers/tests workers/router/src workers/releases/src",
-    "lint:typed": "eslint site/src site/workers/src site/workers/tests workers/router/src workers/releases/src --max-warnings 0",
-    "lint": "npm run lint:anti-slop && npm run lint:typed",
+    "check": "npm run check:anti-slop && npm run typecheck && npm run lint && npm run format:check",
+    "check:anti-slop": "node tools/oxlint/sync-anti-slop.mjs --check",
     "format": "prettier --write --ignore-unknown site/src site/workers/src site/workers/tests workers/router/src workers/releases/src eslint.config.js oxlint.config.ts prettier.config.js package.json tsconfig.json site/tsconfig.json site/workers/tsconfig.json workers/router/tsconfig.json workers/releases/tsconfig.json",
     "format:check": "prettier --check --ignore-unknown site/src site/workers/src site/workers/tests workers/router/src workers/releases/src eslint.config.js oxlint.config.ts prettier.config.js package.json tsconfig.json site/tsconfig.json site/workers/tsconfig.json workers/router/tsconfig.json workers/releases/tsconfig.json",
-    "check": "npm run typecheck && npm run lint && npm run format:check"
+    "lint": "npm run lint:anti-slop && npm run lint:typed",
+    "lint:anti-slop": "oxlint --config oxlint.config.ts site/src site/workers/src site/workers/tests workers/router/src workers/releases/src",
+    "lint:typed": "eslint site/src site/workers/src site/workers/tests workers/router/src workers/releases/src --max-warnings 0",
+    "sync:anti-slop": "node tools/oxlint/sync-anti-slop.mjs",
+    "typecheck": "npm run typecheck:tools && npm run typecheck:site && npm run typecheck:workers && npm run typecheck:router && npm run typecheck:releases",
+    "typecheck:releases": "tsc --project workers/releases/tsconfig.json --noEmit",
+    "typecheck:router": "wrangler types workers/router/worker-configuration.d.ts --config workers/router/wrangler.toml --check && tsc --project workers/router/tsconfig.json --noEmit",
+    "typecheck:site": "tsc --project site/tsconfig.json --noEmit",
+    "typecheck:tools": "tsc --project tsconfig.json --noEmit",
+    "typecheck:workers": "tsc --project site/workers/tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260815.1",

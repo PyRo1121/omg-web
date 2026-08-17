@@ -14,7 +14,7 @@ export default defineConfig({
     '.pi/**',
     '.roo/**',
     '.windsurf/**',
-    'tools/oxlint/anti-slop/**',
+    'tools/oxlint/**',
     '**/dist/**',
     '**/.vinxi/**',
     '**/.output/**',
