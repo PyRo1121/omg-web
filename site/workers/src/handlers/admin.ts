@@ -23,8 +23,15 @@ import {
 import {
   AdminCountsRowSchema,
   AdminCustomerDetailRowSchema,
+  AdminCustomerTagRowSchema,
   AdminLicenseDetailRowSchema,
+  AdminMachineRowSchema,
+  AdminNoteRowSchema,
+  AdminTagCatalogRowSchema,
+  AdminUsageDailyRowSchema,
   AdminUsageTotalsRowSchema,
+  AdminUsersListRowSchema,
+  AdminActivityRowSchema,
   AtRiskRowSchema,
   AuditCsvRowSchema,
   CommandStatsRowSchema,
@@ -373,9 +380,19 @@ export async function handleAdminCRMUsers(request: Request, env: Env): Promise<R
   const users = await env.DB.prepare(query)
     .bind(...params)
     .all();
+  const decodedUsers = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminUsersListRowSchema,
+      'Admin user list row has an invalid shape',
+      users.results
+    )
+  );
+  if (Exit.isFailure(decodedUsers)) {
+    return errorResponse('Failed to load users', 500);
+  }
   return secureJsonResponse({
     request_id: context.requestId,
-    users: users.results || [],
+    users: decodedUsers.value,
     pagination: { page, limit },
   });
 }
@@ -430,18 +447,38 @@ export async function handleAdminUserDetail(request: Request, env: Env): Promise
   )
     .bind(license.id)
     .all();
+  const decodedMachines = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminMachineRowSchema,
+      'Admin machine row has an invalid shape',
+      machines.results
+    )
+  );
+  if (Exit.isFailure(decodedMachines)) {
+    return errorResponse('Failed to load machines', 500);
+  }
   const recentUsage = await env.DB.prepare(
     `SELECT date, license_id, commands_run, packages_installed, packages_searched, runtimes_switched, sbom_generated, vulnerabilities_found, time_saved_ms FROM usage_daily WHERE license_id = ? ORDER BY date DESC LIMIT 30`
   )
     .bind(license.id)
     .all();
+  const decodedUsage = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminUsageDailyRowSchema,
+      'Admin usage daily row has an invalid shape',
+      recentUsage.results
+    )
+  );
+  if (Exit.isFailure(decodedUsage)) {
+    return errorResponse('Failed to load usage', 500);
+  }
 
   return secureJsonResponse({
     request_id: context.requestId,
     user,
     license,
-    machines: machines.results || [],
-    usage: recentUsage.results || [],
+    machines: decodedMachines.value,
+    usage: decodedUsage.value,
   });
 }
 
@@ -485,9 +522,19 @@ export async function handleAdminActivity(request: Request, env: Env): Promise<R
   const activity = await env.DB.prepare(
     `SELECT id, customer_id, action, resource_type, resource_id, ip_address, created_at FROM audit_log ORDER BY created_at DESC LIMIT 100`
   ).all();
+  const decodedActivity = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminActivityRowSchema,
+      'Admin activity row has an invalid shape',
+      activity.results
+    )
+  );
+  if (Exit.isFailure(decodedActivity)) {
+    return errorResponse('Failed to load activity', 500);
+  }
   return secureJsonResponse({
     request_id: result.context.requestId,
-    activity: activity.results || [],
+    activity: decodedActivity.value,
   });
 }
 
@@ -1093,9 +1140,16 @@ export async function handleAdminGetNotes(request: Request, env: Env): Promise<R
     .bind(customerId)
     .all();
 
+  const decodedNotes = await Effect.runPromiseExit(
+    decodeExtraRowArray(AdminNoteRowSchema, 'Admin note row has an invalid shape', notes.results)
+  );
+  if (Exit.isFailure(decodedNotes)) {
+    return errorResponse('Failed to load notes', 500);
+  }
+
   return secureJsonResponse({
     request_id: context.requestId,
-    notes: notes.results || [],
+    notes: decodedNotes.value,
   });
 }
 
@@ -1234,9 +1288,20 @@ export async function handleAdminGetTags(request: Request, env: Env): Promise<Re
      ORDER BY t.name ASC`
   ).all();
 
+  const decodedTags = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminTagCatalogRowSchema,
+      'Admin tag catalog row has an invalid shape',
+      tags.results
+    )
+  );
+  if (Exit.isFailure(decodedTags)) {
+    return errorResponse('Failed to load tags', 500);
+  }
+
   return secureJsonResponse({
     request_id: context.requestId,
-    tags: tags.results || [],
+    tags: decodedTags.value,
   });
 }
 
@@ -1262,9 +1327,20 @@ export async function handleAdminGetCustomerTags(request: Request, env: Env): Pr
     .bind(customerId)
     .all();
 
+  const decodedTags = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminCustomerTagRowSchema,
+      'Admin customer tag row has an invalid shape',
+      tags.results
+    )
+  );
+  if (Exit.isFailure(decodedTags)) {
+    return errorResponse('Failed to load customer tags', 500);
+  }
+
   return secureJsonResponse({
     request_id: context.requestId,
-    tags: tags.results || [],
+    tags: decodedTags.value,
   });
 }
 

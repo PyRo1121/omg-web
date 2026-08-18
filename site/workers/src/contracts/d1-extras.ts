@@ -444,6 +444,106 @@ export const AdminLicenseDetailRowSchema = Schema.Struct({
 });
 export type AdminLicenseDetailRow = Schema.Schema.Type<typeof AdminLicenseDetailRowSchema>;
 
+/** Admin CRM user-list row from the engagement CTE. */
+export const AdminUsersListRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  email: Schema.String,
+  company: Schema.optional(NullableString),
+  created_at: Schema.optional(NullableString),
+  tier: Schema.optional(NullableString),
+  license_status: Schema.optional(NullableString),
+  machine_count: D1Number,
+  total_commands: D1Number,
+  last_active_date: Schema.optional(NullableString),
+  active_days_30d: D1Number,
+  cmds_3d: D1Number,
+  cmds_prev_7d: D1Number,
+  velocity: D1Number,
+  engagement_score: D1Number,
+  lifecycle_stage: Schema.optional(NullableString),
+});
+export type AdminUsersListRow = Schema.Schema.Type<typeof AdminUsersListRowSchema>;
+
+/** Admin user-detail machine row. */
+export const AdminMachineRowSchema = Schema.Struct({
+  id: Schema.String,
+  license_id: Schema.String,
+  machine_id: Schema.String,
+  hostname: Schema.optional(NullableString),
+  os: Schema.optional(NullableString),
+  arch: Schema.optional(NullableString),
+  omg_version: Schema.optional(NullableString),
+  user_name: Schema.optional(NullableString),
+  user_email: Schema.optional(NullableString),
+  is_active: Schema.optional(Schema.Number),
+  first_seen_at: Schema.optional(NullableString),
+  last_seen_at: Schema.optional(NullableString),
+});
+export type AdminMachineRow = Schema.Schema.Type<typeof AdminMachineRowSchema>;
+
+/** Admin user-detail usage_daily row. */
+export const AdminUsageDailyRowSchema = Schema.Struct({
+  date: Schema.String,
+  license_id: Schema.optional(NullableString),
+  commands_run: D1Number,
+  packages_installed: D1Number,
+  packages_searched: D1Number,
+  runtimes_switched: D1Number,
+  sbom_generated: D1Number,
+  vulnerabilities_found: D1Number,
+  time_saved_ms: D1Number,
+});
+export type AdminUsageDailyRow = Schema.Schema.Type<typeof AdminUsageDailyRowSchema>;
+
+/** Admin activity audit_log row. */
+export const AdminActivityRowSchema = Schema.Struct({
+  id: Schema.String,
+  customer_id: Schema.optional(NullableString),
+  action: Schema.String,
+  resource_type: Schema.optional(NullableString),
+  resource_id: Schema.optional(NullableString),
+  ip_address: Schema.optional(NullableString),
+  created_at: Schema.String,
+});
+export type AdminActivityRow = Schema.Schema.Type<typeof AdminActivityRowSchema>;
+
+/** Admin CRM note row. */
+export const AdminNoteRowSchema = Schema.Struct({
+  id: Schema.String,
+  customer_id: Schema.String,
+  author_id: Schema.optional(NullableString),
+  note_type: Schema.optional(NullableString),
+  content: Schema.String,
+  is_pinned: D1Number,
+  created_at: Schema.String,
+  updated_at: Schema.optional(NullableString),
+  author_email: Schema.optional(NullableString),
+});
+export type AdminNoteRow = Schema.Schema.Type<typeof AdminNoteRowSchema>;
+
+/** Admin tag catalog row with assignment counts. */
+export const AdminTagCatalogRowSchema = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  color: Schema.optional(NullableString),
+  description: Schema.optional(NullableString),
+  created_by: Schema.optional(NullableString),
+  created_at: Schema.optional(NullableString),
+  usage_count: D1Number,
+});
+export type AdminTagCatalogRow = Schema.Schema.Type<typeof AdminTagCatalogRowSchema>;
+
+/** Tag assigned to a customer. */
+export const AdminCustomerTagRowSchema = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  color: Schema.optional(NullableString),
+  description: Schema.optional(NullableString),
+  created_by: Schema.optional(NullableString),
+  created_at: Schema.optional(NullableString),
+});
+export type AdminCustomerTagRow = Schema.Schema.Type<typeof AdminCustomerTagRowSchema>;
+
 /** 7-day growth counts. */
 export const GrowthRowSchema = Schema.Struct({
   new_users_7d: D1Number,

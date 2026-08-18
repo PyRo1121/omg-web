@@ -11,8 +11,15 @@ import { SingleTelemetryRequestSchema } from '../src/contracts/cli-telemetry';
 import { decodeJsonBody } from '../src/body';
 import { MachineIdBodySchema, TrackingBatchSchema } from '../src/contracts/http-bodies';
 import {
+  AdminActivityRowSchema,
   AdminCustomerDetailRowSchema,
+  AdminCustomerTagRowSchema,
   AdminFlagRowSchema,
+  AdminMachineRowSchema,
+  AdminNoteRowSchema,
+  AdminTagCatalogRowSchema,
+  AdminUsageDailyRowSchema,
+  AdminUsersListRowSchema,
   AnalyticsSaltRowSchema,
   BillingCustomerRowSchema,
   CountRowSchema,
@@ -505,5 +512,136 @@ describe('remaining D1 result arrays', () => {
       decodeExtraRowArray(PrivacyCommandRowSchema, 'commands', [{ duration_ms: 12 }])
     );
     expect(Exit.isFailure(exit)).toBe(true);
+  });
+
+  it('decodes admin CRM user, machine, usage, and activity rows', async () => {
+    const users = await Effect.runPromise(
+      decodeExtraRowArray(AdminUsersListRowSchema, 'users', [
+        {
+          id: 'c1',
+          email: 'a@b.com',
+          company: null,
+          created_at: '2026-01-01',
+          tier: 'pro',
+          license_status: 'active',
+          machine_count: 2,
+          total_commands: null,
+          last_active_date: null,
+          active_days_30d: 4,
+          cmds_3d: 1,
+          cmds_prev_7d: 7,
+          velocity: 0.5,
+          engagement_score: 40,
+          lifecycle_stage: 'active',
+        },
+      ])
+    );
+    expect(users[0]?.total_commands).toBe(0);
+    expect(users[0]?.last_active_date).toBeNull();
+
+    const machines = await Effect.runPromise(
+      decodeExtraRowArray(AdminMachineRowSchema, 'machines', [
+        {
+          id: 'row1',
+          license_id: 'l1',
+          machine_id: 'm1',
+          hostname: 'dev',
+          os: 'linux',
+          arch: 'x64',
+          omg_version: '0.1.0',
+          user_name: null,
+          user_email: null,
+          is_active: 1,
+          first_seen_at: '2026-01-01',
+          last_seen_at: '2026-08-17',
+        },
+      ])
+    );
+    expect(machines[0]?.license_id).toBe('l1');
+
+    const usage = await Effect.runPromise(
+      decodeExtraRowArray(AdminUsageDailyRowSchema, 'usage', [
+        {
+          date: '2026-08-17',
+          license_id: 'l1',
+          commands_run: 3,
+          packages_installed: null,
+          packages_searched: 1,
+          runtimes_switched: 0,
+          sbom_generated: 0,
+          vulnerabilities_found: 0,
+          time_saved_ms: 100,
+        },
+      ])
+    );
+    expect(usage[0]?.packages_installed).toBe(0);
+
+    const activity = await Effect.runPromise(
+      decodeExtraRowArray(AdminActivityRowSchema, 'activity', [
+        {
+          id: 'a1',
+          customer_id: 'c1',
+          action: 'login',
+          resource_type: 'session',
+          resource_id: null,
+          ip_address: '1.1.1.1',
+          created_at: '2026-08-17',
+        },
+      ])
+    );
+    expect(activity[0]?.action).toBe('login');
+  });
+
+  it('decodes admin notes and tags, and rejects a note without content', async () => {
+    const notes = await Effect.runPromise(
+      decodeExtraRowArray(AdminNoteRowSchema, 'notes', [
+        {
+          id: 'n1',
+          customer_id: 'c1',
+          author_id: 'admin',
+          note_type: 'general',
+          content: 'hello',
+          is_pinned: 0,
+          created_at: '2026-08-17',
+          updated_at: '2026-08-17',
+          author_email: 'admin@b.com',
+        },
+      ])
+    );
+    expect(notes[0]?.content).toBe('hello');
+
+    const catalog = await Effect.runPromise(
+      decodeExtraRowArray(AdminTagCatalogRowSchema, 'tags', [
+        {
+          id: 't1',
+          name: 'vip',
+          color: '#fff',
+          description: null,
+          created_by: null,
+          created_at: '2026-08-17',
+          usage_count: null,
+        },
+      ])
+    );
+    expect(catalog[0]?.usage_count).toBe(0);
+
+    const assigned = await Effect.runPromise(
+      decodeExtraRowArray(AdminCustomerTagRowSchema, 'customer-tags', [
+        {
+          id: 't1',
+          name: 'vip',
+          color: '#fff',
+          description: null,
+          created_by: null,
+          created_at: '2026-08-17',
+        },
+      ])
+    );
+    expect(assigned[0]?.name).toBe('vip');
+
+    const invalid = await Effect.runPromiseExit(
+      decodeExtraRowArray(AdminNoteRowSchema, 'notes', [{ id: 'n1', customer_id: 'c1' }])
+    );
+    expect(Exit.isFailure(invalid)).toBe(true);
   });
 });
