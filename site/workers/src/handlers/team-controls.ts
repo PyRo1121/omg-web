@@ -23,11 +23,14 @@ import {
   type NotificationSetting,
 } from '../contracts/team-controls';
 import {
+  decodeExtraRowArray,
   decodeOptionalExtraRow,
   HostnameRowSchema,
   isTeamOrEnterpriseTier,
   LicenseIdTierRowSchema,
   LicenseSeatsRowSchema,
+  PolicyRowSchema,
+  TeamControlMemberRowSchema,
   TotalRowSchema,
   type LicenseIdTierRow,
 } from '../contracts/d1-extras';
@@ -62,8 +65,14 @@ export async function handleGetPolicies(request: Request, env: Env): Promise<Res
   )
     .bind(license.id)
     .all();
+  const decodedPolicies = await Effect.runPromiseExit(
+    decodeExtraRowArray(PolicyRowSchema, 'Policy rows have an invalid shape', policies.results)
+  );
+  if (Exit.isFailure(decodedPolicies)) {
+    return errorResponse('Failed to load policies', 500);
+  }
 
-  return jsonResponse({ policies: policies.results || [] });
+  return jsonResponse({ policies: decodedPolicies.value });
 }
 
 export async function handleCreatePolicy(request: Request, env: Env): Promise<Response> {
@@ -468,8 +477,19 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     .bind(license.id)
     .all();
 
+  const decodedMembers = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      TeamControlMemberRowSchema,
+      'Team member rows have an invalid shape',
+      members.results
+    )
+  );
+  if (Exit.isFailure(decodedMembers)) {
+    return errorResponse('Failed to load team members', 500);
+  }
+
   return jsonResponse({
-    members: members.results || [],
+    members: decodedMembers.value,
     seats: {
       used: license.used_seats || 0,
       max: license.max_seats || 25,

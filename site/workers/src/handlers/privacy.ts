@@ -10,9 +10,20 @@ import {
   decodeOptionalExtraRow,
   IdRowSchema,
   LicenseCustomerIdRowSchema,
+  PrivacyCommandRowSchema,
+  PrivacyFeatureRowSchema,
   PrivacyLicenseRowSchema,
+  PrivacyMachineRowSchema,
+  PrivacyPerformanceRowSchema,
   PrivacyProfileRowSchema,
+  PrivacySessionRowSchema,
   PrivacyStatusRowSchema,
+  type PrivacyCommandRow,
+  type PrivacyFeatureRow,
+  type PrivacyLicenseRow,
+  type PrivacyMachineRow,
+  type PrivacyPerformanceRow,
+  type PrivacySessionRow,
 } from '../contracts/d1-extras';
 
 /** The GDPR deletion request body. */
@@ -40,17 +51,17 @@ interface ExportData {
   export_date: string;
   export_format_version: string;
   profile?: {
-    email: unknown;
-    company: unknown;
-    tier: unknown;
-    member_since: unknown;
+    email: string | null | undefined;
+    company: string | null | undefined;
+    tier: string | null | undefined;
+    member_since: string | null | undefined;
   };
-  licenses?: unknown[];
-  machines?: unknown[];
-  command_history?: unknown[];
-  sessions?: unknown[];
-  performance_summary?: unknown[];
-  feature_usage?: unknown[];
+  licenses?: ReadonlyArray<PrivacyLicenseRow>;
+  machines?: ReadonlyArray<PrivacyMachineRow>;
+  command_history?: ReadonlyArray<PrivacyCommandRow>;
+  sessions?: ReadonlyArray<PrivacySessionRow>;
+  performance_summary?: ReadonlyArray<PrivacyPerformanceRow>;
+  feature_usage?: ReadonlyArray<PrivacyFeatureRow>;
 }
 
 /**
@@ -381,9 +392,18 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
       )
         .bind(licenseId)
         .all();
-      exportData.machines = machines.results;
+      const decodedMachines = await Effect.runPromiseExit(
+        decodeExtraRowArray(
+          PrivacyMachineRowSchema,
+          'Privacy machine export row has an invalid shape',
+          machines.results
+        )
+      );
+      if (Exit.isFailure(decodedMachines)) {
+        return errorResponse('Failed to export machines', 500);
+      }
+      exportData.machines = decodedMachines.value;
 
-      // Command history (last 1000)
       const commands = await env.DB.prepare(
         `
         SELECT command, subcommand, packages, duration_ms, success, timestamp
@@ -395,9 +415,18 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
       )
         .bind(licenseId)
         .all();
-      exportData.command_history = commands.results;
+      const decodedCommands = await Effect.runPromiseExit(
+        decodeExtraRowArray(
+          PrivacyCommandRowSchema,
+          'Privacy command export row has an invalid shape',
+          commands.results
+        )
+      );
+      if (Exit.isFailure(decodedCommands)) {
+        return errorResponse('Failed to export command history', 500);
+      }
+      exportData.command_history = decodedCommands.value;
 
-      // Session history (last 100)
       const sessions = await env.DB.prepare(
         `
         SELECT session_id, event_type, start_time, end_time, commands_run, duration_secs, timestamp
@@ -409,9 +438,18 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
       )
         .bind(licenseId)
         .all();
-      exportData.sessions = sessions.results;
+      const decodedSessions = await Effect.runPromiseExit(
+        decodeExtraRowArray(
+          PrivacySessionRowSchema,
+          'Privacy session export row has an invalid shape',
+          sessions.results
+        )
+      );
+      if (Exit.isFailure(decodedSessions)) {
+        return errorResponse('Failed to export sessions', 500);
+      }
+      exportData.sessions = decodedSessions.value;
 
-      // Performance metrics (aggregated)
       const perfMetrics = await env.DB.prepare(
         `
         SELECT metric_type, AVG(duration_ms) as avg_duration_ms, COUNT(*) as sample_count
@@ -422,9 +460,18 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
       )
         .bind(licenseId)
         .all();
-      exportData.performance_summary = perfMetrics.results;
+      const decodedPerf = await Effect.runPromiseExit(
+        decodeExtraRowArray(
+          PrivacyPerformanceRowSchema,
+          'Privacy performance export row has an invalid shape',
+          perfMetrics.results
+        )
+      );
+      if (Exit.isFailure(decodedPerf)) {
+        return errorResponse('Failed to export performance summary', 500);
+      }
+      exportData.performance_summary = decodedPerf.value;
 
-      // Feature usage
       const features = await env.DB.prepare(
         `
         SELECT feature, enabled, COUNT(*) as usage_count, MAX(timestamp) as last_used
@@ -435,7 +482,17 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
       )
         .bind(licenseId)
         .all();
-      exportData.feature_usage = features.results;
+      const decodedFeatures = await Effect.runPromiseExit(
+        decodeExtraRowArray(
+          PrivacyFeatureRowSchema,
+          'Privacy feature export row has an invalid shape',
+          features.results
+        )
+      );
+      if (Exit.isFailure(decodedFeatures)) {
+        return errorResponse('Failed to export feature usage', 500);
+      }
+      exportData.feature_usage = decodedFeatures.value;
     }
 
     // Log the export request

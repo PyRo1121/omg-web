@@ -61,6 +61,104 @@ export const PrivacyLicenseRowSchema = Schema.Struct({
 });
 export type PrivacyLicenseRow = Schema.Schema.Type<typeof PrivacyLicenseRowSchema>;
 
+/** Privacy export machine_usage row. Nulls are preserved. */
+export const PrivacyMachineRowSchema = Schema.Struct({
+  machine_id: Schema.String,
+  hostname: Schema.optional(NullableString),
+  os: Schema.optional(NullableString),
+  arch: Schema.optional(NullableString),
+  omg_version: Schema.optional(NullableString),
+  activated_at: Schema.optional(NullableString),
+  last_seen_at: Schema.optional(NullableString),
+});
+export type PrivacyMachineRow = Schema.Schema.Type<typeof PrivacyMachineRowSchema>;
+
+/** Privacy export command_event row. Nulls are preserved. */
+export const PrivacyCommandRowSchema = Schema.Struct({
+  command: Schema.String,
+  subcommand: Schema.optional(NullableString),
+  packages: Schema.optional(NullableString),
+  duration_ms: Schema.optional(NullableNumber),
+  success: Schema.optional(NullableNumber),
+  timestamp: Schema.String,
+});
+export type PrivacyCommandRow = Schema.Schema.Type<typeof PrivacyCommandRowSchema>;
+
+/** Privacy export session row. Nulls are preserved. */
+export const PrivacySessionRowSchema = Schema.Struct({
+  session_id: Schema.String,
+  event_type: Schema.String,
+  start_time: Schema.optional(NullableString),
+  end_time: Schema.optional(NullableString),
+  commands_run: Schema.optional(NullableNumber),
+  duration_secs: Schema.optional(NullableNumber),
+  timestamp: Schema.String,
+});
+export type PrivacySessionRow = Schema.Schema.Type<typeof PrivacySessionRowSchema>;
+
+/** Privacy export performance aggregate. */
+export const PrivacyPerformanceRowSchema = Schema.Struct({
+  metric_type: Schema.String,
+  avg_duration_ms: Schema.optional(NullableNumber),
+  sample_count: D1Number,
+});
+export type PrivacyPerformanceRow = Schema.Schema.Type<typeof PrivacyPerformanceRowSchema>;
+
+/** Privacy export feature_usage aggregate. */
+export const PrivacyFeatureRowSchema = Schema.Struct({
+  feature: Schema.String,
+  enabled: Schema.Number,
+  usage_count: D1Number,
+  last_used: Schema.optional(NullableString),
+});
+export type PrivacyFeatureRow = Schema.Schema.Type<typeof PrivacyFeatureRowSchema>;
+
+/** usage_daily chart row for the dashboard team view. */
+export const UsageDailyRowSchema = Schema.Struct({
+  date: Schema.String,
+  commands_run: D1Number,
+  time_saved_ms: D1Number,
+});
+export type UsageDailyRow = Schema.Schema.Type<typeof UsageDailyRowSchema>;
+
+/** Dashboard audit log list row. */
+export const DashboardAuditLogRowSchema = Schema.Struct({
+  id: Schema.String,
+  action: Schema.String,
+  resource_type: Schema.optional(NullableString),
+  resource_id: Schema.optional(NullableString),
+  ip_address: Schema.optional(NullableString),
+  created_at: Schema.String,
+});
+export type DashboardAuditLogRow = Schema.Schema.Type<typeof DashboardAuditLogRowSchema>;
+
+/** Team-controls policy row. */
+export const PolicyRowSchema = Schema.Struct({
+  id: Schema.String,
+  scope: Schema.String,
+  rule: Schema.String,
+  value: Schema.String,
+  enforced: Schema.Number,
+  created_at: Schema.String,
+});
+export type PolicyRow = Schema.Schema.Type<typeof PolicyRowSchema>;
+
+/** Team-controls member machine rollup. */
+export const TeamControlMemberRowSchema = Schema.Struct({
+  machine_id: Schema.String,
+  hostname: Schema.optional(NullableString),
+  os: Schema.optional(NullableString),
+  arch: Schema.optional(NullableString),
+  omg_version: Schema.optional(NullableString),
+  last_seen_at: Schema.optional(NullableString),
+  first_seen_at: Schema.optional(NullableString),
+  is_active: Schema.optional(Schema.Number),
+  total_commands: D1Number,
+  total_time_saved_ms: D1Number,
+  commands_last_7d: D1Number,
+});
+export type TeamControlMemberRow = Schema.Schema.Type<typeof TeamControlMemberRowSchema>;
+
 /** Id-only lookup row. */
 export const IdRowSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),

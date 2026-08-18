@@ -18,6 +18,7 @@ import {
 import {
   decodeExtraRowArray,
   decodeOptionalExtraRow,
+  DashboardAuditLogRowSchema,
   IdRowSchema,
   isTeamOrEnterpriseTier,
   LicenseTeamAuthRowSchema,
@@ -26,6 +27,7 @@ import {
   TeamMemberMachineRowSchema,
   TeamUsageTotalsRowSchema,
   TierRowSchema,
+  UsageDailyRowSchema,
 } from '../contracts/d1-extras';
 
 const SessionListRowSchema = Schema.Struct({
@@ -447,6 +449,16 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     )
       .bind(license.id)
       .all();
+    const dailyUsageExit = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        UsageDailyRowSchema,
+        'Team daily usage rows have an invalid shape',
+        dailyUsage.results
+      )
+    );
+    if (Exit.isFailure(dailyUsageExit)) {
+      return errorResponse('Failed to load team data', 500);
+    }
 
     // Get team totals
     const totalMachines = machines.length;
@@ -461,7 +473,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
         status: license.status,
       },
       members: membersWithUsage,
-      daily_usage: dailyUsage.results || [],
+      daily_usage: dailyUsageExit.value,
       totals: {
         total_machines: totalMachines,
         active_machines: activeMachines,
@@ -579,8 +591,18 @@ export async function handleGetAuditLog(request: Request, env: Env): Promise<Res
   )
     .bind(auth.user.id)
     .all();
+  const decodedLogs = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      DashboardAuditLogRowSchema,
+      'Dashboard audit log rows have an invalid shape',
+      logs.results
+    )
+  );
+  if (Exit.isFailure(decodedLogs)) {
+    return errorResponse('Failed to load audit logs', 500);
+  }
 
-  return jsonResponse({ logs: logs.results || [] });
+  return jsonResponse({ logs: decodedLogs.value });
 }
 
 // Placeholder for policies

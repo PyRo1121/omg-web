@@ -27,7 +27,15 @@ import {
   LicenseSeatsRowSchema,
   LicenseTeamAuthRowSchema,
   MemberUsageRowSchema,
+  PolicyRowSchema,
+  PrivacyCommandRowSchema,
+  PrivacyFeatureRowSchema,
+  PrivacyMachineRowSchema,
+  PrivacyPerformanceRowSchema,
   PrivacyProfileRowSchema,
+  PrivacySessionRowSchema,
+  TeamControlMemberRowSchema,
+  UsageDailyRowSchema,
   SessionJoinRowSchema,
   SiteAnalyticsTotalsRowSchema,
   TeamMemberMachineRowSchema,
@@ -381,5 +389,121 @@ describe('optional extra rows', () => {
       decodeOptionalExtraRow(AdminFlagRowSchema, 'admin', { nope: true })
     );
     expect(row).toBeUndefined();
+  });
+});
+
+describe('remaining D1 result arrays', () => {
+  it('decodes privacy export machine and command rows', async () => {
+    const machines = await Effect.runPromiseExit(
+      decodeExtraRowArray(PrivacyMachineRowSchema, 'machines', [
+        {
+          machine_id: 'm1',
+          hostname: null,
+          os: 'linux',
+          arch: 'x64',
+          omg_version: '0.1.0',
+          activated_at: null,
+          last_seen_at: '2026-08-17',
+        },
+      ])
+    );
+    expect(isSuccess(machines)).toBe(true);
+
+    const commands = await Effect.runPromiseExit(
+      decodeExtraRowArray(PrivacyCommandRowSchema, 'commands', [
+        {
+          command: 'search',
+          subcommand: null,
+          packages: null,
+          duration_ms: 12,
+          success: 1,
+          timestamp: '2026-08-17T00:00:00.000Z',
+        },
+      ])
+    );
+    expect(isSuccess(commands)).toBe(true);
+  });
+
+  it('keeps privacy export nulls instead of rewriting them', async () => {
+    const sessions = await Effect.runPromise(
+      decodeExtraRowArray(PrivacySessionRowSchema, 'sessions', [
+        {
+          session_id: 's1',
+          event_type: 'start',
+          start_time: null,
+          end_time: null,
+          commands_run: null,
+          duration_secs: null,
+          timestamp: '2026-08-17T00:00:00.000Z',
+        },
+      ])
+    );
+    expect(sessions[0]?.start_time).toBeNull();
+    expect(sessions[0]?.commands_run).toBeNull();
+  });
+
+  it('decodes privacy performance and feature aggregates', async () => {
+    const performance = await Effect.runPromise(
+      decodeExtraRowArray(PrivacyPerformanceRowSchema, 'perf', [
+        { metric_type: 'search_latency', avg_duration_ms: 10.5, sample_count: 2 },
+      ])
+    );
+    expect(performance[0]?.avg_duration_ms).toBe(10.5);
+
+    const features = await Effect.runPromise(
+      decodeExtraRowArray(PrivacyFeatureRowSchema, 'features', [
+        { feature: 'sbom', enabled: 1, usage_count: 4, last_used: '2026-08-17' },
+      ])
+    );
+    expect(features[0]?.enabled).toBe(1);
+  });
+
+  it('decodes dashboard daily usage and team policy/member rows', async () => {
+    const daily = await Effect.runPromise(
+      decodeExtraRowArray(UsageDailyRowSchema, 'daily', [
+        { date: '2026-08-17', commands_run: null, time_saved_ms: 1000 },
+      ])
+    );
+    expect(daily[0]?.commands_run).toBe(0);
+
+    const policies = await Effect.runPromise(
+      decodeExtraRowArray(PolicyRowSchema, 'policies', [
+        {
+          id: 'p1',
+          scope: 'runtime',
+          rule: 'allow',
+          value: 'node',
+          enforced: 1,
+          created_at: '2026-08-17',
+        },
+      ])
+    );
+    expect(policies[0]?.scope).toBe('runtime');
+
+    const members = await Effect.runPromise(
+      decodeExtraRowArray(TeamControlMemberRowSchema, 'members', [
+        {
+          machine_id: 'm1',
+          hostname: 'dev',
+          os: 'linux',
+          arch: 'x64',
+          omg_version: '0.1.0',
+          last_seen_at: '2026-08-17',
+          first_seen_at: '2026-08-01',
+          is_active: 1,
+          total_commands: 9,
+          total_time_saved_ms: 100,
+          commands_last_7d: 3,
+        },
+      ])
+    );
+    expect(members[0]?.total_commands).toBe(9);
+  });
+
+  it('rejects a malformed privacy command export row', async () => {
+    const exit = await Effect.runPromiseExit(
+      decodeExtraRowArray(PrivacyCommandRowSchema, 'commands', [{ duration_ms: 12 }])
+    );
+    expect(Exit.isFailure(exit)).toBe(true);
   });
 });
