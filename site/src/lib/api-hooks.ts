@@ -1,6 +1,5 @@
 import { createQuery, createMutation, useQueryClient } from '@tanstack/solid-query';
 import * as api from './api';
-import { apiRequest } from './api';
 
 // Reusable Query Hooks
 export function useTeamData() {
@@ -38,14 +37,6 @@ export function useAdminEvents() {
   }));
 }
 
-export function useFleetStatus() {
-  return createQuery(() => ({
-    queryKey: ['fleet-status'],
-    queryFn: () =>
-      apiRequest<{ members: api.Machine[] }>('/api/fleet/status').then(res => res.members),
-  }));
-}
-
 export function useAdminDashboard() {
   return createQuery(() => ({
     queryKey: ['admin-dashboard'],
@@ -68,7 +59,6 @@ export function useRevokeMachine() {
     mutationFn: (machineId: string) => api.revokeMachine(machineId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-data'] });
-      queryClient.invalidateQueries({ queryKey: ['fleet-status'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   }));

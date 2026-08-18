@@ -3,6 +3,12 @@ import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 import { decodeJsonBody } from '../body';
 import { TrackingBatchSchema, optionalStringField } from '../contracts/http-bodies';
+import {
+  AnalyticsSaltRowSchema,
+  CountRowSchema,
+  decodeOptionalExtraRow,
+  SiteAnalyticsTotalsRowSchema,
+} from '../contracts/d1-extras';
 
 const GeoNumber = Schema.Union(Schema.Number, Schema.Null).pipe(
   Schema.transform(Schema.Number, {
@@ -58,10 +64,17 @@ async function getCurrentSalt(db: D1Database): Promise<Uint8Array> {
      WHERE inserted_at > (unixepoch() * 1000 - 90000)
      ORDER BY inserted_at DESC LIMIT 1`
     )
-    .first<{ salt: ArrayBuffer }>();
+    .first();
 
-  if (result?.salt) {
-    return new Uint8Array(result.salt);
+  const saltRow = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      AnalyticsSaltRowSchema,
+      'Analytics salt row has an invalid shape',
+      result
+    )
+  );
+  if (saltRow !== undefined) {
+    return saltRow.salt instanceof ArrayBuffer ? new Uint8Array(saltRow.salt) : saltRow.salt;
   }
 
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -413,7 +426,7 @@ export async function handleGetRealtimeAnalytics(_request: Request, env: Env): P
          WHERE last_seen_at > ?`
       )
         .bind(fiveMinutesAgo)
-        .first<{ count: number }>(),
+        .first(),
 
       env.DB.prepare(
         `SELECT country_code, COUNT(DISTINCT visitor_id) as count
@@ -438,8 +451,16 @@ export async function handleGetRealtimeAnalytics(_request: Request, env: Env): P
         .all(),
     ]);
 
+    const activeVisitorsRow = await Effect.runPromise(
+      decodeOptionalExtraRow(
+        CountRowSchema,
+        'Realtime visitor count has an invalid shape',
+        activeVisitors
+      )
+    );
+
     return jsonResponse({
-      active_visitors: activeVisitors?.count || 0,
+      active_visitors: activeVisitorsRow?.count || 0,
       by_country: byCountry.results,
       top_pages: topPages.results,
       timestamp: Date.now(),
@@ -468,11 +489,7 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
          WHERE date >= ?`
       )
         .bind(startDateStr)
-        .first<{
-          total_pageviews: number | null;
-          total_visitors: number | null;
-          total_sessions: number | null;
-        }>(),
+        .first(),
 
       env.DB.prepare(
         `SELECT date, SUM(pageviews) as pageviews, SUM(visitors) as visitors
@@ -517,12 +534,20 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
         .all(),
     ]);
 
+    const totals = await Effect.runPromise(
+      decodeOptionalExtraRow(
+        SiteAnalyticsTotalsRowSchema,
+        'Site analytics totals have an invalid shape',
+        totalStats
+      )
+    );
+
     return jsonResponse({
       period_days: days,
       summary: {
-        total_pageviews: totalStats?.total_pageviews || 0,
-        total_visitors: totalStats?.total_visitors || 0,
-        total_sessions: totalStats?.total_sessions || 0,
+        total_pageviews: totals?.total_pageviews || 0,
+        total_visitors: totals?.total_visitors || 0,
+        total_sessions: totals?.total_sessions || 0,
       },
       daily_trend: dailyTrend.results,
       top_pages: topPages.results,

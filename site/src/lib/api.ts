@@ -72,26 +72,6 @@ export async function post<T>(
   });
 }
 
-export async function put<T>(
-  endpoint: string,
-  body?: { readonly [key: string]: string | number | boolean | null | undefined }
-): Promise<T> {
-  return apiRequest<T>(endpoint, {
-    method: 'PUT',
-    body: body ? JSON.stringify(body) : undefined,
-  });
-}
-
-export async function del<T>(
-  endpoint: string,
-  body?: { readonly [key: string]: string | number | boolean | null | undefined }
-): Promise<T> {
-  return apiRequest<T>(endpoint, {
-    method: 'DELETE',
-    body: body ? JSON.stringify(body) : undefined,
-  });
-}
-
 // Custom error class
 export class ApiError extends Error {
   constructor(

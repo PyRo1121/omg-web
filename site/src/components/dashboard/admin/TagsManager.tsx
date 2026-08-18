@@ -1,8 +1,8 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { For, Show, createSignal } from 'solid-js';
 import { createMutation, createQuery, useQueryClient } from '@tanstack/solid-query';
 import { Plus, X } from '../../ui/Icons';
-import { apiRequest } from '../../../lib/api';
+import { assignAdminTag, createAdminTag, getAdminTags, removeAdminTag } from '../../../lib/api';
 
 interface Tag {
   id: string;
@@ -36,7 +36,7 @@ export const TagsManager: Component<TagsManagerProps> = props => {
 
   const allTagsQuery = createQuery(() => ({
     queryKey: ['all-tags'],
-    queryFn: () => apiRequest<{ tags: Tag[] }>('/api/admin/tags'),
+    queryFn: () => getAdminTags(),
   }));
 
   const allTags = () => allTagsQuery.data?.tags || [];
@@ -45,29 +45,21 @@ export const TagsManager: Component<TagsManagerProps> = props => {
 
   const createTagMutation = createMutation(() => ({
     mutationFn: async (data: { name: string; color: string }) => {
-      return apiRequest<{ success: boolean; tag: Tag }>('/api/admin/tags', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return createAdminTag(data.name, data.color);
     },
     onSuccess: data => {
       setIsAdding(false);
       setNewTagName('');
       queryClient.invalidateQueries({ queryKey: ['all-tags'] });
-      if (data.tag) {
-        assignTagMutation.mutate(data.tag.id);
+      if (data.tag_id) {
+        assignTagMutation.mutate(data.tag_id);
       }
     },
   }));
 
   const assignTagMutation = createMutation(() => ({
     mutationFn: async (tagId: string) => {
-      return apiRequest<{ success: boolean }>(
-        `/api/admin/customers/${props.customerId}/tags/${tagId}`,
-        {
-          method: 'POST',
-        }
-      );
+      return assignAdminTag(props.customerId, tagId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-user-detail', props.customerId] });
@@ -77,12 +69,7 @@ export const TagsManager: Component<TagsManagerProps> = props => {
 
   const removeTagMutation = createMutation(() => ({
     mutationFn: async (tagId: string) => {
-      return apiRequest<{ success: boolean }>(
-        `/api/admin/customers/${props.customerId}/tags/${tagId}`,
-        {
-          method: 'DELETE',
-        }
-      );
+      return removeAdminTag(props.customerId, tagId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-user-detail', props.customerId] });
@@ -91,7 +78,9 @@ export const TagsManager: Component<TagsManagerProps> = props => {
   }));
 
   const handleCreateTag = () => {
-    if (!newTagName().trim()) {return;}
+    if (!newTagName().trim()) {
+      return;
+    }
     createTagMutation.mutate({
       name: newTagName().trim(),
       color: newTagColor(),

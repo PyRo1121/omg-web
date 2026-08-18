@@ -11,11 +11,13 @@ import { SingleTelemetryRequestSchema } from '../src/contracts/cli-telemetry';
 import { decodeJsonBody } from '../src/body';
 import { MachineIdBodySchema, TrackingBatchSchema } from '../src/contracts/http-bodies';
 import {
+  AnalyticsSaltRowSchema,
   CountRowSchema,
   decodeExtraRowArray,
   decodeOptionalExtraRow,
   FirehoseEventRowSchema,
   SessionJoinRowSchema,
+  SiteAnalyticsTotalsRowSchema,
 } from '../src/contracts/d1-extras';
 
 function isSuccess<A, E>(exit: Exit.Exit<A, E>): boolean {
@@ -197,5 +199,24 @@ describe('optional extra rows', () => {
       decodeOptionalExtraRow(SessionJoinRowSchema, 'session', { id: 1 })
     );
     expect(row).toBeUndefined();
+  });
+
+  it('decodes a salt blob from ArrayBuffer', async () => {
+    const salt = new Uint8Array([1, 2, 3]).buffer;
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(AnalyticsSaltRowSchema, 'salt', { salt })
+    );
+    expect(row?.salt.byteLength).toBe(3);
+  });
+
+  it('decodes site analytics totals', async () => {
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(SiteAnalyticsTotalsRowSchema, 'totals', {
+        total_pageviews: 10,
+        total_visitors: 4,
+        total_sessions: 5,
+      })
+    );
+    expect(row?.total_visitors).toBe(4);
   });
 });

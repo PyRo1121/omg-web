@@ -204,6 +204,20 @@ export const SessionJoinRowSchema = Schema.Struct({
 });
 export type SessionJoinRow = Schema.Schema.Type<typeof SessionJoinRowSchema>;
 
+/** Site analytics salt BLOB. */
+export const AnalyticsSaltRowSchema = Schema.Struct({
+  salt: Schema.Union(Schema.instanceOf(ArrayBuffer), Schema.instanceOf(Uint8Array)),
+});
+export type AnalyticsSaltRow = Schema.Schema.Type<typeof AnalyticsSaltRowSchema>;
+
+/** Site analytics overview SUM aggregates. */
+export const SiteAnalyticsTotalsRowSchema = Schema.Struct({
+  total_pageviews: D1Number,
+  total_visitors: D1Number,
+  total_sessions: D1Number,
+});
+export type SiteAnalyticsTotalsRow = Schema.Schema.Type<typeof SiteAnalyticsTotalsRowSchema>;
+
 /**
  * Decode stored firehose properties JSON.
  *

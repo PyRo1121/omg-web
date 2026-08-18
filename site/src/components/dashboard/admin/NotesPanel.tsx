@@ -1,7 +1,12 @@
 import { type Component, For, Show, createSignal } from 'solid-js';
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { Plus, Edit, Trash2, Star, Mail, Zap, User, CheckCircle, FileText } from '../../ui/Icons';
-import { apiRequest, formatRelativeTime } from '../../../lib/api';
+import {
+  createAdminNote,
+  deleteAdminNote,
+  formatRelativeTime,
+  updateAdminNote,
+} from '../../../lib/api';
 
 interface Note {
   id: string;
@@ -63,13 +68,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
 
   const createNoteMutation = createMutation(() => ({
     mutationFn: async (data: { content: string; note_type: string }) => {
-      return apiRequest<{ success: boolean; note: Note }>(
-        `/api/admin/customers/${props.customerId}/notes`,
-        {
-          method: 'POST',
-          body: JSON.stringify(data),
-        }
-      );
+      return createAdminNote(props.customerId, data.content, data.note_type);
     },
     onSuccess: () => {
       setIsAdding(false);
@@ -82,10 +81,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
 
   const updateNoteMutation = createMutation(() => ({
     mutationFn: async ({ noteId, content }: { noteId: string; content: string }) => {
-      return apiRequest<{ success: boolean }>(`/api/admin/notes/${noteId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ content }),
-      });
+      return updateAdminNote(noteId, { content });
     },
     onSuccess: () => {
       setEditingNote(null);
@@ -97,9 +93,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
 
   const deleteNoteMutation = createMutation(() => ({
     mutationFn: async (noteId: string) => {
-      return apiRequest<{ success: boolean }>(`/api/admin/notes/${noteId}`, {
-        method: 'DELETE',
-      });
+      return deleteAdminNote(noteId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-user-detail', props.customerId] });
@@ -109,10 +103,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
 
   const togglePinMutation = createMutation(() => ({
     mutationFn: async ({ noteId, isPinned }: { noteId: string; isPinned: boolean }) => {
-      return apiRequest<{ success: boolean }>(`/api/admin/notes/${noteId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ is_pinned: !isPinned }),
-      });
+      return updateAdminNote(noteId, { isPinned: !isPinned });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-user-detail', props.customerId] });
