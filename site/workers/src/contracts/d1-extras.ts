@@ -264,6 +264,102 @@ export const TierCountRowSchema = Schema.Struct({
 });
 export type TierCountRow = Schema.Schema.Type<typeof TierCountRowSchema>;
 
+/** Admin dashboard DAU-by-date row. */
+export const AdminDailyActiveRowSchema = Schema.Struct({
+  date: Schema.String,
+  active_users: D1Number,
+  commands: D1Number,
+});
+export type AdminDailyActiveRow = Schema.Schema.Type<typeof AdminDailyActiveRowSchema>;
+
+/** Admin dashboard signups-by-date row. */
+export const AdminDateCountRowSchema = Schema.Struct({
+  date: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type AdminDateCountRow = Schema.Schema.Type<typeof AdminDateCountRowSchema>;
+
+/** Admin install counts by platform. */
+export const AdminPlatformCountRowSchema = Schema.Struct({
+  platform: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type AdminPlatformCountRow = Schema.Schema.Type<typeof AdminPlatformCountRowSchema>;
+
+/** Admin install counts by version. */
+export const AdminVersionCountRowSchema = Schema.Struct({
+  version: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type AdminVersionCountRow = Schema.Schema.Type<typeof AdminVersionCountRowSchema>;
+
+/** Admin subscription counts by status. */
+export const AdminStatusCountRowSchema = Schema.Struct({
+  status: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type AdminStatusCountRow = Schema.Schema.Type<typeof AdminStatusCountRowSchema>;
+
+/** Admin fleet counts by CLI version. */
+export const AdminFleetVersionRowSchema = Schema.Struct({
+  omg_version: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type AdminFleetVersionRow = Schema.Schema.Type<typeof AdminFleetVersionRowSchema>;
+
+/** Admin geo dimension count. */
+export const AdminGeoDimensionRowSchema = Schema.Struct({
+  dimension: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type AdminGeoDimensionRow = Schema.Schema.Type<typeof AdminGeoDimensionRowSchema>;
+
+/** Admin analytics command aggregate. */
+export const AdminCommandCountRowSchema = Schema.Struct({
+  command: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type AdminCommandCountRow = Schema.Schema.Type<typeof AdminCommandCountRowSchema>;
+
+/** Admin analytics error aggregate. */
+export const AdminErrorTypeCountRowSchema = Schema.Struct({
+  error_type: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type AdminErrorTypeCountRow = Schema.Schema.Type<typeof AdminErrorTypeCountRowSchema>;
+
+/** Admin analytics runtime usage aggregate. */
+export const AdminRuntimeUsageRowSchema = Schema.Struct({
+  runtime: Schema.optional(NullableString),
+  count: D1Number,
+  machines: D1Number,
+});
+export type AdminRuntimeUsageRow = Schema.Schema.Type<typeof AdminRuntimeUsageRowSchema>;
+
+/** Admin cohort retention cell. */
+export const AdminCohortRowSchema = Schema.Struct({
+  cohort_month: Schema.optional(NullableString),
+  month_index: D1Number,
+  active_users: D1Number,
+});
+export type AdminCohortRow = Schema.Schema.Type<typeof AdminCohortRowSchema>;
+
+/** Admin paid-invoice monthly rollup. */
+export const AdminMonthlyRevenueRowSchema = Schema.Struct({
+  month: Schema.optional(NullableString),
+  revenue: D1Number,
+  transactions: D1Number,
+});
+export type AdminMonthlyRevenueRow = Schema.Schema.Type<typeof AdminMonthlyRevenueRowSchema>;
+
+/** Admin paid-invoice rollup by license tier. */
+export const AdminRevenueByTierRowSchema = Schema.Struct({
+  tier: Schema.optional(NullableString),
+  total_revenue: D1Number,
+  customers: D1Number,
+});
+export type AdminRevenueByTierRow = Schema.Schema.Type<typeof AdminRevenueByTierRowSchema>;
+
 /** Current MRR aggregate. */
 export const CurrentMrrRowSchema = Schema.Struct({
   current_mrr: D1Number,

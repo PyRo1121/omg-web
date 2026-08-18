@@ -21,17 +21,30 @@ import {
   decodeThrownMessage,
 } from '../contracts/http-bodies';
 import {
+  AdminActivityRowSchema,
+  AdminCohortRowSchema,
+  AdminCommandCountRowSchema,
   AdminCountsRowSchema,
   AdminCustomerDetailRowSchema,
   AdminCustomerTagRowSchema,
+  AdminDailyActiveRowSchema,
+  AdminDateCountRowSchema,
+  AdminErrorTypeCountRowSchema,
+  AdminFleetVersionRowSchema,
+  AdminGeoDimensionRowSchema,
   AdminLicenseDetailRowSchema,
   AdminMachineRowSchema,
+  AdminMonthlyRevenueRowSchema,
   AdminNoteRowSchema,
+  AdminPlatformCountRowSchema,
+  AdminRevenueByTierRowSchema,
+  AdminRuntimeUsageRowSchema,
+  AdminStatusCountRowSchema,
   AdminTagCatalogRowSchema,
   AdminUsageDailyRowSchema,
   AdminUsageTotalsRowSchema,
   AdminUsersListRowSchema,
-  AdminActivityRowSchema,
+  AdminVersionCountRowSchema,
   AtRiskRowSchema,
   AuditCsvRowSchema,
   CommandStatsRowSchema,
@@ -248,7 +261,6 @@ export async function handleAdminDashboard(request: Request, env: Env): Promise<
       countsResult.results?.[0]
     )
   );
-  const tierBreakdown = tierBreakdownResult.results || [];
   const usageTotals = await Effect.runPromise(
     decodeOptionalExtraRow(
       AdminUsageTotalsRowSchema,
@@ -256,19 +268,6 @@ export async function handleAdminDashboard(request: Request, env: Env): Promise<
       usageTotalsResult.results?.[0]
     )
   );
-  const dailyActiveUsers = dailyActiveUsersResult.results || [];
-  const recentSignups = recentSignupsResult.results || [];
-  const installsByPlatform = installsByPlatformResult.results || [];
-  const installsByVersion = installsByVersionResult.results || [];
-  const subscriptionStats = subscriptionStatsResult.results || [];
-  const decodedMrr = await Effect.runPromiseExit(
-    decodeExtraRowArray(
-      TierCountRowSchema,
-      'Admin MRR tier row has an invalid shape',
-      mrrDataResult.results
-    )
-  );
-  const mrrData = Exit.isSuccess(decodedMrr) ? decodedMrr.value : [];
   const globalUsage = await Effect.runPromise(
     decodeOptionalExtraRow(
       GlobalUsageRowSchema,
@@ -276,8 +275,6 @@ export async function handleAdminDashboard(request: Request, env: Env): Promise<
       globalUsageResult.results?.[0]
     )
   );
-  const fleetVersions = fleetVersionsResult.results || [];
-  const geoDist = geoDistResult.results || [];
   const commandStats = await Effect.runPromise(
     decodeOptionalExtraRow(
       CommandStatsRowSchema,
@@ -285,6 +282,103 @@ export async function handleAdminDashboard(request: Request, env: Env): Promise<
       commandStatsResult.results?.[0]
     )
   );
+  const [
+    decodedTiers,
+    decodedDailyActive,
+    decodedSignups,
+    decodedPlatforms,
+    decodedVersions,
+    decodedSubscriptions,
+    decodedMrr,
+    decodedFleet,
+    decodedGeo,
+  ] = await Promise.all([
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        TierCountRowSchema,
+        'Admin tier breakdown row has an invalid shape',
+        tierBreakdownResult.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminDailyActiveRowSchema,
+        'Admin daily active row has an invalid shape',
+        dailyActiveUsersResult.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminDateCountRowSchema,
+        'Admin signup row has an invalid shape',
+        recentSignupsResult.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminPlatformCountRowSchema,
+        'Admin platform install row has an invalid shape',
+        installsByPlatformResult.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminVersionCountRowSchema,
+        'Admin version install row has an invalid shape',
+        installsByVersionResult.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminStatusCountRowSchema,
+        'Admin subscription status row has an invalid shape',
+        subscriptionStatsResult.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        TierCountRowSchema,
+        'Admin MRR tier row has an invalid shape',
+        mrrDataResult.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminFleetVersionRowSchema,
+        'Admin fleet version row has an invalid shape',
+        fleetVersionsResult.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminGeoDimensionRowSchema,
+        'Admin geo distribution row has an invalid shape',
+        geoDistResult.results
+      )
+    ),
+  ]);
+  if (
+    Exit.isFailure(decodedTiers) ||
+    Exit.isFailure(decodedDailyActive) ||
+    Exit.isFailure(decodedSignups) ||
+    Exit.isFailure(decodedPlatforms) ||
+    Exit.isFailure(decodedVersions) ||
+    Exit.isFailure(decodedSubscriptions) ||
+    Exit.isFailure(decodedMrr) ||
+    Exit.isFailure(decodedFleet) ||
+    Exit.isFailure(decodedGeo)
+  ) {
+    return errorResponse('Failed to load dashboard', 500);
+  }
+  const tierBreakdown = decodedTiers.value;
+  const dailyActiveUsers = decodedDailyActive.value;
+  const recentSignups = decodedSignups.value;
+  const installsByPlatform = decodedPlatforms.value;
+  const installsByVersion = decodedVersions.value;
+  const subscriptionStats = decodedSubscriptions.value;
+  const mrrData = decodedMrr.value;
+  const fleetVersions = decodedFleet.value;
+  const geoDist = decodedGeo.value;
 
   const tierPrices = { pro: 9, team: 200, enterprise: 500 } satisfies Record<string, number>;
   let mrr = 0;
@@ -712,10 +806,41 @@ export async function handleAdminAnalytics(request: Request, env: Env): Promise<
       ),
     ]);
 
+  const [decodedCommands, decodedErrors, decodedRuntimes] = await Promise.all([
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminCommandCountRowSchema,
+        'Admin command count row has an invalid shape',
+        topCommands.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminErrorTypeCountRowSchema,
+        'Admin error type row has an invalid shape',
+        topErrors.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminRuntimeUsageRowSchema,
+        'Admin runtime usage row has an invalid shape',
+        runtimeUsage.results
+      )
+    ),
+  ]);
+  if (
+    Exit.isFailure(decodedCommands) ||
+    Exit.isFailure(decodedErrors) ||
+    Exit.isFailure(decodedRuntimes)
+  ) {
+    return errorResponse('Failed to load analytics', 500);
+  }
+
   return secureJsonResponse({
     request_id: context.requestId,
-    commands_by_type: topCommands.results || [],
-    errors_by_type: topErrors.results || [],
+    commands_by_type: decodedCommands.value,
+    errors_by_type: decodedErrors.value,
     growth: {
       new_users_7d: growth?.new_users_7d || 0,
       new_paid_7d: growth?.new_paid_7d || 0,
@@ -752,7 +877,7 @@ export async function handleAdminAnalytics(request: Request, env: Env): Promise<
         power_user: userJourney?.power_user || 0,
       },
     },
-    runtime_usage: runtimeUsage.results || [],
+    runtime_usage: decodedRuntimes.value,
   });
 }
 
@@ -787,8 +912,18 @@ export async function handleAdminCohorts(request: Request, env: Env): Promise<Re
     ORDER BY 1 DESC, 2 ASC
   `
   ).all();
+  const decodedCohorts = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminCohortRowSchema,
+      'Admin cohort row has an invalid shape',
+      cohorts.results
+    )
+  );
+  if (Exit.isFailure(decodedCohorts)) {
+    return errorResponse('Failed to load cohorts', 500);
+  }
 
-  return secureJsonResponse({ request_id: context.requestId, cohorts: cohorts.results || [] });
+  return secureJsonResponse({ request_id: context.requestId, cohorts: decodedCohorts.value });
 }
 
 export async function handleAdminRevenue(request: Request, env: Env): Promise<Response> {
@@ -813,9 +948,30 @@ export async function handleAdminRevenue(request: Request, env: Env): Promise<Re
       mrrData.results
     )
   );
+  const decodedMonthly = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminMonthlyRevenueRowSchema,
+      'Admin monthly revenue row has an invalid shape',
+      monthlyRevenue.results
+    )
+  );
+  const decodedByTier = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminRevenueByTierRowSchema,
+      'Admin revenue-by-tier row has an invalid shape',
+      revenueByTier.results
+    )
+  );
+  if (
+    Exit.isFailure(decodedMrrTiers) ||
+    Exit.isFailure(decodedMonthly) ||
+    Exit.isFailure(decodedByTier)
+  ) {
+    return errorResponse('Failed to load revenue', 500);
+  }
   const tierPrices = { pro: 9, team: 200, enterprise: 500 } satisfies Record<string, number>;
   let mrr = 0;
-  for (const row of Exit.isSuccess(decodedMrrTiers) ? decodedMrrTiers.value : []) {
+  for (const row of decodedMrrTiers.value) {
     const tierPrice = Object.entries(tierPrices).find(([tier]) => tier === row.tier)?.[1] || 0;
     mrr += tierPrice * row.count;
   }
@@ -823,8 +979,8 @@ export async function handleAdminRevenue(request: Request, env: Env): Promise<Re
     request_id: context.requestId,
     mrr,
     arr: mrr * 12,
-    monthly_revenue: monthlyRevenue.results || [],
-    revenue_by_tier: revenueByTier.results || [],
+    monthly_revenue: decodedMonthly.value,
+    revenue_by_tier: decodedByTier.value,
   });
 }
 

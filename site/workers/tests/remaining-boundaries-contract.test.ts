@@ -12,14 +12,27 @@ import { decodeJsonBody } from '../src/body';
 import { MachineIdBodySchema, TrackingBatchSchema } from '../src/contracts/http-bodies';
 import {
   AdminActivityRowSchema,
+  AdminCohortRowSchema,
+  AdminCommandCountRowSchema,
   AdminCustomerDetailRowSchema,
   AdminCustomerTagRowSchema,
+  AdminDailyActiveRowSchema,
+  AdminDateCountRowSchema,
+  AdminErrorTypeCountRowSchema,
   AdminFlagRowSchema,
+  AdminFleetVersionRowSchema,
+  AdminGeoDimensionRowSchema,
   AdminMachineRowSchema,
+  AdminMonthlyRevenueRowSchema,
   AdminNoteRowSchema,
+  AdminPlatformCountRowSchema,
+  AdminRevenueByTierRowSchema,
+  AdminRuntimeUsageRowSchema,
+  AdminStatusCountRowSchema,
   AdminTagCatalogRowSchema,
   AdminUsageDailyRowSchema,
   AdminUsersListRowSchema,
+  AdminVersionCountRowSchema,
   AnalyticsSaltRowSchema,
   BillingCustomerRowSchema,
   CountRowSchema,
@@ -46,6 +59,7 @@ import {
   SessionJoinRowSchema,
   SiteAnalyticsTotalsRowSchema,
   TeamMemberMachineRowSchema,
+  TierCountRowSchema,
   TierRowSchema,
 } from '../src/contracts/d1-extras';
 
@@ -643,5 +657,109 @@ describe('remaining D1 result arrays', () => {
       decodeExtraRowArray(AdminNoteRowSchema, 'notes', [{ id: 'n1', customer_id: 'c1' }])
     );
     expect(Exit.isFailure(invalid)).toBe(true);
+  });
+
+  it('decodes admin dashboard analytics list rows', async () => {
+    const daily = await Effect.runPromise(
+      decodeExtraRowArray(AdminDailyActiveRowSchema, 'dau', [
+        { date: '2026-08-17', active_users: 4, commands: null },
+      ])
+    );
+    expect(daily[0]?.commands).toBe(0);
+
+    const signups = await Effect.runPromise(
+      decodeExtraRowArray(AdminDateCountRowSchema, 'signups', [{ date: null, count: 2 }])
+    );
+    expect(signups[0]?.date).toBeNull();
+
+    const platforms = await Effect.runPromise(
+      decodeExtraRowArray(AdminPlatformCountRowSchema, 'platforms', [
+        { platform: 'linux', count: 3 },
+      ])
+    );
+    expect(platforms[0]?.count).toBe(3);
+
+    const versions = await Effect.runPromise(
+      decodeExtraRowArray(AdminVersionCountRowSchema, 'versions', [{ version: '1.2.3', count: 1 }])
+    );
+    expect(versions[0]?.version).toBe('1.2.3');
+
+    const statuses = await Effect.runPromise(
+      decodeExtraRowArray(AdminStatusCountRowSchema, 'status', [{ status: 'active', count: 8 }])
+    );
+    expect(statuses[0]?.status).toBe('active');
+
+    const fleet = await Effect.runPromise(
+      decodeExtraRowArray(AdminFleetVersionRowSchema, 'fleet', [{ omg_version: '0.9.0', count: 5 }])
+    );
+    expect(fleet[0]?.omg_version).toBe('0.9.0');
+
+    const geo = await Effect.runPromise(
+      decodeExtraRowArray(AdminGeoDimensionRowSchema, 'geo', [{ dimension: 'US', count: 9 }])
+    );
+    expect(geo[0]?.dimension).toBe('US');
+  });
+
+  it('decodes admin command, error, runtime, cohort, and revenue rows', async () => {
+    const commands = await Effect.runPromise(
+      decodeExtraRowArray(AdminCommandCountRowSchema, 'commands', [
+        { command: 'install', count: 12 },
+      ])
+    );
+    expect(commands[0]?.command).toBe('install');
+
+    const errors = await Effect.runPromise(
+      decodeExtraRowArray(AdminErrorTypeCountRowSchema, 'errors', [
+        { error_type: 'timeout', count: 2 },
+      ])
+    );
+    expect(errors[0]?.error_type).toBe('timeout');
+
+    const runtimes = await Effect.runPromise(
+      decodeExtraRowArray(AdminRuntimeUsageRowSchema, 'runtimes', [
+        { runtime: 'node', count: 4, machines: 2 },
+      ])
+    );
+    expect(runtimes[0]?.machines).toBe(2);
+
+    const cohorts = await Effect.runPromise(
+      decodeExtraRowArray(AdminCohortRowSchema, 'cohorts', [
+        { cohort_month: '2026-01', month_index: 0, active_users: 7 },
+      ])
+    );
+    expect(cohorts[0]?.month_index).toBe(0);
+
+    const monthly = await Effect.runPromise(
+      decodeExtraRowArray(AdminMonthlyRevenueRowSchema, 'monthly', [
+        { month: '2026-08', revenue: 99.5, transactions: 3 },
+      ])
+    );
+    expect(monthly[0]?.revenue).toBe(99.5);
+
+    const byTier = await Effect.runPromise(
+      decodeExtraRowArray(AdminRevenueByTierRowSchema, 'by-tier', [
+        { tier: 'pro', total_revenue: 27, customers: 3 },
+      ])
+    );
+    expect(byTier[0]?.customers).toBe(3);
+  });
+
+  it('rejects malformed admin MRR and analytics rows instead of swallowing them', async () => {
+    const badMrr = await Effect.runPromiseExit(
+      decodeExtraRowArray(TierCountRowSchema, 'mrr', [{ count: 3 }])
+    );
+    expect(Exit.isFailure(badMrr)).toBe(true);
+
+    const badDaily = await Effect.runPromiseExit(
+      decodeExtraRowArray(AdminDailyActiveRowSchema, 'dau', [{ date: '2026-08-17' }])
+    );
+    expect(Exit.isFailure(badDaily)).toBe(true);
+
+    const badRevenue = await Effect.runPromiseExit(
+      decodeExtraRowArray(AdminMonthlyRevenueRowSchema, 'monthly', [
+        { month: '2026-08', revenue: 'nine' },
+      ])
+    );
+    expect(Exit.isFailure(badRevenue)).toBe(true);
   });
 });
