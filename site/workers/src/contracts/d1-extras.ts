@@ -1061,6 +1061,57 @@ export function decodeOptionalExtraRow<S extends Schema.Schema.AnyNoContext>(
   return decodeExtraRow(schema, reason, value);
 }
 
+/** Outcome of reading an optional D1 `.first()` row. */
+export type OptionalExtraRow<A> =
+  | { readonly _tag: 'present'; readonly value: A }
+  | { readonly _tag: 'missing' }
+  | { readonly _tag: 'invalid' };
+
+/**
+ * Read an optional D1 `.first()` row without treating malformed data as missing.
+ *
+ * @param schema - Row schema.
+ * @param reason - Parse error reason.
+ * @param value - The `.first()` result.
+ * @returns Present, missing, or invalid.
+ */
+export async function readOptionalExtraRow<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  reason: string,
+  value: unknown
+): Promise<OptionalExtraRow<Schema.Schema.Type<S>>> {
+  const exit = await Effect.runPromiseExit(decodeOptionalExtraRow(schema, reason, value));
+  if (Exit.isFailure(exit)) {
+    return { _tag: 'invalid' };
+  }
+  if (exit.value === undefined) {
+    return { _tag: 'missing' };
+  }
+  return { _tag: 'present', value: exit.value };
+}
+
+/**
+ * The row value when present, otherwise undefined.
+ *
+ * @param row - Optional-row outcome.
+ * @returns The typed row, or undefined.
+ */
+export function optionalRowValue<A>(row: OptionalExtraRow<A>): A | undefined {
+  return row._tag === 'present' ? row.value : undefined;
+}
+
+/**
+ * Whether an optional-row outcome is a malformed persisted row.
+ *
+ * @param row - Optional-row outcome.
+ * @returns True when the row existed but could not be parsed.
+ */
+export function isInvalidExtraRow(
+  row: OptionalExtraRow<unknown>
+): row is { readonly _tag: 'invalid' } {
+  return row._tag === 'invalid';
+}
+
 /**
  * Whether a customers.admin flag row authorizes admin APIs.
  *
@@ -1070,11 +1121,10 @@ export function decodeOptionalExtraRow<S extends Schema.Schema.AnyNoContext>(
  * @returns True only when admin is exactly 1.
  */
 export async function customerIsAdmin(row: unknown): Promise<boolean> {
-  const decoded = await Effect.runPromiseExit(
-    decodeOptionalExtraRow(AdminFlagRowSchema, 'Admin flag row has an invalid shape', row)
+  const decoded = await readOptionalExtraRow(
+    AdminFlagRowSchema,
+    'Admin flag row has an invalid shape',
+    row
   );
-  if (Exit.isFailure(decoded) || decoded.value === undefined) {
-    return false;
-  }
-  return decoded.value.admin === 1;
+  return decoded._tag === 'present' && decoded.value.admin === 1;
 }

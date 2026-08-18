@@ -7,7 +7,6 @@ import { type Env, jsonResponse, errorResponse, corsHeaders, generateId } from '
 import {
   decodeExtraRow,
   decodeExtraRowArray,
-  decodeOptionalExtraRow,
   IdRowSchema,
   LicenseCustomerIdRowSchema,
   PrivacyCommandRowSchema,
@@ -18,6 +17,8 @@ import {
   PrivacyProfileRowSchema,
   PrivacySessionRowSchema,
   PrivacyStatusRowSchema,
+  isInvalidExtraRow,
+  readOptionalExtraRow,
   type PrivacyCommandRow,
   type PrivacyFeatureRow,
   type PrivacyLicenseRow,
@@ -272,8 +273,8 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
       retention_notice:
         'Audit logs are retained for 30 days for security purposes. Payment records are retained per Stripe requirements.',
     });
-  } catch (e) {
-    console.error('Data deletion error:', e);
+  } catch (error: unknown) {
+    console.error('Data deletion error:', error);
     return errorResponse('Failed to process deletion request', 500);
   }
 }
@@ -351,21 +352,24 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
     )
       .bind(customerId)
       .first();
-    const customer = await Effect.runPromise(
-      decodeOptionalExtraRow(
-        PrivacyProfileRowSchema,
-        'Privacy profile row has an invalid shape',
-        customerRow
-      )
+    const customerLookup = await readOptionalExtraRow(
+      PrivacyProfileRowSchema,
+      'Privacy profile row has an invalid shape',
+      customerRow
     );
-    if (customer !== undefined) {
-      exportData.profile = {
-        email: customer.email,
-        company: customer.company,
-        tier: customer.tier,
-        member_since: customer.created_at,
-      };
+    if (isInvalidExtraRow(customerLookup)) {
+      return errorResponse('Failed to load profile', 500);
     }
+    if (customerLookup._tag === 'missing') {
+      return errorResponse('Failed to load profile', 500);
+    }
+    const customer = customerLookup.value;
+    exportData.profile = {
+      email: customer.email,
+      company: customer.company,
+      tier: customer.tier,
+      member_since: customer.created_at,
+    };
 
     // License info (redacted key)
     const licenses = await env.DB.prepare(
@@ -513,8 +517,8 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
         ...corsHeaders,
       },
     });
-  } catch (e) {
-    console.error('Data export error:', e);
+  } catch (error: unknown) {
+    console.error('Data export error:', error);
     return errorResponse('Failed to process export request', 500);
   }
 }
@@ -540,17 +544,18 @@ export async function handleOptOut(request: Request, env: Env): Promise<Response
     )
       .bind(body.license_key)
       .first();
-    const license = await Effect.runPromise(
-      decodeOptionalExtraRow(
-        LicenseCustomerIdRowSchema,
-        'Privacy license row has an invalid shape',
-        licenseRow
-      )
+    const licenseLookup = await readOptionalExtraRow(
+      LicenseCustomerIdRowSchema,
+      'Privacy license row has an invalid shape',
+      licenseRow
     );
-
-    if (license === undefined) {
+    if (isInvalidExtraRow(licenseLookup)) {
+      return errorResponse('Failed to load license', 500);
+    }
+    if (licenseLookup._tag === 'missing') {
       return errorResponse('Invalid license key', 404);
     }
+    const license = licenseLookup.value;
 
     // Update customer preferences
     await env.DB.prepare(
@@ -571,8 +576,8 @@ export async function handleOptOut(request: Request, env: Env): Promise<Response
         ? 'Telemetry disabled. Your license remains fully functional.'
         : 'Telemetry re-enabled. Thank you for helping improve OMG!',
     });
-  } catch (e) {
-    console.error('Opt-out error:', e);
+  } catch (error: unknown) {
+    console.error('Opt-out error:', error);
     return errorResponse('Failed to process opt-out request', 500);
   }
 }

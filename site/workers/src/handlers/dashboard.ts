@@ -17,13 +17,15 @@ import {
 } from '../contracts/http-bodies';
 import {
   decodeExtraRowArray,
-  decodeOptionalExtraRow,
   DashboardAuditLogRowSchema,
   IdRowSchema,
   isTeamOrEnterpriseTier,
   LicenseTeamAuthRowSchema,
   MemberRecentUsageRowSchema,
   MemberUsageRowSchema,
+  optionalRowValue,
+  isInvalidExtraRow,
+  readOptionalExtraRow,
   TeamMemberMachineRowSchema,
   TeamUsageTotalsRowSchema,
   TierRowSchema,
@@ -95,12 +97,18 @@ export async function handleRegenerateLicense(request: Request, env: Env): Promi
     .bind(user.id)
     .first();
 
-  const license = await Effect.runPromise(
-    decodeOptionalExtraRow(IdRowSchema, 'License id row has an invalid shape', licenseRow)
+  const licenseLookup = await readOptionalExtraRow(
+    IdRowSchema,
+    'License id row has an invalid shape',
+    licenseRow
   );
-  if (license === undefined) {
+  if (isInvalidExtraRow(licenseLookup)) {
+    return errorResponse('Failed to load license', 500);
+  }
+  if (licenseLookup._tag === 'missing') {
     return errorResponse('License not found', 404);
   }
+  const license = licenseLookup.value;
 
   // Generate new key
   const newLicenseKey = crypto.randomUUID();
@@ -159,12 +167,18 @@ export async function handleRevokeMachine(request: Request, env: Env): Promise<R
     .bind(user.id)
     .first();
 
-  const license = await Effect.runPromise(
-    decodeOptionalExtraRow(IdRowSchema, 'License id row has an invalid shape', licenseRow)
+  const licenseLookup = await readOptionalExtraRow(
+    IdRowSchema,
+    'License id row has an invalid shape',
+    licenseRow
   );
-  if (license === undefined) {
+  if (isInvalidExtraRow(licenseLookup)) {
+    return errorResponse('Failed to load license', 500);
+  }
+  if (licenseLookup._tag === 'missing') {
     return errorResponse('License not found', 404);
   }
+  const license = licenseLookup.value;
 
   // Deactivate machine
   const result = await env.DB.prepare(
@@ -280,17 +294,18 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       .bind(auth.user.id)
       .first();
 
-    const license = await Effect.runPromise(
-      decodeOptionalExtraRow(
-        LicenseTeamAuthRowSchema,
-        'Team license row has an invalid shape',
-        licenseRow
-      )
+    const licenseLookup = await readOptionalExtraRow(
+      LicenseTeamAuthRowSchema,
+      'Team license row has an invalid shape',
+      licenseRow
     );
-
-    if (license === undefined) {
+    if (isInvalidExtraRow(licenseLookup)) {
+      return errorResponse('Failed to load license', 500);
+    }
+    if (licenseLookup._tag === 'missing') {
       return errorResponse('License not found', 404);
     }
+    const license = licenseLookup.value;
 
     if (!isTeamOrEnterpriseTier(license.tier)) {
       return errorResponse('Team management requires Team or Enterprise tier', 403);
@@ -403,13 +418,15 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       .bind(license.id)
       .first();
 
-    const totalUsage = await Effect.runPromise(
-      decodeOptionalExtraRow(
-        TeamUsageTotalsRowSchema,
-        'Team usage totals have an invalid shape',
-        totalUsageRow
-      )
+    const totalUsageLookup = await readOptionalExtraRow(
+      TeamUsageTotalsRowSchema,
+      'Team usage totals have an invalid shape',
+      totalUsageRow
     );
+    if (isInvalidExtraRow(totalUsageLookup)) {
+      return errorResponse('Failed to load team members', 500);
+    }
+    const totalUsage = optionalRowValue(totalUsageLookup);
 
     const membersWithUsage = machines.map(member => {
       const usage = usageMap.get(member.machine_id);
@@ -493,7 +510,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
         roi_multiplier: totalValueUSD > 0 ? (totalValueUSD / 200).toFixed(1) : '0',
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('handleGetTeamMembers error:', error);
     return errorResponse('Failed to load team data', 500);
   }
@@ -526,12 +543,18 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
     .bind(auth.user.id)
     .first();
 
-  const license = await Effect.runPromise(
-    decodeOptionalExtraRow(IdRowSchema, 'License id row has an invalid shape', licenseRow)
+  const licenseLookup = await readOptionalExtraRow(
+    IdRowSchema,
+    'License id row has an invalid shape',
+    licenseRow
   );
-  if (license === undefined) {
+  if (isInvalidExtraRow(licenseLookup)) {
+    return errorResponse('Failed to load license', 500);
+  }
+  if (licenseLookup._tag === 'missing') {
     return errorResponse('License not found', 404);
   }
+  const license = licenseLookup.value;
 
   // Deactivate the machine
   const result = await env.DB.prepare(
@@ -572,11 +595,15 @@ export async function handleGetAuditLog(request: Request, env: Env): Promise<Res
     .bind(auth.user.id)
     .first();
 
-  const license = await Effect.runPromise(
-    decodeOptionalExtraRow(TierRowSchema, 'License tier row has an invalid shape', licenseRow)
+  const licenseLookup = await readOptionalExtraRow(
+    TierRowSchema,
+    'License tier row has an invalid shape',
+    licenseRow
   );
-
-  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
+  if (licenseLookup._tag === 'invalid') {
+    return errorResponse('Failed to load license', 500);
+  }
+  if (licenseLookup._tag === 'missing' || !isTeamOrEnterpriseTier(licenseLookup.value.tier)) {
     return errorResponse('Audit logs require Team or Enterprise tier', 403);
   }
 

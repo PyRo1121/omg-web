@@ -24,28 +24,58 @@ import {
 } from '../contracts/team-controls';
 import {
   decodeExtraRowArray,
-  decodeOptionalExtraRow,
   HostnameRowSchema,
   isTeamOrEnterpriseTier,
   LicenseIdTierRowSchema,
   LicenseSeatsRowSchema,
   PolicyRowSchema,
+  isInvalidExtraRow,
+  readOptionalExtraRow,
   TeamControlMemberRowSchema,
   TotalRowSchema,
   type LicenseIdTierRow,
+  type OptionalExtraRow,
 } from '../contracts/d1-extras';
 
 async function loadActiveLicenseIdTier(
   db: D1Database,
   customerId: string
-): Promise<LicenseIdTierRow | undefined> {
+): Promise<OptionalExtraRow<LicenseIdTierRow>> {
   const row = await db
     .prepare(`SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`)
     .bind(customerId)
     .first();
-  return Effect.runPromise(
-    decodeOptionalExtraRow(LicenseIdTierRowSchema, 'License id/tier row has an invalid shape', row)
+  return readOptionalExtraRow(
+    LicenseIdTierRowSchema,
+    'License id/tier row has an invalid shape',
+    row
   );
+}
+
+function requireTeamLicense(
+  license: OptionalExtraRow<LicenseIdTierRow>,
+  forbiddenMessage: string
+): { readonly error: Response } | { readonly license: LicenseIdTierRow } {
+  if (license._tag === 'invalid') {
+    return { error: errorResponse('Failed to load license', 500) };
+  }
+  if (license._tag === 'missing' || !isTeamOrEnterpriseTier(license.value.tier)) {
+    return { error: errorResponse(forbiddenMessage, 403) };
+  }
+  return { license: license.value };
+}
+
+function requireEnterpriseLicense(
+  license: OptionalExtraRow<LicenseIdTierRow>,
+  forbiddenMessage: string
+): { readonly error: Response } | { readonly license: LicenseIdTierRow } {
+  if (license._tag === 'invalid') {
+    return { error: errorResponse('Failed to load license', 500) };
+  }
+  if (license._tag === 'missing' || license.value.tier !== 'enterprise') {
+    return { error: errorResponse(forbiddenMessage, 403) };
+  }
+  return { license: license.value };
 }
 
 export async function handleGetPolicies(request: Request, env: Env): Promise<Response> {
@@ -55,10 +85,12 @@ export async function handleGetPolicies(request: Request, env: Env): Promise<Res
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
-  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
-    return errorResponse('Policies require Team or Enterprise tier', 403);
-  }
+  const loaded = requireTeamLicense(
+    await loadActiveLicenseIdTier(env.DB, auth.user.id),
+    'Policies require Team or Enterprise tier'
+  );
+  if ('error' in loaded) return loaded.error;
+  const { license } = loaded;
 
   const policies = await env.DB.prepare(
     `SELECT id, scope, rule, value, enforced, created_at FROM policies WHERE license_id = ? ORDER BY scope, rule`
@@ -82,10 +114,12 @@ export async function handleCreatePolicy(request: Request, env: Env): Promise<Re
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
-  if (license === undefined || license.tier !== 'enterprise') {
-    return errorResponse('Policy management requires Enterprise tier', 403);
-  }
+  const loaded = requireEnterpriseLicense(
+    await loadActiveLicenseIdTier(env.DB, auth.user.id),
+    'Policy management requires Enterprise tier'
+  );
+  if ('error' in loaded) return loaded.error;
+  const { license } = loaded;
 
   const decoded = await Effect.runPromiseExit(decodeJsonBody(request, CreatePolicyBodySchema));
   if (Exit.isFailure(decoded)) {
@@ -125,10 +159,12 @@ export async function handleUpdatePolicy(request: Request, env: Env): Promise<Re
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
-  if (license === undefined || license.tier !== 'enterprise') {
-    return errorResponse('Policy management requires Enterprise tier', 403);
-  }
+  const loaded = requireEnterpriseLicense(
+    await loadActiveLicenseIdTier(env.DB, auth.user.id),
+    'Policy management requires Enterprise tier'
+  );
+  if ('error' in loaded) return loaded.error;
+  const { license } = loaded;
 
   const decoded = await Effect.runPromiseExit(decodeJsonBody(request, UpdatePolicyBodySchema));
   if (Exit.isFailure(decoded)) {
@@ -174,10 +210,12 @@ export async function handleDeletePolicy(request: Request, env: Env): Promise<Re
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
-  if (license === undefined || license.tier !== 'enterprise') {
-    return errorResponse('Policy management requires Enterprise tier', 403);
-  }
+  const loaded = requireEnterpriseLicense(
+    await loadActiveLicenseIdTier(env.DB, auth.user.id),
+    'Policy management requires Enterprise tier'
+  );
+  if ('error' in loaded) return loaded.error;
+  const { license } = loaded;
 
   const decoded = await Effect.runPromiseExit(decodeJsonBody(request, DeletePolicyBodySchema));
   if (Exit.isFailure(decoded)) {
@@ -203,10 +241,12 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
-  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
-    return errorResponse('Notifications require Team or Enterprise tier', 403);
-  }
+  const loaded = requireTeamLicense(
+    await loadActiveLicenseIdTier(env.DB, auth.user.id),
+    'Notifications require Team or Enterprise tier'
+  );
+  if ('error' in loaded) return loaded.error;
+  const { license } = loaded;
 
   const settings = await env.DB.prepare(
     `SELECT type, enabled, threshold, channels FROM notification_settings WHERE license_id = ?`
@@ -269,10 +309,12 @@ export async function handleUpdateNotificationSettings(
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
-  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
-    return errorResponse('Notifications require Team or Enterprise tier', 403);
-  }
+  const loaded = requireTeamLicense(
+    await loadActiveLicenseIdTier(env.DB, auth.user.id),
+    'Notifications require Team or Enterprise tier'
+  );
+  if ('error' in loaded) return loaded.error;
+  const { license } = loaded;
 
   const decoded = await Effect.runPromiseExit(
     decodeJsonBody(request, UpdateNotificationSettingsBodySchema)
@@ -318,10 +360,12 @@ export async function handleRevokeMember(request: Request, env: Env): Promise<Re
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
-  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
-    return errorResponse('Member management requires Team or Enterprise tier', 403);
-  }
+  const loaded = requireTeamLicense(
+    await loadActiveLicenseIdTier(env.DB, auth.user.id),
+    'Member management requires Team or Enterprise tier'
+  );
+  if ('error' in loaded) return loaded.error;
+  const { license } = loaded;
 
   const decoded = await Effect.runPromiseExit(decodeJsonBody(request, RevokeMemberBodySchema));
   if (Exit.isFailure(decoded)) {
@@ -337,14 +381,14 @@ export async function handleRevokeMember(request: Request, env: Env): Promise<Re
     .bind(machine_id, license.id)
     .first();
 
-  const machine = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      HostnameRowSchema,
-      'Machine hostname row has an invalid shape',
-      machineRow
-    )
+  const machineLookup = await readOptionalExtraRow(
+    HostnameRowSchema,
+    'Machine hostname row has an invalid shape',
+    machineRow
   );
-  if (machine === undefined) return errorResponse('Machine not found', 404);
+  if (isInvalidExtraRow(machineLookup)) return errorResponse('Failed to load machine', 500);
+  if (machineLookup._tag === 'missing') return errorResponse('Machine not found', 404);
+  const machine = machineLookup.value;
 
   await env.DB.prepare(
     `UPDATE machines SET is_active = 0, revoked_at = datetime('now') WHERE machine_id = ? AND license_id = ?`
@@ -370,10 +414,11 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
-  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
-    return errorResponse('Audit logs require Team or Enterprise tier', 403);
-  }
+  const loaded = requireTeamLicense(
+    await loadActiveLicenseIdTier(env.DB, auth.user.id),
+    'Audit logs require Team or Enterprise tier'
+  );
+  if ('error' in loaded) return loaded.error;
 
   let url: URL;
   try {
@@ -411,9 +456,13 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
   )
     .bind(auth.user.id)
     .first();
-  const totalRow = await Effect.runPromise(
-    decodeOptionalExtraRow(TotalRowSchema, 'Audit log count has an invalid shape', countResult)
+  const totalLookup = await readOptionalExtraRow(
+    TotalRowSchema,
+    'Audit log count has an invalid shape',
+    countResult
   );
+  if (isInvalidExtraRow(totalLookup)) return errorResponse('Failed to load audit logs', 500);
+  const totalRow = totalLookup._tag === 'present' ? totalLookup.value : undefined;
 
   const decodedLogs = await Effect.runPromiseExit(
     decodeTeamControlsRowArray(
@@ -460,17 +509,18 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
   )
     .bind(auth.user.id)
     .first();
-  const license = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      LicenseSeatsRowSchema,
-      'License seats row has an invalid shape',
-      licenseRow
-    )
+  const licenseLookup = await readOptionalExtraRow(
+    LicenseSeatsRowSchema,
+    'License seats row has an invalid shape',
+    licenseRow
   );
-
-  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
+  if (licenseLookup._tag === 'invalid') {
+    return errorResponse('Failed to load license', 500);
+  }
+  if (licenseLookup._tag === 'missing' || !isTeamOrEnterpriseTier(licenseLookup.value.tier)) {
     return errorResponse('Team members require Team or Enterprise tier', 403);
   }
+  const license = licenseLookup.value;
 
   const members = await env.DB.prepare(
     `
@@ -523,10 +573,12 @@ export async function handleUpdateAlertThreshold(request: Request, env: Env): Pr
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
-  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
-    return errorResponse('Alert thresholds require Team or Enterprise tier', 403);
-  }
+  const loaded = requireTeamLicense(
+    await loadActiveLicenseIdTier(env.DB, auth.user.id),
+    'Alert thresholds require Team or Enterprise tier'
+  );
+  if ('error' in loaded) return loaded.error;
+  const { license } = loaded;
 
   const decoded = await Effect.runPromiseExit(decodeJsonBody(request, AlertThresholdBodySchema));
   if (Exit.isFailure(decoded)) {

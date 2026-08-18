@@ -1,16 +1,18 @@
 // AI Insights Handler - Using Cloudflare AI Gateway with Meta.com
-import type { Env } from '../api';
-import { jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
+import { type Env, jsonResponse, errorResponse, getAuthToken, validateSession } from '../api';
 import { Effect, Exit } from 'effect';
 import {
+  customerIsAdmin,
   decodeExtraRow,
   decodeExtraRowArray,
-  decodeOptionalExtraRow,
   InsightsErrorRowSchema,
   InsightsProductRowSchema,
   InsightsStatsRowSchema,
   InsightsUsageRowSchema,
   MetaChatCompletionSchema,
+  optionalRowValue,
+  isInvalidExtraRow,
+  readOptionalExtraRow,
   WorkersAiTextSchema,
 } from '../contracts/d1-extras';
 
@@ -39,7 +41,10 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
     console.warn('API_RATE_LIMITER binding not available, skipping insights rate limit');
   }
 
-  const isAdmin = env.ADMIN_USER_ID ? auth.user.id === env.ADMIN_USER_ID : false;
+  const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
+    .bind(auth.user.id)
+    .first();
+  const isAdmin = await customerIsAdmin(adminCheck);
   const url = new URL(request.url);
   const target = url.searchParams.get('target') || 'user'; // 'user', 'team', or 'admin'
 
@@ -59,13 +64,15 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
           (SELECT COUNT(DISTINCT omg_version) FROM machines WHERE is_active = 1) as version_drift_count
       `
       ).first();
-      const stats = await Effect.runPromise(
-        decodeOptionalExtraRow(
-          InsightsStatsRowSchema,
-          'Insights stats row has an invalid shape',
-          statsRow
-        )
+      const statsLookup = await readOptionalExtraRow(
+        InsightsStatsRowSchema,
+        'Insights stats row has an invalid shape',
+        statsRow
       );
+      if (isInvalidExtraRow(statsLookup)) {
+        return errorResponse('Failed to load insights', 500);
+      }
+      const stats = optionalRowValue(statsLookup);
 
       const errorStats = await env.DB.prepare(
         `
@@ -103,13 +110,15 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
       )
         .bind(auth.user.id)
         .first();
-      const usage = await Effect.runPromise(
-        decodeOptionalExtraRow(
-          InsightsUsageRowSchema,
-          'Insights usage row has an invalid shape',
-          usageRow
-        )
+      const usageLookup = await readOptionalExtraRow(
+        InsightsUsageRowSchema,
+        'Insights usage row has an invalid shape',
+        usageRow
       );
+      if (isInvalidExtraRow(usageLookup)) {
+        return errorResponse('Failed to load insights', 500);
+      }
+      const usage = optionalRowValue(usageLookup);
 
       // Get command breakdown for user/team
       const commandBreakdownRow = await env.DB.prepare(
@@ -124,13 +133,15 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
       )
         .bind(auth.user.id)
         .first();
-      const commandBreakdown = await Effect.runPromise(
-        decodeOptionalExtraRow(
-          InsightsProductRowSchema,
-          'Insights product row has an invalid shape',
-          commandBreakdownRow
-        )
+      const commandBreakdownLookup = await readOptionalExtraRow(
+        InsightsProductRowSchema,
+        'Insights product row has an invalid shape',
+        commandBreakdownRow
       );
+      if (isInvalidExtraRow(commandBreakdownLookup)) {
+        return errorResponse('Failed to load insights', 500);
+      }
+      const commandBreakdown = optionalRowValue(commandBreakdownLookup);
 
       const timeHours = Math.round((Number(usage?.time) || 0) / 3600000);
       const cmdsNum = Number(usage?.cmds) || 0;

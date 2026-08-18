@@ -62,7 +62,9 @@ import {
   customerIsAdmin,
   decodeExtraRow,
   decodeExtraRowArray,
-  decodeOptionalExtraRow,
+  optionalRowValue,
+  isInvalidExtraRow,
+  readOptionalExtraRow,
   FeatureAdoptionRowSchema,
   FunnelRowSchema,
   GlobalUsageRowSchema,
@@ -238,34 +240,39 @@ export async function handleAdminDashboard(request: Request, env: Env): Promise<
     commandStatsResult,
   ] = batchResults;
 
-  const counts = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      AdminCountsRowSchema,
-      'Admin overview counts have an invalid shape',
-      countsResult.results?.[0]
-    )
+  const countsLookup = await readOptionalExtraRow(
+    AdminCountsRowSchema,
+    'Admin overview counts have an invalid shape',
+    countsResult.results?.[0]
   );
-  const usageTotals = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      AdminUsageTotalsRowSchema,
-      'Admin usage totals have an invalid shape',
-      usageTotalsResult.results?.[0]
-    )
+  const usageTotalsLookup = await readOptionalExtraRow(
+    AdminUsageTotalsRowSchema,
+    'Admin usage totals have an invalid shape',
+    usageTotalsResult.results?.[0]
   );
-  const globalUsage = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      GlobalUsageRowSchema,
-      'Admin global usage has an invalid shape',
-      globalUsageResult.results?.[0]
-    )
+  const globalUsageLookup = await readOptionalExtraRow(
+    GlobalUsageRowSchema,
+    'Admin global usage has an invalid shape',
+    globalUsageResult.results?.[0]
   );
-  const commandStats = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      CommandStatsRowSchema,
-      'Admin command stats have an invalid shape',
-      commandStatsResult.results?.[0]
-    )
+  const commandStatsLookup = await readOptionalExtraRow(
+    CommandStatsRowSchema,
+    'Admin command stats have an invalid shape',
+    commandStatsResult.results?.[0]
   );
+  const invalidOverview = [
+    countsLookup,
+    usageTotalsLookup,
+    globalUsageLookup,
+    commandStatsLookup,
+  ].some(isInvalidExtraRow);
+  if (invalidOverview) {
+    return errorResponse('Failed to load dashboard', 500);
+  }
+  const counts = optionalRowValue(countsLookup);
+  const usageTotals = optionalRowValue(usageTotalsLookup);
+  const globalUsage = optionalRowValue(globalUsageLookup);
+  const commandStats = optionalRowValue(commandStatsLookup);
   const [
     decodedTiers,
     decodedDailyActive,
@@ -493,32 +500,36 @@ export async function handleAdminUserDetail(request: Request, env: Env): Promise
   )
     .bind(userId)
     .first();
-  const user = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      AdminCustomerDetailRowSchema,
-      'Admin customer detail has an invalid shape',
-      userRow
-    )
+  const userLookup = await readOptionalExtraRow(
+    AdminCustomerDetailRowSchema,
+    'Admin customer detail has an invalid shape',
+    userRow
   );
-  if (user === undefined) {
+  if (isInvalidExtraRow(userLookup)) {
+    return errorResponse('Failed to load user', 500);
+  }
+  if (userLookup._tag === 'missing') {
     return errorResponse('User not found', 404);
   }
+  const user = userLookup.value;
 
   const licenseRow = await env.DB.prepare(
     `SELECT id, customer_id, license_key, tier, status, max_seats, max_machines, expires_at, created_at FROM licenses WHERE customer_id = ?`
   )
     .bind(userId)
     .first();
-  const license = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      AdminLicenseDetailRowSchema,
-      'Admin license detail has an invalid shape',
-      licenseRow
-    )
+  const licenseLookup = await readOptionalExtraRow(
+    AdminLicenseDetailRowSchema,
+    'Admin license detail has an invalid shape',
+    licenseRow
   );
-  if (license === undefined) {
+  if (isInvalidExtraRow(licenseLookup)) {
+    return errorResponse('Failed to load license', 500);
+  }
+  if (licenseLookup._tag === 'missing') {
     return errorResponse('License not found for user', 404);
   }
+  const license = licenseLookup.value;
 
   const machines = await env.DB.prepare(
     `SELECT id, license_id, machine_id, hostname, os, arch, omg_version, user_name, user_email, is_active, first_seen_at, last_seen_at FROM machines WHERE license_id = ?`
@@ -738,57 +749,66 @@ export async function handleAdminAnalytics(request: Request, env: Env): Promise<
     `SELECT json_extract(properties, '$.runtime') as runtime, COUNT(*) as count, COUNT(DISTINCT machine_id) as machines FROM analytics_events WHERE (event_name = 'runtime_switch' OR event_name = 'runtime_use') AND created_at >= datetime('now', '-30 days') GROUP BY 1 ORDER BY 2 DESC`
   ).all();
 
-  const [growth, timeSaved, funnel, churnRisk, retentionRate, performance, sessions, userJourney] =
-    await Promise.all([
-      Effect.runPromise(
-        decodeOptionalExtraRow(GrowthRowSchema, 'Admin growth row has an invalid shape', growthRow)
-      ),
-      Effect.runPromise(
-        decodeOptionalExtraRow(
-          HoursSavedRowSchema,
-          'Admin hours-saved row has an invalid shape',
-          timeSavedRow
-        )
-      ),
-      Effect.runPromise(
-        decodeOptionalExtraRow(FunnelRowSchema, 'Admin funnel row has an invalid shape', funnelRow)
-      ),
-      Effect.runPromise(
-        decodeOptionalExtraRow(
-          AtRiskRowSchema,
-          'Admin at-risk row has an invalid shape',
-          churnRiskRow
-        )
-      ),
-      Effect.runPromise(
-        decodeOptionalExtraRow(
-          RateRowSchema,
-          'Admin retention rate row has an invalid shape',
-          retentionRateRow
-        )
-      ),
-      Effect.runPromise(
-        decodeOptionalExtraRow(
-          PerformanceStatsRowSchema,
-          'Admin performance row has an invalid shape',
-          performanceRow
-        )
-      ),
-      Effect.runPromise(
-        decodeOptionalExtraRow(
-          SessionStatsRowSchema,
-          'Admin session stats row has an invalid shape',
-          sessionsRow
-        )
-      ),
-      Effect.runPromise(
-        decodeOptionalExtraRow(
-          JourneyRowSchema,
-          'Admin journey row has an invalid shape',
-          userJourneyRow
-        )
-      ),
-    ]);
+  const [
+    growthLookup,
+    timeSavedLookup,
+    funnelLookup,
+    churnRiskLookup,
+    retentionRateLookup,
+    performanceLookup,
+    sessionsLookup,
+    userJourneyLookup,
+  ] = await Promise.all([
+    readOptionalExtraRow(GrowthRowSchema, 'Admin growth row has an invalid shape', growthRow),
+    readOptionalExtraRow(
+      HoursSavedRowSchema,
+      'Admin hours-saved row has an invalid shape',
+      timeSavedRow
+    ),
+    readOptionalExtraRow(FunnelRowSchema, 'Admin funnel row has an invalid shape', funnelRow),
+    readOptionalExtraRow(AtRiskRowSchema, 'Admin at-risk row has an invalid shape', churnRiskRow),
+    readOptionalExtraRow(
+      RateRowSchema,
+      'Admin retention rate row has an invalid shape',
+      retentionRateRow
+    ),
+    readOptionalExtraRow(
+      PerformanceStatsRowSchema,
+      'Admin performance row has an invalid shape',
+      performanceRow
+    ),
+    readOptionalExtraRow(
+      SessionStatsRowSchema,
+      'Admin session stats row has an invalid shape',
+      sessionsRow
+    ),
+    readOptionalExtraRow(
+      JourneyRowSchema,
+      'Admin journey row has an invalid shape',
+      userJourneyRow
+    ),
+  ]);
+  const invalidAnalytics = [
+    growthLookup,
+    timeSavedLookup,
+    funnelLookup,
+    churnRiskLookup,
+    retentionRateLookup,
+    performanceLookup,
+    sessionsLookup,
+    userJourneyLookup,
+  ].some(isInvalidExtraRow);
+  if (invalidAnalytics) {
+    return errorResponse('Failed to load analytics', 500);
+  }
+  const growth = optionalRowValue(growthLookup);
+  const timeSaved = optionalRowValue(timeSavedLookup);
+  const funnel = optionalRowValue(funnelLookup);
+  const churnRisk = optionalRowValue(churnRiskLookup);
+  const retentionRate = optionalRowValue(retentionRateLookup);
+  const performance = optionalRowValue(performanceLookup);
+  const sessions = optionalRowValue(sessionsLookup);
+  const userJourney = optionalRowValue(userJourneyLookup);
 
   const [decodedCommands, decodedErrors, decodedRuntimes] = await Promise.all([
     Effect.runPromiseExit(
@@ -1149,13 +1169,17 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
     ).all(),
     env.DB.prepare(
       `
-      SELECT AVG(julianday(MIN(u.date)) - julianday(c.created_at)) as avg_days_to_activation,
-             COUNT(CASE WHEN julianday(MIN(u.date)) - julianday(c.created_at) <= 7 THEN 1 END) * 100.0 / COUNT(*) as pct_activated_week1
-      FROM customers c
-      JOIN licenses l ON c.id = l.customer_id
-      LEFT JOIN usage_daily u ON l.id = u.license_id AND u.commands_run > 0
-      WHERE c.created_at >= datetime('now', '-90 days')
-      GROUP BY c.id
+      SELECT AVG(days_to_activation) as avg_days_to_activation,
+             AVG(activated_week1) * 100.0 as pct_activated_week1
+      FROM (
+        SELECT julianday(MIN(u.date)) - julianday(c.created_at) as days_to_activation,
+               CASE WHEN julianday(MIN(u.date)) - julianday(c.created_at) <= 7 THEN 1.0 ELSE 0.0 END as activated_week1
+        FROM customers c
+        JOIN licenses l ON c.id = l.customer_id
+        LEFT JOIN usage_daily u ON l.id = u.license_id AND u.commands_run > 0
+        WHERE c.created_at >= datetime('now', '-90 days')
+        GROUP BY c.id
+      )
     `
     ).first(),
     env.DB.prepare(
@@ -1595,8 +1619,8 @@ export async function handleAdminAssignTag(request: Request, env: Env): Promise<
     )
       .bind(body.customerId, body.tagId, context.user.id)
       .run();
-  } catch (e) {
-    const message = decodeThrownMessage(e);
+  } catch (error: unknown) {
+    const message = decodeThrownMessage(error);
     if (message.includes('UNIQUE constraint') || message.includes('PRIMARY KEY')) {
       return secureJsonResponse({
         request_id: context.requestId,
@@ -1604,7 +1628,7 @@ export async function handleAdminAssignTag(request: Request, env: Env): Promise<
         message: 'Tag already assigned',
       });
     }
-    throw e;
+    throw error;
   }
 
   await logAdminAudit(env.DB, {
@@ -1676,33 +1700,21 @@ export async function handleAdminGetCustomerHealth(request: Request, env: Env): 
   )
     .bind(customerId)
     .first();
-  const health = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      CustomerHealthRowSchema,
-      'Customer health row has an invalid shape',
-      healthRow
-    )
+  const healthLookup = await readOptionalExtraRow(
+    CustomerHealthRowSchema,
+    'Customer health row has an invalid shape',
+    healthRow
   );
-
-  if (health === undefined) {
-    return secureJsonResponse({
-      request_id: context.requestId,
-      health: {
-        customer_id: customerId,
-        overall_score: 50,
-        engagement_score: 50,
-        activation_score: 50,
-        growth_score: 50,
-        risk_score: 0,
-        lifecycle_stage: 'new',
-        updated_at: null,
-      },
-    });
+  if (isInvalidExtraRow(healthLookup)) {
+    return errorResponse('Failed to load customer health', 500);
+  }
+  if (healthLookup._tag === 'missing') {
+    return errorResponse('Customer health not found', 404);
   }
 
   return secureJsonResponse({
     request_id: context.requestId,
-    health,
+    health: healthLookup.value,
   });
 }
 
@@ -1901,8 +1913,8 @@ export async function handleInitDb(env: Env): Promise<Response> {
     ).run();
 
     return jsonResponse({ success: true, message: 'Database initialized' });
-  } catch (e) {
-    console.error('Init DB error:', e);
-    return errorResponse(e instanceof Error ? e.message : 'Database init failed', 500);
+  } catch (error: unknown) {
+    console.error('Init DB error:', error);
+    return errorResponse(error instanceof Error ? error.message : 'Database init failed', 500);
   }
 }

@@ -2,8 +2,7 @@ import * as Sentry from '@sentry/cloudflare';
 import { unauthorizedUnlessAdminSecret } from './admin-secret';
 import { forbiddenUnlessAdminSession } from './admin-auth';
 import { type Env, corsHeaders, jsonResponse, errorResponse } from './api';
-import { Effect } from 'effect';
-import { decodeOptionalExtraRow, InstallsBadgeRowSchema } from './contracts/d1-extras';
+import { InstallsBadgeRowSchema, readOptionalExtraRow } from './contracts/d1-extras';
 import {
   handleSendCode,
   handleVerifyCode,
@@ -517,14 +516,15 @@ export default Sentry.withSentry(
             const result = await env.DB.prepare(
               `SELECT COUNT(DISTINCT install_id) as total FROM install_stats`
             ).first();
-            const badge = await Effect.runPromise(
-              decodeOptionalExtraRow(
-                InstallsBadgeRowSchema,
-                'Installs badge row has an invalid shape',
-                result
-              )
+            const badgeLookup = await readOptionalExtraRow(
+              InstallsBadgeRowSchema,
+              'Installs badge row has an invalid shape',
+              result
             );
-            const total = badge?.total ?? 0;
+            if (badgeLookup._tag === 'invalid') {
+              console.error('Installs badge row has an invalid shape');
+            }
+            const total = badgeLookup._tag === 'present' ? badgeLookup.value.total : 0;
             return new Response(
               JSON.stringify({
                 schemaVersion: 1,
@@ -563,7 +563,7 @@ export default Sentry.withSentry(
         }
 
         return errorResponse('Not found', 404);
-      } catch (error) {
+      } catch (error: unknown) {
         Sentry.captureException(error);
         console.error('Worker error:', error);
         return errorResponse('Internal server error', 500);

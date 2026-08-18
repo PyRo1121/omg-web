@@ -7,7 +7,10 @@ import {
   CliGeoRowSchema,
   CountRowSchema,
   decodeExtraRowArray,
-  decodeOptionalExtraRow,
+  ExtraRowParseError,
+  isInvalidExtraRow,
+  optionalRowValue,
+  readOptionalExtraRow,
   DocsGeoRowSchema,
   SiteAnalyticsTotalsRowSchema,
   SiteDailyTrendRowSchema,
@@ -34,14 +37,16 @@ async function getCurrentSalt(db: D1Database): Promise<Uint8Array> {
     )
     .first();
 
-  const saltRow = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      AnalyticsSaltRowSchema,
-      'Analytics salt row has an invalid shape',
-      result
-    )
+  const saltLookup = await readOptionalExtraRow(
+    AnalyticsSaltRowSchema,
+    'Analytics salt row has an invalid shape',
+    result
   );
-  if (saltRow !== undefined) {
+  if (saltLookup._tag === 'invalid') {
+    throw new ExtraRowParseError('Analytics salt row has an invalid shape');
+  }
+  if (saltLookup._tag === 'present') {
+    const saltRow = saltLookup.value;
     return saltRow.salt instanceof ArrayBuffer ? new Uint8Array(saltRow.salt) : saltRow.salt;
   }
 
@@ -445,13 +450,15 @@ export async function handleGetRealtimeAnalytics(_request: Request, env: Env): P
         .all(),
     ]);
 
-    const activeVisitorsRow = await Effect.runPromise(
-      decodeOptionalExtraRow(
-        CountRowSchema,
-        'Realtime visitor count has an invalid shape',
-        activeVisitors
-      )
+    const activeVisitorsLookup = await readOptionalExtraRow(
+      CountRowSchema,
+      'Realtime visitor count has an invalid shape',
+      activeVisitors
     );
+    if (isInvalidExtraRow(activeVisitorsLookup)) {
+      return errorResponse('Failed to load realtime analytics', 500);
+    }
+    const activeVisitorsRow = optionalRowValue(activeVisitorsLookup);
     const [decodedCountries, decodedPages] = await Promise.all([
       Effect.runPromiseExit(
         decodeExtraRowArray(
@@ -547,13 +554,15 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
         .all(),
     ]);
 
-    const totals = await Effect.runPromise(
-      decodeOptionalExtraRow(
-        SiteAnalyticsTotalsRowSchema,
-        'Site analytics totals have an invalid shape',
-        totalStats
-      )
+    const totalsLookup = await readOptionalExtraRow(
+      SiteAnalyticsTotalsRowSchema,
+      'Site analytics totals have an invalid shape',
+      totalStats
     );
+    if (isInvalidExtraRow(totalsLookup)) {
+      return errorResponse('Failed to load site analytics', 500);
+    }
+    const totals = optionalRowValue(totalsLookup);
     const [decodedTrend, decodedPages, decodedReferrers, decodedDevices] = await Promise.all([
       Effect.runPromiseExit(
         decodeExtraRowArray(

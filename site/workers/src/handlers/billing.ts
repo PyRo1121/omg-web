@@ -11,12 +11,14 @@ import { Schema } from '@effect/schema';
 import { decodeJsonBody } from '../body';
 import { EmailAddress } from '../contracts/admin-session';
 import { forbiddenUnlessAdminSession } from '../admin-auth';
+import { decodeThrownMessage } from '../contracts/http-bodies';
 import {
-  decodeOptionalExtraRow,
   StripeCustomerIdRowSchema,
   BillingCustomerRowSchema,
   customerIsAdmin,
   IdRowSchema,
+  isInvalidExtraRow,
+  readOptionalExtraRow,
 } from '../contracts/d1-extras';
 import {
   decodeStripeJson,
@@ -115,7 +117,7 @@ async function verifyStripeSignature(
     }
 
     return result === 0;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Stripe signature verification error:', error);
     return false;
   }
@@ -205,16 +207,18 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
     .bind(email)
     .first();
 
-  const stripeCustomer = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      StripeCustomerIdRowSchema,
-      'Billing customer row has an invalid shape',
-      customer
-    )
+  const stripeCustomerLookup = await readOptionalExtraRow(
+    StripeCustomerIdRowSchema,
+    'Billing customer row has an invalid shape',
+    customer
   );
-  if (stripeCustomer === undefined) {
+  if (isInvalidExtraRow(stripeCustomerLookup)) {
+    return errorResponse('Failed to load billing account', 500);
+  }
+  if (stripeCustomerLookup._tag === 'missing') {
     return errorResponse('No billing account found for this email', 404);
   }
+  const stripeCustomer = stripeCustomerLookup.value;
 
   const portalResponse = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
     method: 'POST',
@@ -278,13 +282,15 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       )
         .bind(customerId)
         .first();
-      let customer = await Effect.runPromise(
-        decodeOptionalExtraRow(
-          BillingCustomerRowSchema,
-          'Billing customer row has an invalid shape',
-          customerRow
-        )
+      const customerLookup = await readOptionalExtraRow(
+        BillingCustomerRowSchema,
+        'Billing customer row has an invalid shape',
+        customerRow
       );
+      if (customerLookup._tag === 'invalid') {
+        return new Response('Failed to load customer', { status: 500 });
+      }
+      let customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
 
       if (customer === undefined) {
         const stripeCustomerResponse = await fetch(
@@ -333,13 +339,16 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
         )
           .bind(customer.id)
           .first();
-        const existingLicense = await Effect.runPromise(
-          decodeOptionalExtraRow(
-            IdRowSchema,
-            'Billing license id row has an invalid shape',
-            existingLicenseRow
-          )
+        const existingLicenseLookup = await readOptionalExtraRow(
+          IdRowSchema,
+          'Billing license id row has an invalid shape',
+          existingLicenseRow
         );
+        if (existingLicenseLookup._tag === 'invalid') {
+          return new Response('Failed to load license', { status: 500 });
+        }
+        const existingLicense =
+          existingLicenseLookup._tag === 'present' ? existingLicenseLookup.value : undefined;
 
         if (existingLicense !== undefined) {
           await env.DB.prepare(
@@ -373,13 +382,15 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       )
         .bind(customerId)
         .first();
-      const customer = await Effect.runPromise(
-        decodeOptionalExtraRow(
-          IdRowSchema,
-          'Billing customer id row has an invalid shape',
-          customerRow
-        )
+      const customerLookup = await readOptionalExtraRow(
+        IdRowSchema,
+        'Billing customer id row has an invalid shape',
+        customerRow
       );
+      if (customerLookup._tag === 'invalid') {
+        return new Response('Failed to load customer', { status: 500 });
+      }
+      const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
 
       if (customer !== undefined) {
         await env.DB.prepare(`UPDATE licenses SET status = 'cancelled' WHERE customer_id = ?`)
@@ -402,13 +413,15 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       )
         .bind(customerId)
         .first();
-      const customer = await Effect.runPromise(
-        decodeOptionalExtraRow(
-          IdRowSchema,
-          'Billing customer id row has an invalid shape',
-          customerRow
-        )
+      const customerLookup = await readOptionalExtraRow(
+        IdRowSchema,
+        'Billing customer id row has an invalid shape',
+        customerRow
       );
+      if (customerLookup._tag === 'invalid') {
+        return new Response('Failed to load customer', { status: 500 });
+      }
+      const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
 
       if (customer !== undefined) {
         // Store invoice in database for revenue tracking
@@ -442,13 +455,15 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       )
         .bind(customerId)
         .first();
-      const customer = await Effect.runPromise(
-        decodeOptionalExtraRow(
-          IdRowSchema,
-          'Billing customer id row has an invalid shape',
-          customerRow
-        )
+      const customerLookup = await readOptionalExtraRow(
+        IdRowSchema,
+        'Billing customer id row has an invalid shape',
+        customerRow
       );
+      if (customerLookup._tag === 'invalid') {
+        return new Response('Failed to load customer', { status: 500 });
+      }
+      const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
 
       if (customer !== undefined) {
         // Mark subscription as past_due
@@ -480,13 +495,15 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       )
         .bind(stripeCustomer.id, stripeCustomer.email)
         .first();
-      const existing = await Effect.runPromise(
-        decodeOptionalExtraRow(
-          BillingCustomerRowSchema,
-          'Billing customer link row has an invalid shape',
-          existingRow
-        )
+      const existingLookup = await readOptionalExtraRow(
+        BillingCustomerRowSchema,
+        'Billing customer link row has an invalid shape',
+        existingRow
       );
+      if (existingLookup._tag === 'invalid') {
+        return new Response('Failed to load customer', { status: 500 });
+      }
+      const existing = existingLookup._tag === 'present' ? existingLookup.value : undefined;
 
       if (existing === undefined) {
         await env.DB.prepare(
@@ -582,8 +599,10 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
             )
             .run();
           results.customers_synced++;
-        } catch (e) {
-          results.errors.push(`Customer ${customer.email}: ${e}`);
+        } catch (error: unknown) {
+          results.errors.push(
+            `Customer ${customer.email}: ${decodeThrownMessage(error) || 'unknown error'}`
+          );
         }
       }
 
@@ -623,13 +642,16 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
           )
             .bind(sub.customer)
             .first();
-          const customer = await Effect.runPromise(
-            decodeOptionalExtraRow(
-              IdRowSchema,
-              'Billing customer id row has an invalid shape',
-              customerRow
-            )
+          const customerLookup = await readOptionalExtraRow(
+            IdRowSchema,
+            'Billing customer id row has an invalid shape',
+            customerRow
           );
+          if (customerLookup._tag === 'invalid') {
+            results.errors.push(`Subscription ${sub.id}: customer row has an invalid shape`);
+            continue;
+          }
+          const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
 
           if (customer !== undefined) {
             await env.DB.prepare(
@@ -647,8 +669,10 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
               .run();
             results.subscriptions_synced++;
           }
-        } catch (e) {
-          results.errors.push(`Subscription ${sub.id}: ${e}`);
+        } catch (error: unknown) {
+          results.errors.push(
+            `Subscription ${sub.id}: ${decodeThrownMessage(error) || 'unknown error'}`
+          );
         }
       }
 
@@ -691,13 +715,16 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
           )
             .bind(invoice.customer)
             .first();
-          const customer = await Effect.runPromise(
-            decodeOptionalExtraRow(
-              IdRowSchema,
-              'Billing customer id row has an invalid shape',
-              customerRow
-            )
+          const customerLookup = await readOptionalExtraRow(
+            IdRowSchema,
+            'Billing customer id row has an invalid shape',
+            customerRow
           );
+          if (customerLookup._tag === 'invalid') {
+            results.errors.push(`Invoice ${invoice.id}: customer row has an invalid shape`);
+            continue;
+          }
+          const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
 
           if (customer !== undefined) {
             await env.DB.prepare(
@@ -721,8 +748,10 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
               .run();
             results.invoices_synced++;
           }
-        } catch (e) {
-          results.errors.push(`Invoice ${invoice.id}: ${e}`);
+        } catch (error: unknown) {
+          results.errors.push(
+            `Invoice ${invoice.id}: ${decodeThrownMessage(error) || 'unknown error'}`
+          );
         }
       }
 
@@ -731,8 +760,8 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
         startingAfter = data.data[data.data.length - 1].id;
       }
     }
-  } catch (error) {
-    results.errors.push(`Sync error: ${error}`);
+  } catch (error: unknown) {
+    results.errors.push(`Sync error: ${decodeThrownMessage(error) || 'unknown error'}`);
   }
 
   await logAudit(env.DB, auth.user.id, 'admin.stripe_sync', 'stripe', null, request, results);

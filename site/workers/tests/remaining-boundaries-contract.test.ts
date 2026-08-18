@@ -54,6 +54,8 @@ import {
   decodeExtraRowArray,
   decodeOptionalExtraRow,
   decodeStoredProperties,
+  optionalRowValue,
+  readOptionalExtraRow,
   DocsGeoRowSchema,
   DocsInteractionRowSchema,
   DocsPageviewsRowSchema,
@@ -277,6 +279,20 @@ describe('optional extra rows', () => {
   it('returns undefined for a missing first() row', async () => {
     const row = await Effect.runPromise(decodeOptionalExtraRow(CountRowSchema, 'count', undefined));
     expect(row).toBeUndefined();
+  });
+
+  it('distinguishes missing optional rows from malformed ones', async () => {
+    const missing = await readOptionalExtraRow(CountRowSchema, 'count', undefined);
+    expect(missing._tag).toBe('missing');
+
+    const present = await readOptionalExtraRow(CountRowSchema, 'count', { count: 4 });
+    expect(present).toEqual({ _tag: 'present', value: { count: 4 } });
+
+    const invalid = await readOptionalExtraRow(CountRowSchema, 'count', { count: 'nope' });
+    expect(invalid._tag).toBe('invalid');
+    expect(optionalRowValue(invalid)).toBeUndefined();
+    expect(optionalRowValue(present)).toEqual({ count: 4 });
+    expect(optionalRowValue(missing)).toBeUndefined();
   });
 
   it('rejects an invalid session join row', async () => {

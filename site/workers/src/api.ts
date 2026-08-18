@@ -1,8 +1,11 @@
 // API Types and Utilities for OMG Dashboard
 // All authenticated endpoints require a valid session token
 
-import { Effect, Exit } from 'effect';
-import { decodeOptionalExtraRow, SessionJoinRowSchema } from './contracts/d1-extras';
+import {
+  ExtraRowParseError,
+  readOptionalExtraRow,
+  SessionJoinRowSchema,
+} from './contracts/d1-extras';
 
 // Rate limiter interface from Cloudflare Workers
 interface RateLimit {
@@ -332,10 +335,15 @@ export async function validateSession(
     .bind(token)
     .first();
 
-  const decodedSession = await Effect.runPromiseExit(
-    decodeOptionalExtraRow(SessionJoinRowSchema, 'Session join row has an invalid shape', row)
+  const decodedSession = await readOptionalExtraRow(
+    SessionJoinRowSchema,
+    'Session join row has an invalid shape',
+    row
   );
-  if (Exit.isFailure(decodedSession) || decodedSession.value === undefined) {
+  if (decodedSession._tag === 'invalid') {
+    throw new ExtraRowParseError('Session join row has an invalid shape');
+  }
+  if (decodedSession._tag === 'missing') {
     return null;
   }
   const session = decodedSession.value;
@@ -396,8 +404,8 @@ export async function logAudit<TMetadata extends object>(
         metadata ? JSON.stringify(metadata) : null
       )
       .run();
-  } catch (e) {
-    console.error('Audit log error:', e);
+  } catch (error: unknown) {
+    console.error('Audit log error:', error);
   }
 }
 
@@ -431,8 +439,8 @@ export async function verifyTurnstile(
     }
 
     return { success: true };
-  } catch (e) {
-    console.error('Turnstile verification error:', e);
+  } catch (error: unknown) {
+    console.error('Turnstile verification error:', error);
     return { success: false, error: 'Verification service unavailable' };
   }
 }
@@ -465,8 +473,8 @@ export async function sendEmail(
     });
 
     return response.ok;
-  } catch (e) {
-    console.error('Email send error:', e);
+  } catch (error: unknown) {
+    console.error('Email send error:', error);
     return false;
   }
 }

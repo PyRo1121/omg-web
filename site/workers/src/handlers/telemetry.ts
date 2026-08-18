@@ -7,7 +7,11 @@ import {
   SingleTelemetryRequestSchema,
   type TelemetryEvent,
 } from '../contracts/cli-telemetry';
-import { decodeOptionalExtraRow, LicenseCustomerIdRowSchema } from '../contracts/d1-extras';
+import {
+  LicenseCustomerIdRowSchema,
+  isInvalidExtraRow,
+  readOptionalExtraRow,
+} from '../contracts/d1-extras';
 
 // ========== Payload Size Limits ==========
 const MAX_EVENT_PAYLOAD_BYTES = 100 * 1024; // 100 KB
@@ -111,8 +115,8 @@ async function checkRateLimit(
     }
 
     return { allowed: true };
-  } catch (e) {
-    console.error('Rate limit check failed:', e);
+  } catch (error: unknown) {
+    console.error('Rate limit check failed:', error);
     // Fail open - allow request if rate limiter fails
     return { allowed: true };
   }
@@ -155,17 +159,18 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
     )
       .bind(body.license_key)
       .first();
-    const license = await Effect.runPromise(
-      decodeOptionalExtraRow(
-        LicenseCustomerIdRowSchema,
-        'Telemetry license row has an invalid shape',
-        licenseRow
-      )
+    const licenseLookup = await readOptionalExtraRow(
+      LicenseCustomerIdRowSchema,
+      'Telemetry license row has an invalid shape',
+      licenseRow
     );
-
-    if (license === undefined) {
+    if (isInvalidExtraRow(licenseLookup)) {
+      return errorResponse('Failed to load license', 500);
+    }
+    if (licenseLookup._tag === 'missing') {
       return errorResponse('Invalid license key', 401);
     }
+    const license = licenseLookup.value;
 
     const eventId = generateId();
 
@@ -279,8 +284,8 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
     }
 
     return jsonResponse({ success: true, event_id: eventId });
-  } catch (e) {
-    console.error('CLI event error:', e);
+  } catch (error: unknown) {
+    console.error('CLI event error:', error);
     return errorResponse('Failed to process event', 500);
   }
 }
@@ -333,17 +338,18 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
     )
       .bind(licenseKey)
       .first();
-    const license = await Effect.runPromise(
-      decodeOptionalExtraRow(
-        LicenseCustomerIdRowSchema,
-        'Telemetry license row has an invalid shape',
-        licenseRow
-      )
+    const licenseLookup = await readOptionalExtraRow(
+      LicenseCustomerIdRowSchema,
+      'Telemetry license row has an invalid shape',
+      licenseRow
     );
-
-    if (license === undefined) {
+    if (isInvalidExtraRow(licenseLookup)) {
+      return errorResponse('Failed to load license', 500);
+    }
+    if (licenseLookup._tag === 'missing') {
       return errorResponse('Invalid license key', 401);
     }
+    const license = licenseLookup.value;
 
     const statements: D1PreparedStatement[] = [];
 
@@ -463,8 +469,8 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
     }
 
     return jsonResponse({ success: true, processed: body.events.length });
-  } catch (e) {
-    console.error('CLI batch error:', e);
+  } catch (error: unknown) {
+    console.error('CLI batch error:', error);
     return errorResponse('Failed to process batch', 500);
   }
 }
