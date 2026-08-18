@@ -2,7 +2,7 @@ import type { APIEvent } from '@solidjs/start/server';
 import { sql, desc, eq, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
-import { storedDataErrorResponse } from '~/lib/api-error';
+import { internalErrorResponse, storedDataErrorResponse } from '~/lib/api-error';
 import {
   AtRiskCustomerRowSchema,
   AvgHealthScoresRowSchema,
@@ -288,15 +288,6 @@ export async function GET(event: APIEvent) {
     );
   } catch (error: unknown) {
     console.error('[Admin Health Analytics] Error:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return internalErrorResponse();
   }
 }

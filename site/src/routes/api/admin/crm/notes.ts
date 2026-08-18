@@ -3,7 +3,7 @@ import { sql, eq, desc, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
 import { parseAdminCrmNoteInput } from '~/lib/dashboard-contract';
-import { storedDataErrorResponse } from '~/lib/api-error';
+import { internalErrorResponse, storedDataErrorResponse } from '~/lib/api-error';
 import {
   CountRowSchema,
   CustomerNoteJoinRowSchema,
@@ -146,16 +146,7 @@ export async function GET(event: APIEvent) {
     );
   } catch (error: unknown) {
     console.error('[Admin CRM Notes GET] Error:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return internalErrorResponse();
   }
 }
 
@@ -279,16 +270,7 @@ export async function POST(event: APIEvent) {
     );
   } catch (error: unknown) {
     console.error('[Admin CRM Notes POST] Error:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return internalErrorResponse();
   }
 }
 
@@ -368,16 +350,7 @@ export async function PUT(event: APIEvent) {
     });
   } catch (error: unknown) {
     console.error('[Admin CRM Notes PUT] Error:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return internalErrorResponse();
   }
 }
 
@@ -428,15 +401,6 @@ export async function DELETE(event: APIEvent) {
     });
   } catch (error: unknown) {
     console.error('[Admin CRM Notes DELETE] Error:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return internalErrorResponse();
   }
 }

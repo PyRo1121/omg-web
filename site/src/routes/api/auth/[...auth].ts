@@ -55,16 +55,10 @@ async function handleAuth(event: APIEvent): Promise<Response> {
   } catch (error: unknown) {
     console.error('[AUTH ERROR]', error);
 
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 }
 

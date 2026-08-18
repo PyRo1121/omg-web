@@ -130,7 +130,6 @@ export async function POST(event: APIEvent) {
       JSON.stringify({
         valid: false,
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,

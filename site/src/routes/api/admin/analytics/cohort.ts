@@ -2,7 +2,7 @@ import type { APIEvent } from '@solidjs/start/server';
 import { gte } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
-import { storedDataErrorResponse } from '~/lib/api-error';
+import { internalErrorResponse, storedDataErrorResponse } from '~/lib/api-error';
 import {
   CohortUsageRowSchema,
   CohortUserRowSchema,
@@ -223,16 +223,7 @@ export async function GET(event: APIEvent) {
     );
   } catch (error: unknown) {
     console.error('[Admin Cohort Analytics] Error:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return internalErrorResponse();
   }
 }
 

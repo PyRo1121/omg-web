@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import { eq, gte, and, sql } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
-import { storedDataErrorResponse } from '~/lib/api-error';
+import { internalErrorResponse, storedDataErrorResponse } from '~/lib/api-error';
 import {
   CommandPerformanceRowSchema,
   DailyPerformanceRowSchema,
@@ -264,15 +264,6 @@ export async function GET(event: APIEvent) {
     });
   } catch (error: unknown) {
     console.error('[Performance API] Error:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return internalErrorResponse();
   }
 }
