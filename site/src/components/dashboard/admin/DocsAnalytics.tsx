@@ -3,6 +3,20 @@ import { createSignal, createEffect, Show, For } from 'solid-js';
 import { LineChart, BarChart3, Globe, MousePointerClick, Zap, ExternalLink } from 'lucide-solid';
 import * as api from '../../../lib/api';
 
+function formatNumber(num: number) {
+  return new Intl.NumberFormat().format(num);
+}
+
+function formatDuration(ms: number) {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
 export const DocsAnalytics: Component = () => {
   const [data, setData] = createSignal<api.DocsAnalyticsDashboard | null>(null);
   const [loading, setLoading] = createSignal(true);
@@ -21,20 +35,6 @@ export const DocsAnalytics: Component = () => {
       setLoading(false);
     }
   });
-
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat().format(num);
-  };
-
-  const formatDuration = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
-    if (seconds < 60) {
-      return `${seconds}s`;
-    }
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds}s`;
-  };
 
   return (
     <div class="space-y-6">

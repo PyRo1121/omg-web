@@ -16,17 +16,17 @@ function LoadingScreen() {
   );
 }
 
+async function handleSignOut() {
+  try {
+    await signOut();
+    window.location.href = '/';
+  } catch (err) {
+    console.error('Sign out error:', err);
+  }
+}
+
 export default function AdminRoute() {
   const session = useSession();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      window.location.href = '/';
-    } catch (err) {
-      console.error('Sign out error:', err);
-    }
-  };
 
   return (
     <>

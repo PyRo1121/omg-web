@@ -71,6 +71,14 @@ const getColorForRuntime = (runtime: string) => {
   return Object.entries(runtimeColors).find(([name]) => name === key)?.[1] ?? runtimeColors.default;
 };
 
+function formatRuntimeDuration(ms: number | undefined | null) {
+  const val = ms ?? 0;
+  if (val < 1000) {
+    return `${Math.round(val)}ms`;
+  }
+  return `${(val / 1000).toFixed(1)}s`;
+}
+
 export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [hoveredIndex, setHoveredIndex] = createSignal<number | null>(null);
@@ -92,12 +100,6 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props 
     Math.max(...(props.data || []).map(r => r.unique_users ?? 0), 1)
   );
 
-  const formatDuration = (ms: number | undefined | null) => {
-    const val = ms ?? 0;
-    if (val < 1000) {return `${Math.round(val)}ms`;}
-    return `${(val / 1000).toFixed(1)}s`;
-  };
-
   const totalUsers = createMemo(() =>
     (props.data || []).reduce((sum, r) => sum + (r.unique_users ?? 0), 0)
   );
@@ -106,7 +108,9 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props 
   );
 
   const avgSwitchesPerUser = createMemo(() => {
-    if (totalUsers() === 0) {return 0;}
+    if (totalUsers() === 0) {
+      return 0;
+    }
     return totalSwitches() / totalUsers();
   });
 
@@ -238,7 +242,7 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props 
                         </span>
                         <span class="flex items-center gap-1">
                           <Clock size={10} />
-                          {formatDuration(runtime.avg_duration_ms)}
+                          {formatRuntimeDuration(runtime.avg_duration_ms)}
                         </span>
                       </div>
                     </div>

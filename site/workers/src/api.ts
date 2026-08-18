@@ -1,6 +1,9 @@
 // API Types and Utilities for OMG Dashboard
 // All authenticated endpoints require a valid session token
 
+import { Effect } from 'effect';
+import { decodeOptionalExtraRow, SessionJoinRowSchema } from './contracts/d1-extras';
+
 // Rate limiter interface from Cloudflare Workers
 interface RateLimit {
   limit(options: { key: string }): Promise<{ success: boolean }>;
@@ -312,35 +315,27 @@ export function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Validate session and return user (uses customers table from existing schema)
-interface SessionRow {
-  id: string;
-  customer_id: string;
-  token: string;
-  expires_at: string;
-  email: string;
-  company: string | null;
-  stripe_customer_id: string | null;
-  customer_created_at: string;
-}
-
 export async function validateSession(
   db: D1Database,
   token: string
 ): Promise<{ user: User; session: Session } | null> {
-  const session = await db
+  const row = await db
     .prepare(
       `
-    SELECT s.*, c.id as customer_id, c.email, c.company, c.stripe_customer_id, c.created_at as customer_created_at
+    SELECT s.id, s.token, s.expires_at,
+           c.id as customer_id, c.email, c.company, c.stripe_customer_id, c.created_at as customer_created_at
     FROM sessions s
     JOIN customers c ON s.customer_id = c.id
     WHERE s.token = ? AND s.expires_at > datetime('now')
   `
     )
     .bind(token)
-    .first<SessionRow>();
+    .first();
 
-  if (!session) {
+  const session = await Effect.runPromise(
+    decodeOptionalExtraRow(SessionJoinRowSchema, 'Session join row has an invalid shape', row)
+  );
+  if (session === undefined) {
     return null;
   }
 
@@ -348,9 +343,9 @@ export async function validateSession(
     user: {
       id: session.customer_id,
       email: session.email,
-      name: session.company,
+      name: session.company ?? null,
       avatar_url: null,
-      stripe_customer_id: session.stripe_customer_id,
+      stripe_customer_id: session.stripe_customer_id ?? null,
       created_at: session.customer_created_at,
     },
     session: {

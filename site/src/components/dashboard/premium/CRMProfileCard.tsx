@@ -16,7 +16,7 @@ import {
   Star,
 } from 'lucide-solid';
 import { HealthScore, TierBadge } from '../../../design-system';
-import type { Tier } from '../../../design-system/components/TierBadge';
+import { parseTier } from '~/lib/contracts/tier';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -130,14 +130,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
     () => STATUS_CONFIG[props.customer.status] || STATUS_CONFIG.active
   );
 
-  const tierValue = createMemo(() => {
-    const tier = props.customer.tier.toLowerCase();
-    if (['free', 'pro', 'team', 'enterprise'].includes(tier)) {
-      // SAFETY: The includes() guard confirms the tier is one of the Tier literals.
-      return tier as Tier;
-    }
-    return 'free';
-  });
+  const tierValue = createMemo(() => parseTier(props.customer.tier));
 
   const isAtRisk = createMemo(() =>
     ['at_risk', 'churning'].includes(props.customer.health.lifecycle_stage)
@@ -399,14 +392,7 @@ interface CRMProfileCardTableRowProps {
 }
 
 export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = props => {
-  const tierValue = createMemo(() => {
-    const tier = props.customer.tier.toLowerCase();
-    if (['free', 'pro', 'team', 'enterprise'].includes(tier)) {
-      // SAFETY: The includes() guard confirms the tier is one of the Tier literals.
-      return tier as Tier;
-    }
-    return 'free';
-  });
+  const tierValue = createMemo(() => parseTier(props.customer.tier));
 
   const statusConfig = createMemo(
     () => STATUS_CONFIG[props.customer.status] || STATUS_CONFIG.active

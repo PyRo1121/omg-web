@@ -1,19 +1,7 @@
 // Boundary parser internals decode remaining Worker HTTP JSON bodies.
 // oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON boundary parsing requires these operations.
 
-import { Effect } from 'effect';
 import { Schema } from '@effect/schema';
-
-/** A failure decoding a remaining HTTP JSON body. */
-export class HttpBodyParseError extends Error {
-  readonly _tag = 'HttpBodyParseError';
-  constructor(
-    readonly reason: string,
-    readonly cause?: unknown
-  ) {
-    super(reason);
-  }
-}
 
 const OptionalBoolean = Schema.optional(Schema.Boolean);
 const OptionalNumber = Schema.optional(Schema.Number);
@@ -142,22 +130,4 @@ export function decodeThrownMessage(error: unknown): string {
 export function optionalStringField(value: unknown): string | undefined {
   const decoded = Schema.decodeUnknownEither(Schema.String)(value);
   return decoded._tag === 'Right' ? decoded.right : undefined;
-}
-
-/**
- * Decode an untrusted HTTP JSON body.
- *
- * @param schema - Body schema.
- * @param reason - Parse error reason.
- * @param value - Raw JSON.
- * @returns The typed body, or `HttpBodyParseError`.
- */
-export function decodeHttpBody<S extends Schema.Schema.AnyNoContext>(
-  schema: S,
-  reason: string,
-  value: unknown
-): Effect.Effect<Schema.Schema.Type<S>, HttpBodyParseError> {
-  return Schema.decodeUnknown(schema)(value).pipe(
-    Effect.mapError((cause: unknown): HttpBodyParseError => new HttpBodyParseError(reason, cause))
-  );
 }

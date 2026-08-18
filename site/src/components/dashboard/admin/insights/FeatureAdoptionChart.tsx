@@ -18,6 +18,32 @@ interface FeatureAdoptionChartProps {
   data: FeatureAdoptionData;
 }
 
+function getColorClasses(color: string) {
+  const colors = {
+    indigo: {
+      bg: 'bg-indigo-500/20',
+      text: 'text-indigo-400',
+      bar: 'bg-indigo-500',
+    },
+    cyan: {
+      bg: 'bg-cyan-500/20',
+      text: 'text-cyan-400',
+      bar: 'bg-cyan-500',
+    },
+    purple: {
+      bg: 'bg-purple-500/20',
+      text: 'text-purple-400',
+      bar: 'bg-purple-500',
+    },
+    emerald: {
+      bg: 'bg-emerald-500/20',
+      text: 'text-emerald-400',
+      bar: 'bg-emerald-500',
+    },
+  } satisfies Record<string, { bg: string; text: string; bar: string }>;
+  return Object.entries(colors).find(([key]) => key === color)?.[1] ?? colors.indigo;
+}
+
 export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props => {
   const features = [
     {
@@ -52,34 +78,10 @@ export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props 
 
   const getAdoptionRate = (adopters: number): string => {
     const totalUsers = props.data.total_active_users ?? 0;
-    if (totalUsers === 0) {return '0';}
+    if (totalUsers === 0) {
+      return '0';
+    }
     return ((adopters / totalUsers) * 100).toFixed(1);
-  };
-
-  const getColorClasses = (color: string) => {
-    const colors = {
-      indigo: {
-        bg: 'bg-indigo-500/20',
-        text: 'text-indigo-400',
-        bar: 'bg-indigo-500',
-      },
-      cyan: {
-        bg: 'bg-cyan-500/20',
-        text: 'text-cyan-400',
-        bar: 'bg-cyan-500',
-      },
-      purple: {
-        bg: 'bg-purple-500/20',
-        text: 'text-purple-400',
-        bar: 'bg-purple-500',
-      },
-      emerald: {
-        bg: 'bg-emerald-500/20',
-        text: 'text-emerald-400',
-        bar: 'bg-emerald-500',
-      },
-    } satisfies Record<string, { bg: string; text: string; bar: string }>;
-    return Object.entries(colors).find(([key]) => key === color)?.[1] ?? colors.indigo;
   };
 
   return (

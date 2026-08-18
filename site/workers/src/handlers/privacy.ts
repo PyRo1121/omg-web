@@ -10,6 +10,7 @@ import {
   IdRowSchema,
   LicenseCustomerIdRowSchema,
   PrivacyLicenseRowSchema,
+  PrivacyStatusRowSchema,
 } from '../contracts/d1-extras';
 
 /** The GDPR deletion request body. */
@@ -94,8 +95,12 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
         .bind(body.email)
         .first();
       if (customer) {
-        // SAFETY: The SELECT projects the stable customer id column.
-        customerId = customer.id as string;
+        const decodedCustomer = await Effect.runPromiseExit(
+          decodeExtraRow(IdRowSchema, 'Privacy customer row has an invalid shape', customer)
+        );
+        if (Exit.isSuccess(decodedCustomer)) {
+          customerId = decodedCustomer.value.id;
+        }
       }
     }
 
@@ -107,10 +112,17 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
         .bind(body.license_key)
         .first();
       if (license) {
-        // SAFETY: The SELECT projects the stable license id column.
-        licenseId = license.id as string;
-        // SAFETY: The SELECT projects the stable customer id column.
-        customerId = license.customer_id as string;
+        const decodedLicense = await Effect.runPromiseExit(
+          decodeExtraRow(
+            LicenseCustomerIdRowSchema,
+            'Privacy license row has an invalid shape',
+            license
+          )
+        );
+        if (Exit.isSuccess(decodedLicense)) {
+          licenseId = decodedLicense.value.id;
+          customerId = decodedLicense.value.customer_id;
+        }
       }
     }
 
@@ -542,12 +554,24 @@ export async function handlePrivacyStatus(request: Request, env: Env): Promise<R
     });
   }
 
+  const decodedStatus = await Effect.runPromiseExit(
+    decodeExtraRow(PrivacyStatusRowSchema, 'Privacy status row has an invalid shape', license)
+  );
+  if (Exit.isFailure(decodedStatus)) {
+    return jsonResponse({
+      ...baseResponse,
+      user_status: null,
+    });
+  }
+  const statusEmail = decodedStatus.value.email;
+  const emailDomain =
+    statusEmail === null || statusEmail === undefined ? undefined : statusEmail.split('@')[1];
+
   return jsonResponse({
     ...baseResponse,
     user_status: {
-      telemetry_opt_out: Boolean(license.telemetry_opt_out),
-      // SAFETY: The SELECT projects the customer email column.
-      email_on_file: license.email ? `***@${(license.email as string).split('@')[1]}` : null,
+      telemetry_opt_out: Boolean(decodedStatus.value.telemetry_opt_out),
+      email_on_file: emailDomain ? `***@${emailDomain}` : null,
     },
   });
 }

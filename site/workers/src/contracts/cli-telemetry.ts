@@ -1,19 +1,7 @@
 // Boundary parser internals decode CLI telemetry JSON.
 // oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON boundary parsing requires these operations.
 
-import { Effect } from 'effect';
 import { Schema } from '@effect/schema';
-
-/** A failure decoding a CLI telemetry payload. */
-export class CliTelemetryParseError extends Error {
-  readonly _tag = 'CliTelemetryParseError';
-  constructor(
-    readonly reason: string,
-    readonly cause?: unknown
-  ) {
-    super(reason);
-  }
-}
 
 const OptionalBoolean = Schema.optional(Schema.Boolean);
 const OptionalNumber = Schema.optional(Schema.Number);
@@ -75,23 +63,3 @@ export const BatchTelemetryRequestSchema = Schema.Struct({
 });
 export type BatchTelemetryRequest = Schema.Schema.Type<typeof BatchTelemetryRequestSchema>;
 export type TelemetryItem = Schema.Schema.Type<typeof TelemetryItemSchema>;
-
-/**
- * Decode a CLI telemetry payload.
- *
- * @param schema - Request schema.
- * @param reason - Parse error reason.
- * @param value - Raw JSON.
- * @returns The typed payload, or `CliTelemetryParseError`.
- */
-export function decodeCliTelemetry<S extends Schema.Schema.AnyNoContext>(
-  schema: S,
-  reason: string,
-  value: unknown
-): Effect.Effect<Schema.Schema.Type<S>, CliTelemetryParseError> {
-  return Schema.decodeUnknown(schema)(value).pipe(
-    Effect.mapError(
-      (cause: unknown): CliTelemetryParseError => new CliTelemetryParseError(reason, cause)
-    )
-  );
-}

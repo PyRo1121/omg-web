@@ -121,7 +121,9 @@ const MetricCard: Component<MetricCardProps> = props => {
   const IconComponent = props.icon;
 
   const trendInfo = createMemo(() => {
-    if (props.trend === undefined) {return null;}
+    if (props.trend === undefined) {
+      return null;
+    }
     const isPositive = props.trend > 0;
     const isNeutral = Math.abs(props.trend) < 0.5;
     return {
@@ -219,6 +221,35 @@ const MetricCard: Component<MetricCardProps> = props => {
   );
 };
 
+function getStickinessHealth(value: number) {
+  if (value >= 25) {
+    return {
+      label: 'Excellent',
+      color: 'var(--color-aurora-400)',
+      glow: 'rgba(16, 185, 129, 0.3)',
+    };
+  }
+  if (value >= 15) {
+    return {
+      label: 'Good',
+      color: 'var(--color-electric-400)',
+      glow: 'rgba(34, 211, 211, 0.25)',
+    };
+  }
+  if (value >= 10) {
+    return {
+      label: 'Average',
+      color: 'var(--color-solar-400)',
+      glow: 'rgba(245, 158, 11, 0.25)',
+    };
+  }
+  return {
+    label: 'Needs Work',
+    color: 'var(--color-flare-400)',
+    glow: 'rgba(239, 68, 68, 0.25)',
+  };
+}
+
 export const EngagementMetrics: Component<EngagementMetricsProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [hovered, setHovered] = createSignal(false);
@@ -229,41 +260,19 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = props => {
 
   const stickinessValue = createMemo(() => {
     const raw = props.data.stickiness?.daily_to_monthly;
-    if (!raw) {return 0;}
+    if (!raw) {
+      return 0;
+    }
     return parseFloat(raw.replace('%', ''));
   });
 
   const wauMauRatio = createMemo(() => {
     const raw = props.data.stickiness?.weekly_to_monthly;
-    if (!raw) {return 0;}
+    if (!raw) {
+      return 0;
+    }
     return parseFloat(raw.replace('%', ''));
   });
-
-  const getStickinessHealth = (value: number) => {
-    if (value >= 25)
-      {return {
-        label: 'Excellent',
-        color: 'var(--color-aurora-400)',
-        glow: 'rgba(16, 185, 129, 0.3)',
-      };}
-    if (value >= 15)
-      {return {
-        label: 'Good',
-        color: 'var(--color-electric-400)',
-        glow: 'rgba(34, 211, 211, 0.25)',
-      };}
-    if (value >= 10)
-      {return {
-        label: 'Average',
-        color: 'var(--color-solar-400)',
-        glow: 'rgba(245, 158, 11, 0.25)',
-      };}
-    return {
-      label: 'Needs Work',
-      color: 'var(--color-flare-400)',
-      glow: 'rgba(239, 68, 68, 0.25)',
-    };
-  };
 
   const stickinessHealth = createMemo(() => getStickinessHealth(stickinessValue()));
 

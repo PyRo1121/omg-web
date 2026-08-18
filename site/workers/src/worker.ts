@@ -2,6 +2,8 @@ import * as Sentry from '@sentry/cloudflare';
 import { unauthorizedUnlessAdminSecret } from './admin-secret';
 import { forbiddenUnlessAdminSession } from './admin-auth';
 import { type Env, corsHeaders, jsonResponse, errorResponse } from './api';
+import { Effect } from 'effect';
+import { decodeOptionalExtraRow, InstallsBadgeRowSchema } from './contracts/d1-extras';
 import {
   handleSendCode,
   handleVerifyCode,
@@ -515,8 +517,14 @@ export default Sentry.withSentry(
             const result = await env.DB.prepare(
               `SELECT COUNT(DISTINCT install_id) as total FROM install_stats`
             ).first();
-            // SAFETY: The badge query returns a numeric COUNT aggregate.
-            const total = (result?.total as number) || 0;
+            const badge = await Effect.runPromise(
+              decodeOptionalExtraRow(
+                InstallsBadgeRowSchema,
+                'Installs badge row has an invalid shape',
+                result
+              )
+            );
+            const total = badge?.total ?? 0;
             return new Response(
               JSON.stringify({
                 schemaVersion: 1,

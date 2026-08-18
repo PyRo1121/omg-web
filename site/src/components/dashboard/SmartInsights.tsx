@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { createResource, Show, createSignal } from 'solid-js';
 import * as api from '../../lib/api';
 import { Lightbulb, Sparkles, RefreshCw, Zap, Shield, Users, Target } from '../ui/Icons';
@@ -9,56 +9,60 @@ interface SmartInsightsProps {
 
 type InsightCategory = 'efficiency' | 'security' | 'collaboration' | 'optimization' | 'health';
 
+function getInsightCategory(text: string): InsightCategory {
+  const lower = text.toLowerCase();
+  if (lower.includes('time') || lower.includes('speed') || lower.includes('efficient')) {
+    return 'efficiency';
+  }
+  if (
+    lower.includes('security') ||
+    lower.includes('vulnerability') ||
+    lower.includes('compliance')
+  ) {
+    return 'security';
+  }
+  if (lower.includes('team') || lower.includes('fleet') || lower.includes('member')) {
+    return 'collaboration';
+  }
+  if (lower.includes('optimize') || lower.includes('improve') || lower.includes('reduce')) {
+    return 'optimization';
+  }
+  return 'health';
+}
+
+function getCategoryIcon(category: InsightCategory) {
+  switch (category) {
+    case 'efficiency':
+      return Zap;
+    case 'security':
+      return Shield;
+    case 'collaboration':
+      return Users;
+    case 'optimization':
+      return Target;
+    default:
+      return Lightbulb;
+  }
+}
+
+function getCategoryColor(category: InsightCategory) {
+  switch (category) {
+    case 'efficiency':
+      return 'bg-cyan-500/20 text-cyan-400';
+    case 'security':
+      return 'bg-rose-500/20 text-rose-400';
+    case 'collaboration':
+      return 'bg-purple-500/20 text-purple-400';
+    case 'optimization':
+      return 'bg-amber-500/20 text-amber-400';
+    default:
+      return 'bg-indigo-500/20 text-indigo-400';
+  }
+}
+
 export const SmartInsights: Component<SmartInsightsProps> = props => {
   const [insight, { refetch }] = createResource(() => api.getSmartInsights(props.target));
   const [showFull, setShowFull] = createSignal(false);
-
-  const getInsightCategory = (text: string): InsightCategory => {
-    const lower = text.toLowerCase();
-    if (lower.includes('time') || lower.includes('speed') || lower.includes('efficient'))
-      {return 'efficiency';}
-    if (
-      lower.includes('security') ||
-      lower.includes('vulnerability') ||
-      lower.includes('compliance')
-    )
-      {return 'security';}
-    if (lower.includes('team') || lower.includes('fleet') || lower.includes('member'))
-      {return 'collaboration';}
-    if (lower.includes('optimize') || lower.includes('improve') || lower.includes('reduce'))
-      {return 'optimization';}
-    return 'health';
-  };
-
-  const getCategoryIcon = (category: InsightCategory) => {
-    switch (category) {
-      case 'efficiency':
-        return Zap;
-      case 'security':
-        return Shield;
-      case 'collaboration':
-        return Users;
-      case 'optimization':
-        return Target;
-      default:
-        return Lightbulb;
-    }
-  };
-
-  const getCategoryColor = (category: InsightCategory) => {
-    switch (category) {
-      case 'efficiency':
-        return 'bg-cyan-500/20 text-cyan-400';
-      case 'security':
-        return 'bg-rose-500/20 text-rose-400';
-      case 'collaboration':
-        return 'bg-purple-500/20 text-purple-400';
-      case 'optimization':
-        return 'bg-amber-500/20 text-amber-400';
-      default:
-        return 'bg-indigo-500/20 text-indigo-400';
-    }
-  };
 
   return (
     <div class="relative overflow-hidden rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-6 backdrop-blur-sm">

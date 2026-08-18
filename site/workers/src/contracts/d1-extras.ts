@@ -122,6 +122,88 @@ export const WorkersAiTextSchema = Schema.Struct({
 });
 export type WorkersAiText = Schema.Schema.Type<typeof WorkersAiTextSchema>;
 
+/** COUNT(*) / COUNT(DISTINCT ...) aggregate. */
+export const CountRowSchema = Schema.Struct({
+  count: D1Number,
+});
+export type CountRow = Schema.Schema.Type<typeof CountRowSchema>;
+
+/** Admin overview COUNT aggregates. */
+export const AdminCountsRowSchema = Schema.Struct({
+  total_users: D1Number,
+  active_licenses: D1Number,
+  active_machines: D1Number,
+  total_installs: D1Number,
+});
+export type AdminCountsRow = Schema.Schema.Type<typeof AdminCountsRowSchema>;
+
+/** Admin usage SUM aggregates. */
+export const AdminUsageTotalsRowSchema = Schema.Struct({
+  total_commands: D1Number,
+  total_packages_installed: D1Number,
+  total_searches: D1Number,
+  total_time_saved_ms: D1Number,
+});
+export type AdminUsageTotalsRow = Schema.Schema.Type<typeof AdminUsageTotalsRowSchema>;
+
+/** Global time-saved aggregate. */
+export const GlobalUsageRowSchema = Schema.Struct({
+  total_time_saved: D1Number,
+});
+export type GlobalUsageRow = Schema.Schema.Type<typeof GlobalUsageRowSchema>;
+
+/** Success/failure command aggregates. */
+export const CommandStatsRowSchema = Schema.Struct({
+  success: D1Number,
+  failure: D1Number,
+});
+export type CommandStatsRow = Schema.Schema.Type<typeof CommandStatsRowSchema>;
+
+/** License-tier count row. */
+export const TierCountRowSchema = Schema.Struct({
+  tier: Schema.String,
+  count: D1Number,
+});
+export type TierCountRow = Schema.Schema.Type<typeof TierCountRowSchema>;
+
+/** Current MRR aggregate. */
+export const CurrentMrrRowSchema = Schema.Struct({
+  current_mrr: D1Number,
+});
+export type CurrentMrrRow = Schema.Schema.Type<typeof CurrentMrrRowSchema>;
+
+/** Stripe customer id selected for the billing portal. */
+export const StripeCustomerIdRowSchema = Schema.Struct({
+  stripe_customer_id: Schema.String.pipe(Schema.minLength(1)),
+});
+export type StripeCustomerIdRow = Schema.Schema.Type<typeof StripeCustomerIdRowSchema>;
+
+/** Privacy status license/customer join. */
+export const PrivacyStatusRowSchema = Schema.Struct({
+  telemetry_opt_out: Schema.optional(Schema.Union(Schema.Number, Schema.Boolean)),
+  email: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+});
+export type PrivacyStatusRow = Schema.Schema.Type<typeof PrivacyStatusRowSchema>;
+
+/** Public installs badge COUNT. */
+export const InstallsBadgeRowSchema = Schema.Struct({
+  total: D1Number,
+});
+export type InstallsBadgeRow = Schema.Schema.Type<typeof InstallsBadgeRowSchema>;
+
+/** Session + customer join used by Bearer validation. */
+export const SessionJoinRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  token: Schema.String.pipe(Schema.minLength(1)),
+  expires_at: Schema.String.pipe(Schema.minLength(1)),
+  customer_id: Schema.String.pipe(Schema.minLength(1)),
+  email: Schema.String.pipe(Schema.minLength(1)),
+  company: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  stripe_customer_id: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  customer_created_at: Schema.String.pipe(Schema.minLength(1)),
+});
+export type SessionJoinRow = Schema.Schema.Type<typeof SessionJoinRowSchema>;
+
 /**
  * Decode stored firehose properties JSON.
  *
@@ -182,4 +264,20 @@ export function decodeExtraRowArray<S extends Schema.Schema.AnyNoContext>(
     return Effect.fail(new ExtraRowParseError(reason));
   }
   return Effect.forEach(value, row => decodeExtraRow(schema, reason, row));
+}
+
+/**
+ * Decode a single optional D1 `.first()` row, returning undefined when the shape is wrong.
+ *
+ * @param schema - Row schema.
+ * @param reason - Parse error reason.
+ * @param value - The `.first()` result.
+ * @returns The typed row, or undefined.
+ */
+export function decodeOptionalExtraRow<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  reason: string,
+  value: unknown
+): Effect.Effect<Schema.Schema.Type<S> | undefined> {
+  return decodeExtraRow(schema, reason, value).pipe(Effect.orElseSucceed(() => undefined));
 }

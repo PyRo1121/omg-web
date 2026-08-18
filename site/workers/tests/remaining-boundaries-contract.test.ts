@@ -10,7 +10,13 @@ import { CreatePolicyBodySchema, decodeStoredStringArray } from '../src/contract
 import { SingleTelemetryRequestSchema } from '../src/contracts/cli-telemetry';
 import { decodeJsonBody } from '../src/body';
 import { MachineIdBodySchema, TrackingBatchSchema } from '../src/contracts/http-bodies';
-import { decodeExtraRowArray, FirehoseEventRowSchema } from '../src/contracts/d1-extras';
+import {
+  CountRowSchema,
+  decodeExtraRowArray,
+  decodeOptionalExtraRow,
+  FirehoseEventRowSchema,
+  SessionJoinRowSchema,
+} from '../src/contracts/d1-extras';
 
 function isSuccess<A, E>(exit: Exit.Exit<A, E>): boolean {
   return Exit.isSuccess(exit);
@@ -154,5 +160,42 @@ describe('firehose rows', () => {
       decodeExtraRowArray(FirehoseEventRowSchema, 'firehose', { nope: true })
     );
     expect(Exit.isFailure(exit)).toBe(true);
+  });
+});
+
+describe('optional extra rows', () => {
+  it('decodes a COUNT aggregate', async () => {
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(CountRowSchema, 'count', { count: 4 })
+    );
+    expect(row?.count).toBe(4);
+  });
+
+  it('returns undefined for a missing first() row', async () => {
+    const row = await Effect.runPromise(decodeOptionalExtraRow(CountRowSchema, 'count', undefined));
+    expect(row).toBeUndefined();
+  });
+
+  it('decodes a session join row', async () => {
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(SessionJoinRowSchema, 'session', {
+        id: 's1',
+        token: 'tok',
+        expires_at: '2026-01-01T00:00:00.000Z',
+        customer_id: 'c1',
+        email: 'a@b.com',
+        company: null,
+        stripe_customer_id: null,
+        customer_created_at: '2026-01-01T00:00:00.000Z',
+      })
+    );
+    expect(row?.email).toBe('a@b.com');
+  });
+
+  it('returns undefined for an invalid session join row', async () => {
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(SessionJoinRowSchema, 'session', { id: 1 })
+    );
+    expect(row).toBeUndefined();
   });
 });

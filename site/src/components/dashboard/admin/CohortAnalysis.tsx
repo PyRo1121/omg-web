@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { For, Show, createMemo } from 'solid-js';
 import { useAdminCohorts } from '../../../lib/api-hooks';
 import { TrendingUp } from 'lucide-solid';
@@ -8,6 +8,33 @@ interface CohortData {
   cohort_week: string;
   weeks_since_signup: number;
   active_users: number;
+}
+
+function getRetentionColor(rate: number) {
+  if (rate >= 80) {
+    return 'bg-emerald-500';
+  }
+  if (rate >= 60) {
+    return 'bg-cyan-500';
+  }
+  if (rate >= 40) {
+    return 'bg-amber-500';
+  }
+  if (rate >= 20) {
+    return 'bg-orange-500';
+  }
+  return 'bg-rose-500';
+}
+
+function getRetentionRate(cohortData: CohortData[], weekIndex: number) {
+  const weekData = cohortData.find(d => d.weeks_since_signup === weekIndex);
+  const week0Data = cohortData.find(d => d.weeks_since_signup === 0);
+
+  if (!weekData || !week0Data || week0Data.active_users === 0) {
+    return null;
+  }
+
+  return Math.round((weekData.active_users / week0Data.active_users) * 100);
 }
 
 export const CohortAnalysis: Component = () => {
@@ -30,23 +57,6 @@ export const CohortAnalysis: Component = () => {
       .toSorted((a, b) => b[0].localeCompare(a[0]))
       .slice(0, 12);
   });
-
-  const getRetentionColor = (rate: number) => {
-    if (rate >= 80) {return 'bg-emerald-500';}
-    if (rate >= 60) {return 'bg-cyan-500';}
-    if (rate >= 40) {return 'bg-amber-500';}
-    if (rate >= 20) {return 'bg-orange-500';}
-    return 'bg-rose-500';
-  };
-
-  const getRetentionRate = (cohortData: CohortData[], weekIndex: number) => {
-    const weekData = cohortData.find(d => d.weeks_since_signup === weekIndex);
-    const week0Data = cohortData.find(d => d.weeks_since_signup === 0);
-
-    if (!weekData || !week0Data || week0Data.active_users === 0) {return null;}
-
-    return Math.round((weekData.active_users / week0Data.active_users) * 100);
-  };
 
   return (
     <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">

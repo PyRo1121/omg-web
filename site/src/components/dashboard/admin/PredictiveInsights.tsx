@@ -415,6 +415,8 @@ const HealthTrendCard: Component<{ trend: HealthTrend }> = props => {
   );
 };
 
+function handleAction(_action: string) {}
+
 export const PredictiveInsights: Component = () => {
   const [activeTab, setActiveTab] = createSignal<PredictionType>('churn');
   const [timeHorizon, setTimeHorizon] = createSignal<TimeHorizon>('30d');
@@ -569,8 +571,6 @@ export const PredictiveInsights: Component = () => {
       };
     });
   });
-
-  const handleAction = (_action: string) => {};
 
   const tabs: { id: PredictionType; label: string; icon: typeof Brain; count: () => number }[] = [
     {

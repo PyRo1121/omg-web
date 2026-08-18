@@ -278,6 +278,16 @@ type ReportDataValue =
   string | number | boolean | null | ReportDataValue[] | { [key: string]: ReportDataValue };
 type ReportData = AdminAdvancedMetrics & Record<string, ReportDataValue>;
 
+function formatReportValue(value: number, format: 'number' | 'currency' | 'percent') {
+  if (format === 'currency') {
+    return `$${value.toLocaleString()}`;
+  }
+  if (format === 'percent') {
+    return `${value.toFixed(1)}%`;
+  }
+  return value.toLocaleString();
+}
+
 const ReportPreview: Component<{
   config: ReportConfig;
   data: ReportData | undefined;
@@ -287,7 +297,9 @@ const ReportPreview: Component<{
   );
 
   const chartData = createMemo(() => {
-    if (!props.data) {return [];}
+    if (!props.data) {
+      return [];
+    }
     const metrics = selectedMetrics();
     return metrics.map(metric => ({
       label: metric.name,
@@ -295,12 +307,6 @@ const ReportPreview: Component<{
       color: CATEGORY_COLORS[metric.category],
     }));
   });
-
-  const formatValue = (value: number, format: 'number' | 'currency' | 'percent') => {
-    if (format === 'currency') {return `$${value.toLocaleString()}`;}
-    if (format === 'percent') {return `${value.toFixed(1)}%`;}
-    return value.toLocaleString();
-  };
 
   return (
     <div class="space-y-4">
@@ -349,7 +355,7 @@ const ReportPreview: Component<{
                       class="font-display mt-1 text-2xl font-black"
                       style={{ color: CATEGORY_COLORS[metric.category] }}
                     >
-                      {formatValue(value, metric.format)}
+                      {formatReportValue(value, metric.format)}
                     </p>
                   </div>
                 );
@@ -379,7 +385,7 @@ const ReportPreview: Component<{
                       <tr class="border-b border-white/5">
                         <td class="px-4 py-3 text-white">{metric.name}</td>
                         <td class="px-4 py-3 text-right font-mono font-bold text-white">
-                          {formatValue(value, metric.format)}
+                          {formatReportValue(value, metric.format)}
                         </td>
                       </tr>
                     );
@@ -431,10 +437,14 @@ function isReportObject(value: ReportDataValue | undefined): value is ReportData
 }
 
 function getNestedValue(obj: ReportData | undefined, path: string): ReportDataValue | undefined {
-  if (!obj) {return undefined;}
+  if (!obj) {
+    return undefined;
+  }
   let current: ReportDataValue | undefined = obj;
   for (const key of path.split('.')) {
-    if (!isReportObject(current)) {return undefined;}
+    if (!isReportObject(current)) {
+      return undefined;
+    }
     current = current[key];
   }
   return current;

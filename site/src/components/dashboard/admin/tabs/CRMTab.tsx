@@ -18,16 +18,21 @@ interface CRMTabProps {
   onRetry?: () => void;
 }
 
+function isMobile() {
+  if (!('window' in globalThis)) {
+    return false;
+  }
+  return globalThis.window.innerWidth < 768;
+}
+
 export const CRMTab: Component<CRMTabProps> = props => {
   const [viewMode, setViewMode] = createSignal<'table' | 'cards'>('cards');
   const [search, setSearch] = createSignal('');
 
-  const isMobile = () => {
-    if (!('window' in globalThis)) {return false;}
-    return globalThis.window.innerWidth < 768;
-  };
   const effectiveViewMode = () => {
-    if (isMobile()) {return 'cards';}
+    if (isMobile()) {
+      return 'cards';
+    }
     return viewMode();
   };
 

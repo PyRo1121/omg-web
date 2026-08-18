@@ -386,6 +386,31 @@ interface StickinessMeterProps {
   stickinessRatio?: string;
 }
 
+function getHealthLabel(stickiness: number) {
+  if (stickiness >= 25) {
+    return { label: 'Excellent', color: 'text-aurora-400', bg: 'bg-aurora-500/10' } as const;
+  }
+  if (stickiness >= 15) {
+    return { label: 'Good', color: 'text-electric-400', bg: 'bg-electric-500/10' } as const;
+  }
+  if (stickiness >= 10) {
+    return { label: 'Average', color: 'text-solar-400', bg: 'bg-solar-500/10' } as const;
+  }
+  return { label: 'Needs Work', color: 'text-flare-400', bg: 'bg-flare-500/10' } as const;
+}
+
+function generateHistoricalData(currentValue: number, points: number = 12): number[] {
+  let value = currentValue * 0.85;
+  return Array.from({ length: points }, (_, i) => {
+    const progress = i / (points - 1);
+    value =
+      currentValue * 0.85 +
+      currentValue * 0.15 * progress +
+      currentValue * 0.02 * (i % 3 === 0 ? 1 : -1);
+    return Math.max(0, value);
+  });
+}
+
 const StickinessMeter: Component<StickinessMeterProps> = props => {
   const dailyToMonthly = createMemo(() => {
     if (props.stickinessRatio) {
@@ -397,19 +422,6 @@ const StickinessMeter: Component<StickinessMeterProps> = props => {
   });
 
   const dailyToWeekly = createMemo(() => (props.wau > 0 ? (props.dau / props.wau) * 100 : 0));
-
-  const getHealthLabel = (stickiness: number) => {
-    if (stickiness >= 25) {
-      return { label: 'Excellent', color: 'text-aurora-400', bg: 'bg-aurora-500/10' } as const;
-    }
-    if (stickiness >= 15) {
-      return { label: 'Good', color: 'text-electric-400', bg: 'bg-electric-500/10' } as const;
-    }
-    if (stickiness >= 10) {
-      return { label: 'Average', color: 'text-solar-400', bg: 'bg-solar-500/10' } as const;
-    }
-    return { label: 'Needs Work', color: 'text-flare-400', bg: 'bg-flare-500/10' } as const;
-  };
 
   const health = createMemo(() => getHealthLabel(dailyToMonthly()));
 
@@ -715,18 +727,6 @@ const CardSkeleton: Component = () => (
 );
 
 export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = props => {
-  const generateHistoricalData = (currentValue: number, points: number = 12): number[] => {
-    let value = currentValue * 0.85;
-    return Array.from({ length: points }, (_, i) => {
-      const progress = i / (points - 1);
-      value =
-        currentValue * 0.85 +
-        currentValue * 0.15 * progress +
-        currentValue * 0.02 * (i % 3 === 0 ? 1 : -1);
-      return Math.max(0, value);
-    });
-  };
-
   const mrrSparkline = createMemo(() =>
     props.mrrHistory?.length ? props.mrrHistory : generateHistoricalData(props.kpi.mrr)
   );

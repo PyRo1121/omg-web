@@ -103,6 +103,24 @@ const loadTelemetryPipeline = (fetchImpl: DashboardFetch) =>
   });
 
 /**
+ * Provision a Worker license for a Better Auth session when present.
+ * OTP-only visitors receive 401; that is expected and ignored.
+ * Worker provision is idempotent for existing customers.
+ *
+ * @param fetchImpl - Boundary fetch used to call `/api/provision-license`.
+ * @returns Always succeeds so dashboard load is not blocked.
+ */
+export function provisionSignedInLicense(fetchImpl: DashboardFetch): Effect.Effect<void> {
+  return Effect.tryPromise({
+    try: () => fetchImpl('/api/provision-license', { method: 'POST' }),
+    catch: cause => new DashboardLoadError('License provision request failed', cause),
+  }).pipe(
+    Effect.zipRight(Effect.void),
+    Effect.catchAll(() => Effect.void)
+  );
+}
+
+/**
  * Mint a Worker admin session when the browser does not already have one.
  *
  * @param fetchImpl - Boundary fetch used to call `/api/admin/auth-bridge`.
@@ -238,6 +256,8 @@ export function createDashboardView(
   };
 
   const loadAll = (): void => {
+    const owned = Effect.runPromiseExit(provisionSignedInLicense(doFetch));
+    void owned;
     loadDashboard();
     loadTelemetry();
   };

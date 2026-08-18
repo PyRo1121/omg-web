@@ -1,6 +1,6 @@
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { syncAdminAuth } from './dashboard-view';
+import { provisionSignedInLicense, syncAdminAuth } from './dashboard-view';
 
 function jsonResponse(status: number, serializedBody: string): Response {
   return new Response(serializedBody, {
@@ -68,5 +68,28 @@ describe('syncAdminAuth', () => {
     );
     expect(Exit.isFailure(exit)).toBe(true);
     expect(storage.get('omg_session_token')).toBeUndefined();
+  });
+});
+
+describe('provisionSignedInLicense', () => {
+  it('posts to the provision-license endpoint', async () => {
+    const calls: string[] = [];
+    const exit = await Effect.runPromiseExit(
+      provisionSignedInLicense(async (input, init) => {
+        calls.push(`${init?.method ?? 'GET'} ${input}`);
+        return jsonResponse(200, JSON.stringify({ success: true }));
+      })
+    );
+    expect(Exit.isSuccess(exit)).toBe(true);
+    expect(calls).toEqual(['POST /api/provision-license']);
+  });
+
+  it('succeeds when the visitor has no Better Auth session', async () => {
+    const exit = await Effect.runPromiseExit(
+      provisionSignedInLicense(async () =>
+        jsonResponse(401, JSON.stringify({ error: 'Unauthorized' }))
+      )
+    );
+    expect(Exit.isSuccess(exit)).toBe(true);
   });
 });

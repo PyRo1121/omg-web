@@ -1,6 +1,7 @@
 import { type Component, For, Show, createMemo, createSignal } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { parseTier } from '~/lib/contracts/tier';
 import {
   MessageSquare,
   Phone,
@@ -577,11 +578,7 @@ export const CustomerCard: Component<CustomerCardProps> = props => {
     free: 'text-nebula-400 bg-nebula-500/10 border-nebula-500/25',
   } as const;
 
-  type TierKey = keyof typeof tierColors;
-
-  const getTierColor = (tier: string) =>
-    // SAFETY: The `in` guard confirms the tier is a configured key.
-    tier in tierColors ? tierColors[tier as TierKey] : tierColors.free;
+  const getTierColor = (tier: string) => tierColors[parseTier(tier)];
 
   const healthColor = () => {
     if (props.healthScore >= 80) {

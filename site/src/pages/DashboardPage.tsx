@@ -68,6 +68,94 @@ interface DashboardPageProps {
 
 type TabType = 'overview' | 'analytics' | 'achievements' | 'machines' | 'settings' | 'admin';
 
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatShortDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function getProviderIcon(provider: string) {
+  switch (provider) {
+    case 'github':
+      return Github;
+    case 'google':
+      return Chrome;
+    case 'credential':
+      return Mail;
+    default:
+      return Shield;
+  }
+}
+
+function getAchievementIcon(_emoji: string, name: string) {
+  const nameUpper = name.toUpperCase();
+
+  if (nameUpper.includes('FIRST') || nameUpper.includes('START')) {
+    return Rocket;
+  }
+  if (nameUpper.includes('SPEED') || nameUpper.includes('FAST')) {
+    return Zap;
+  }
+  if (nameUpper.includes('PACKAGE') || nameUpper.includes('INSTALL')) {
+    return Package;
+  }
+  if (nameUpper.includes('COMMAND') || nameUpper.includes('RUN')) {
+    return Terminal;
+  }
+  if (nameUpper.includes('SECURITY') || nameUpper.includes('SBOM')) {
+    return Shield;
+  }
+  if (nameUpper.includes('BUG') || nameUpper.includes('FIX')) {
+    return Bug;
+  }
+  if (nameUpper.includes('RUNTIME') || nameUpper.includes('SWITCH')) {
+    return Code;
+  }
+  if (nameUpper.includes('MASTER') || nameUpper.includes('EXPERT')) {
+    return Crown;
+  }
+  if (nameUpper.includes('STREAK') || nameUpper.includes('DAILY')) {
+    return Flame;
+  }
+  if (nameUpper.includes('STAR') || nameUpper.includes('TOP')) {
+    return Star;
+  }
+  if (nameUpper.includes('DIAMOND') || nameUpper.includes('ELITE')) {
+    return Gem;
+  }
+  if (nameUpper.includes('TROPHY') || nameUpper.includes('CHAMPION')) {
+    return Trophy;
+  }
+  if (nameUpper.includes('LOVE') || nameUpper.includes('HEART')) {
+    return Heart;
+  }
+  if (nameUpper.includes('COFFEE') || nameUpper.includes('CAFFEINE')) {
+    return Coffee;
+  }
+  if (nameUpper.includes('IDEA') || nameUpper.includes('INNOVATION')) {
+    return Lightbulb;
+  }
+  if (nameUpper.includes('BRANCH') || nameUpper.includes('GIT')) {
+    return GitBranch;
+  }
+  if (nameUpper.includes('BATTLE') || nameUpper.includes('FIGHT')) {
+    return Swords;
+  }
+
+  return Target;
+}
+
 const DashboardPage: Component<DashboardPageProps> = props => {
   const {
     dashboardData,
@@ -107,7 +195,9 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
   const exportData = (format: 'csv' | 'json') => {
     const data = telemetryData();
-    if (!data) {return;}
+    if (!data) {
+      return;
+    }
 
     let content = '';
     let filename = '';
@@ -142,41 +232,32 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     URL.revokeObjectURL(url);
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatShortDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   const formatTimeSaved = createMemo(() => {
     const ms = telemetryData()?.usage.total_time_saved_ms || 0;
     const hours = ms / 3600000;
-    if (hours < 1) {return `${Math.round((ms / 60000) * 10) / 10}m`;}
-    if (hours < 24) {return `${Math.round(hours * 10) / 10}h`;}
+    if (hours < 1) {
+      return `${Math.round((ms / 60000) * 10) / 10}m`;
+    }
+    if (hours < 24) {
+      return `${Math.round(hours * 10) / 10}h`;
+    }
     return `${Math.round((hours / 24) * 10) / 10}d`;
   });
 
   const averageCommandsPerDay = createMemo(() => {
     const data = telemetryData();
-    if (!data || data.daily.length === 0) {return 0;}
+    if (!data || data.daily.length === 0) {
+      return 0;
+    }
     const total = data.daily.reduce((sum, d) => sum + d.commands_run, 0);
     return Math.round(total / data.daily.length);
   });
 
   const peakDay = createMemo(() => {
     const data = telemetryData();
-    if (!data || data.daily.length === 0) {return null;}
+    if (!data || data.daily.length === 0) {
+      return null;
+    }
     return data.daily.reduce(
       (max, d) => (d.commands_run > max.commands_run ? d : max),
       data.daily[0]
@@ -185,46 +266,11 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
   const totalPackages = createMemo(() => {
     const data = telemetryData();
-    if (!data) {return 0;}
+    if (!data) {
+      return 0;
+    }
     return data.usage.total_packages_installed + data.usage.total_packages_searched;
   });
-
-  const getProviderIcon = (provider: string) => {
-    switch (provider) {
-      case 'github':
-        return Github;
-      case 'google':
-        return Chrome;
-      case 'credential':
-        return Mail;
-      default:
-        return Shield;
-    }
-  };
-
-  const getAchievementIcon = (_emoji: string, name: string) => {
-    const nameUpper = name.toUpperCase();
-
-    if (nameUpper.includes('FIRST') || nameUpper.includes('START')) {return Rocket;}
-    if (nameUpper.includes('SPEED') || nameUpper.includes('FAST')) {return Zap;}
-    if (nameUpper.includes('PACKAGE') || nameUpper.includes('INSTALL')) {return Package;}
-    if (nameUpper.includes('COMMAND') || nameUpper.includes('RUN')) {return Terminal;}
-    if (nameUpper.includes('SECURITY') || nameUpper.includes('SBOM')) {return Shield;}
-    if (nameUpper.includes('BUG') || nameUpper.includes('FIX')) {return Bug;}
-    if (nameUpper.includes('RUNTIME') || nameUpper.includes('SWITCH')) {return Code;}
-    if (nameUpper.includes('MASTER') || nameUpper.includes('EXPERT')) {return Crown;}
-    if (nameUpper.includes('STREAK') || nameUpper.includes('DAILY')) {return Flame;}
-    if (nameUpper.includes('STAR') || nameUpper.includes('TOP')) {return Star;}
-    if (nameUpper.includes('DIAMOND') || nameUpper.includes('ELITE')) {return Gem;}
-    if (nameUpper.includes('TROPHY') || nameUpper.includes('CHAMPION')) {return Trophy;}
-    if (nameUpper.includes('LOVE') || nameUpper.includes('HEART')) {return Heart;}
-    if (nameUpper.includes('COFFEE') || nameUpper.includes('CAFFEINE')) {return Coffee;}
-    if (nameUpper.includes('IDEA') || nameUpper.includes('INNOVATION')) {return Lightbulb;}
-    if (nameUpper.includes('BRANCH') || nameUpper.includes('GIT')) {return GitBranch;}
-    if (nameUpper.includes('BATTLE') || nameUpper.includes('FIGHT')) {return Swords;}
-
-    return Target;
-  };
 
   const pageBg =
     'min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden relative';
@@ -275,10 +321,16 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     trend?: number;
   }) => {
     const trendIcon =
-      !cardProps.trend || cardProps.trend === 0 ? Minus : cardProps.trend > 0 ? TrendingUp : TrendingDown;
+      !cardProps.trend || cardProps.trend === 0
+        ? Minus
+        : cardProps.trend > 0
+          ? TrendingUp
+          : TrendingDown;
 
     const trendColor = () => {
-      if (!cardProps.trend || cardProps.trend === 0) {return 'text-slate-500';}
+      if (!cardProps.trend || cardProps.trend === 0) {
+        return 'text-slate-500';
+      }
       return cardProps.trend > 0 ? 'text-emerald-400' : 'text-red-400';
     };
 

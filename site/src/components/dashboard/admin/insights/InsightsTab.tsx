@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { Show, For, createSignal } from 'solid-js';
 import {
   useAdminAdvancedMetrics,
@@ -36,6 +36,12 @@ const INSIGHT_CATEGORIES: { id: InsightCategory; label: string; color: string }[
   { id: 'growth', label: 'Growth', color: 'text-solar-400' },
 ];
 
+function exportInsight(format: 'pdf' | 'png') {
+  const a = document.createElement('a');
+  a.download = `insights-${Date.now()}.${format}`;
+  a.click();
+}
+
 export const InsightsTab: Component = () => {
   const metricsQuery = useAdminAdvancedMetrics();
   const cohortsQuery = useAdminCohorts();
@@ -49,12 +55,6 @@ export const InsightsTab: Component = () => {
     setBookmarkedInsights(prev =>
       prev.includes(insightId) ? prev.filter(id => id !== insightId) : [...prev, insightId]
     );
-  };
-
-  const exportInsight = (format: 'pdf' | 'png') => {
-    const a = document.createElement('a');
-    a.download = `insights-${Date.now()}.${format}`;
-    a.click();
   };
 
   return (

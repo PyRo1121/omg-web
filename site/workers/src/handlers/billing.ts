@@ -11,6 +11,7 @@ import { Schema } from '@effect/schema';
 import { decodeJsonBody } from '../body';
 import { EmailAddress } from '../contracts/admin-session';
 import { forbiddenUnlessAdminSession } from '../admin-auth';
+import { decodeOptionalExtraRow, StripeCustomerIdRowSchema } from '../contracts/d1-extras';
 import {
   decodeStripeJson,
   decodeStripeWebhookText,
@@ -198,7 +199,14 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
     .bind(email)
     .first();
 
-  if (!customer || !customer.stripe_customer_id) {
+  const stripeCustomer = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      StripeCustomerIdRowSchema,
+      'Billing customer row has an invalid shape',
+      customer
+    )
+  );
+  if (stripeCustomer === undefined) {
     return errorResponse('No billing account found for this email', 404);
   }
 
@@ -209,8 +217,7 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
-      // SAFETY: The customer row was checked for a non-null Stripe customer id above.
-      customer: customer.stripe_customer_id as string,
+      customer: stripeCustomer.stripe_customer_id,
       return_url: 'https://pyro1121.com/dashboard?portal=closed',
     }),
   });

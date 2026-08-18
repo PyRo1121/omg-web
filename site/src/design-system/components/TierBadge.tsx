@@ -235,39 +235,41 @@ interface TierSelectorProps {
 export const TierSelector: Component<TierSelectorProps> = props => {
   return (
     <div class={cn('grid grid-cols-4 gap-3', props.class)}>
-      <For each={tierOrder}>{tier => {
-        const config = tierConfig[tier];
-        const isSelected = tier === props.value;
-        const isDisabled = props.disabledTiers?.includes(tier);
-        const IconComponent = config.icon;
+      <For each={tierOrder}>
+        {tier => {
+          const config = tierConfig[tier];
+          const isSelected = tier === props.value;
+          const isDisabled = props.disabledTiers?.includes(tier);
+          const IconComponent = config.icon;
 
-        return (
-          <button
-            type="button"
-            onClick={() => !isDisabled && props.onChange(tier)}
-            disabled={isDisabled}
-            class={cn(
-              'rounded-2xl border p-4 text-left transition-all',
-              isSelected
-                ? cn('bg-gradient-to-br', config.gradient, config.border, config.glow)
-                : 'bg-void-850 border-void-700 hover:border-void-600',
-              isDisabled && 'cursor-not-allowed opacity-50'
-            )}
-          >
-            <div class={cn('mb-3 w-fit rounded-xl p-2', config.bg)}>
-              <IconComponent size={18} class={isSelected ? config.color : 'text-nebula-500'} />
-            </div>
-            <p
+          return (
+            <button
+              type="button"
+              onClick={() => !isDisabled && props.onChange(tier)}
+              disabled={isDisabled}
               class={cn(
-                'font-bold tracking-wider uppercase',
-                isSelected ? config.color : 'text-nebula-400'
+                'rounded-2xl border p-4 text-left transition-all',
+                isSelected
+                  ? cn('bg-gradient-to-br', config.gradient, config.border, config.glow)
+                  : 'bg-void-850 border-void-700 hover:border-void-600',
+                isDisabled && 'cursor-not-allowed opacity-50'
               )}
             >
-              {config.label}
-            </p>
-          </button>
-        );
-      }}</For>
+              <div class={cn('mb-3 w-fit rounded-xl p-2', config.bg)}>
+                <IconComponent size={18} class={isSelected ? config.color : 'text-nebula-500'} />
+              </div>
+              <p
+                class={cn(
+                  'font-bold tracking-wider uppercase',
+                  isSelected ? config.color : 'text-nebula-400'
+                )}
+              >
+                {config.label}
+              </p>
+            </button>
+          );
+        }}
+      </For>
     </div>
   );
 };

@@ -10,23 +10,27 @@ interface CachedData {
 const CACHE_KEY = 'github-activity-cache';
 const CACHE_TTL = 2 * 60 * 1000;
 
+function formatWeekLabel(timestamp: number): string {
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 const GitHubActivity: Component = () => {
   const [data, setData] = createSignal<Array<{ label: string; value: number }>>([]);
   const [loading, setLoading] = createSignal(true);
   const [totalCommits, setTotalCommits] = createSignal(0);
   const [error, setError] = createSignal<string | null>(null);
 
-  const formatWeekLabel = (timestamp: number): string => {
-    const date = new Date(timestamp * 1000);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
   const getCachedData = (): CachedData | null => {
     try {
       const cached = localStorage.getItem(CACHE_KEY);
-      if (!cached) {return null;}
+      if (!cached) {
+        return null;
+      }
       const parsed: CachedData = JSON.parse(cached);
-      if (Date.now() - parsed.timestamp > CACHE_TTL) {return null;}
+      if (Date.now() - parsed.timestamp > CACHE_TTL) {
+        return null;
+      }
       return parsed;
     } catch (err) {
       if (err instanceof Error) {
@@ -156,27 +160,29 @@ const GitHubActivity: Component = () => {
 
       <Show when={!loading() && data().length > 0}>
         <div class="flex items-end gap-3" style={{ height: '140px' }}>
-          <For each={data()}>{item => {
-            const maxVal = Math.max(...data().map(d => d.value));
-            const barHeight = Math.max((item.value / maxVal) * 120, 8);
-            return (
-              <div class="group relative flex flex-1 flex-col items-center gap-2">
-                <div
-                  class="w-full rounded-t-lg bg-gradient-to-t from-indigo-600 to-indigo-400 transition-all duration-500 group-hover:brightness-125"
-                  style={{
-                    height: `${barHeight}px`,
-                    'box-shadow': '0 0 20px -5px rgba(99,102,241,0.4)',
-                  }}
-                />
-                <span class="text-[10px] font-medium text-slate-500 transition-colors group-hover:text-slate-300">
-                  {item.label}
-                </span>
-                <div class="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2 scale-95 rounded-xl border border-white/10 bg-slate-900/95 px-3 py-2 text-xs whitespace-nowrap text-white opacity-0 shadow-xl backdrop-blur-md transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
-                  <span class="font-bold text-indigo-400">{item.value}</span> commits
+          <For each={data()}>
+            {item => {
+              const maxVal = Math.max(...data().map(d => d.value));
+              const barHeight = Math.max((item.value / maxVal) * 120, 8);
+              return (
+                <div class="group relative flex flex-1 flex-col items-center gap-2">
+                  <div
+                    class="w-full rounded-t-lg bg-gradient-to-t from-indigo-600 to-indigo-400 transition-all duration-500 group-hover:brightness-125"
+                    style={{
+                      height: `${barHeight}px`,
+                      'box-shadow': '0 0 20px -5px rgba(99,102,241,0.4)',
+                    }}
+                  />
+                  <span class="text-[10px] font-medium text-slate-500 transition-colors group-hover:text-slate-300">
+                    {item.label}
+                  </span>
+                  <div class="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2 scale-95 rounded-xl border border-white/10 bg-slate-900/95 px-3 py-2 text-xs whitespace-nowrap text-white opacity-0 shadow-xl backdrop-blur-md transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
+                    <span class="font-bold text-indigo-400">{item.value}</span> commits
+                  </div>
                 </div>
-              </div>
-            );
-          }}</For>
+              );
+            }}
+          </For>
         </div>
       </Show>
 

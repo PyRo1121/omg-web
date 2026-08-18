@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { Show, createMemo, createSignal, onMount, onCleanup, For } from 'solid-js';
 import {
   Users,
@@ -81,6 +81,46 @@ const AnimatedCounter: Component<AnimatedCounterProps> = props => {
   return <span class="font-mono tabular-nums">{Math.round(displayValue()).toLocaleString()}</span>;
 };
 
+function calculateTrend(current: number, previous: number | undefined) {
+  if (!previous || previous === 0) {
+    return null;
+  }
+  return ((current - previous) / previous) * 100;
+}
+
+function getStickinessHealth(value: number) {
+  if (value >= 25) {
+    return {
+      label: 'Excellent',
+      color: 'var(--color-aurora-400)',
+      glow: 'rgba(16, 185, 129, 0.3)',
+      status: 'excellent',
+    };
+  }
+  if (value >= 15) {
+    return {
+      label: 'Good',
+      color: 'var(--color-electric-400)',
+      glow: 'rgba(34, 211, 211, 0.25)',
+      status: 'good',
+    };
+  }
+  if (value >= 10) {
+    return {
+      label: 'Average',
+      color: 'var(--color-solar-400)',
+      glow: 'rgba(245, 158, 11, 0.25)',
+      status: 'average',
+    };
+  }
+  return {
+    label: 'Needs Work',
+    color: 'var(--color-flare-400)',
+    glow: 'rgba(239, 68, 68, 0.25)',
+    status: 'poor',
+  };
+}
+
 export const EngagementDashboard: Component<EngagementDashboardProps> = props => {
   const [mounted, setMounted] = createSignal(false);
 
@@ -90,20 +130,19 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = props =>
 
   const stickinessValue = createMemo(() => {
     const raw = props.engagement.stickiness?.daily_to_monthly;
-    if (!raw) {return 0;}
+    if (!raw) {
+      return 0;
+    }
     return parseFloat(raw.replace('%', ''));
   });
 
   const wauMauRatio = createMemo(() => {
     const raw = props.engagement.stickiness?.weekly_to_monthly;
-    if (!raw) {return 0;}
+    if (!raw) {
+      return 0;
+    }
     return parseFloat(raw.replace('%', ''));
   });
-
-  const calculateTrend = (current: number, previous: number | undefined) => {
-    if (!previous || previous === 0) {return null;}
-    return ((current - previous) / previous) * 100;
-  };
 
   const dauTrend = createMemo(() =>
     calculateTrend(props.engagement.dau, props.previousPeriod?.dau)
@@ -117,40 +156,12 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = props =>
     calculateTrend(props.engagement.mau, props.previousPeriod?.mau)
   );
 
-  const getStickinessHealth = (value: number) => {
-    if (value >= 25)
-      {return {
-        label: 'Excellent',
-        color: 'var(--color-aurora-400)',
-        glow: 'rgba(16, 185, 129, 0.3)',
-        status: 'excellent',
-      };}
-    if (value >= 15)
-      {return {
-        label: 'Good',
-        color: 'var(--color-electric-400)',
-        glow: 'rgba(34, 211, 211, 0.25)',
-        status: 'good',
-      };}
-    if (value >= 10)
-      {return {
-        label: 'Average',
-        color: 'var(--color-solar-400)',
-        glow: 'rgba(245, 158, 11, 0.25)',
-        status: 'average',
-      };}
-    return {
-      label: 'Needs Work',
-      color: 'var(--color-flare-400)',
-      glow: 'rgba(239, 68, 68, 0.25)',
-      status: 'poor',
-    };
-  };
-
   const stickinessHealth = createMemo(() => getStickinessHealth(stickinessValue()));
 
   const funnelStages = createMemo<FunnelStage[]>(() => {
-    if (!props.funnel) {return [];}
+    if (!props.funnel) {
+      return [];
+    }
     const { installs, activated, engaged, power_users } = props.funnel;
     const base = installs || 1;
 
@@ -161,8 +172,6 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = props =>
       { label: 'Power Users', count: power_users, percentage: (power_users / base) * 100 },
     ];
   });
-
-
 
   return (
     <div class="space-y-6">
@@ -424,37 +433,39 @@ interface MetricCardProps {
   delay: number;
 }
 
+const TrendIndicator: Component<{ trend: number | null | undefined }> = trendProps => {
+  if (trendProps.trend === null || trendProps.trend === undefined) {
+    return null;
+  }
+
+  const isPositive = trendProps.trend > 0;
+  const isNeutral = Math.abs(trendProps.trend) < 0.5;
+  const Icon = isNeutral ? Minus : isPositive ? ArrowUpRight : ArrowDownRight;
+  const color = isNeutral
+    ? 'var(--color-nebula-500)'
+    : isPositive
+      ? 'var(--color-aurora-400)'
+      : 'var(--color-flare-400)';
+  const bg = isNeutral
+    ? 'rgba(113, 113, 122, 0.1)'
+    : isPositive
+      ? 'rgba(16, 185, 129, 0.1)'
+      : 'rgba(239, 68, 68, 0.1)';
+
+  return (
+    <div
+      class="flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold"
+      style={{ color, background: bg }}
+    >
+      <Icon size={10} />
+      <span class="tabular-nums">{Math.abs(trendProps.trend).toFixed(1)}%</span>
+    </div>
+  );
+};
+
 const MetricCard: Component<MetricCardProps> = props => {
   const [hovered, setHovered] = createSignal(false);
   const IconComponent = props.icon;
-
-  const TrendIndicator: Component<{ trend: number | null | undefined }> = trendProps => {
-    if (trendProps.trend === null || trendProps.trend === undefined) {return null;}
-
-    const isPositive = trendProps.trend > 0;
-    const isNeutral = Math.abs(trendProps.trend) < 0.5;
-    const Icon = isNeutral ? Minus : isPositive ? ArrowUpRight : ArrowDownRight;
-    const color = isNeutral
-      ? 'var(--color-nebula-500)'
-      : isPositive
-        ? 'var(--color-aurora-400)'
-        : 'var(--color-flare-400)';
-    const bg = isNeutral
-      ? 'rgba(113, 113, 122, 0.1)'
-      : isPositive
-        ? 'rgba(16, 185, 129, 0.1)'
-        : 'rgba(239, 68, 68, 0.1)';
-
-    return (
-      <div
-        class="flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold"
-        style={{ color, background: bg }}
-      >
-        <Icon size={10} />
-        <span class="tabular-nums">{Math.abs(trendProps.trend).toFixed(1)}%</span>
-      </div>
-    );
-  };
 
   return (
     <div

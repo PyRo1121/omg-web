@@ -20,7 +20,19 @@ import {
   AdminUpdateUserBodySchema,
   decodeThrownMessage,
 } from '../contracts/http-bodies';
-import { AuditCsvRowSchema, decodeExtraRowArray, UsageCsvRowSchema } from '../contracts/d1-extras';
+import {
+  AdminCountsRowSchema,
+  AdminUsageTotalsRowSchema,
+  AuditCsvRowSchema,
+  CommandStatsRowSchema,
+  CountRowSchema,
+  CurrentMrrRowSchema,
+  decodeExtraRowArray,
+  decodeOptionalExtraRow,
+  GlobalUsageRowSchema,
+  TierCountRowSchema,
+  UsageCsvRowSchema,
+} from '../contracts/d1-extras';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -208,40 +220,50 @@ export async function handleAdminDashboard(request: Request, env: Env): Promise<
     commandStatsResult,
   ] = batchResults;
 
-  type CountsRow = {
-    total_users: number;
-    active_licenses: number;
-    active_machines: number;
-    total_installs: number;
-  };
-  type UsageTotalsRow = {
-    total_commands: number;
-    total_packages_installed: number;
-    total_searches: number;
-    total_time_saved_ms: number;
-  };
-  type GlobalUsageRow = { total_time_saved: number };
-  type CommandStatsRow = { success: number; failure: number };
-  type TierRow = { tier: string; count: number };
-
-  // SAFETY: The first batch query selects the CountsRow aggregate fields.
-  const counts = countsResult.results?.[0] as CountsRow | undefined;
+  const counts = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      AdminCountsRowSchema,
+      'Admin overview counts have an invalid shape',
+      countsResult.results?.[0]
+    )
+  );
   const tierBreakdown = tierBreakdownResult.results || [];
-  // SAFETY: The usage aggregate query selects the UsageTotalsRow fields.
-  const usageTotals = usageTotalsResult.results?.[0] as UsageTotalsRow | undefined;
+  const usageTotals = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      AdminUsageTotalsRowSchema,
+      'Admin usage totals have an invalid shape',
+      usageTotalsResult.results?.[0]
+    )
+  );
   const dailyActiveUsers = dailyActiveUsersResult.results || [];
   const recentSignups = recentSignupsResult.results || [];
   const installsByPlatform = installsByPlatformResult.results || [];
   const installsByVersion = installsByVersionResult.results || [];
   const subscriptionStats = subscriptionStatsResult.results || [];
-  // SAFETY: The MRR query groups rows by tier and count.
-  const mrrData = (mrrDataResult.results || []) as TierRow[];
-  // SAFETY: The global usage query selects the total_time_saved aggregate.
-  const globalUsage = globalUsageResult.results?.[0] as GlobalUsageRow | undefined;
+  const decodedMrr = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      TierCountRowSchema,
+      'Admin MRR tier row has an invalid shape',
+      mrrDataResult.results
+    )
+  );
+  const mrrData = Exit.isSuccess(decodedMrr) ? decodedMrr.value : [];
+  const globalUsage = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      GlobalUsageRowSchema,
+      'Admin global usage has an invalid shape',
+      globalUsageResult.results?.[0]
+    )
+  );
   const fleetVersions = fleetVersionsResult.results || [];
   const geoDist = geoDistResult.results || [];
-  // SAFETY: The command stats query selects success and failure aggregates.
-  const commandStats = commandStatsResult.results?.[0] as CommandStatsRow | undefined;
+  const commandStats = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      CommandStatsRowSchema,
+      'Admin command stats have an invalid shape',
+      commandStatsResult.results?.[0]
+    )
+  );
 
   const tierPrices = { pro: 9, team: 200, enterprise: 500 } satisfies Record<string, number>;
   let mrr = 0;
@@ -658,13 +680,18 @@ export async function handleAdminRevenue(request: Request, env: Env): Promise<Re
   const mrrData = await env.DB.prepare(
     `SELECT l.tier, COUNT(*) as count FROM licenses l JOIN subscriptions s ON l.customer_id = s.customer_id WHERE s.status = 'active' AND l.tier != 'free' GROUP BY l.tier`
   ).all();
+  const decodedMrrTiers = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      TierCountRowSchema,
+      'Admin revenue tier row has an invalid shape',
+      mrrData.results
+    )
+  );
   const tierPrices = { pro: 9, team: 200, enterprise: 500 } satisfies Record<string, number>;
   let mrr = 0;
-  for (const row of mrrData.results || []) {
-    // SAFETY: The revenue query returns string tier names and numeric COUNT(*) values.
+  for (const row of Exit.isSuccess(decodedMrrTiers) ? decodedMrrTiers.value : []) {
     const tierPrice = Object.entries(tierPrices).find(([tier]) => tier === row.tier)?.[1] || 0;
-    // SAFETY: The revenue query returns numeric COUNT(*) values.
-    mrr += tierPrice * (row.count as number);
+    mrr += tierPrice * row.count;
   }
   return secureJsonResponse({
     request_id: context.requestId,
@@ -754,15 +781,22 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
     { count: 0 }
   );
 
-  // SAFETY: These COUNT(DISTINCT ...) aggregates return numeric values.
-  const mauCount = (mau?.count as number) || 1;
-  // SAFETY: These COUNT(DISTINCT ...) aggregates return numeric values.
-  const dailyCount = (dau?.count as number) || 0;
-  // SAFETY: The weekly activity query returns a numeric COUNT(DISTINCT ...) value.
-  const weeklyCount = (wau?.count as number) || 0;
+  const mauRow = await Effect.runPromise(
+    decodeOptionalExtraRow(CountRowSchema, 'Admin MAU row has an invalid shape', mau)
+  );
+  const dauRow = await Effect.runPromise(
+    decodeOptionalExtraRow(CountRowSchema, 'Admin DAU row has an invalid shape', dau)
+  );
+  const wauRow = await Effect.runPromise(
+    decodeOptionalExtraRow(CountRowSchema, 'Admin WAU row has an invalid shape', wau)
+  );
+  const mauCount = mauRow?.count ?? 0;
+  const dailyCount = dauRow?.count ?? 0;
+  const weeklyCount = wauRow?.count ?? 0;
+  const stickinessDenom = mauCount === 0 ? 1 : mauCount;
   const stickiness = {
-    daily_to_monthly: `${((dailyCount / mauCount) * 100).toFixed(1)}%`,
-    weekly_to_monthly: `${((weeklyCount / mauCount) * 100).toFixed(1)}%`,
+    daily_to_monthly: `${((dailyCount / stickinessDenom) * 100).toFixed(1)}%`,
+    weekly_to_monthly: `${((weeklyCount / stickinessDenom) * 100).toFixed(1)}%`,
   };
 
   const retentionCohorts = await safeQuery(
@@ -906,18 +940,21 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
     { current_mrr: 0 }
   );
 
-  // SAFETY: The revenue query returns a numeric SUM aggregate.
-  const currentMrr = (revenueMetrics?.current_mrr as number) || 0;
+  const revenueRow = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      CurrentMrrRowSchema,
+      'Admin current MRR row has an invalid shape',
+      revenueMetrics
+    )
+  );
+  const currentMrr = revenueRow?.current_mrr || 0;
 
   return secureJsonResponse({
     request_id: context.requestId,
     engagement: {
-      // SAFETY: These COUNT(DISTINCT ...) aggregates return numeric values.
-      dau: (dau?.count as number) || 0,
-      // SAFETY: These COUNT(DISTINCT ...) aggregates return numeric values.
-      wau: (wau?.count as number) || 0,
-      // SAFETY: These COUNT(DISTINCT ...) aggregates return numeric values.
-      mau: (mau?.count as number) || 0,
+      dau: dailyCount,
+      wau: weeklyCount,
+      mau: mauCount,
       stickiness,
     },
     retention: { cohorts: retentionCohorts.results || [] },
@@ -1097,7 +1134,7 @@ export async function handleAdminGetTags(request: Request, env: Env): Promise<Re
 
   // Get all available tags with usage counts
   const tags = await env.DB.prepare(
-    `SELECT t.*, COUNT(cta.customer_id) as usage_count
+    `SELECT t.id, t.name, t.color, t.description, t.created_by, t.created_at, COUNT(cta.customer_id) as usage_count
      FROM customer_tags t
      LEFT JOIN customer_tag_assignments cta ON t.id = cta.tag_id
      GROUP BY t.id

@@ -127,6 +127,17 @@ const CommandStreamItem: Component<{ event: FirehoseEvent; index: number }> = pr
   );
 };
 
+function getCountryFlag(code: string): string {
+  if (!code || code.length !== 2) {
+    return '🌍';
+  }
+  const codePoints = code
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+}
+
 interface GlobeVisualizationProps {
   data: GeoDistribution[];
   totalNodes: number;
@@ -135,17 +146,6 @@ interface GlobeVisualizationProps {
 const GlobeVisualization: Component<GlobeVisualizationProps> = props => {
   const topCountries = createMemo(() => props.data.slice(0, 8));
   const maxCount = createMemo(() => Math.max(...props.data.map(d => d.count), 1));
-
-  const getCountryFlag = (code: string): string => {
-    if (!code || code.length !== 2) {
-      return '🌍';
-    }
-    const codePoints = code
-      .toUpperCase()
-      .split('')
-      .map(char => 127397 + char.charCodeAt(0));
-    return String.fromCodePoint(...codePoints);
-  };
 
   return (
     <div class="to-photon-500/5 relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-indigo-500/5 p-6">

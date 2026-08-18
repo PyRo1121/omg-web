@@ -475,7 +475,7 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
         }>(),
 
       env.DB.prepare(
-        `SELECT date, SUM(pageviews), as pageviews, SUM(visitors) as visitors
+        `SELECT date, SUM(pageviews) as pageviews, SUM(visitors) as visitors
          FROM site_analytics_geo_daily
          WHERE date >= ?
          GROUP BY date
