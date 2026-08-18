@@ -1,3 +1,4 @@
+import { Schema } from '@effect/schema';
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 
 interface TrackingEvent {
@@ -16,6 +17,47 @@ interface TrackingBatch {
 type TrackingProperty =
   string | number | boolean | null | TrackingProperty[] | { [key: string]: TrackingProperty };
 type TrackingProperties = Record<string, TrackingProperty>;
+
+const GeoNumber = Schema.Union(Schema.Number, Schema.Null).pipe(
+  Schema.transform(Schema.Number, {
+    decode: (fromA: number | null) => (fromA === null ? 0 : fromA),
+    encode: (toI: number) => toI,
+  })
+);
+
+const SiteGeoRowSchema = Schema.Struct({
+  country_code: Schema.String,
+  visitors: GeoNumber,
+  sessions: GeoNumber,
+  pageviews: GeoNumber,
+});
+
+const DocsGeoRowSchema = Schema.Struct({
+  country_code: Schema.String,
+  sessions: GeoNumber,
+  pageviews: GeoNumber,
+});
+
+const CliGeoRowSchema = Schema.Struct({
+  country_code: Schema.String,
+  count: GeoNumber,
+});
+
+function decodeRows<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  value: ReadonlyArray<unknown> | undefined
+): ReadonlyArray<Schema.Schema.Type<S>> {
+  const rows = value === undefined ? [] : value;
+  const decodedRows: Array<Schema.Schema.Type<S>> = [];
+  for (const row of rows) {
+    const decoded = Schema.decodeUnknownEither(schema)(row);
+    if (decoded._tag === 'Left') {
+      throw new Error('Geo analytics row has an invalid shape');
+    }
+    decodedRows.push(decoded.right);
+  }
+  return decodedRows;
+}
 
 interface ParsedUserAgent {
   device: string;
@@ -82,22 +124,35 @@ function parseUserAgent(ua: string): ParsedUserAgent {
     device = /ipad|tablet/i.test(ua) ? 'tablet' : 'mobile';
   }
 
-  if (/chrome/i.test(ua) && !/edge|edg/i.test(ua)) {browser = 'Chrome';}
-  else if (/firefox/i.test(ua)) {browser = 'Firefox';}
-  else if (/safari/i.test(ua) && !/chrome/i.test(ua)) {browser = 'Safari';}
-  else if (/edge|edg/i.test(ua)) {browser = 'Edge';}
+  if (/chrome/i.test(ua) && !/edge|edg/i.test(ua)) {
+    browser = 'Chrome';
+  } else if (/firefox/i.test(ua)) {
+    browser = 'Firefox';
+  } else if (/safari/i.test(ua) && !/chrome/i.test(ua)) {
+    browser = 'Safari';
+  } else if (/edge|edg/i.test(ua)) {
+    browser = 'Edge';
+  }
 
-  if (/windows/i.test(ua)) {os = 'Windows';}
-  else if (/mac os/i.test(ua)) {os = 'macOS';}
-  else if (/linux/i.test(ua)) {os = 'Linux';}
-  else if (/android/i.test(ua)) {os = 'Android';}
-  else if (/ios|iphone|ipad/i.test(ua)) {os = 'iOS';}
+  if (/windows/i.test(ua)) {
+    os = 'Windows';
+  } else if (/mac os/i.test(ua)) {
+    os = 'macOS';
+  } else if (/linux/i.test(ua)) {
+    os = 'Linux';
+  } else if (/android/i.test(ua)) {
+    os = 'Android';
+  } else if (/ios|iphone|ipad/i.test(ua)) {
+    os = 'iOS';
+  }
 
   return { device, browser, os };
 }
 
 function extractReferrerDomain(referrer: string | null): string {
-  if (!referrer) {return 'direct';}
+  if (!referrer) {
+    return 'direct';
+  }
   try {
     const url = new URL(referrer);
     return url.hostname.replace(/^www\./, '');
@@ -111,7 +166,9 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     if (env.API_RATE_LIMITER) {
       const { success } = await env.API_RATE_LIMITER.limit({ key: `site_analytics:${ip}` });
-      if (!success) {return errorResponse('Rate limit exceeded', 429);}
+      if (!success) {
+        return errorResponse('Rate limit exceeded', 429);
+      }
     }
 
     const body: TrackingBatch = await request.json();
@@ -131,7 +188,9 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     const hour = new Date().getUTCHours();
 
     for (const event of body.events) {
-      if (!event.event_type || !event.event_name || !event.session_id) {continue;}
+      if (!event.event_type || !event.event_name || !event.session_id) {
+        continue;
+      }
 
       const eventId = generateId();
       const props = event.properties || {};
@@ -256,47 +315,48 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
       }
     >();
 
-    // SAFETY: The query selects one aggregate row shape per country.
-    for (const row of siteGeo.results as any[]) {
+    const siteRows = decodeRows(SiteGeoRowSchema, siteGeo.results);
+    const docsRows = decodeRows(DocsGeoRowSchema, docsGeo.results);
+    const cliRows = decodeRows(CliGeoRowSchema, cliGeo.results);
+
+    for (const row of siteRows) {
       combined.set(row.country_code, {
         country_code: row.country_code,
-        site_visitors: row.visitors || 0,
-        site_sessions: row.sessions || 0,
-        site_pageviews: row.pageviews || 0,
+        site_visitors: row.visitors,
+        site_sessions: row.sessions,
+        site_pageviews: row.pageviews,
         docs_sessions: 0,
         docs_pageviews: 0,
         cli_installs: 0,
-        total_engagement: (row.visitors || 0) + (row.sessions || 0),
+        total_engagement: row.visitors + row.sessions,
       });
     }
 
-    // SAFETY: The query selects one aggregate row shape per country.
-    for (const row of docsGeo.results as any[]) {
+    for (const row of docsRows) {
       const existing = combined.get(row.country_code);
       if (existing) {
-        existing.docs_sessions = row.sessions || 0;
-        existing.docs_pageviews = row.pageviews || 0;
-        existing.total_engagement += row.sessions || 0;
+        existing.docs_sessions = row.sessions;
+        existing.docs_pageviews = row.pageviews;
+        existing.total_engagement += row.sessions;
       } else {
         combined.set(row.country_code, {
           country_code: row.country_code,
           site_visitors: 0,
           site_sessions: 0,
           site_pageviews: 0,
-          docs_sessions: row.sessions || 0,
-          docs_pageviews: row.pageviews || 0,
+          docs_sessions: row.sessions,
+          docs_pageviews: row.pageviews,
           cli_installs: 0,
-          total_engagement: row.sessions || 0,
+          total_engagement: row.sessions,
         });
       }
     }
 
-    // SAFETY: The query selects one aggregate row shape per country.
-    for (const row of cliGeo.results as any[]) {
+    for (const row of cliRows) {
       const existing = combined.get(row.country_code);
       if (existing) {
-        existing.cli_installs = row.count || 0;
-        existing.total_engagement += (row.count || 0) * 10;
+        existing.cli_installs = row.count;
+        existing.total_engagement += row.count * 10;
       } else {
         combined.set(row.country_code, {
           country_code: row.country_code,
@@ -305,8 +365,8 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
           site_pageviews: 0,
           docs_sessions: 0,
           docs_pageviews: 0,
-          cli_installs: row.count || 0,
-          total_engagement: (row.count || 0) * 10,
+          cli_installs: row.count,
+          total_engagement: row.count * 10,
         });
       }
     }

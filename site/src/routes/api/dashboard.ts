@@ -1,14 +1,22 @@
 import type { APIEvent } from '@solidjs/start/server';
+import { Effect, Exit } from 'effect';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import * as schema from '../../db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
+import { parseAccountDashboard } from '~/lib/contracts/dashboard';
 
-function getEnv(event: APIEvent): CloudflareEnv {
+function internalErrorResponse(): Response {
+  return new Response(JSON.stringify({ error: 'Internal server error' }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function readCloudflareEnv(event: APIEvent): CloudflareEnv | null {
   const env = event.nativeEvent.context.cloudflare?.env;
-
   if (!env) {
-    throw new Error('Cloudflare environment not available');
+    return null;
   }
 
   return {
@@ -24,8 +32,13 @@ function getEnv(event: APIEvent): CloudflareEnv {
 }
 
 export async function GET(event: APIEvent) {
+  const env = readCloudflareEnv(event);
+  if (env === null) {
+    console.error('Dashboard API: Cloudflare environment not available');
+    return internalErrorResponse();
+  }
+
   try {
-    const env = getEnv(event);
     const auth = createAuth(env);
 
     const session = await auth.api.getSession({
@@ -61,7 +74,7 @@ export async function GET(event: APIEvent) {
         email: session.user.email,
         emailVerified: session.user.emailVerified,
         image: session.user.image || null,
-        createdAt: session.user.createdAt,
+        createdAt: new Date(session.user.createdAt).toISOString(),
       },
       sessions: userSessions.map(s => ({
         id: s.id,
@@ -77,15 +90,20 @@ export async function GET(event: APIEvent) {
       })),
     };
 
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
+    const encoded = await Effect.runPromiseExit(parseAccountDashboard(response));
+    return Exit.match(encoded, {
+      onFailure: cause => {
+        console.error('Dashboard API: outbound payload failed schema encode', cause);
+        return internalErrorResponse();
+      },
+      onSuccess: payload =>
+        new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
     });
   } catch (error) {
     console.error('Dashboard API error:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return internalErrorResponse();
   }
 }

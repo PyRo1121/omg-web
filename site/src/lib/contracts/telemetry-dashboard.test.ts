@@ -1,5 +1,6 @@
+import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { decodeTelemetryDashboard } from './telemetry-dashboard';
+import { decodeTelemetryDashboard, parseTelemetryDashboard } from './telemetry-dashboard';
 
 const validPayload = {
   user: { id: 'u1', email: 'a@b.c', name: 'A', role: 'user' },
@@ -78,5 +79,23 @@ describe('decodeTelemetryDashboard', () => {
     const decoded = decodeTelemetryDashboard(withoutStats);
     expect(decoded).not.toBeNull();
     expect(decoded?.global_stats).toBeUndefined();
+  });
+});
+
+describe('parseTelemetryDashboard', () => {
+  it('succeeds for a valid payload and ignores extra fields', async () => {
+    const exit = await Effect.runPromiseExit(
+      parseTelemetryDashboard({ ...validPayload, extra: true })
+    );
+    expect(Exit.isSuccess(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) {
+      expect(exit.value.user.id).toBe('u1');
+    }
+  });
+
+  it('fails for a missing user block', async () => {
+    const { user: _user, ...missingUser } = validPayload;
+    const exit = await Effect.runPromiseExit(parseTelemetryDashboard(missingUser));
+    expect(Exit.isFailure(exit)).toBe(true);
   });
 });

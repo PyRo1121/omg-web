@@ -1,14 +1,25 @@
 import type { APIEvent } from '@solidjs/start/server';
+import { Effect, Exit } from 'effect';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, desc, gte, sql, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import { ACHIEVEMENTS, checkAchievementProgress } from '~/lib/achievements';
+import { parseTelemetryDashboard } from '~/lib/contracts/telemetry-dashboard';
 import type { TelemetryDashboardResponse } from '~/types/telemetry';
 
-function getEnv(event: APIEvent): CloudflareEnv {
+function internalErrorResponse(): Response {
+  return new Response(JSON.stringify({ error: 'Internal server error' }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function readCloudflareEnv(event: APIEvent): CloudflareEnv | null {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) {throw new Error('Cloudflare environment not available');}
+  if (!env) {
+    return null;
+  }
 
   return {
     DB: env.DB,
@@ -32,8 +43,13 @@ function getTierFeatures(tier: string): string[] {
 }
 
 export async function GET(event: APIEvent) {
+  const env = readCloudflareEnv(event);
+  if (env === null) {
+    console.error('[Telemetry API] Cloudflare environment not available');
+    return internalErrorResponse();
+  }
+
   try {
-    const env = getEnv(event);
     const auth = createAuth(env);
 
     const session = await auth.api.getSession({
@@ -332,24 +348,23 @@ export async function GET(event: APIEvent) {
           : undefined,
     };
 
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+    const encoded = await Effect.runPromiseExit(parseTelemetryDashboard(response));
+    return Exit.match(encoded, {
+      onFailure: cause => {
+        console.error('[Telemetry API] Outbound payload failed schema encode', cause);
+        return internalErrorResponse();
       },
+      onSuccess: payload =>
+        new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+          },
+        }),
     });
   } catch (error) {
     console.error('[Telemetry API] Error:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return internalErrorResponse();
   }
 }

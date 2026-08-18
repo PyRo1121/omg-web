@@ -1,8 +1,6 @@
-// Authentication handlers
-import { runPromise, either } from 'effect/Effect';
-import { Struct, String as SchemaString, optional } from '@effect/schema/Schema';
-import type { Schema } from '@effect/schema';
-import { decodeJsonBody } from '../body';
+import { Cause, Effect, Exit, Option } from 'effect';
+import { Schema } from '@effect/schema';
+import { decodeJsonBody, InvalidJsonBodyError } from '../body';
 import {
   type Env,
   jsonResponse,
@@ -13,55 +11,121 @@ import {
   validateSession,
   logAudit,
   verifyTurnstile,
+  type User,
 } from '../api';
+import {
+  CustomerId,
+  SendCodeRequestSchema,
+  SessionToken,
+  SessionTokenRequestSchema,
+  VerifyCodeRequestSchema,
+  decodeAuthCodeCountRow,
+  decodeAuthCodeRow,
+  decodeAuthCustomerRow,
+  type AuthCustomerRow,
+  type EmailAddress,
+  type SendCodeResponse,
+  type VerifyCodeResponse,
+} from '../contracts/otp-auth';
+import { casesHandled } from '../prelude';
 
-/** The send OTP request body. */
-const SendCodeRequestSchema = Struct({
-  email: optional(SchemaString),
-  turnstileToken: optional(SchemaString),
-});
-
-/** The verify OTP request body. */
-const VerifyCodeRequestSchema = Struct({
-  email: optional(SchemaString),
-  code: optional(SchemaString),
-});
-
-/** The session token request body. */
-const SessionTokenRequestSchema = Struct({
-  token: optional(SchemaString),
-});
-
-/**
- * Decode the request body with the given schema and fail with a 400 response
- * when the body is malformed.
- */
-async function decodeBody<S extends Schema.Schema.AnyNoContext>(
-  request: Request,
-  schema: S
-): Promise<Schema.Schema.Type<S> | Response> {
-  const result = await runPromise(decodeJsonBody(request, schema).pipe(either));
-  return result._tag === 'Left' ? errorResponse('Invalid JSON body', 400) : result.right;
+/** Too many OTP requests were made for this email. */
+export class AuthRateLimitedError extends Error {
+  readonly _tag = 'AuthRateLimitedError';
+  constructor() {
+    super('Too many requests. Please wait a few minutes.');
+  }
 }
 
-// Send OTP email via Resend
-async function sendOTPEmail(
-  email: string,
-  code: string,
-  apiKey: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'OMG <noreply@pyro1121.com>',
-        to: [email],
-        subject: 'Your OMG verification code',
-        html: `
+/** Turnstile verification is required but was not provided. */
+export class TurnstileRequiredError extends Error {
+  readonly _tag = 'TurnstileRequiredError';
+  constructor() {
+    super('Security verification required');
+  }
+}
+
+/** Turnstile rejected the token. */
+export class TurnstileFailedError extends Error {
+  readonly _tag = 'TurnstileFailedError';
+  constructor() {
+    super('Security verification failed. Please try again.');
+  }
+}
+
+/** Resend is not configured on this Worker. */
+export class EmailServiceUnconfigured extends Error {
+  readonly _tag = 'EmailServiceUnconfigured';
+  constructor() {
+    super('Email service not configured');
+  }
+}
+
+/** The OTP email could not be delivered. */
+export class EmailDeliveryFailed extends Error {
+  readonly _tag = 'EmailDeliveryFailed';
+  constructor(readonly cause?: unknown) {
+    super('Failed to send email');
+  }
+}
+
+/** The OTP is missing, used, or expired. */
+export class InvalidOtpError extends Error {
+  readonly _tag = 'InvalidOtpError';
+  constructor() {
+    super('Invalid or expired code');
+  }
+}
+
+/** D1 was unavailable or returned an unreadable row during OTP auth. */
+export class AuthStoreUnavailable extends Error {
+  readonly _tag = 'AuthStoreUnavailable';
+  constructor(
+    readonly operation: string,
+    readonly cause?: unknown
+  ) {
+    super(`Auth store unavailable during ${operation}`);
+  }
+}
+
+type SendCodeError =
+  | InvalidJsonBodyError
+  | AuthRateLimitedError
+  | TurnstileRequiredError
+  | TurnstileFailedError
+  | EmailServiceUnconfigured
+  | EmailDeliveryFailed
+  | AuthStoreUnavailable;
+
+type VerifyCodeError = InvalidJsonBodyError | InvalidOtpError | AuthStoreUnavailable;
+
+type SessionTokenError = InvalidJsonBodyError | AuthStoreUnavailable;
+
+/** Sends a generated OTP to an email address. */
+export type OtpMailer = (
+  email: EmailAddress,
+  code: string
+) => Effect.Effect<void, EmailServiceUnconfigured | EmailDeliveryFailed>;
+
+function brandGeneratedId<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  value: string
+): Schema.Schema.Type<S> {
+  return Schema.decodeUnknownSync(schema)(value);
+}
+
+async function sendOTPEmail(email: string, code: string, apiKey: string): Promise<void> {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'OMG <noreply@pyro1121.com>',
+      to: [email],
+      subject: 'Your OMG verification code',
+      html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
             <div style="text-align: center; margin-bottom: 30px;">
               <h1 style="color: #1a1a2e; margin: 0; font-size: 28px;">🚀 OMG</h1>
@@ -79,241 +143,423 @@ async function sendOTPEmail(
             </p>
           </div>
         `,
-      }),
+    }),
+  });
+  if (!response.ok) {
+    throw new Error('Email send failed');
+  }
+}
+
+/**
+ * Deliver OTP mail through Resend when `RESEND_API_KEY` is configured.
+ *
+ * @param env - Worker bindings that may include `RESEND_API_KEY`.
+ * @returns An OTP mailer.
+ */
+export function resendMailer(env: Env): OtpMailer {
+  return (email, code) => {
+    if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY.length === 0) {
+      return Effect.fail(new EmailServiceUnconfigured());
+    }
+    const apiKey = env.RESEND_API_KEY;
+    return Effect.tryPromise({
+      try: () => sendOTPEmail(email, code, apiKey),
+      catch: cause => new EmailDeliveryFailed(cause),
     });
-
-    if (!response.ok) {
-      // SAFETY: Resend error responses are expected to contain an optional string message.
-      const errorData = (await response.json()) as { message?: string };
-      return { success: false, error: errorData.message || 'Email send failed' };
-    }
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Unknown error' };
-  }
+  };
 }
 
-// Send OTP code to email
-export async function handleSendCode(request: Request, env: Env): Promise<Response> {
-  const bodyResult = await decodeBody(request, SendCodeRequestSchema);
-  if (bodyResult instanceof Response) return bodyResult;
-  const body = bodyResult;
-  const email = body.email?.toLowerCase().trim();
-  const turnstileToken = body.turnstileToken;
-
-  if (!email || !email.includes('@')) {
-    return errorResponse('Valid email required');
+function requireTurnstile(
+  request: Request,
+  env: Env,
+  token: string | undefined,
+  email: EmailAddress
+): Effect.Effect<void, TurnstileRequiredError | TurnstileFailedError | AuthStoreUnavailable> {
+  if (env.TURNSTILE_SECRET_KEY === undefined || env.TURNSTILE_SECRET_KEY.length === 0) {
+    return Effect.void;
   }
-
-  // Verify Turnstile token (bot protection)
-  if (env.TURNSTILE_SECRET_KEY) {
-    if (!turnstileToken) {
-      return errorResponse('Security verification required', 400);
-    }
-
-    const ip = request.headers.get('CF-Connecting-IP');
-    const turnstileResult = await verifyTurnstile(turnstileToken, env.TURNSTILE_SECRET_KEY, ip);
-
-    if (!turnstileResult.success) {
-      await logAudit(env.DB, null, 'auth.turnstile_failed', 'auth_code', null, request, {
-        email,
-        error: turnstileResult.error,
-      });
-      return errorResponse('Security verification failed. Please try again.', 403);
-    }
+  if (token === undefined || token.length === 0) {
+    return Effect.fail(new TurnstileRequiredError());
   }
-
-  // Rate limit: max 3 codes per email per 10 minutes
-  const recentCodes = await env.DB.prepare(
-    `
-    SELECT COUNT(*) as count FROM auth_codes 
-    WHERE email = ? AND created_at > datetime('now', '-10 minutes')
-  `
-  )
-    .bind(email)
-    .first();
-
-  // SAFETY: COUNT(*) returns a numeric aggregate when a row is present.
-  if ((recentCodes?.count as number) >= 3) {
-    return errorResponse('Too many requests. Please wait a few minutes.', 429);
-  }
-
-  const code = generateOTP();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-  await env.DB.prepare(
-    `
-    INSERT INTO auth_codes (id, email, code, expires_at)
-    VALUES (?, ?, ?, ?)
-  `
-  )
-    .bind(generateId(), email, code, expiresAt)
-    .run();
-
-  // Send email
-  if (!env.RESEND_API_KEY) {
-    return errorResponse('Email service not configured', 500);
-  }
-
-  const emailResult = await sendOTPEmail(email, code, env.RESEND_API_KEY);
-  if (!emailResult.success) {
-    return errorResponse(emailResult.error || 'Failed to send email', 500);
-  }
-
-  await logAudit(env.DB, null, 'auth.code_sent', 'auth_code', null, request, { email });
-
-  return jsonResponse({ success: true, message: 'Verification code sent' });
+  const secret = env.TURNSTILE_SECRET_KEY;
+  return Effect.tryPromise({
+    try: () => verifyTurnstile(token, secret, request.headers.get('CF-Connecting-IP')),
+    catch: cause => new AuthStoreUnavailable('verifyTurnstile', cause),
+  }).pipe(
+    Effect.flatMap(result => {
+      if (result.success) {
+        return Effect.void;
+      }
+      return Effect.promise(() =>
+        logAudit(env.DB, null, 'auth.turnstile_failed', 'auth_code', null, request, {
+          email,
+          error: result.error,
+        })
+      ).pipe(Effect.zipRight(Effect.fail(new TurnstileFailedError())));
+    })
+  );
 }
 
-// Verify OTP and create session
-export async function handleVerifyCode(request: Request, env: Env): Promise<Response> {
-  try {
-    const bodyResult = await decodeBody(request, VerifyCodeRequestSchema);
-    if (bodyResult instanceof Response) return bodyResult;
-    const body = bodyResult;
-    const email = body.email?.toLowerCase().trim();
-    const code = body.code?.trim();
-
-    if (!email || !code) {
-      return errorResponse('Email and code required');
+/**
+ * Send an OTP to a branded email address.
+ *
+ * @param request - Incoming POST with JSON body.
+ * @param env - Worker bindings.
+ * @param mailer - Deliver the generated code.
+ * @returns A success payload, or a tagged send-code error.
+ */
+export function sendVerificationCode(
+  request: Request,
+  env: Env,
+  mailer: OtpMailer
+): Effect.Effect<SendCodeResponse, SendCodeError> {
+  return Effect.gen(function* () {
+    const body = yield* decodeJsonBody(request, SendCodeRequestSchema);
+    yield* requireTurnstile(request, env, body.turnstileToken, body.email);
+    const recent = yield* Effect.tryPromise({
+      try: () =>
+        env.DB.prepare(
+          `SELECT COUNT(*) as count FROM auth_codes
+           WHERE email = ? AND created_at > datetime('now', '-10 minutes')`
+        )
+          .bind(body.email)
+          .first(),
+      catch: cause => new AuthStoreUnavailable('countRecentCodes', cause),
+    }).pipe(
+      Effect.flatMap(row => {
+        if (row === null) {
+          return Effect.succeed({ count: 0 });
+        }
+        return decodeAuthCodeCountRow(row).pipe(
+          Effect.mapError(cause => new AuthStoreUnavailable('countRecentCodes', cause))
+        );
+      })
+    );
+    if (recent.count >= 3) {
+      yield* Effect.fail(new AuthRateLimitedError());
     }
+    const code = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    yield* mailer(body.email, code);
+    yield* Effect.tryPromise({
+      try: () =>
+        env.DB.prepare(`INSERT INTO auth_codes (id, email, code, expires_at) VALUES (?, ?, ?, ?)`)
+          .bind(generateId(), body.email, code, expiresAt)
+          .run(),
+      catch: cause => new AuthStoreUnavailable('insertCode', cause),
+    });
+    yield* Effect.promise(() =>
+      logAudit(env.DB, null, 'auth.code_sent', 'auth_code', null, request, { email: body.email })
+    );
+    return { success: true as const, message: 'Verification code sent' };
+  });
+}
 
-    // Find valid code
-    const authCode = await env.DB.prepare(
-      `
-      SELECT * FROM auth_codes 
-      WHERE email = ? AND code = ? AND used = 0 AND expires_at > datetime('now')
-      ORDER BY created_at DESC LIMIT 1
-    `
-    )
-      .bind(email, code)
-      .first();
-
-    if (!authCode) {
-      await logAudit(env.DB, null, 'auth.code_invalid', 'auth_code', null, request, { email });
-      return errorResponse('Invalid or expired code', 401);
+function findOrCreateCustomer(
+  db: D1Database,
+  email: EmailAddress,
+  request: Request
+): Effect.Effect<AuthCustomerRow, AuthStoreUnavailable> {
+  return Effect.gen(function* () {
+    const existing = yield* Effect.tryPromise({
+      try: () =>
+        db.prepare(`SELECT id, email, company FROM customers WHERE email = ?`).bind(email).first(),
+      catch: cause => new AuthStoreUnavailable('findCustomer', cause),
+    }).pipe(
+      Effect.flatMap(row => {
+        if (row === null) {
+          return Effect.succeed(null);
+        }
+        return decodeAuthCustomerRow(row).pipe(
+          Effect.mapError(cause => new AuthStoreUnavailable('findCustomer', cause))
+        );
+      })
+    );
+    if (existing !== null) {
+      return existing;
     }
+    const customerId = brandGeneratedId(CustomerId, generateId());
+    yield* Effect.tryPromise({
+      try: () =>
+        db
+          .prepare(`INSERT INTO customers (id, email, tier) VALUES (?, ?, 'free')`)
+          .bind(customerId, email)
+          .run(),
+      catch: cause => new AuthStoreUnavailable('insertCustomer', cause),
+    });
+    yield* Effect.tryPromise({
+      try: () =>
+        db
+          .prepare(
+            `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
+             VALUES (?, ?, ?, 'free', 'active', 1)`
+          )
+          .bind(generateId(), customerId, crypto.randomUUID())
+          .run(),
+      catch: cause => new AuthStoreUnavailable('insertLicense', cause),
+    });
+    yield* Effect.promise(() =>
+      logAudit(db, customerId, 'user.created', 'customer', customerId, request)
+    );
+    return { id: customerId, email, company: null };
+  });
+}
 
-    // Mark code as used
-    await env.DB.prepare(`UPDATE auth_codes SET used = 1 WHERE id = ?`).bind(authCode.id).run();
-
-    // Find or create customer (using existing schema)
-    let customer = await env.DB.prepare(`SELECT * FROM customers WHERE email = ?`)
-      .bind(email)
-      .first();
-
-    if (!customer) {
-      const customerId = generateId();
-      await env.DB.prepare(
-        `
-        INSERT INTO customers (id, email, tier) VALUES (?, ?, 'free')
-      `
-      )
-        .bind(customerId, email)
-        .run();
-
-      // Create free license for new customer
-      const licenseKey = crypto.randomUUID();
-      await env.DB.prepare(
-        `
-        INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
-        VALUES (?, ?, ?, 'free', 'active', 1)
-      `
-      )
-        .bind(generateId(), customerId, licenseKey)
-        .run();
-
-      customer = { id: customerId, email };
-      await logAudit(env.DB, customerId, 'user.created', 'customer', customerId, request);
+/**
+ * Verify an OTP and mint a Worker session.
+ *
+ * @param request - Incoming POST with JSON body.
+ * @param env - Worker bindings.
+ * @returns A session payload, or a tagged verify-code error.
+ */
+export function verifyCode(
+  request: Request,
+  env: Env
+): Effect.Effect<VerifyCodeResponse, VerifyCodeError> {
+  return Effect.gen(function* () {
+    const body = yield* decodeJsonBody(request, VerifyCodeRequestSchema);
+    const authCode = yield* Effect.tryPromise({
+      try: () =>
+        env.DB.prepare(
+          `SELECT id FROM auth_codes
+           WHERE email = ? AND code = ? AND used = 0 AND expires_at > datetime('now')
+           ORDER BY created_at DESC LIMIT 1`
+        )
+          .bind(body.email, body.code)
+          .first(),
+      catch: cause => new AuthStoreUnavailable('findCode', cause),
+    }).pipe(
+      Effect.flatMap(row => {
+        if (row === null) {
+          return Effect.succeed(null);
+        }
+        return decodeAuthCodeRow(row).pipe(
+          Effect.mapError(cause => new AuthStoreUnavailable('findCode', cause))
+        );
+      })
+    );
+    if (authCode === null) {
+      yield* Effect.promise(() =>
+        logAudit(env.DB, null, 'auth.code_invalid', 'auth_code', null, request, {
+          email: body.email,
+        })
+      );
+      return yield* Effect.fail(new InvalidOtpError());
     }
-
-    // Create session (30 days)
-    const sessionToken = generateToken();
+    const codeRow = authCode;
+    yield* Effect.tryPromise({
+      try: () =>
+        env.DB.prepare(`UPDATE auth_codes SET used = 1 WHERE id = ?`).bind(codeRow.id).run(),
+      catch: cause => new AuthStoreUnavailable('markCodeUsed', cause),
+    });
+    const customer = yield* findOrCreateCustomer(env.DB, body.email, request);
+    const sessionToken = brandGeneratedId(SessionToken, generateToken());
     const sessionExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-
-    await env.DB.prepare(
-      `
-      INSERT INTO sessions (id, customer_id, token, ip_address, user_agent, expires_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `
-    )
-      .bind(
-        generateId(),
-        customer.id,
-        sessionToken,
-        request.headers.get('CF-Connecting-IP'),
-        request.headers.get('User-Agent'),
-        sessionExpires
-      )
-      .run();
-
-    // Clean up old sessions (keep last 5)
-    await env.DB.prepare(
-      `
-      DELETE FROM sessions WHERE customer_id = ? AND id NOT IN (
-        SELECT id FROM sessions WHERE customer_id = ? ORDER BY created_at DESC LIMIT 5
-      )
-    `
-    )
-      .bind(customer.id, customer.id)
-      .run();
-
-    // SAFETY: Existing customers and newly created customers both receive a generated string id.
-    await logAudit(env.DB, customer.id as string, 'auth.login', 'session', null, request);
-
-    return jsonResponse({
-      success: true,
+    yield* Effect.tryPromise({
+      try: () =>
+        env.DB.prepare(
+          `INSERT INTO sessions (id, customer_id, token, ip_address, user_agent, expires_at)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        )
+          .bind(
+            generateId(),
+            customer.id,
+            sessionToken,
+            request.headers.get('CF-Connecting-IP'),
+            request.headers.get('User-Agent'),
+            sessionExpires
+          )
+          .run(),
+      catch: cause => new AuthStoreUnavailable('insertSession', cause),
+    });
+    yield* Effect.tryPromise({
+      try: () =>
+        env.DB.prepare(
+          `DELETE FROM sessions WHERE customer_id = ? AND id NOT IN (
+            SELECT id FROM sessions WHERE customer_id = ? ORDER BY created_at DESC LIMIT 5
+          )`
+        )
+          .bind(customer.id, customer.id)
+          .run(),
+      catch: cause => new AuthStoreUnavailable('pruneSessions', cause),
+    });
+    yield* Effect.promise(() =>
+      logAudit(env.DB, customer.id, 'auth.login', 'session', null, request)
+    );
+    const company = customer.company;
+    return {
+      success: true as const,
       token: sessionToken,
       expires_at: sessionExpires,
       user: {
         id: customer.id,
         email: customer.email,
-        name: customer.company || null,
+        name: company === undefined ? null : company,
       },
-    });
-  } catch (e) {
-    console.error('Verify code error:', e);
-    return errorResponse('Verification failed. Please try again.', 500);
-  }
-}
-
-// Verify session token
-export async function handleVerifySession(request: Request, env: Env): Promise<Response> {
-  const bodyResult = await decodeBody(request, SessionTokenRequestSchema);
-  if (bodyResult instanceof Response) return bodyResult;
-  const body = bodyResult;
-  const token = body.token;
-
-  if (!token) {
-    return errorResponse('Token required');
-  }
-
-  const result = await validateSession(env.DB, token);
-  if (!result) {
-    return jsonResponse({ valid: false }, 401);
-  }
-
-  return jsonResponse({
-    valid: true,
-    user: result.user,
-    expires_at: result.session.expires_at,
+    };
   });
 }
 
-// Logout (invalidate session)
-export async function handleLogout(request: Request, env: Env): Promise<Response> {
-  const bodyResult = await decodeBody(request, SessionTokenRequestSchema);
-  if (bodyResult instanceof Response) return bodyResult;
-  const body = bodyResult;
-  const token = body.token;
+function verifySessionToken(
+  request: Request,
+  env: Env
+): Effect.Effect<
+  | { readonly valid: false }
+  | { readonly valid: true; readonly user: User; readonly expires_at: string },
+  SessionTokenError
+> {
+  return Effect.gen(function* () {
+    const body = yield* decodeJsonBody(request, SessionTokenRequestSchema);
+    const result = yield* Effect.tryPromise({
+      try: () => validateSession(env.DB, body.token),
+      catch: cause => new AuthStoreUnavailable('validateSession', cause),
+    });
+    if (result === null) {
+      return { valid: false as const };
+    }
+    return {
+      valid: true as const,
+      user: result.user,
+      expires_at: result.session.expires_at,
+    };
+  });
+}
 
-  if (token) {
+function httpStatusForSend(error: SendCodeError): number {
+  switch (error._tag) {
+    case 'InvalidJsonBodyError':
+    case 'TurnstileRequiredError':
+      return 400;
+    case 'TurnstileFailedError':
+      return 403;
+    case 'AuthRateLimitedError':
+      return 429;
+    case 'EmailServiceUnconfigured':
+    case 'EmailDeliveryFailed':
+    case 'AuthStoreUnavailable':
+      return 500;
+    default:
+      return casesHandled(error);
+  }
+}
+
+function httpStatusForVerify(error: VerifyCodeError): number {
+  switch (error._tag) {
+    case 'InvalidJsonBodyError':
+      return 400;
+    case 'InvalidOtpError':
+      return 401;
+    case 'AuthStoreUnavailable':
+      return 500;
+    default:
+      return casesHandled(error);
+  }
+}
+
+function responseFromSendExit(exit: Exit.Exit<SendCodeResponse, SendCodeError>): Response {
+  return Exit.match(exit, {
+    onSuccess: payload => jsonResponse(payload),
+    onFailure: cause => {
+      const failure = Cause.failureOption(cause);
+      if (Option.isSome(failure)) {
+        const error = failure.value;
+        return errorResponse(error.message, httpStatusForSend(error));
+      }
+      return errorResponse('Internal server error', 500);
+    },
+  });
+}
+
+function responseFromVerifyExit(exit: Exit.Exit<VerifyCodeResponse, VerifyCodeError>): Response {
+  return Exit.match(exit, {
+    onSuccess: payload => jsonResponse(payload),
+    onFailure: cause => {
+      const failure = Cause.failureOption(cause);
+      if (Option.isSome(failure)) {
+        const error = failure.value;
+        return errorResponse(error.message, httpStatusForVerify(error));
+      }
+      return errorResponse('Verification failed. Please try again.', 500);
+    },
+  });
+}
+
+/**
+ * HTTP adapter for `POST /api/auth/send-code`.
+ *
+ * @param request - Incoming request.
+ * @param env - Worker bindings.
+ * @returns JSON success payload or a mapped error response.
+ */
+export async function handleSendCode(request: Request, env: Env): Promise<Response> {
+  const exit = await Effect.runPromiseExit(sendVerificationCode(request, env, resendMailer(env)));
+  return responseFromSendExit(exit);
+}
+
+/**
+ * HTTP adapter for `POST /api/auth/verify-code`.
+ *
+ * @param request - Incoming request.
+ * @param env - Worker bindings.
+ * @returns JSON session payload or a mapped error response.
+ */
+export async function handleVerifyCode(request: Request, env: Env): Promise<Response> {
+  const exit = await Effect.runPromiseExit(verifyCode(request, env));
+  return responseFromVerifyExit(exit);
+}
+
+/**
+ * HTTP adapter for `POST /api/auth/verify-session`.
+ *
+ * @param request - Incoming request.
+ * @param env - Worker bindings.
+ * @returns Whether the session token is valid.
+ */
+export async function handleVerifySession(request: Request, env: Env): Promise<Response> {
+  const exit = await Effect.runPromiseExit(verifySessionToken(request, env));
+  return Exit.match(exit, {
+    onSuccess: result => {
+      if (result.valid === false) {
+        return jsonResponse({ valid: false }, 401);
+      }
+      return jsonResponse({
+        valid: true,
+        user: result.user,
+        expires_at: result.expires_at,
+      });
+    },
+    onFailure: cause => {
+      const failure = Cause.failureOption(cause);
+      if (Option.isSome(failure) && failure.value._tag === 'InvalidJsonBodyError') {
+        return errorResponse('Invalid JSON body', 400);
+      }
+      return errorResponse('Internal server error', 500);
+    },
+  });
+}
+
+/**
+ * HTTP adapter for `POST /api/auth/logout`.
+ *
+ * @param request - Incoming request.
+ * @param env - Worker bindings.
+ * @returns A success payload even when no token was present.
+ */
+export async function handleLogout(request: Request, env: Env): Promise<Response> {
+  const OptionalTokenSchema = Schema.Struct({
+    token: Schema.optional(SessionToken),
+  });
+  const exit = await Effect.runPromiseExit(decodeJsonBody(request, OptionalTokenSchema));
+  if (Exit.isFailure(exit)) {
+    return errorResponse('Invalid JSON body', 400);
+  }
+  const token = exit.value.token;
+  if (token !== undefined) {
     const result = await validateSession(env.DB, token);
-    if (result) {
+    if (result !== null) {
       await env.DB.prepare(`DELETE FROM sessions WHERE token = ?`).bind(token).run();
       await logAudit(env.DB, result.user.id, 'auth.logout', 'session', null, request);
     }
   }
-
   return jsonResponse({ success: true });
 }

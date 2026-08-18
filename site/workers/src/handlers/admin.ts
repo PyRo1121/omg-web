@@ -20,6 +20,31 @@ const SECURITY_HEADERS = {
   Pragma: 'no-cache',
 };
 
+async function safeQuery<T>(query: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await query();
+  } catch (e) {
+    console.error('Query failed:', e);
+    return fallback;
+  }
+}
+
+function emptyD1Result<T>(): D1Result<T> {
+  return {
+    success: true,
+    results: [],
+    meta: {
+      duration: 0,
+      size_after: 0,
+      rows_read: 0,
+      rows_written: 0,
+      last_row_id: 0,
+      changed_db: false,
+      changes: 0,
+    },
+  };
+}
+
 function secureJsonResponse<TData>(data: TData, status = 200): Response {
   const response = jsonResponse(data, status);
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
@@ -41,9 +66,13 @@ async function validateAdmin(
   const requestId = generateId();
   const timestamp = new Date().toISOString();
   const token = getAuthToken(request);
-  if (!token) {return { error: errorResponse('Unauthorized', 401) };}
+  if (!token) {
+    return { error: errorResponse('Unauthorized', 401) };
+  }
   const auth = await validateSession(env.DB, token);
-  if (!auth) {return { error: errorResponse('Invalid or expired session', 401) };}
+  if (!auth) {
+    return { error: errorResponse('Invalid or expired session', 401) };
+  }
 
   // Check admin status from database
   const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
@@ -111,7 +140,9 @@ async function logAdminAudit<TMetadata extends object>(
 
 export async function handleAdminDashboard(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   const batchResults = await env.DB.batch([
@@ -241,7 +272,9 @@ export async function handleAdminDashboard(request: Request, env: Env): Promise<
 
 export async function handleAdminCRMUsers(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   const url = new URL(request.url);
@@ -302,17 +335,29 @@ export async function handleAdminCRMUsers(request: Request, env: Env): Promise<R
 
 export async function handleAdminUserDetail(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   const url = new URL(request.url);
   const userId = url.searchParams.get('id');
-  if (!userId) {return errorResponse('User ID required');}
+  if (!userId) {
+    return errorResponse('User ID required');
+  }
 
-  const user = await env.DB.prepare(`SELECT * FROM customers WHERE id = ?`).bind(userId).first();
-  if (!user) {return errorResponse('User not found', 404);}
+  const user = await env.DB.prepare(
+    `SELECT id, email, company, tier, admin, stripe_customer_id, telemetry_opt_out, created_at, updated_at FROM customers WHERE id = ?`
+  )
+    .bind(userId)
+    .first();
+  if (!user) {
+    return errorResponse('User not found', 404);
+  }
 
-  const license = await env.DB.prepare(`SELECT * FROM licenses WHERE customer_id = ?`)
+  const license = await env.DB.prepare(
+    `SELECT id, customer_id, license_key, tier, status, max_seats, max_machines, expires_at, created_at FROM licenses WHERE customer_id = ?`
+  )
     .bind(userId)
     .first();
 
@@ -320,11 +365,13 @@ export async function handleAdminUserDetail(request: Request, env: Env): Promise
     return errorResponse('License not found for user', 404);
   }
 
-  const machines = await env.DB.prepare(`SELECT * FROM machines WHERE license_id = ?`)
+  const machines = await env.DB.prepare(
+    `SELECT id, license_id, machine_id, hostname, os, arch, omg_version, user_name, user_email, is_active, first_seen_at, last_seen_at FROM machines WHERE license_id = ?`
+  )
     .bind(license.id)
     .all();
   const recentUsage = await env.DB.prepare(
-    `SELECT * FROM usage_daily WHERE license_id = ? ORDER BY date DESC LIMIT 30`
+    `SELECT date, license_id, commands_run, packages_installed, packages_searched, runtimes_switched, sbom_generated, vulnerabilities_found, time_saved_ms FROM usage_daily WHERE license_id = ? ORDER BY date DESC LIMIT 30`
   )
     .bind(license.id)
     .all();
@@ -340,16 +387,20 @@ export async function handleAdminUserDetail(request: Request, env: Env): Promise
 
 export async function handleAdminUpdateUser(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
 
   let body: { userId: string; tier?: string; status?: string };
   try {
     // SAFETY: The request boundary is restricted to the documented admin user fields.
-    body = (await request.json());
+    body = await request.json();
   } catch {
     return errorResponse('Invalid JSON body', 400);
   }
-  if (!body.userId) {return errorResponse('User ID required');}
+  if (!body.userId) {
+    return errorResponse('User ID required');
+  }
 
   if (body.tier) {
     await env.DB.prepare(`UPDATE licenses SET tier = ? WHERE customer_id = ?`)
@@ -372,10 +423,12 @@ export async function handleAdminUpdateUser(request: Request, env: Env): Promise
 
 export async function handleAdminActivity(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
 
   const activity = await env.DB.prepare(
-    `SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 100`
+    `SELECT id, customer_id, action, resource_type, resource_id, ip_address, created_at FROM audit_log ORDER BY created_at DESC LIMIT 100`
   ).all();
   return secureJsonResponse({
     request_id: result.context.requestId,
@@ -404,10 +457,12 @@ function escapeCSV<TValue>(value: TValue): string {
 
 export async function handleAdminExportUsage(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
 
   const usage = await env.DB.prepare(
-    `SELECT * FROM usage_daily ORDER BY date DESC LIMIT 1000`
+    `SELECT date, license_id, commands_run, time_saved_ms FROM usage_daily ORDER BY date DESC LIMIT 1000`
   ).all();
   const headers = ['date', 'license_id', 'commands_run', 'time_saved_ms'];
   const csv = [
@@ -425,10 +480,12 @@ export async function handleAdminExportUsage(request: Request, env: Env): Promis
 
 export async function handleAdminExportAudit(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
 
   const logs = await env.DB.prepare(
-    `SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 1000`
+    `SELECT created_at, action, customer_id, ip_address FROM audit_log ORDER BY created_at DESC LIMIT 1000`
   ).all();
   const headers = ['created_at', 'action', 'customer_id', 'ip_address'];
   const csv = [
@@ -446,7 +503,9 @@ export async function handleAdminExportAudit(request: Request, env: Env): Promis
 
 export async function handleAdminAnalytics(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   const topCommands = await env.DB.prepare(
@@ -529,7 +588,9 @@ export async function handleAdminAnalytics(request: Request, env: Env): Promise<
 
 export async function handleAdminCohorts(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   const cohorts = await env.DB.prepare(
@@ -562,7 +623,9 @@ export async function handleAdminCohorts(request: Request, env: Env): Promise<Re
 
 export async function handleAdminRevenue(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
   const monthlyRevenue = await env.DB.prepare(
     `SELECT strftime('%Y-%m', created_at) as month, SUM(amount_cents) / 100.0 as revenue, COUNT(*) as transactions FROM invoices WHERE status = 'paid' GROUP BY month ORDER BY month DESC LIMIT 12`
@@ -592,7 +655,9 @@ export async function handleAdminRevenue(request: Request, env: Env): Promise<Re
 
 export async function handleAdminExportUsers(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const users = await env.DB.prepare(
     `SELECT c.id, c.email, c.company, c.created_at, l.tier, l.status, (SELECT COUNT(*) FROM machines m WHERE m.license_id = l.id AND m.is_active = 1) as active_machines, (SELECT SUM(commands_run) FROM usage_daily u WHERE u.license_id = l.id) as total_commands FROM customers c LEFT JOIN licenses l ON c.id = l.customer_id ORDER BY c.created_at DESC`
   ).all();
@@ -621,7 +686,9 @@ export async function handleAdminExportUsers(request: Request, env: Env): Promis
 
 export async function handleAdminAuditLog(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
   const url = new URL(request.url);
   const page = parseInt(url.searchParams.get('page') || '1');
@@ -636,31 +703,10 @@ export async function handleAdminAuditLog(request: Request, env: Env): Promise<R
 
 export async function handleAdminAdvancedMetrics(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
-
-  const safeQuery = async <T>(query: () => Promise<T>, fallback: T): Promise<T> => {
-    try {
-      return await query();
-    } catch (e) {
-      console.error('Query failed:', e);
-      return fallback;
-    }
-  };
-
-  const emptyD1Result = <T>(): D1Result<T> => ({
-    success: true,
-    results: [],
-    meta: {
-      duration: 0,
-      size_after: 0,
-      rows_read: 0,
-      rows_written: 0,
-      last_row_id: 0,
-      changed_db: false,
-      changes: 0,
-    },
-  });
 
   const dau = await safeQuery(
     () =>
@@ -874,12 +920,16 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
 
 export async function handleAdminGetNotes(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   const url = new URL(request.url);
   const customerId = url.searchParams.get('customerId');
-  if (!customerId) {return errorResponse('Customer ID required', 400);}
+  if (!customerId) {
+    return errorResponse('Customer ID required', 400);
+  }
 
   const notes = await env.DB.prepare(
     `SELECT n.*, c.email as author_email 
@@ -899,13 +949,15 @@ export async function handleAdminGetNotes(request: Request, env: Env): Promise<R
 
 export async function handleAdminCreateNote(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   let body: { customerId: string; content: string; noteType?: string };
   try {
     // SAFETY: The request boundary is restricted to the documented customer note fields.
-    body = (await request.json());
+    body = await request.json();
   } catch {
     return errorResponse('Invalid JSON body', 400);
   }
@@ -942,13 +994,15 @@ export async function handleAdminCreateNote(request: Request, env: Env): Promise
 
 export async function handleAdminUpdateNote(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   let body: { noteId: string; content?: string; isPinned?: boolean };
   try {
     // SAFETY: The request boundary is restricted to the documented note update fields.
-    body = (await request.json());
+    body = await request.json();
   } catch {
     return errorResponse('Invalid JSON body', 400);
   }
@@ -993,12 +1047,16 @@ export async function handleAdminUpdateNote(request: Request, env: Env): Promise
 
 export async function handleAdminDeleteNote(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   const url = new URL(request.url);
   const noteId = url.searchParams.get('noteId');
-  if (!noteId) {return errorResponse('Note ID required', 400);}
+  if (!noteId) {
+    return errorResponse('Note ID required', 400);
+  }
 
   await env.DB.prepare(`DELETE FROM customer_notes WHERE id = ?`).bind(noteId).run();
 
@@ -1022,7 +1080,9 @@ export async function handleAdminDeleteNote(request: Request, env: Env): Promise
 
 export async function handleAdminGetTags(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   // Get all available tags with usage counts
@@ -1042,12 +1102,16 @@ export async function handleAdminGetTags(request: Request, env: Env): Promise<Re
 
 export async function handleAdminGetCustomerTags(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   const url = new URL(request.url);
   const customerId = url.searchParams.get('customerId');
-  if (!customerId) {return errorResponse('Customer ID required', 400);}
+  if (!customerId) {
+    return errorResponse('Customer ID required', 400);
+  }
 
   const tags = await env.DB.prepare(
     `SELECT t.* FROM customer_tags t
@@ -1066,13 +1130,15 @@ export async function handleAdminGetCustomerTags(request: Request, env: Env): Pr
 
 export async function handleAdminCreateTag(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   let body: { name: string; color?: string; description?: string };
   try {
     // SAFETY: The request boundary is restricted to the documented customer tag fields.
-    body = (await request.json());
+    body = await request.json();
   } catch {
     return errorResponse('Invalid JSON body', 400);
   }
@@ -1109,13 +1175,15 @@ export async function handleAdminCreateTag(request: Request, env: Env): Promise<
 
 export async function handleAdminAssignTag(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   let body: { customerId: string; tagId: string };
   try {
     // SAFETY: The request boundary is restricted to the documented tag assignment fields.
-    body = (await request.json());
+    body = await request.json();
   } catch {
     return errorResponse('Invalid JSON body', 400);
   }
@@ -1158,7 +1226,9 @@ export async function handleAdminAssignTag(request: Request, env: Env): Promise<
 
 export async function handleAdminRemoveTag(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   const url = new URL(request.url);
@@ -1193,14 +1263,20 @@ export async function handleAdminRemoveTag(request: Request, env: Env): Promise<
 
 export async function handleAdminGetCustomerHealth(request: Request, env: Env): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {return result.error;}
+  if (result.error) {
+    return result.error;
+  }
   const { context } = result;
 
   const url = new URL(request.url);
   const customerId = url.searchParams.get('customerId');
-  if (!customerId) {return errorResponse('Customer ID required', 400);}
+  if (!customerId) {
+    return errorResponse('Customer ID required', 400);
+  }
 
-  const health = await env.DB.prepare(`SELECT * FROM customer_health WHERE customer_id = ?`)
+  const health = await env.DB.prepare(
+    `SELECT customer_id, overall_score, engagement_score, activation_score, growth_score, risk_score, lifecycle_stage, updated_at FROM customer_health WHERE customer_id = ?`
+  )
     .bind(customerId)
     .first();
 

@@ -1,7 +1,18 @@
 // API Client for OMG Dashboard
 // All authenticated requests include Bearer token
 
+import { Cause, Effect, Exit, Option } from 'effect';
 import { parseApiError } from './dashboard-contract';
+import { casesHandled } from './prelude';
+import type { SendCodeResponse, VerifyCodeResponse } from './contracts/otp-auth';
+import type { WorkerDashboardData } from './contracts/worker-dashboard';
+import {
+  browserWorkerFetcher,
+  getWorkerDashboard,
+  sendCodeToWorker,
+  verifyCodeWithWorker,
+  type WorkerApiError,
+} from './worker-api';
 
 const API_BASE = 'https://api.pyro1121.com';
 
@@ -83,41 +94,48 @@ export class ApiError extends Error {
   }
 }
 
+function unwrapWorkerApi<A>(exit: Exit.Exit<A, WorkerApiError>): A {
+  return Exit.match(exit, {
+    onSuccess: value => value,
+    onFailure: cause => {
+      const failure = Cause.failureOption(cause);
+      if (Option.isNone(failure)) {
+        throw new ApiError('Request failed', 500);
+      }
+      const error = failure.value;
+      switch (error._tag) {
+        case 'WorkerApiHttpError':
+          throw new ApiError(error.message, error.status);
+        case 'WorkerApiNetworkError':
+          throw new ApiError('Request failed', 500);
+        case 'AuthParseError':
+        case 'WorkerDashboardParseError':
+          throw new ApiError(error.reason, 502);
+        default:
+          return casesHandled(error);
+      }
+    },
+  });
+}
+
 // ============================================
 // Auth API
 // ============================================
 
-export interface SendCodeResponse {
-  success: boolean;
-  status?: string;
-  message?: string;
-  error?: string;
-}
+export type { SendCodeResponse, VerifyCodeResponse };
 
 export async function sendCode(email: string, turnstileToken?: string): Promise<SendCodeResponse> {
-  return apiRequest('/api/auth/send-code', {
-    method: 'POST',
-    body: JSON.stringify({ email, turnstileToken }),
-  });
-}
-
-export interface VerifyCodeResponse {
-  success: boolean;
-  token?: string;
-  expires_at?: string;
-  user?: {
-    id: string;
-    email: string;
-    name: string | null;
-  };
-  error?: string;
+  const exit = await Effect.runPromiseExit(
+    sendCodeToWorker(API_BASE, email, turnstileToken, browserWorkerFetcher)
+  );
+  return unwrapWorkerApi(exit);
 }
 
 export async function verifyCode(email: string, code: string): Promise<VerifyCodeResponse> {
-  return apiRequest('/api/auth/verify-code', {
-    method: 'POST',
-    body: JSON.stringify({ email, code }),
-  });
+  const exit = await Effect.runPromiseExit(
+    verifyCodeWithWorker(API_BASE, email, code, browserWorkerFetcher)
+  );
+  return unwrapWorkerApi(exit);
 }
 
 export interface VerifySessionResponse {
@@ -260,8 +278,11 @@ export interface DashboardData {
   }>;
 }
 
-export async function getDashboard(): Promise<DashboardData> {
-  return apiRequest('/api/dashboard');
+export async function getDashboard(): Promise<WorkerDashboardData> {
+  const exit = await Effect.runPromiseExit(
+    getWorkerDashboard(API_BASE, getSessionToken(), browserWorkerFetcher)
+  );
+  return unwrapWorkerApi(exit);
 }
 
 export async function updateProfile(name: string): Promise<{ success: boolean }> {
@@ -480,10 +501,18 @@ export async function getTeamAuditLogs(params?: {
   offset: number;
 }> {
   const searchParams = new URLSearchParams();
-  if (params?.limit) {searchParams.set('limit', params.limit.toString());}
-  if (params?.offset) {searchParams.set('offset', params.offset.toString());}
-  if (params?.action) {searchParams.set('action', params.action);}
-  if (params?.resource_type) {searchParams.set('resource_type', params.resource_type);}
+  if (params?.limit) {
+    searchParams.set('limit', params.limit.toString());
+  }
+  if (params?.offset) {
+    searchParams.set('offset', params.offset.toString());
+  }
+  if (params?.action) {
+    searchParams.set('action', params.action);
+  }
+  if (params?.resource_type) {
+    searchParams.set('resource_type', params.resource_type);
+  }
   return apiRequest(`/api/team/audit-logs?${searchParams}`);
 }
 
@@ -628,7 +657,9 @@ export async function getAdminUsers(
   search = ''
 ): Promise<AdminUsersResponse> {
   const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
-  if (search) {params.set('search', search);}
+  if (search) {
+    params.set('search', search);
+  }
   return apiRequest(`/api/admin/users?${params}`);
 }
 
@@ -764,7 +795,9 @@ export async function getAdminAuditLog(
   action = ''
 ): Promise<AdminAuditLogResponse> {
   const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
-  if (action) {params.set('action', action);}
+  if (action) {
+    params.set('action', action);
+  }
   return apiRequest(`/api/admin/audit-log?${params}`);
 }
 
@@ -977,7 +1010,9 @@ export async function getAdminAdvancedMetrics(): Promise<AdminAdvancedMetrics> {
 // Data Export - Fetch CSV data directly
 export async function exportAdminUsers(): Promise<string> {
   const token = getSessionToken();
-  if (!token) {throw new Error('No auth token');}
+  if (!token) {
+    throw new Error('No auth token');
+  }
 
   const response = await fetch(`${API_BASE}/api/admin/export-users`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -992,7 +1027,9 @@ export async function exportAdminUsers(): Promise<string> {
 
 export async function exportAdminUsage(days = 30): Promise<string> {
   const token = getSessionToken();
-  if (!token) {throw new Error('No auth token');}
+  if (!token) {
+    throw new Error('No auth token');
+  }
 
   const response = await fetch(`${API_BASE}/api/admin/export-usage?days=${days}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -1007,7 +1044,9 @@ export async function exportAdminUsage(days = 30): Promise<string> {
 
 export async function exportAdminAudit(days = 30): Promise<string> {
   const token = getSessionToken();
-  if (!token) {throw new Error('No auth token');}
+  if (!token) {
+    throw new Error('No auth token');
+  }
 
   const response = await fetch(`${API_BASE}/api/admin/export-audit?days=${days}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -1133,13 +1172,17 @@ export async function getSmartInsights(
   target: 'user' | 'team' | 'admin' = 'user'
 ): Promise<SmartInsight | null> {
   const token = getSessionToken();
-  if (!token) {return null;}
+  if (!token) {
+    return null;
+  }
 
   try {
     const res = await fetch(`${API_BASE}/api/insights?target=${target}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) {return null;}
+    if (!res.ok) {
+      return null;
+    }
     return await res.json();
   } catch (e) {
     console.error('Failed to fetch insights:', e);
@@ -1226,15 +1269,25 @@ export async function trackSiteEvent(
 // ============================================
 
 export function formatTimeSaved(ms: number): string {
-  if (ms < 1000) {return `${ms}ms`;}
-  if (ms < 60000) {return `${(ms / 1000).toFixed(1)}s`;}
-  if (ms < 3600000) {return `${(ms / 60000).toFixed(1)}min`;}
-  if (ms < 86400000) {return `${(ms / 3600000).toFixed(1)}hr`;}
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  if (ms < 60000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
+  if (ms < 3600000) {
+    return `${(ms / 60000).toFixed(1)}min`;
+  }
+  if (ms < 86400000) {
+    return `${(ms / 3600000).toFixed(1)}hr`;
+  }
   return `${(ms / 86400000).toFixed(1)} days`;
 }
 
 export function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) {return 'N/A';}
+  if (!dateStr) {
+    return 'N/A';
+  }
   return new Date(dateStr).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -1250,10 +1303,18 @@ export function formatRelativeTime(dateStr: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) {return 'Just now';}
-  if (diffMins < 60) {return `${diffMins}m ago`;}
-  if (diffHours < 24) {return `${diffHours}h ago`;}
-  if (diffDays < 7) {return `${diffDays}d ago`;}
+  if (diffMins < 1) {
+    return 'Just now';
+  }
+  if (diffMins < 60) {
+    return `${diffMins}m ago`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
+  if (diffDays < 7) {
+    return `${diffDays}d ago`;
+  }
   return formatDate(dateStr);
 }
 

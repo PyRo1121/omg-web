@@ -1,4 +1,6 @@
 import * as Sentry from '@sentry/cloudflare';
+import { unauthorizedUnlessAdminSecret } from './admin-secret';
+import { forbiddenUnlessAdminSession } from './admin-auth';
 import { type Env, corsHeaders, jsonResponse, errorResponse } from './api';
 import {
   handleSendCode,
@@ -7,7 +9,6 @@ import {
   handleLogout,
 } from './handlers/auth';
 import {
-  handleGetDashboard,
   handleUpdateProfile,
   handleRegenerateLicense,
   handleRevokeMachine,
@@ -70,6 +71,7 @@ import {
 import { handleGitHubProxy } from './handlers/github-proxy';
 import { handleBinaryDownload } from './handlers/downloads';
 import { handleImageOptimization } from './handlers/images';
+import { handleGetDashboard } from './handlers/account-dashboard';
 import { handleProvisionUser } from './handlers/provision';
 import { handleCreateAdminSession } from './handlers/admin-session';
 import {
@@ -206,6 +208,10 @@ export default Sentry.withSentry(
 
         // Docs analytics dashboard (admin view)
         if (path === '/api/docs/analytics/dashboard' && request.method === 'GET') {
+          const denied = await forbiddenUnlessAdminSession(request, env);
+          if (denied !== null) {
+            return denied;
+          }
           return handleDocsAnalyticsDashboard(request, env);
         }
 
@@ -216,16 +222,28 @@ export default Sentry.withSentry(
 
         // Site analytics geo distribution
         if (path === '/api/site/analytics/geo' && request.method === 'GET') {
+          const denied = await forbiddenUnlessAdminSession(request, env);
+          if (denied !== null) {
+            return denied;
+          }
           return handleGetGeoAnalytics(request, env);
         }
 
         // Site analytics realtime visitors
         if (path === '/api/site/analytics/realtime' && request.method === 'GET') {
+          const denied = await forbiddenUnlessAdminSession(request, env);
+          if (denied !== null) {
+            return denied;
+          }
           return handleGetRealtimeAnalytics(request, env);
         }
 
         // Site analytics overview
         if (path === '/api/site/analytics/overview' && request.method === 'GET') {
+          const denied = await forbiddenUnlessAdminSession(request, env);
+          if (denied !== null) {
+            return denied;
+          }
           return handleGetAnalyticsOverview(request, env);
         }
 
@@ -482,6 +500,10 @@ export default Sentry.withSentry(
         // Database init (one-time setup)
         // ============================================
         if (path === '/api/init-db' && request.method === 'POST') {
+          const unauthorized = unauthorizedUnlessAdminSecret(request, env);
+          if (unauthorized !== null) {
+            return unauthorized;
+          }
           return handleInitDb(env);
         }
 

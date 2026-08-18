@@ -1,34 +1,29 @@
 // Privacy and data deletion handlers (GDPR/CCPA compliance)
 // Available globally to all users, regardless of jurisdiction
-import { runPromise, either } from 'effect/Effect';
-import {
-  Struct,
-  String as SchemaString,
-  Boolean as SchemaBoolean,
-  optional,
-} from '@effect/schema/Schema';
+import { Effect, Exit } from 'effect';
+import { Schema } from '@effect/schema';
 import { decodeJsonBody } from '../body';
 import { type Env, jsonResponse, errorResponse, corsHeaders, generateId } from '../api';
 
 /** The GDPR deletion request body. */
-const DeleteRequestSchema = Struct({
-  email: optional(SchemaString),
-  license_key: optional(SchemaString),
-  machine_id: optional(SchemaString),
-  confirm: optional(SchemaBoolean),
-  reason: optional(SchemaString),
+const DeleteRequestSchema = Schema.Struct({
+  email: Schema.optional(Schema.String),
+  license_key: Schema.optional(Schema.String),
+  machine_id: Schema.optional(Schema.String),
+  confirm: Schema.optional(Schema.Boolean),
+  reason: Schema.optional(Schema.String),
 });
 
 /** The GDPR data export request body. */
-const DataExportRequestSchema = Struct({
-  email: optional(SchemaString),
-  license_key: optional(SchemaString),
+const DataExportRequestSchema = Schema.Struct({
+  email: Schema.optional(Schema.String),
+  license_key: Schema.optional(Schema.String),
 });
 
 /** The telemetry opt-out request body. */
-const OptOutRequestSchema = Struct({
-  license_key: optional(SchemaString),
-  opt_out: optional(SchemaBoolean),
+const OptOutRequestSchema = Schema.Struct({
+  license_key: Schema.optional(Schema.String),
+  opt_out: Schema.optional(Schema.Boolean),
 });
 
 interface ExportData {
@@ -68,11 +63,11 @@ interface ExportData {
  */
 export async function handleDeleteMyData(request: Request, env: Env): Promise<Response> {
   try {
-    const bodyResult = await runPromise(decodeJsonBody(request, DeleteRequestSchema).pipe(either));
-    if (bodyResult._tag === 'Left') {
+    const decoded = await Effect.runPromiseExit(decodeJsonBody(request, DeleteRequestSchema));
+    if (Exit.isFailure(decoded)) {
       return errorResponse('Invalid JSON body', 400);
     }
-    const body = bodyResult.right;
+    const body = decoded.value;
 
     if (!body.confirm) {
       return errorResponse('Deletion must be confirmed. Set confirm: true', 400);
@@ -259,13 +254,11 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
  */
 export async function handleExportMyData(request: Request, env: Env): Promise<Response> {
   try {
-    const bodyResult = await runPromise(
-      decodeJsonBody(request, DataExportRequestSchema).pipe(either)
-    );
-    if (bodyResult._tag === 'Left') {
+    const decoded = await Effect.runPromiseExit(decodeJsonBody(request, DataExportRequestSchema));
+    if (Exit.isFailure(decoded)) {
       return errorResponse('Invalid JSON body', 400);
     }
-    const body = bodyResult.right;
+    const body = decoded.value;
 
     if (!body.email && !body.license_key) {
       return errorResponse('Must provide email or license_key', 400);
@@ -433,11 +426,11 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
  */
 export async function handleOptOut(request: Request, env: Env): Promise<Response> {
   try {
-    const bodyResult = await runPromise(decodeJsonBody(request, OptOutRequestSchema).pipe(either));
-    if (bodyResult._tag === 'Left') {
+    const decoded = await Effect.runPromiseExit(decodeJsonBody(request, OptOutRequestSchema));
+    if (Exit.isFailure(decoded)) {
       return errorResponse('Invalid JSON body', 400);
     }
-    const body = bodyResult.right;
+    const body = decoded.value;
 
     if (!body.license_key) {
       return errorResponse('License key required', 400);

@@ -1,0 +1,220 @@
+import '../src/cloudflare-test.d.ts';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
+import worker from '../src/worker';
+
+const TEST_EMAIL = 'report-usage@example.com';
+const TEST_KEY = 'lic-report-key';
+const TEST_CUSTOMER = 'report-cust';
+const TEST_LICENSE = 'report-lic';
+
+async function ensureSchema(): Promise<void> {
+  await env.DB.prepare(`ALTER TABLE licenses ADD COLUMN max_seats INTEGER DEFAULT 1`)
+    .run()
+    .catch(() => undefined);
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS usage_daily (
+      id TEXT PRIMARY KEY,
+      license_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      commands_run INTEGER DEFAULT 0,
+      packages_installed INTEGER DEFAULT 0,
+      packages_searched INTEGER DEFAULT 0,
+      runtimes_switched INTEGER DEFAULT 0,
+      sbom_generated INTEGER DEFAULT 0,
+      vulnerabilities_found INTEGER DEFAULT 0,
+      time_saved_ms INTEGER DEFAULT 0,
+      UNIQUE(license_id, date)
+    )`
+  ).run();
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS machines (
+      id TEXT PRIMARY KEY,
+      license_id TEXT NOT NULL,
+      machine_id TEXT NOT NULL,
+      hostname TEXT,
+      os TEXT,
+      arch TEXT,
+      omg_version TEXT,
+      is_active INTEGER DEFAULT 1
+    )`
+  ).run();
+}
+
+async function insertActiveLicense(): Promise<void> {
+  await env.DB.prepare(`INSERT INTO customers (id, email, company, tier) VALUES (?, ?, ?, 'free')`)
+    .bind(TEST_CUSTOMER, TEST_EMAIL, 'Ada')
+    .run();
+  await env.DB.prepare(
+    `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_machines, max_seats)
+     VALUES (?, ?, ?, 'free', 'active', 1, 1)`
+  )
+    .bind(TEST_LICENSE, TEST_CUSTOMER, TEST_KEY)
+    .run();
+}
+
+function postJson(path: string, serializedBody: string): Request {
+  return new Request(`http://localhost${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: serializedBody,
+  });
+}
+
+describe('POST /api/report-usage', () => {
+  beforeEach(async () => {
+    await ensureSchema();
+  });
+
+  afterEach(async () => {
+    await env.DB.prepare(`DELETE FROM usage_daily WHERE license_id = ?`).bind(TEST_LICENSE).run();
+    await env.DB.prepare(`DELETE FROM licenses WHERE id = ?`).bind(TEST_LICENSE).run();
+    await env.DB.prepare(`DELETE FROM customers WHERE id = ?`).bind(TEST_CUSTOMER).run();
+  });
+
+  it('returns 400 when license_key is missing', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/report-usage', JSON.stringify({})),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(400);
+  });
+
+  it('returns 401 for an unknown license', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/report-usage', JSON.stringify({ license_key: 'missing' })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(401);
+  });
+
+  it('upserts daily usage for an active license', async () => {
+    await insertActiveLicense();
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/report-usage', JSON.stringify({ license_key: TEST_KEY, commands_run: 4 })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(200);
+    const stored = await env.DB.prepare(`SELECT commands_run FROM usage_daily WHERE license_id = ?`)
+      .bind(TEST_LICENSE)
+      .first<{ commands_run: number }>();
+    expect(stored?.commands_run).toBe(4);
+  });
+});
+
+describe('GET /api/get-license', () => {
+  beforeEach(async () => {
+    await ensureSchema();
+  });
+
+  afterEach(async () => {
+    await env.DB.prepare(`DELETE FROM licenses WHERE id = ?`).bind(TEST_LICENSE).run();
+    await env.DB.prepare(`DELETE FROM customers WHERE id = ?`).bind(TEST_CUSTOMER).run();
+  });
+
+  it('returns 400 when email is missing', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(new Request('http://localhost/api/get-license'), env, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(400);
+  });
+
+  it('returns found:false for an unknown email', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      new Request('http://localhost/api/get-license?email=nobody@example.com'),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(200);
+    const payload = await response.json<{ found: boolean }>();
+    expect(payload.found).toBe(false);
+  });
+
+  it('masks the license key for a known email', async () => {
+    await insertActiveLicense();
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      new Request(`http://localhost/api/get-license?email=${TEST_EMAIL}`),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(200);
+    const payload = await response.json<{ found: boolean; license_key: string }>();
+    expect(payload.found).toBe(true);
+    expect(payload.license_key).not.toBe(TEST_KEY);
+    expect(payload.license_key.includes('•') || payload.license_key.includes('*')).toBe(true);
+  });
+});
+
+describe('POST /api/analytics', () => {
+  beforeEach(async () => {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS analytics_events (
+        id TEXT PRIMARY KEY,
+        event_type TEXT,
+        event_name TEXT,
+        properties TEXT,
+        timestamp TEXT,
+        session_id TEXT,
+        machine_id TEXT,
+        license_key TEXT,
+        version TEXT,
+        platform TEXT,
+        duration_ms INTEGER,
+        created_at DATETIME
+      )`
+    ).run();
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS analytics_daily (
+        date TEXT,
+        metric TEXT,
+        dimension TEXT,
+        value INTEGER,
+        PRIMARY KEY (date, metric, dimension)
+      )`
+    ).run();
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS analytics_active_users (
+        date TEXT,
+        machine_id TEXT,
+        PRIMARY KEY (date, machine_id)
+      )`
+    ).run();
+  });
+
+  it('returns processed 0 for an empty batch', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/analytics', JSON.stringify({ events: [] })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(200);
+    const payload = await response.json<{ success: boolean; processed: number }>();
+    expect(payload.processed).toBe(0);
+  });
+
+  it('returns 400 for a malformed event', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/analytics', JSON.stringify({ events: [{ event_type: 1 }] })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(400);
+  });
+});

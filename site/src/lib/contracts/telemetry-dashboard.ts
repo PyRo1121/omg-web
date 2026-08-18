@@ -2,7 +2,19 @@
 // The narrow suppression is limited to this parser module; callers receive typed contract values.
 // oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns, anti-slop/no-reflect-get -- Safe JSON boundary parsing requires these operations.
 
+import { Effect } from 'effect';
 import { Schema } from '@effect/schema';
+
+/** A failure decoding or encoding a telemetry dashboard payload. */
+export class TelemetryDashboardParseError extends Error {
+  readonly _tag = 'TelemetryDashboardParseError';
+  constructor(
+    readonly reason: string,
+    readonly cause?: unknown
+  ) {
+    super(reason);
+  }
+}
 
 // ============================================================================
 // Branded domain primitives
@@ -101,6 +113,26 @@ export const TelemetryDashboardSchema = Schema.Struct({
 });
 
 export type TelemetryDashboard = Schema.Schema.Type<typeof TelemetryDashboardSchema>;
+
+/**
+ * Parse a telemetry dashboard payload at the network boundary.
+ *
+ * Used both to decode untrusted JSON from the client and to refuse emitting an
+ * outbound payload that does not match the Schema.
+ *
+ * @param value - Untrusted JSON or a constructed server payload.
+ * @returns The typed dashboard payload, or `TelemetryDashboardParseError`.
+ */
+export function parseTelemetryDashboard(
+  value: unknown
+): Effect.Effect<TelemetryDashboard, TelemetryDashboardParseError> {
+  return Schema.decodeUnknown(TelemetryDashboardSchema)(value).pipe(
+    Effect.mapError(
+      cause =>
+        new TelemetryDashboardParseError('Telemetry dashboard payload has an invalid shape', cause)
+    )
+  );
+}
 
 /**
  * Decode an untrusted telemetry dashboard payload at the network boundary.

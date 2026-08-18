@@ -6,15 +6,22 @@ import {
   getAuthToken,
   logAudit,
 } from '../api';
+import { Effect, Exit } from 'effect';
+import { Schema } from '@effect/schema';
+import { decodeJsonBody } from '../body';
+import { EmailAddress } from '../contracts/admin-session';
+import { forbiddenUnlessAdminSession } from '../admin-auth';
+
+const CheckoutBodySchema = Schema.Struct({
+  priceId: Schema.String.pipe(Schema.minLength(1)),
+});
+
+const PortalBodySchema = Schema.Struct({
+  email: Schema.optional(EmailAddress),
+});
 
 type StripeValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | StripeValue[]
-  | { [key: string]: StripeValue };
+  string | number | boolean | null | undefined | StripeValue[] | { [key: string]: StripeValue };
 
 interface StripeEventObject {
   [key: string]: StripeValue;
@@ -124,13 +131,12 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  // SAFETY: The request boundary is restricted to the documented checkout fields.
-  const body = (await request.json()) as { email?: string; priceId?: string };
-  const { email, priceId } = body;
-
-  if (!email || !priceId) {
-    return errorResponse('Missing email or priceId');
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, CheckoutBodySchema));
+  if (Exit.isFailure(decoded)) {
+    return errorResponse('Missing priceId');
   }
+  const { priceId } = decoded.value;
+  const email = auth.user.email;
 
   const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
@@ -183,9 +189,18 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  // SAFETY: The request boundary is restricted to the documented billing email field.
-  const body = (await request.json()) as { email?: string };
-  const email = body.email || auth.user.email;
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, PortalBodySchema));
+  if (Exit.isFailure(decoded)) {
+    return errorResponse('Invalid JSON body', 400);
+  }
+  const requestedEmail = decoded.value.email;
+  let email = auth.user.email;
+  if (requestedEmail !== undefined && requestedEmail !== auth.user.email) {
+    const denied = await forbiddenUnlessAdminSession(request, env);
+    if (denied === null) {
+      email = requestedEmail;
+    }
+  }
 
   const customer = await env.DB.prepare(`SELECT stripe_customer_id FROM customers WHERE email = ?`)
     .bind(email)
@@ -249,7 +264,9 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const customerId = subscription.customer;
       const status = subscription.status;
 
-      let customer = await env.DB.prepare('SELECT * FROM customers WHERE stripe_customer_id = ?')
+      let customer = await env.DB.prepare(
+        'SELECT id, email, stripe_customer_id FROM customers WHERE stripe_customer_id = ?'
+      )
         .bind(customerId)
         .first();
 
@@ -285,7 +302,9 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
         .run();
 
       if (status === 'active') {
-        const existingLicense = await env.DB.prepare('SELECT * FROM licenses WHERE customer_id = ?')
+        const existingLicense = await env.DB.prepare(
+          'SELECT id FROM licenses WHERE customer_id = ?'
+        )
           .bind(customer.id)
           .first();
 
@@ -316,7 +335,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const subscription = event.data.object;
       const customerId = subscription.customer;
 
-      const customer = await env.DB.prepare('SELECT * FROM customers WHERE stripe_customer_id = ?')
+      const customer = await env.DB.prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
         .bind(customerId)
         .first();
 
@@ -336,7 +355,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const invoice = event.data.object;
       const customerId = invoice.customer;
 
-      const customer = await env.DB.prepare('SELECT * FROM customers WHERE stripe_customer_id = ?')
+      const customer = await env.DB.prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
         .bind(customerId)
         .first();
 
@@ -367,7 +386,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const invoice = event.data.object;
       const customerId = invoice.customer;
 
-      const customer = await env.DB.prepare('SELECT * FROM customers WHERE stripe_customer_id = ?')
+      const customer = await env.DB.prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
         .bind(customerId)
         .first();
 
@@ -397,7 +416,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
 
       // Check if customer already exists
       const existing = await env.DB.prepare(
-        'SELECT * FROM customers WHERE stripe_customer_id = ? OR email = ?'
+        'SELECT id, stripe_customer_id FROM customers WHERE stripe_customer_id = ? OR email = ?'
       )
         .bind(stripeCustomer.id, stripeCustomer.email)
         .first();

@@ -1,5 +1,6 @@
+import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { decodeDashboardData } from './dashboard';
+import { decodeDashboardData, parseAccountDashboard } from './dashboard';
 
 const validPayload = {
   user: {
@@ -48,5 +49,26 @@ describe('decodeDashboardData', () => {
   it('rejects a non-object payload', () => {
     expect(decodeDashboardData(undefined)).toBeNull();
     expect(decodeDashboardData([])).toBeNull();
+  });
+});
+
+describe('parseAccountDashboard', () => {
+  it('succeeds for a valid payload and ignores extra fields', async () => {
+    const exit = await Effect.runPromiseExit(
+      parseAccountDashboard({ ...validPayload, extra: true })
+    );
+    expect(Exit.isSuccess(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) {
+      expect(exit.value.user.email).toBe('ada@example.com');
+    }
+  });
+
+  it('fails when emailVerified is not a boolean', async () => {
+    const malformed = {
+      ...validPayload,
+      user: { ...validPayload.user, emailVerified: 'yes' },
+    };
+    const exit = await Effect.runPromiseExit(parseAccountDashboard(malformed));
+    expect(Exit.isFailure(exit)).toBe(true);
   });
 });

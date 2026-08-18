@@ -42,7 +42,7 @@ export async function handleGetPolicies(request: Request, env: Env): Promise<Res
     .first();
 
   // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
+  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
     return errorResponse('Policies require Team or Enterprise tier', 403);
   }
 
@@ -129,7 +129,7 @@ export async function handleUpdatePolicy(request: Request, env: Env): Promise<Re
 
   if (!id) return errorResponse('Missing policy id', 400);
 
-  const existing = await env.DB.prepare(`SELECT * FROM policies WHERE id = ? AND license_id = ?`)
+  const existing = await env.DB.prepare(`SELECT id FROM policies WHERE id = ? AND license_id = ?`)
     .bind(id, license.id)
     .first();
 
@@ -205,7 +205,7 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
     .first();
 
   // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
+  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
     return errorResponse('Notifications require Team or Enterprise tier', 403);
   }
 
@@ -259,7 +259,7 @@ export async function handleUpdateNotificationSettings(
     .first();
 
   // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
+  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
     return errorResponse('Notifications require Team or Enterprise tier', 403);
   }
 
@@ -310,7 +310,7 @@ export async function handleRevokeMember(request: Request, env: Env): Promise<Re
     .first();
 
   // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
+  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
     return errorResponse('Member management requires Team or Enterprise tier', 403);
   }
 
@@ -321,7 +321,7 @@ export async function handleRevokeMember(request: Request, env: Env): Promise<Re
   if (!machine_id) return errorResponse('Missing machine_id', 400);
 
   const machine = await env.DB.prepare(
-    `SELECT * FROM machines WHERE machine_id = ? AND license_id = ?`
+    `SELECT hostname FROM machines WHERE machine_id = ? AND license_id = ?`
   )
     .bind(machine_id, license.id)
     .first();
@@ -359,7 +359,7 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
     .first();
 
   // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
+  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
     return errorResponse('Audit logs require Team or Enterprise tier', 403);
   }
 
@@ -426,7 +426,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     .first();
 
   // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
+  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
     return errorResponse('Team members require Team or Enterprise tier', 403);
   }
 
@@ -477,7 +477,7 @@ export async function handleUpdateAlertThreshold(request: Request, env: Env): Pr
     .first();
 
   // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || !['team', 'enterprise'].includes(license.tier as string)) {
+  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
     return errorResponse('Alert thresholds require Team or Enterprise tier', 403);
   }
 
