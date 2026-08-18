@@ -14,29 +14,6 @@ import {
   WorkersAiTextSchema,
 } from '../contracts/d1-extras';
 
-// Simple in-memory rate limiter (5 requests per minute per user)
-// TODO: Replace with Cloudflare Rate Limiting API in production for distributed rate limiting
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 5;
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const userLimit = rateLimitMap.get(userId);
-
-  if (!userLimit || now > userLimit.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-
-  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return false;
-  }
-
-  userLimit.count++;
-  return true;
-}
-
 export async function handleGetSmartInsights(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
   if (!token) {
@@ -48,9 +25,18 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
     return errorResponse('Invalid session', 401);
   }
 
-  // Rate limiting: 5 requests per minute
-  if (!checkRateLimit(auth.user.id)) {
-    return errorResponse('Rate limit exceeded. Please try again in a minute.', 429);
+  if (env.API_RATE_LIMITER) {
+    try {
+      const { success } = await env.API_RATE_LIMITER.limit({ key: `insights:${auth.user.id}` });
+      if (!success) {
+        return errorResponse('Rate limit exceeded. Please try again in a minute.', 429);
+      }
+    } catch (error: unknown) {
+      console.error('Insights rate limit check failed:', error);
+      return errorResponse('Failed to check rate limit', 500);
+    }
+  } else {
+    console.warn('API_RATE_LIMITER binding not available, skipping insights rate limit');
   }
 
   const isAdmin = env.ADMIN_USER_ID ? auth.user.id === env.ADMIN_USER_ID : false;
@@ -94,10 +80,12 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
           errorStats.results
         )
       );
-      const topErrors = Exit.isFailure(decodedErrors)
-        ? 'None'
-        : decodedErrors.value.map(row => `${row.error_message} (${row.occurrences}x)`).join(', ') ||
-          'None';
+      if (Exit.isFailure(decodedErrors)) {
+        return errorResponse('Failed to load insights', 500);
+      }
+      const topErrors =
+        decodedErrors.value.map(row => `${row.error_message} (${row.occurrences}x)`).join(', ') ||
+        'None';
       const timeHours = Math.round((Number(stats?.time_ms) || 0) / 3600000);
 
       contextData = `Platform Stats: ${stats?.users} total users, ${stats?.cmds?.toLocaleString()} commands executed, ${timeHours} hours saved system-wide.
@@ -167,53 +155,50 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
       userPrompt = `Analyze this developer's OMG usage: ${contextData} ${additionalContext} Provide 1 specific, actionable insight about how to improve efficiency, optimize their workflow, or discover underutilized features. Focus on concrete actions they can take today.`;
     }
 
-    let aiResponse;
+    let insight: string | undefined;
     let modelUsed = 'Workers AI (Llama 3.1 70B)';
 
-    try {
-      if (env.META_API_KEY) {
-        const response = await fetch('https://api.llama.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${env.META_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'Llama-4-Maverick-17B-128E-Instruct-FP8',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt },
-            ],
-            max_tokens: 500,
-            temperature: 0.7,
-          }),
-        });
+    if (env.META_API_KEY) {
+      const response = await fetch('https://api.llama.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.META_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'Llama-4-Maverick-17B-128E-Instruct-FP8',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        }),
+      });
 
-        if (response.ok) {
-          const payload: unknown = await response.json();
-          const decodedMeta = await Effect.runPromiseExit(
-            decodeExtraRow(
-              MetaChatCompletionSchema,
-              'Meta chat completion has an invalid shape',
-              payload
-            )
-          );
-          const content = Exit.isFailure(decodedMeta)
-            ? undefined
-            : decodedMeta.value.choices?.[0]?.message?.content;
-          aiResponse = { response: content };
+      if (response.ok) {
+        const payload: unknown = await response.json();
+        const decodedMeta = await Effect.runPromiseExit(
+          decodeExtraRow(
+            MetaChatCompletionSchema,
+            'Meta chat completion has an invalid shape',
+            payload
+          )
+        );
+        const content = Exit.isFailure(decodedMeta)
+          ? undefined
+          : decodedMeta.value.choices?.[0]?.message?.content;
+        if (content !== undefined && content.length > 0) {
+          insight = content;
           modelUsed = 'Meta.com (Llama 4 Maverick 17B)';
-        } else {
-          const errorText = await response.text();
-          console.warn('Meta API error:', response.status, errorText);
-          throw new Error(`Meta API error: ${response.status}`);
         }
       } else {
-        throw new Error('META_API_KEY not configured');
+        const errorText = await response.text();
+        console.warn('Meta API error:', response.status, errorText);
       }
-    } catch (metaError) {
-      console.warn('Meta API failed, falling back to Workers AI:', metaError);
+    }
 
+    if (insight === undefined) {
       const rawAi = await env.AI.run('@cf/meta/llama-3.1-70b-instruct', {
         messages: [
           { role: 'system', content: systemPrompt },
@@ -224,26 +209,23 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
       const decodedAi = await Effect.runPromiseExit(
         decodeExtraRow(WorkersAiTextSchema, 'Workers AI response has an invalid shape', rawAi)
       );
-      aiResponse = Exit.isFailure(decodedAi) ? { response: undefined } : decodedAi.value;
+      if (Exit.isFailure(decodedAi)) {
+        return errorResponse('Failed to generate insights', 500);
+      }
+      insight = decodedAi.value.response;
     }
 
-    const insight =
-      aiResponse.response ||
-      "Continue optimizing your workflow with OMG's parallel execution engine.";
+    if (insight === undefined || insight.length === 0) {
+      return errorResponse('Failed to generate insights', 500);
+    }
 
     return jsonResponse({
       insight,
       timestamp: new Date().toISOString(),
       generated_by: modelUsed,
     });
-  } catch (e) {
-    console.error('AI Insight Error:', e);
-    // Fallback to heuristic insights if AI fails
-    return jsonResponse({
-      insight:
-        'Your team has saved over 10 hours this week. Consider enforcing runtime policies to further increase efficiency.',
-      timestamp: new Date().toISOString(),
-      generated_by: 'Heuristic Engine',
-    });
+  } catch (error: unknown) {
+    console.error('AI Insight Error:', error);
+    return errorResponse('Failed to generate insights', 500);
   }
 }
