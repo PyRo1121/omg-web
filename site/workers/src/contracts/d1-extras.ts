@@ -360,6 +360,59 @@ export const AdminRevenueByTierRowSchema = Schema.Struct({
 });
 export type AdminRevenueByTierRow = Schema.Schema.Type<typeof AdminRevenueByTierRowSchema>;
 
+/** Admin weekly retention cell. */
+export const AdminRetentionCohortRowSchema = Schema.Struct({
+  cohort_date: Schema.optional(NullableString),
+  week_number: D1Number,
+  retained_users: D1Number,
+});
+export type AdminRetentionCohortRow = Schema.Schema.Type<typeof AdminRetentionCohortRowSchema>;
+
+/** Admin average LTV by license tier. */
+export const AdminLtvByTierRowSchema = Schema.Struct({
+  tier: Schema.optional(NullableString),
+  customer_count: D1Number,
+  avg_ltv: D1Number,
+});
+export type AdminLtvByTierRow = Schema.Schema.Type<typeof AdminLtvByTierRowSchema>;
+
+/** Admin command events by hour and weekday. */
+export const AdminCommandHeatmapRowSchema = Schema.Struct({
+  hour: Schema.optional(NullableString),
+  day_of_week: Schema.optional(NullableString),
+  event_count: D1Number,
+});
+export type AdminCommandHeatmapRow = Schema.Schema.Type<typeof AdminCommandHeatmapRowSchema>;
+
+/** Admin runtime adoption aggregate. */
+export const AdminRuntimeAdoptionRowSchema = Schema.Struct({
+  runtime: Schema.optional(NullableString),
+  unique_users: D1Number,
+  total_uses: D1Number,
+});
+export type AdminRuntimeAdoptionRow = Schema.Schema.Type<typeof AdminRuntimeAdoptionRowSchema>;
+
+/** Admin per-license churn-risk classification. */
+export const AdminChurnRiskSegmentRowSchema = Schema.Struct({
+  tier: Schema.optional(NullableString),
+  user_count: D1Number,
+  risk_segment: Schema.String,
+});
+export type AdminChurnRiskSegmentRow = Schema.Schema.Type<typeof AdminChurnRiskSegmentRowSchema>;
+
+/** Admin expansion/upsell candidate. */
+export const AdminExpansionOpportunityRowSchema = Schema.Struct({
+  email: Schema.optional(NullableString),
+  tier: Schema.optional(NullableString),
+  active_machines: D1Number,
+  total_commands_30d: D1Number,
+  opportunity_type: Schema.optional(NullableString),
+  priority: Schema.String,
+});
+export type AdminExpansionOpportunityRow = Schema.Schema.Type<
+  typeof AdminExpansionOpportunityRowSchema
+>;
+
 /** Current MRR aggregate. */
 export const CurrentMrrRowSchema = Schema.Struct({
   current_mrr: D1Number,

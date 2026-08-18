@@ -12,21 +12,27 @@ import { decodeJsonBody } from '../src/body';
 import { MachineIdBodySchema, TrackingBatchSchema } from '../src/contracts/http-bodies';
 import {
   AdminActivityRowSchema,
+  AdminChurnRiskSegmentRowSchema,
   AdminCohortRowSchema,
   AdminCommandCountRowSchema,
+  AdminCommandHeatmapRowSchema,
   AdminCustomerDetailRowSchema,
   AdminCustomerTagRowSchema,
   AdminDailyActiveRowSchema,
   AdminDateCountRowSchema,
   AdminErrorTypeCountRowSchema,
+  AdminExpansionOpportunityRowSchema,
   AdminFlagRowSchema,
   AdminFleetVersionRowSchema,
   AdminGeoDimensionRowSchema,
+  AdminLtvByTierRowSchema,
   AdminMachineRowSchema,
   AdminMonthlyRevenueRowSchema,
   AdminNoteRowSchema,
   AdminPlatformCountRowSchema,
+  AdminRetentionCohortRowSchema,
   AdminRevenueByTierRowSchema,
+  AdminRuntimeAdoptionRowSchema,
   AdminRuntimeUsageRowSchema,
   AdminStatusCountRowSchema,
   AdminTagCatalogRowSchema,
@@ -761,5 +767,66 @@ describe('remaining D1 result arrays', () => {
       ])
     );
     expect(Exit.isFailure(badRevenue)).toBe(true);
+  });
+
+  it('decodes admin advanced-metrics list rows and rejects malformed heatmap cells', async () => {
+    const retention = await Effect.runPromise(
+      decodeExtraRowArray(AdminRetentionCohortRowSchema, 'retention', [
+        { cohort_date: '2026-08-01', week_number: 0, retained_users: 4 },
+      ])
+    );
+    expect(retention[0]?.retained_users).toBe(4);
+
+    const ltv = await Effect.runPromise(
+      decodeExtraRowArray(AdminLtvByTierRowSchema, 'ltv', [
+        { tier: 'pro', customer_count: 3, avg_ltv: 18.5 },
+      ])
+    );
+    expect(ltv[0]?.avg_ltv).toBe(18.5);
+
+    const heatmap = await Effect.runPromise(
+      decodeExtraRowArray(AdminCommandHeatmapRowSchema, 'heatmap', [
+        { hour: '09', day_of_week: '1', event_count: null },
+      ])
+    );
+    expect(heatmap[0]?.event_count).toBe(0);
+
+    const runtimes = await Effect.runPromise(
+      decodeExtraRowArray(AdminRuntimeAdoptionRowSchema, 'runtime-adoption', [
+        { runtime: 'node', unique_users: 2, total_uses: 9 },
+      ])
+    );
+    expect(runtimes[0]?.unique_users).toBe(2);
+
+    const churn = await Effect.runPromise(
+      decodeExtraRowArray(AdminChurnRiskSegmentRowSchema, 'churn', [
+        { tier: 'pro', user_count: 1, risk_segment: 'high' },
+      ])
+    );
+    expect(churn[0]?.risk_segment).toBe('high');
+
+    const expansion = await Effect.runPromise(
+      decodeExtraRowArray(AdminExpansionOpportunityRowSchema, 'expansion', [
+        {
+          email: 'a@example.com',
+          tier: 'free',
+          active_machines: 1,
+          total_commands_30d: 800,
+          opportunity_type: 'upsell_to_pro',
+          priority: 'medium',
+        },
+      ])
+    );
+    expect(expansion[0]?.opportunity_type).toBe('upsell_to_pro');
+
+    const badHeatmap = await Effect.runPromiseExit(
+      decodeExtraRowArray(AdminCommandHeatmapRowSchema, 'heatmap', [{ hour: '09' }])
+    );
+    expect(Exit.isFailure(badHeatmap)).toBe(true);
+
+    const badChurn = await Effect.runPromiseExit(
+      decodeExtraRowArray(AdminChurnRiskSegmentRowSchema, 'churn', [{ tier: 'pro', user_count: 1 }])
+    );
+    expect(Exit.isFailure(badChurn)).toBe(true);
   });
 });

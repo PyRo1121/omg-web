@@ -27,17 +27,23 @@ import {
   AdminCountsRowSchema,
   AdminCustomerDetailRowSchema,
   AdminCustomerTagRowSchema,
+  AdminChurnRiskSegmentRowSchema,
+  AdminCommandHeatmapRowSchema,
   AdminDailyActiveRowSchema,
   AdminDateCountRowSchema,
   AdminErrorTypeCountRowSchema,
+  AdminExpansionOpportunityRowSchema,
   AdminFleetVersionRowSchema,
   AdminGeoDimensionRowSchema,
   AdminLicenseDetailRowSchema,
+  AdminLtvByTierRowSchema,
   AdminMachineRowSchema,
   AdminMonthlyRevenueRowSchema,
   AdminNoteRowSchema,
   AdminPlatformCountRowSchema,
+  AdminRetentionCohortRowSchema,
   AdminRevenueByTierRowSchema,
+  AdminRuntimeAdoptionRowSchema,
   AdminRuntimeUsageRowSchema,
   AdminStatusCountRowSchema,
   AdminTagCatalogRowSchema,
@@ -52,6 +58,7 @@ import {
   CurrentMrrRowSchema,
   CustomerHealthRowSchema,
   customerIsAdmin,
+  decodeExtraRow,
   decodeExtraRowArray,
   decodeOptionalExtraRow,
   FeatureAdoptionRowSchema,
@@ -76,31 +83,6 @@ const SECURITY_HEADERS = {
   'Cache-Control': 'no-store, no-cache, must-revalidate, private',
   Pragma: 'no-cache',
 };
-
-async function safeQuery<T>(query: () => Promise<T>, fallback: T): Promise<T> {
-  try {
-    return await query();
-  } catch (e) {
-    console.error('Query failed:', e);
-    return fallback;
-  }
-}
-
-function emptyD1Result<T>(): D1Result<T> {
-  return {
-    success: true,
-    results: [],
-    meta: {
-      duration: 0,
-      size_after: 0,
-      rows_read: 0,
-      rows_written: 0,
-      last_row_id: 0,
-      changed_db: false,
-      changes: 0,
-    },
-  };
-}
 
 function secureJsonResponse<TData>(data: TData, status = 200): Response {
   const response = jsonResponse(data, status);
@@ -1039,52 +1021,31 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
   }
   const { context } = result;
 
-  const dau = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily WHERE date = date('now') AND commands_run > 0`
-      ).first(),
-    { count: 0 }
-  );
-
-  const wau = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily WHERE date >= date('now', '-7 days') AND commands_run > 0`
-      ).first(),
-    { count: 0 }
-  );
-
-  const mau = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily WHERE date >= date('now', '-30 days') AND commands_run > 0`
-      ).first(),
-    { count: 0 }
-  );
-
-  const mauRow = await Effect.runPromise(
-    decodeOptionalExtraRow(CountRowSchema, 'Admin MAU row has an invalid shape', mau)
-  );
-  const dauRow = await Effect.runPromise(
-    decodeOptionalExtraRow(CountRowSchema, 'Admin DAU row has an invalid shape', dau)
-  );
-  const wauRow = await Effect.runPromise(
-    decodeOptionalExtraRow(CountRowSchema, 'Admin WAU row has an invalid shape', wau)
-  );
-  const mauCount = mauRow?.count ?? 0;
-  const dailyCount = dauRow?.count ?? 0;
-  const weeklyCount = wauRow?.count ?? 0;
-  const stickinessDenom = mauCount === 0 ? 1 : mauCount;
-  const stickiness = {
-    daily_to_monthly: `${((dailyCount / stickinessDenom) * 100).toFixed(1)}%`,
-    weekly_to_monthly: `${((weeklyCount / stickinessDenom) * 100).toFixed(1)}%`,
-  };
-
-  const retentionCohorts = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `
+  const [
+    dau,
+    wau,
+    mau,
+    retentionCohorts,
+    ltv,
+    featureAdoption,
+    commandHeatmap,
+    runtimeAdoption,
+    churnRiskSegments,
+    expansionOpportunities,
+    timeToValue,
+    revenueMetrics,
+  ] = await Promise.all([
+    env.DB.prepare(
+      `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily WHERE date = date('now') AND commands_run > 0`
+    ).first(),
+    env.DB.prepare(
+      `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily WHERE date >= date('now', '-7 days') AND commands_run > 0`
+    ).first(),
+    env.DB.prepare(
+      `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily WHERE date >= date('now', '-30 days') AND commands_run > 0`
+    ).first(),
+    env.DB.prepare(
+      `
       SELECT DATE(c.created_at) as cohort_date, 
              CAST((julianday(u.date) - julianday(DATE(c.created_at))) / 7 AS INTEGER) as week_number,
              COUNT(DISTINCT c.id) as retained_users
@@ -1096,14 +1057,9 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
       ORDER BY cohort_date DESC, week_number ASC
       LIMIT 100
     `
-      ).all(),
-    emptyD1Result()
-  );
-
-  const ltv = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `
+    ).all(),
+    env.DB.prepare(
+      `
       SELECT l.tier, COUNT(*) as customer_count,
              AVG(CASE l.tier WHEN 'pro' THEN 9 WHEN 'team' THEN 200 WHEN 'enterprise' THEN 500 ELSE 0 END 
                  * (julianday('now') - julianday(c.created_at)) / 30.0) as avg_ltv
@@ -1112,14 +1068,9 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
       WHERE l.tier != 'free'
       GROUP BY l.tier
     `
-      ).all(),
-    emptyD1Result()
-  );
-
-  const featureAdoption = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `
+    ).all(),
+    env.DB.prepare(
+      `
       SELECT SUM(packages_installed) as total_installs, SUM(packages_searched) as total_searches,
              SUM(runtimes_switched) as total_runtime_switches,
              COUNT(DISTINCT CASE WHEN packages_installed > 0 THEN license_id END) as install_adopters,
@@ -1128,38 +1079,23 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
              COUNT(DISTINCT license_id) as total_active_users
       FROM usage_daily WHERE date >= date('now', '-30 days')
     `
-      ).first(),
-    null
-  );
-
-  const commandHeatmap = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `
+    ).first(),
+    env.DB.prepare(
+      `
       SELECT strftime('%H', created_at) as hour, strftime('%w', created_at) as day_of_week, COUNT(*) as event_count
       FROM analytics_events WHERE event_type = 'command' AND created_at >= datetime('now', '-7 days')
       GROUP BY hour, day_of_week ORDER BY day_of_week, hour
     `
-      ).all(),
-    emptyD1Result()
-  );
-
-  const runtimeAdoption = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `
+    ).all(),
+    env.DB.prepare(
+      `
       SELECT json_extract(properties, '$.runtime') as runtime, COUNT(DISTINCT machine_id) as unique_users, COUNT(*) as total_uses
       FROM analytics_events WHERE event_name IN ('runtime_switch', 'runtime_use') AND created_at >= datetime('now', '-30 days')
       GROUP BY runtime ORDER BY unique_users DESC
     `
-      ).all(),
-    emptyD1Result()
-  );
-
-  const churnRiskSegments = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `
+    ).all(),
+    env.DB.prepare(
+      `
       SELECT l.tier, COUNT(*) as user_count, 
              CASE WHEN MAX(u.date) < date('now', '-14 days') THEN 'critical' 
                   WHEN MAX(u.date) < date('now', '-7 days') THEN 'high' 
@@ -1169,14 +1105,9 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
       WHERE l.status = 'active'
       GROUP BY l.id
     `
-      ).all(),
-    emptyD1Result()
-  );
-
-  const expansionOpportunities = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `
+    ).all(),
+    env.DB.prepare(
+      `
       SELECT c.email, l.tier, COUNT(DISTINCT m.id) as active_machines, SUM(u.commands_run) as total_commands_30d,
              CASE WHEN l.tier = 'free' AND SUM(u.commands_run) > 500 THEN 'upsell_to_pro'
                   WHEN l.tier = 'pro' AND COUNT(DISTINCT m.id) >= 3 THEN 'upsell_to_team' ELSE NULL END as opportunity_type,
@@ -1190,14 +1121,9 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
       HAVING opportunity_type IS NOT NULL
       LIMIT 50
     `
-      ).all(),
-    emptyD1Result()
-  );
-
-  const timeToValue = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `
+    ).all(),
+    env.DB.prepare(
+      `
       SELECT AVG(julianday(MIN(u.date)) - julianday(c.created_at)) as avg_days_to_activation,
              COUNT(CASE WHEN julianday(MIN(u.date)) - julianday(c.created_at) <= 7 THEN 1 END) * 100.0 / COUNT(*) as pct_activated_week1
       FROM customers c
@@ -1206,44 +1132,129 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
       WHERE c.created_at >= datetime('now', '-90 days')
       GROUP BY c.id
     `
-      ).first(),
-    null
-  );
-
-  const revenueMetrics = await safeQuery(
-    () =>
-      env.DB.prepare(
-        `
+    ).first(),
+    env.DB.prepare(
+      `
       SELECT SUM(CASE l.tier WHEN 'pro' THEN 9 WHEN 'team' THEN 200 WHEN 'enterprise' THEN 500 ELSE 0 END) as current_mrr
       FROM licenses l JOIN subscriptions s ON l.customer_id = s.customer_id
       WHERE s.status = 'active' AND l.tier != 'free'
     `
-      ).first(),
-    { current_mrr: 0 }
-  );
+    ).first(),
+  ]);
 
-  const revenueRow = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      CurrentMrrRowSchema,
-      'Admin current MRR row has an invalid shape',
-      revenueMetrics
-    )
-  );
-  const currentMrr = revenueRow?.current_mrr || 0;
-  const featureAdoptionRow = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      FeatureAdoptionRowSchema,
-      'Admin feature adoption row has an invalid shape',
-      featureAdoption
-    )
-  );
-  const timeToValueRow = await Effect.runPromise(
-    decodeOptionalExtraRow(
-      TimeToValueRowSchema,
-      'Admin time-to-value row has an invalid shape',
-      timeToValue
-    )
-  );
+  const [
+    decodedDau,
+    decodedWau,
+    decodedMau,
+    decodedRetention,
+    decodedLtv,
+    decodedFeatureAdoption,
+    decodedHeatmap,
+    decodedRuntimeAdoption,
+    decodedChurn,
+    decodedExpansion,
+    decodedTimeToValue,
+    decodedRevenue,
+  ] = await Promise.all([
+    Effect.runPromiseExit(
+      decodeExtraRow(CountRowSchema, 'Admin DAU row has an invalid shape', dau)
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRow(CountRowSchema, 'Admin WAU row has an invalid shape', wau)
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRow(CountRowSchema, 'Admin MAU row has an invalid shape', mau)
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminRetentionCohortRowSchema,
+        'Admin retention cohort row has an invalid shape',
+        retentionCohorts.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminLtvByTierRowSchema,
+        'Admin LTV row has an invalid shape',
+        ltv.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRow(
+        FeatureAdoptionRowSchema,
+        'Admin feature adoption row has an invalid shape',
+        featureAdoption
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminCommandHeatmapRowSchema,
+        'Admin command heatmap row has an invalid shape',
+        commandHeatmap.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminRuntimeAdoptionRowSchema,
+        'Admin runtime adoption row has an invalid shape',
+        runtimeAdoption.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminChurnRiskSegmentRowSchema,
+        'Admin churn-risk row has an invalid shape',
+        churnRiskSegments.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRowArray(
+        AdminExpansionOpportunityRowSchema,
+        'Admin expansion opportunity row has an invalid shape',
+        expansionOpportunities.results
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRow(
+        TimeToValueRowSchema,
+        'Admin time-to-value row has an invalid shape',
+        timeToValue
+      )
+    ),
+    Effect.runPromiseExit(
+      decodeExtraRow(
+        CurrentMrrRowSchema,
+        'Admin current MRR row has an invalid shape',
+        revenueMetrics
+      )
+    ),
+  ]);
+  if (
+    Exit.isFailure(decodedDau) ||
+    Exit.isFailure(decodedWau) ||
+    Exit.isFailure(decodedMau) ||
+    Exit.isFailure(decodedRetention) ||
+    Exit.isFailure(decodedLtv) ||
+    Exit.isFailure(decodedFeatureAdoption) ||
+    Exit.isFailure(decodedHeatmap) ||
+    Exit.isFailure(decodedRuntimeAdoption) ||
+    Exit.isFailure(decodedChurn) ||
+    Exit.isFailure(decodedExpansion) ||
+    Exit.isFailure(decodedTimeToValue) ||
+    Exit.isFailure(decodedRevenue)
+  ) {
+    return errorResponse('Failed to load advanced metrics', 500);
+  }
+
+  const mauCount = decodedMau.value.count;
+  const dailyCount = decodedDau.value.count;
+  const weeklyCount = decodedWau.value.count;
+  const stickinessDenom = mauCount === 0 ? 1 : mauCount;
+  const stickiness = {
+    daily_to_monthly: `${((dailyCount / stickinessDenom) * 100).toFixed(1)}%`,
+    weekly_to_monthly: `${((weeklyCount / stickinessDenom) * 100).toFixed(1)}%`,
+  };
+  const currentMrr = decodedRevenue.value.current_mrr;
 
   return secureJsonResponse({
     request_id: context.requestId,
@@ -1253,14 +1264,14 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
       mau: mauCount,
       stickiness,
     },
-    retention: { cohorts: retentionCohorts.results || [] },
-    ltv_by_tier: ltv.results || [],
-    feature_adoption: featureAdoptionRow,
-    command_heatmap: commandHeatmap.results || [],
-    runtime_adoption: runtimeAdoption.results || [],
-    churn_risk_segments: churnRiskSegments.results || [],
-    expansion_opportunities: expansionOpportunities.results || [],
-    time_to_value: timeToValueRow,
+    retention: { cohorts: decodedRetention.value },
+    ltv_by_tier: decodedLtv.value,
+    feature_adoption: decodedFeatureAdoption.value,
+    command_heatmap: decodedHeatmap.value,
+    runtime_adoption: decodedRuntimeAdoption.value,
+    churn_risk_segments: decodedChurn.value,
+    expansion_opportunities: decodedExpansion.value,
+    time_to_value: decodedTimeToValue.value,
     revenue_metrics: {
       current_mrr: currentMrr,
       projected_arr: currentMrr * 12,
