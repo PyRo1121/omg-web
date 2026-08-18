@@ -249,7 +249,7 @@ export async function GET(event: APIEvent) {
         'Cache-Control': 'private, no-cache, no-store, must-revalidate',
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[User Usage API] Error:', error);
     return new Response(
       JSON.stringify({

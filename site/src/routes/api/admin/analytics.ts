@@ -136,7 +136,7 @@ export async function GET(event: APIEvent) {
         },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin Analytics API] Error:', error);
     return new Response(
       JSON.stringify({

@@ -125,7 +125,7 @@ export async function GET(event: APIEvent) {
         'Content-Disposition': `attachment; filename="usage-report-${dateStr}-to-${new Date().toISOString().split('T')[0]}.csv"`,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin Export Usage Report] Error:', error);
     return new Response(
       JSON.stringify({

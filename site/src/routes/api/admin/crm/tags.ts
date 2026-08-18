@@ -110,7 +110,7 @@ export async function GET(event: APIEvent) {
         },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin CRM Tags GET] Error:', error);
     return new Response(
       JSON.stringify({
@@ -296,7 +296,7 @@ export async function POST(event: APIEvent) {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin CRM Tags POST] Error:', error);
     return new Response(
       JSON.stringify({
@@ -393,7 +393,7 @@ export async function PUT(event: APIEvent) {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin CRM Tags PUT] Error:', error);
     return new Response(
       JSON.stringify({
@@ -467,7 +467,7 @@ export async function DELETE(event: APIEvent) {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin CRM Tags DELETE] Error:', error);
     return new Response(
       JSON.stringify({

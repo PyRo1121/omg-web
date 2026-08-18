@@ -155,7 +155,7 @@ export async function GET(event: APIEvent) {
         },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin Geo Analytics] Error:', error);
     return new Response(
       JSON.stringify({

@@ -120,7 +120,7 @@ export async function GET(event: APIEvent) {
         },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin CRM Notes GET] Error:', error);
     return new Response(
       JSON.stringify({
@@ -244,7 +244,7 @@ export async function POST(event: APIEvent) {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin CRM Notes POST] Error:', error);
     return new Response(
       JSON.stringify({
@@ -328,7 +328,7 @@ export async function PUT(event: APIEvent) {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin CRM Notes PUT] Error:', error);
     return new Response(
       JSON.stringify({
@@ -383,7 +383,7 @@ export async function DELETE(event: APIEvent) {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin CRM Notes DELETE] Error:', error);
     return new Response(
       JSON.stringify({

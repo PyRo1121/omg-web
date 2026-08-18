@@ -195,7 +195,7 @@ export async function POST(event: APIEvent) {
         headers: { 'Content-Type': 'application/json' },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Sync License] Error:', error);
     return new Response(
       JSON.stringify({

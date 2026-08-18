@@ -157,7 +157,7 @@ export async function GET(event: APIEvent) {
         'Content-Disposition': `attachment; filename="health-report-${new Date().toISOString().split('T')[0]}.csv"`,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin Export Health Report] Error:', error);
     return new Response(
       JSON.stringify({

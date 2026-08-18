@@ -176,7 +176,7 @@ export async function GET(event: APIEvent) {
         },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Admin Commands Analytics] Error:', error);
     return new Response(
       JSON.stringify({

@@ -104,7 +104,7 @@ export async function POST(event: APIEvent) {
         },
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[CLI Validate License] Error:', error);
     return new Response(
       JSON.stringify({

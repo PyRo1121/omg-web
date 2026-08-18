@@ -102,7 +102,7 @@ export async function GET(event: APIEvent) {
           headers: { 'Content-Type': 'application/json' },
         }),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Dashboard API error:', error);
     return internalErrorResponse();
   }

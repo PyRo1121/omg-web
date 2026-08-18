@@ -84,7 +84,7 @@ async function refreshCache(
         'User-Agent': 'OMG-Package-Manager-Site/1.0',
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('GitHub API network error:', error);
     return errorResponse('GitHub API unreachable', 503);
   }
@@ -133,7 +133,7 @@ async function refreshCache(
 
   try {
     await cache.put(cacheKey, response.clone());
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn('Failed to write GitHub response to cache:', error);
   }
 

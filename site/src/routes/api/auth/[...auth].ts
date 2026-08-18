@@ -52,7 +52,7 @@ async function handleAuth(event: APIEvent): Promise<Response> {
       statusText: response.statusText,
       headers: newHeaders,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[AUTH ERROR]', error);
 
     return new Response(
