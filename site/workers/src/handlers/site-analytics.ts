@@ -1,55 +1,23 @@
-import { Schema } from '@effect/schema';
 import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 import { decodeJsonBody } from '../body';
 import { TrackingBatchSchema, optionalStringField } from '../contracts/http-bodies';
 import {
   AnalyticsSaltRowSchema,
+  CliGeoRowSchema,
   CountRowSchema,
+  decodeExtraRowArray,
   decodeOptionalExtraRow,
+  DocsGeoRowSchema,
   SiteAnalyticsTotalsRowSchema,
+  SiteDailyTrendRowSchema,
+  SiteDeviceRowSchema,
+  SiteGeoRowSchema,
+  SiteReferrerRowSchema,
+  SiteRealtimeCountryRowSchema,
+  SiteRealtimePageRowSchema,
+  SiteTopPageRowSchema,
 } from '../contracts/d1-extras';
-
-const GeoNumber = Schema.Union(Schema.Number, Schema.Null).pipe(
-  Schema.transform(Schema.Number, {
-    decode: (fromA: number | null) => (fromA === null ? 0 : fromA),
-    encode: (toI: number) => toI,
-  })
-);
-
-const SiteGeoRowSchema = Schema.Struct({
-  country_code: Schema.String,
-  visitors: GeoNumber,
-  sessions: GeoNumber,
-  pageviews: GeoNumber,
-});
-
-const DocsGeoRowSchema = Schema.Struct({
-  country_code: Schema.String,
-  sessions: GeoNumber,
-  pageviews: GeoNumber,
-});
-
-const CliGeoRowSchema = Schema.Struct({
-  country_code: Schema.String,
-  count: GeoNumber,
-});
-
-function decodeRows<S extends Schema.Schema.AnyNoContext>(
-  schema: S,
-  value: ReadonlyArray<unknown> | undefined
-): ReadonlyArray<Schema.Schema.Type<S>> {
-  const rows = value === undefined ? [] : value;
-  const decodedRows: Array<Schema.Schema.Type<S>> = [];
-  for (const row of rows) {
-    const decoded = Schema.decodeUnknownEither(schema)(row);
-    if (decoded._tag === 'Left') {
-      throw new Error('Geo analytics row has an invalid shape');
-    }
-    decodedRows.push(decoded.right);
-  }
-  return decodedRows;
-}
 
 interface ParsedUserAgent {
   device: string;
@@ -187,7 +155,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
 
     const statements: D1PreparedStatement[] = [];
     const now = Date.now();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().slice(0, 10);
     const hour = new Date().getUTCHours();
 
     for (const event of body.events) {
@@ -265,7 +233,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     }
 
     return jsonResponse({ success: true, processed: body.events.length });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Site analytics error:', error);
     return errorResponse('Failed to process events', 500);
   }
@@ -277,7 +245,7 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
     const days = Math.min(parseInt(url.searchParams.get('days') || '30', 10), 90);
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
-    const startDateStr = startDate.toISOString().split('T')[0];
+    const startDateStr = startDate.toISOString().slice(0, 10);
 
     const [siteGeo, docsGeo, cliGeo] = await Promise.all([
       env.DB.prepare(
@@ -325,9 +293,35 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
       }
     >();
 
-    const siteRows = decodeRows(SiteGeoRowSchema, siteGeo.results);
-    const docsRows = decodeRows(DocsGeoRowSchema, docsGeo.results);
-    const cliRows = decodeRows(CliGeoRowSchema, cliGeo.results);
+    const [decodedSite, decodedDocs, decodedCli] = await Promise.all([
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          SiteGeoRowSchema,
+          'Site geo analytics row has an invalid shape',
+          siteGeo.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          DocsGeoRowSchema,
+          'Docs geo analytics row has an invalid shape',
+          docsGeo.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          CliGeoRowSchema,
+          'CLI geo analytics row has an invalid shape',
+          cliGeo.results
+        )
+      ),
+    ]);
+    if (Exit.isFailure(decodedSite) || Exit.isFailure(decodedDocs) || Exit.isFailure(decodedCli)) {
+      return errorResponse('Failed to load geo analytics', 500);
+    }
+    const siteRows = decodedSite.value;
+    const docsRows = decodedDocs.value;
+    const cliRows = decodedCli.value;
 
     for (const row of siteRows) {
       combined.set(row.country_code, {
@@ -404,12 +398,12 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
       total_engagement: totalEngagement,
       geo_distribution: geoForDashboard,
       by_source: {
-        site: siteGeo.results.length,
-        docs: docsGeo.results.length,
-        cli: cliGeo.results.length,
+        site: siteRows.length,
+        docs: docsRows.length,
+        cli: cliRows.length,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Geo analytics error:', error);
     return errorResponse('Failed to load geo analytics', 500);
   }
@@ -458,14 +452,33 @@ export async function handleGetRealtimeAnalytics(_request: Request, env: Env): P
         activeVisitors
       )
     );
+    const [decodedCountries, decodedPages] = await Promise.all([
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          SiteRealtimeCountryRowSchema,
+          'Realtime country row has an invalid shape',
+          byCountry.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          SiteRealtimePageRowSchema,
+          'Realtime page row has an invalid shape',
+          topPages.results
+        )
+      ),
+    ]);
+    if (Exit.isFailure(decodedCountries) || Exit.isFailure(decodedPages)) {
+      return errorResponse('Failed to load realtime analytics', 500);
+    }
 
     return jsonResponse({
       active_visitors: activeVisitorsRow?.count || 0,
-      by_country: byCountry.results,
-      top_pages: topPages.results,
+      by_country: decodedCountries.value,
+      top_pages: decodedPages.value,
       timestamp: Date.now(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Realtime analytics error:', error);
     return errorResponse('Failed to load realtime analytics', 500);
   }
@@ -477,7 +490,7 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
     const days = Math.min(parseInt(url.searchParams.get('days') || '30', 10), 90);
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
-    const startDateStr = startDate.toISOString().split('T')[0];
+    const startDateStr = startDate.toISOString().slice(0, 10);
 
     const [totalStats, dailyTrend, topPages, topReferrers, deviceBreakdown] = await Promise.all([
       env.DB.prepare(
@@ -541,6 +554,44 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
         totalStats
       )
     );
+    const [decodedTrend, decodedPages, decodedReferrers, decodedDevices] = await Promise.all([
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          SiteDailyTrendRowSchema,
+          'Site daily trend row has an invalid shape',
+          dailyTrend.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          SiteTopPageRowSchema,
+          'Site top page row has an invalid shape',
+          topPages.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          SiteReferrerRowSchema,
+          'Site referrer row has an invalid shape',
+          topReferrers.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          SiteDeviceRowSchema,
+          'Site device row has an invalid shape',
+          deviceBreakdown.results
+        )
+      ),
+    ]);
+    if (
+      Exit.isFailure(decodedTrend) ||
+      Exit.isFailure(decodedPages) ||
+      Exit.isFailure(decodedReferrers) ||
+      Exit.isFailure(decodedDevices)
+    ) {
+      return errorResponse('Failed to load analytics overview', 500);
+    }
 
     return jsonResponse({
       period_days: days,
@@ -549,12 +600,12 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
         total_visitors: totals?.total_visitors || 0,
         total_sessions: totals?.total_sessions || 0,
       },
-      daily_trend: dailyTrend.results,
-      top_pages: topPages.results,
-      top_referrers: topReferrers.results,
-      device_breakdown: deviceBreakdown.results,
+      daily_trend: decodedTrend.value,
+      top_pages: decodedPages.value,
+      top_referrers: decodedReferrers.value,
+      device_breakdown: decodedDevices.value,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Analytics overview error:', error);
     return errorResponse('Failed to load analytics overview', 500);
   }
@@ -571,7 +622,7 @@ export async function cleanupOldAnalytics(db: D1Database): Promise<void> {
       db.prepare(`DELETE FROM analytics_salts WHERE inserted_at < ?`).bind(fortyEightHoursAgo),
       db.prepare(`DELETE FROM site_analytics_realtime WHERE last_seen_at < ?`).bind(fiveMinutesAgo),
     ]);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Cleanup error:', error);
   }
 }

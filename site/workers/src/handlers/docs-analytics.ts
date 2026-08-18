@@ -10,7 +10,16 @@ import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 import { Effect, Exit } from 'effect';
 import { decodeJsonBody } from '../body';
 import { DocsAnalyticsBatchSchema } from '../contracts/http-bodies';
-import { decodeExtraRowArray, DocsPageviewsRowSchema } from '../contracts/d1-extras';
+import {
+  decodeExtraRowArray,
+  DocsGeoRowSchema,
+  DocsInteractionRowSchema,
+  DocsPageviewsRowSchema,
+  DocsPerformanceRowSchema,
+  DocsReferrerRowSchema,
+  DocsTopPageRowSchema,
+  DocsUtmRowSchema,
+} from '../contracts/d1-extras';
 
 /**
  * POST /api/docs/analytics
@@ -141,7 +150,7 @@ export async function handleDocsAnalytics(
       processed: eventIds.length,
       message: `Successfully processed ${eventIds.length} analytics events`,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Docs analytics error:', error);
     return errorResponse('Failed to process analytics events', 500);
   }
@@ -154,7 +163,6 @@ export async function handleDocsAnalytics(
  */
 export async function handleDocsAnalyticsDashboard(request: Request, env: Env): Promise<Response> {
   try {
-    // Admin-only endpoint (TODO: add admin auth check)
     const url = new URL(request.url);
     const days = parseInt(url.searchParams.get('days') || '30', 10);
 
@@ -162,7 +170,7 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
     const limitDays = Math.min(days, 90);
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - limitDays);
-    const startDateStr = startDate.toISOString().split('T')[0];
+    const startDateStr = startDate.toISOString().slice(0, 10);
 
     // Execute dashboard queries in parallel
     const [
@@ -265,7 +273,57 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
         pageviewsResult.results
       )
     );
-    if (Exit.isFailure(decodedPageviews)) {
+    const decodedTopPages = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        DocsTopPageRowSchema,
+        'Docs analytics top page row has an invalid shape',
+        topPagesResult.results
+      )
+    );
+    const decodedReferrers = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        DocsReferrerRowSchema,
+        'Docs analytics referrer row has an invalid shape',
+        referrersResult.results
+      )
+    );
+    const decodedUtm = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        DocsUtmRowSchema,
+        'Docs analytics UTM row has an invalid shape',
+        utmResult.results
+      )
+    );
+    const decodedGeo = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        DocsGeoRowSchema,
+        'Docs analytics geo row has an invalid shape',
+        geoResult.results
+      )
+    );
+    const decodedInteractions = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        DocsInteractionRowSchema,
+        'Docs analytics interaction row has an invalid shape',
+        interactionsResult.results
+      )
+    );
+    const decodedPerformance = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        DocsPerformanceRowSchema,
+        'Docs analytics performance row has an invalid shape',
+        performanceResult.results
+      )
+    );
+    if (
+      Exit.isFailure(decodedPageviews) ||
+      Exit.isFailure(decodedTopPages) ||
+      Exit.isFailure(decodedReferrers) ||
+      Exit.isFailure(decodedUtm) ||
+      Exit.isFailure(decodedGeo) ||
+      Exit.isFailure(decodedInteractions) ||
+      Exit.isFailure(decodedPerformance)
+    ) {
       return errorResponse('Failed to load analytics dashboard', 500);
     }
 
@@ -276,18 +334,19 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
       summary: {
         total_pageviews: totalPageviews,
         total_sessions: totalSessions,
-        avg_pages_per_session: totalSessions > 0 ? (totalPageviews / totalSessions).toFixed(2) : 0,
+        avg_pages_per_session:
+          totalSessions > 0 ? (totalPageviews / totalSessions).toFixed(2) : '0',
         period_days: limitDays,
       },
-      pageviews_over_time: pageviewsResult.results,
-      top_pages: topPagesResult.results,
-      top_referrers: referrersResult.results,
-      utm_campaigns: utmResult.results,
-      geographic: geoResult.results,
-      top_interactions: interactionsResult.results,
-      performance: performanceResult.results,
+      pageviews_over_time: decodedPageviews.value,
+      top_pages: decodedTopPages.value,
+      top_referrers: decodedReferrers.value,
+      utm_campaigns: decodedUtm.value,
+      geographic: decodedGeo.value,
+      top_interactions: decodedInteractions.value,
+      performance: decodedPerformance.value,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Docs analytics dashboard error:', error);
     return errorResponse('Failed to load analytics dashboard', 500);
   }
@@ -401,7 +460,7 @@ async function aggregateDocsAnalytics(db: D1Database, date: string): Promise<voi
       .run();
 
     console.log(`Successfully aggregated docs analytics for ${date}`);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`Failed to aggregate docs analytics for ${date}:`, error);
   }
 }
@@ -432,7 +491,7 @@ export async function cleanupDocsAnalytics(db: D1Database): Promise<void> {
         `DELETE FROM docs_analytics_sessions WHERE first_seen_at < datetime('now', '-30 days')`
       )
       .run();
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Docs analytics cleanup error:', error);
   }
 }

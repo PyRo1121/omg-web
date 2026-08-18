@@ -43,10 +43,18 @@ import {
   AdminVersionCountRowSchema,
   AnalyticsSaltRowSchema,
   BillingCustomerRowSchema,
+  CliGeoRowSchema,
   CountRowSchema,
   customerIsAdmin,
   decodeExtraRowArray,
   decodeOptionalExtraRow,
+  DocsGeoRowSchema,
+  DocsInteractionRowSchema,
+  DocsPageviewsRowSchema,
+  DocsPerformanceRowSchema,
+  DocsReferrerRowSchema,
+  DocsTopPageRowSchema,
+  DocsUtmRowSchema,
   FirehoseEventRowSchema,
   GrowthRowSchema,
   InsightsStatsRowSchema,
@@ -66,6 +74,11 @@ import {
   UsageDailyRowSchema,
   SessionJoinRowSchema,
   SiteAnalyticsTotalsRowSchema,
+  SiteDailyTrendRowSchema,
+  SiteDeviceRowSchema,
+  SiteGeoRowSchema,
+  SiteRealtimeCountryRowSchema,
+  SiteTopPageRowSchema,
   TeamMemberMachineRowSchema,
   TierCountRowSchema,
   TierRowSchema,
@@ -875,5 +888,105 @@ describe('remaining D1 result arrays', () => {
       decodeExtraRowArray(AdminAuditLogRowSchema, 'audit', [{ id: 'a1', created_at: 'x' }])
     );
     expect(Exit.isFailure(badLog)).toBe(true);
+  });
+
+  it('decodes site and docs analytics list rows and rejects a geo row without a country', async () => {
+    const siteGeo = await Effect.runPromise(
+      decodeExtraRowArray(SiteGeoRowSchema, 'site-geo', [
+        { country_code: 'US', visitors: 4, sessions: null, pageviews: 9 },
+      ])
+    );
+    expect(siteGeo[0]?.sessions).toBe(0);
+
+    const docsGeo = await Effect.runPromise(
+      decodeExtraRowArray(DocsGeoRowSchema, 'docs-geo', [
+        { country_code: 'DE', sessions: 2, pageviews: 5 },
+      ])
+    );
+    expect(docsGeo[0]?.pageviews).toBe(5);
+
+    const cliGeo = await Effect.runPromise(
+      decodeExtraRowArray(CliGeoRowSchema, 'cli-geo', [{ country_code: 'CA', count: 3 }])
+    );
+    expect(cliGeo[0]?.count).toBe(3);
+
+    const realtime = await Effect.runPromise(
+      decodeExtraRowArray(SiteRealtimeCountryRowSchema, 'realtime', [
+        { country_code: 'US', count: 2 },
+      ])
+    );
+    expect(realtime[0]?.count).toBe(2);
+
+    const trend = await Effect.runPromise(
+      decodeExtraRowArray(SiteDailyTrendRowSchema, 'trend', [
+        { date: '2026-08-17', pageviews: 10, visitors: 4 },
+      ])
+    );
+    expect(trend[0]?.pageviews).toBe(10);
+
+    const pages = await Effect.runPromise(
+      decodeExtraRowArray(SiteTopPageRowSchema, 'pages', [{ path: '/', views: 8, visitors: 3 }])
+    );
+    expect(pages[0]?.views).toBe(8);
+
+    const devices = await Effect.runPromise(
+      decodeExtraRowArray(SiteDeviceRowSchema, 'devices', [{ device_type: 'desktop', visitors: 6 }])
+    );
+    expect(devices[0]?.device_type).toBe('desktop');
+
+    const docsPages = await Effect.runPromise(
+      decodeExtraRowArray(DocsTopPageRowSchema, 'docs-pages', [
+        { path: '/install', views: 4, sessions: 2, avg_time: 1200 },
+      ])
+    );
+    expect(docsPages[0]?.avg_time).toBe(1200);
+
+    const referrers = await Effect.runPromise(
+      decodeExtraRowArray(DocsReferrerRowSchema, 'docs-ref', [
+        { referrer: 'google.com', sessions: 3, pageviews: 7 },
+      ])
+    );
+    expect(referrers[0]?.referrer).toBe('google.com');
+
+    const utm = await Effect.runPromise(
+      decodeExtraRowArray(DocsUtmRowSchema, 'utm', [
+        {
+          utm_source: 'newsletter',
+          utm_medium: 'email',
+          utm_campaign: null,
+          sessions: 1,
+          pageviews: 2,
+        },
+      ])
+    );
+    expect(utm[0]?.utm_campaign).toBeNull();
+
+    const interactions = await Effect.runPromise(
+      decodeExtraRowArray(DocsInteractionRowSchema, 'interactions', [
+        { interaction_type: 'click', target: 'cta', count: 9 },
+      ])
+    );
+    expect(interactions[0]?.count).toBe(9);
+
+    const performance = await Effect.runPromise(
+      decodeExtraRowArray(DocsPerformanceRowSchema, 'perf', [
+        { path: '/', avg_load: 200, p95_load: 400, samples: 12 },
+      ])
+    );
+    expect(performance[0]?.samples).toBe(12);
+
+    const pageviews = await Effect.runPromise(
+      decodeExtraRowArray(DocsPageviewsRowSchema, 'pageviews', [
+        { date: '2026-08-17', views: 5, sessions: 2 },
+      ])
+    );
+    expect(pageviews[0]?.views).toBe(5);
+
+    const badGeo = await Effect.runPromiseExit(
+      decodeExtraRowArray(SiteGeoRowSchema, 'site-geo', [
+        { visitors: 1, sessions: 1, pageviews: 1 },
+      ])
+    );
+    expect(Exit.isFailure(badGeo)).toBe(true);
   });
 });

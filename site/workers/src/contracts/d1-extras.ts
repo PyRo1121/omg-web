@@ -180,6 +180,119 @@ export const DocsPageviewsRowSchema = Schema.Struct({
 });
 export type DocsPageviewsRow = Schema.Schema.Type<typeof DocsPageviewsRowSchema>;
 
+/** Site analytics geo rollup. */
+export const SiteGeoRowSchema = Schema.Struct({
+  country_code: Schema.String,
+  visitors: D1Number,
+  sessions: D1Number,
+  pageviews: D1Number,
+});
+export type SiteGeoRow = Schema.Schema.Type<typeof SiteGeoRowSchema>;
+
+/** Docs analytics geo rollup. */
+export const DocsGeoRowSchema = Schema.Struct({
+  country_code: Schema.String,
+  sessions: D1Number,
+  pageviews: D1Number,
+});
+export type DocsGeoRow = Schema.Schema.Type<typeof DocsGeoRowSchema>;
+
+/** CLI install geo count from audit metadata. */
+export const CliGeoRowSchema = Schema.Struct({
+  country_code: Schema.String,
+  count: D1Number,
+});
+export type CliGeoRow = Schema.Schema.Type<typeof CliGeoRowSchema>;
+
+/** Realtime visitors by country. */
+export const SiteRealtimeCountryRowSchema = Schema.Struct({
+  country_code: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type SiteRealtimeCountryRow = Schema.Schema.Type<typeof SiteRealtimeCountryRowSchema>;
+
+/** Realtime visitors by page. */
+export const SiteRealtimePageRowSchema = Schema.Struct({
+  page_path: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type SiteRealtimePageRow = Schema.Schema.Type<typeof SiteRealtimePageRowSchema>;
+
+/** Site analytics daily trend. */
+export const SiteDailyTrendRowSchema = Schema.Struct({
+  date: Schema.optional(NullableString),
+  pageviews: D1Number,
+  visitors: D1Number,
+});
+export type SiteDailyTrendRow = Schema.Schema.Type<typeof SiteDailyTrendRowSchema>;
+
+/** Site analytics top page. */
+export const SiteTopPageRowSchema = Schema.Struct({
+  path: Schema.optional(NullableString),
+  views: D1Number,
+  visitors: D1Number,
+});
+export type SiteTopPageRow = Schema.Schema.Type<typeof SiteTopPageRowSchema>;
+
+/** Site analytics referrer rollup. */
+export const SiteReferrerRowSchema = Schema.Struct({
+  referrer_domain: Schema.optional(NullableString),
+  visitors: D1Number,
+  pageviews: D1Number,
+});
+export type SiteReferrerRow = Schema.Schema.Type<typeof SiteReferrerRowSchema>;
+
+/** Site analytics device rollup. */
+export const SiteDeviceRowSchema = Schema.Struct({
+  device_type: Schema.optional(NullableString),
+  visitors: D1Number,
+});
+export type SiteDeviceRow = Schema.Schema.Type<typeof SiteDeviceRowSchema>;
+
+/** Docs analytics top page. */
+export const DocsTopPageRowSchema = Schema.Struct({
+  path: Schema.optional(NullableString),
+  views: D1Number,
+  sessions: D1Number,
+  avg_time: D1Number,
+});
+export type DocsTopPageRow = Schema.Schema.Type<typeof DocsTopPageRowSchema>;
+
+/** Docs analytics referrer rollup. */
+export const DocsReferrerRowSchema = Schema.Struct({
+  referrer: Schema.optional(NullableString),
+  sessions: D1Number,
+  pageviews: D1Number,
+});
+export type DocsReferrerRow = Schema.Schema.Type<typeof DocsReferrerRowSchema>;
+
+/** Docs analytics UTM campaign rollup. */
+export const DocsUtmRowSchema = Schema.Struct({
+  utm_source: Schema.optional(NullableString),
+  utm_medium: Schema.optional(NullableString),
+  utm_campaign: Schema.optional(NullableString),
+  sessions: D1Number,
+  pageviews: D1Number,
+});
+export type DocsUtmRow = Schema.Schema.Type<typeof DocsUtmRowSchema>;
+
+/** Docs analytics interaction rollup. */
+export const DocsInteractionRowSchema = Schema.Struct({
+  interaction_type: Schema.optional(NullableString),
+  target: Schema.optional(NullableString),
+  count: D1Number,
+});
+export type DocsInteractionRow = Schema.Schema.Type<typeof DocsInteractionRowSchema>;
+
+/** Docs analytics performance rollup. */
+export const DocsPerformanceRowSchema = Schema.Struct({
+  path: Schema.optional(NullableString),
+  avg_load: D1Number,
+  p95_load: D1Number,
+  samples: D1Number,
+});
+export type DocsPerformanceRow = Schema.Schema.Type<typeof DocsPerformanceRowSchema>;
+
 /** Admin usage CSV row. */
 export const UsageCsvRowSchema = Schema.Struct({
   date: Schema.optional(NullableString),
