@@ -15,6 +15,18 @@ import {
   SessionIdBodySchema,
   UpdateProfileBodySchema,
 } from '../contracts/http-bodies';
+import {
+  decodeExtraRowArray,
+  decodeOptionalExtraRow,
+  IdRowSchema,
+  isTeamOrEnterpriseTier,
+  LicenseTeamAuthRowSchema,
+  MemberRecentUsageRowSchema,
+  MemberUsageRowSchema,
+  TeamMemberMachineRowSchema,
+  TeamUsageTotalsRowSchema,
+  TierRowSchema,
+} from '../contracts/d1-extras';
 
 const SessionListRowSchema = Schema.Struct({
   id: Schema.String,
@@ -73,7 +85,7 @@ export async function handleRegenerateLicense(request: Request, env: Env): Promi
   const { user } = auth;
 
   // Get current license
-  const license = await env.DB.prepare(
+  const licenseRow = await env.DB.prepare(
     `
     SELECT id FROM licenses WHERE customer_id = ?
   `
@@ -81,7 +93,10 @@ export async function handleRegenerateLicense(request: Request, env: Env): Promi
     .bind(user.id)
     .first();
 
-  if (!license) {
+  const license = await Effect.runPromise(
+    decodeOptionalExtraRow(IdRowSchema, 'License id row has an invalid shape', licenseRow)
+  );
+  if (license === undefined) {
     return errorResponse('License not found', 404);
   }
 
@@ -105,8 +120,7 @@ export async function handleRegenerateLicense(request: Request, env: Env): Promi
     .bind(license.id)
     .run();
 
-  // SAFETY: The license row is loaded from the database and has a string primary key.
-  await logAudit(env.DB, user.id, 'license.regenerated', 'license', String(license.id), request);
+  await logAudit(env.DB, user.id, 'license.regenerated', 'license', license.id, request);
 
   return jsonResponse({
     success: true,
@@ -253,7 +267,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     }
 
     // Get license and check tier
-    const license = await env.DB.prepare(
+    const licenseRow = await env.DB.prepare(
       `
       SELECT id, tier, status, max_seats FROM licenses WHERE customer_id = ?
     `
@@ -261,17 +275,24 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       .bind(auth.user.id)
       .first();
 
-    if (!license) {
+    const license = await Effect.runPromise(
+      decodeOptionalExtraRow(
+        LicenseTeamAuthRowSchema,
+        'Team license row has an invalid shape',
+        licenseRow
+      )
+    );
+
+    if (license === undefined) {
       return errorResponse('License not found', 404);
     }
 
-    // SAFETY: License tier is a string value from the licenses schema.
-    if (license.tier !== 'team' && license.tier !== 'enterprise') {
+    if (!isTeamOrEnterpriseTier(license.tier)) {
       return errorResponse('Team management requires Team or Enterprise tier', 403);
     }
 
     // Get all machines (team members)
-    const machines = await env.DB.prepare(
+    const machinesResult = await env.DB.prepare(
       `
     SELECT
       m.id,
@@ -293,8 +314,20 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       .bind(license.id)
       .all();
 
+    const machinesExit = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        TeamMemberMachineRowSchema,
+        'Team member machine rows have an invalid shape',
+        machinesResult.results
+      )
+    );
+    if (Exit.isFailure(machinesExit)) {
+      return errorResponse('Failed to load team members', 500);
+    }
+    const machines = machinesExit.value;
+
     // Get real per-member usage stats
-    const memberUsage = await env.DB.prepare(
+    const memberUsageResult = await env.DB.prepare(
       `
     SELECT
       machine_id,
@@ -310,10 +343,21 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       .bind(license.id)
       .all();
 
-    const usageMap = new Map(memberUsage.results?.map(u => [u.machine_id, u]) || []);
+    const memberUsageExit = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        MemberUsageRowSchema,
+        'Member usage rows have an invalid shape',
+        memberUsageResult.results
+      )
+    );
+    if (Exit.isFailure(memberUsageExit)) {
+      return errorResponse('Failed to load team members', 500);
+    }
+
+    const usageMap = new Map(memberUsageExit.value.map(row => [row.machine_id, row]));
 
     // Get last 7 days usage
-    const recentUsage = await env.DB.prepare(
+    const recentUsageResult = await env.DB.prepare(
       `
     SELECT
       machine_id,
@@ -326,11 +370,22 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       .bind(license.id)
       .all();
 
+    const recentUsageExit = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        MemberRecentUsageRowSchema,
+        'Recent member usage rows have an invalid shape',
+        recentUsageResult.results
+      )
+    );
+    if (Exit.isFailure(recentUsageExit)) {
+      return errorResponse('Failed to load team members', 500);
+    }
+
     const recentMap = new Map(
-      recentUsage.results?.map(u => [u.machine_id, u.commands_last_7d]) || []
+      recentUsageExit.value.map(row => [row.machine_id, row.commands_last_7d])
     );
 
-    const totalUsage = await env.DB.prepare(
+    const totalUsageRow = await env.DB.prepare(
       `
     SELECT
       SUM(commands_run) as total_commands,
@@ -343,29 +398,36 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       .bind(license.id)
       .first();
 
-    const membersWithUsage = (machines.results || []).map(m => {
-      // SAFETY: Machine ids are string keys selected by both usage queries.
-      const usage = usageMap.get(m.machine_id) || {};
-      const recent = recentMap.get(m.machine_id) || 0;
+    const totalUsage = await Effect.runPromise(
+      decodeOptionalExtraRow(
+        TeamUsageTotalsRowSchema,
+        'Team usage totals have an invalid shape',
+        totalUsageRow
+      )
+    );
+
+    const membersWithUsage = machines.map(member => {
+      const usage = usageMap.get(member.machine_id);
+      const recent = recentMap.get(member.machine_id) ?? 0;
       return {
-        ...m,
-        total_commands: Number(usage.total_commands || 0),
-        total_packages: Number(usage.total_packages || 0),
-        total_time_saved_ms: Number(usage.total_time_saved_ms || 0),
-        commands_last_7d: Number(recent),
-        last_active: usage.last_active || m.last_seen_at,
+        ...member,
+        total_commands: usage?.total_commands ?? 0,
+        total_packages: usage?.total_packages ?? 0,
+        total_time_saved_ms: usage?.total_time_saved_ms ?? 0,
+        commands_last_7d: recent,
+        last_active: usage?.last_active ?? member.last_seen_at,
       };
     });
 
     // Calculate fleet compliance (version drift)
-    const versions = (machines.results || []).map(m => m.omg_version || 'unknown');
+    const versions = machines.map(member => member.omg_version || 'unknown');
     const uniqueVersions = [...new Set(versions)];
     const latestVersion = uniqueVersions.toSorted().toReversed()[0] || 'unknown';
     const complianceRate =
       (versions.filter(v => v === latestVersion).length / (versions.length || 1)) * 100;
 
     // Calculate ROI (Return on Investment)
-    const totalHoursSaved = (Number(totalUsage?.total_time_saved_ms) || 0) / (1000 * 60 * 60);
+    const totalHoursSaved = (totalUsage?.total_time_saved_ms ?? 0) / (1000 * 60 * 60);
     const totalValueUSD = Math.round(totalHoursSaved * 100);
 
     // Get daily usage breakdown (last 14 days)
@@ -384,10 +446,10 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       .all();
 
     // Get team totals
-    const totalMachines = machines.results?.length || 0;
-    const activeMachines = (machines.results || []).filter(m => m.is_active === 1).length;
-    const totalCommands = Number(totalUsage?.total_commands) || 0;
-    const totalTimeSaved = Number(totalUsage?.total_time_saved_ms) || 0;
+    const totalMachines = machines.length;
+    const activeMachines = machines.filter(member => member.is_active === 1).length;
+    const totalCommands = totalUsage?.total_commands ?? 0;
+    const totalTimeSaved = totalUsage?.total_time_saved_ms ?? 0;
 
     return jsonResponse({
       license: {
@@ -484,7 +546,7 @@ export async function handleGetAuditLog(request: Request, env: Env): Promise<Res
   }
 
   // Only team+ tiers can access audit logs
-  const license = await env.DB.prepare(
+  const licenseRow = await env.DB.prepare(
     `
     SELECT tier FROM licenses WHERE customer_id = ?
   `
@@ -492,8 +554,11 @@ export async function handleGetAuditLog(request: Request, env: Env): Promise<Res
     .bind(auth.user.id)
     .first();
 
-  // SAFETY: License tier is a string value from the licenses schema.
-  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
+  const license = await Effect.runPromise(
+    decodeOptionalExtraRow(TierRowSchema, 'License tier row has an invalid shape', licenseRow)
+  );
+
+  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
     return errorResponse('Audit logs require Team or Enterprise tier', 403);
   }
 

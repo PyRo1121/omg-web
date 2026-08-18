@@ -218,6 +218,100 @@ export const SiteAnalyticsTotalsRowSchema = Schema.Struct({
 });
 export type SiteAnalyticsTotalsRow = Schema.Schema.Type<typeof SiteAnalyticsTotalsRowSchema>;
 
+/** Active license id and tier used for team-controls authorization. */
+export const LicenseIdTierRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  tier: Schema.String,
+});
+export type LicenseIdTierRow = Schema.Schema.Type<typeof LicenseIdTierRowSchema>;
+
+/** Active license row that also carries seat counts. */
+export const LicenseSeatsRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  tier: Schema.String,
+  max_seats: D1Number,
+  used_seats: D1Number,
+});
+export type LicenseSeatsRow = Schema.Schema.Type<typeof LicenseSeatsRowSchema>;
+
+/** Dashboard team-management license row. */
+export const LicenseTeamAuthRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  tier: Schema.String,
+  status: Schema.String,
+  max_seats: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
+});
+export type LicenseTeamAuthRow = Schema.Schema.Type<typeof LicenseTeamAuthRowSchema>;
+
+/** License-tier-only lookup. */
+export const TierRowSchema = Schema.Struct({
+  tier: Schema.String,
+});
+export type TierRow = Schema.Schema.Type<typeof TierRowSchema>;
+
+/** COUNT(*) AS total aggregate. */
+export const TotalRowSchema = Schema.Struct({
+  total: D1Number,
+});
+export type TotalRow = Schema.Schema.Type<typeof TotalRowSchema>;
+
+/** Machine hostname selected for audit metadata. */
+export const HostnameRowSchema = Schema.Struct({
+  hostname: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+});
+export type HostnameRow = Schema.Schema.Type<typeof HostnameRowSchema>;
+
+/** Dashboard team member machine row. */
+export const TeamMemberMachineRowSchema = Schema.Struct({
+  id: Schema.String,
+  machine_id: Schema.String,
+  hostname: Schema.Union(Schema.Null, Schema.String),
+  os: Schema.Union(Schema.Null, Schema.String),
+  arch: Schema.Union(Schema.Null, Schema.String),
+  omg_version: Schema.Union(Schema.Null, Schema.String),
+  user_name: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  user_email: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  is_active: Schema.Number,
+  first_seen_at: Schema.String,
+  last_seen_at: Schema.String,
+});
+export type TeamMemberMachineRow = Schema.Schema.Type<typeof TeamMemberMachineRowSchema>;
+
+/** Per-machine usage rolled up for team members. */
+export const MemberUsageRowSchema = Schema.Struct({
+  machine_id: Schema.String,
+  total_commands: D1Number,
+  total_packages: D1Number,
+  total_time_saved_ms: D1Number,
+  last_active: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+});
+export type MemberUsageRow = Schema.Schema.Type<typeof MemberUsageRowSchema>;
+
+/** Last-7-day command totals keyed by machine. */
+export const MemberRecentUsageRowSchema = Schema.Struct({
+  machine_id: Schema.String,
+  commands_last_7d: D1Number,
+});
+export type MemberRecentUsageRow = Schema.Schema.Type<typeof MemberRecentUsageRowSchema>;
+
+/** License-wide usage SUM for the team dashboard. */
+export const TeamUsageTotalsRowSchema = Schema.Struct({
+  total_commands: D1Number,
+  total_packages: D1Number,
+  total_time_saved_ms: D1Number,
+});
+export type TeamUsageTotalsRow = Schema.Schema.Type<typeof TeamUsageTotalsRowSchema>;
+
+/**
+ * Whether a license tier may access team and enterprise controls.
+ *
+ * @param tier - Decoded license tier.
+ * @returns True for team and enterprise.
+ */
+export function isTeamOrEnterpriseTier(tier: string): boolean {
+  return tier === 'team' || tier === 'enterprise';
+}
+
 /**
  * Decode stored firehose properties JSON.
  *

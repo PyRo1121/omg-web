@@ -22,6 +22,28 @@ import {
   UpdatePolicyBodySchema,
   type NotificationSetting,
 } from '../contracts/team-controls';
+import {
+  decodeOptionalExtraRow,
+  HostnameRowSchema,
+  isTeamOrEnterpriseTier,
+  LicenseIdTierRowSchema,
+  LicenseSeatsRowSchema,
+  TotalRowSchema,
+  type LicenseIdTierRow,
+} from '../contracts/d1-extras';
+
+async function loadActiveLicenseIdTier(
+  db: D1Database,
+  customerId: string
+): Promise<LicenseIdTierRow | undefined> {
+  const row = await db
+    .prepare(`SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`)
+    .bind(customerId)
+    .first();
+  return Effect.runPromise(
+    decodeOptionalExtraRow(LicenseIdTierRowSchema, 'License id/tier row has an invalid shape', row)
+  );
+}
 
 export async function handleGetPolicies(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
@@ -30,14 +52,8 @@ export async function handleGetPolicies(request: Request, env: Env): Promise<Res
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await env.DB.prepare(
-    `SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`
-  )
-    .bind(auth.user.id)
-    .first();
-
-  // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
+  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
+  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
     return errorResponse('Policies require Team or Enterprise tier', 403);
   }
 
@@ -57,13 +73,8 @@ export async function handleCreatePolicy(request: Request, env: Env): Promise<Re
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await env.DB.prepare(
-    `SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`
-  )
-    .bind(auth.user.id)
-    .first();
-
-  if (!license || license.tier !== 'enterprise') {
+  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
+  if (license === undefined || license.tier !== 'enterprise') {
     return errorResponse('Policy management requires Enterprise tier', 403);
   }
 
@@ -105,13 +116,8 @@ export async function handleUpdatePolicy(request: Request, env: Env): Promise<Re
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await env.DB.prepare(
-    `SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`
-  )
-    .bind(auth.user.id)
-    .first();
-
-  if (!license || license.tier !== 'enterprise') {
+  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
+  if (license === undefined || license.tier !== 'enterprise') {
     return errorResponse('Policy management requires Enterprise tier', 403);
   }
 
@@ -159,13 +165,8 @@ export async function handleDeletePolicy(request: Request, env: Env): Promise<Re
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await env.DB.prepare(
-    `SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`
-  )
-    .bind(auth.user.id)
-    .first();
-
-  if (!license || license.tier !== 'enterprise') {
+  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
+  if (license === undefined || license.tier !== 'enterprise') {
     return errorResponse('Policy management requires Enterprise tier', 403);
   }
 
@@ -193,14 +194,8 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await env.DB.prepare(
-    `SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`
-  )
-    .bind(auth.user.id)
-    .first();
-
-  // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
+  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
+  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
     return errorResponse('Notifications require Team or Enterprise tier', 403);
   }
 
@@ -259,14 +254,8 @@ export async function handleUpdateNotificationSettings(
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await env.DB.prepare(
-    `SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`
-  )
-    .bind(auth.user.id)
-    .first();
-
-  // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
+  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
+  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
     return errorResponse('Notifications require Team or Enterprise tier', 403);
   }
 
@@ -314,14 +303,8 @@ export async function handleRevokeMember(request: Request, env: Env): Promise<Re
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await env.DB.prepare(
-    `SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`
-  )
-    .bind(auth.user.id)
-    .first();
-
-  // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
+  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
+  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
     return errorResponse('Member management requires Team or Enterprise tier', 403);
   }
 
@@ -333,13 +316,20 @@ export async function handleRevokeMember(request: Request, env: Env): Promise<Re
 
   if (!machine_id) return errorResponse('Missing machine_id', 400);
 
-  const machine = await env.DB.prepare(
+  const machineRow = await env.DB.prepare(
     `SELECT hostname FROM machines WHERE machine_id = ? AND license_id = ?`
   )
     .bind(machine_id, license.id)
     .first();
 
-  if (!machine) return errorResponse('Machine not found', 404);
+  const machine = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      HostnameRowSchema,
+      'Machine hostname row has an invalid shape',
+      machineRow
+    )
+  );
+  if (machine === undefined) return errorResponse('Machine not found', 404);
 
   await env.DB.prepare(
     `UPDATE machines SET is_active = 0, revoked_at = datetime('now') WHERE machine_id = ? AND license_id = ?`
@@ -365,14 +355,8 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await env.DB.prepare(
-    `SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`
-  )
-    .bind(auth.user.id)
-    .first();
-
-  // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
+  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
+  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
     return errorResponse('Audit logs require Team or Enterprise tier', 403);
   }
 
@@ -412,6 +396,9 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
   )
     .bind(auth.user.id)
     .first();
+  const totalRow = await Effect.runPromise(
+    decodeOptionalExtraRow(TotalRowSchema, 'Audit log count has an invalid shape', countResult)
+  );
 
   const decodedLogs = await Effect.runPromiseExit(
     Effect.forEach(logs.results || [], row =>
@@ -427,7 +414,7 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
       ...log,
       metadata: log.metadata ? decodeStoredJsonObject(log.metadata) : null,
     })),
-    total: countResult?.total || 0,
+    total: totalRow?.total ?? 0,
     limit,
     offset,
   });
@@ -440,14 +427,20 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await env.DB.prepare(
+  const licenseRow = await env.DB.prepare(
     `SELECT l.id, l.tier, l.max_seats, l.used_seats FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`
   )
     .bind(auth.user.id)
     .first();
+  const license = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      LicenseSeatsRowSchema,
+      'License seats row has an invalid shape',
+      licenseRow
+    )
+  );
 
-  // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
+  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
     return errorResponse('Team members require Team or Enterprise tier', 403);
   }
 
@@ -491,14 +484,8 @@ export async function handleUpdateAlertThreshold(request: Request, env: Env): Pr
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const license = await env.DB.prepare(
-    `SELECT l.id, l.tier FROM licenses l WHERE l.customer_id = ? AND l.status = 'active'`
-  )
-    .bind(auth.user.id)
-    .first();
-
-  // SAFETY: The license query provides the tier field used for authorization.
-  if (!license || (license.tier !== 'team' && license.tier !== 'enterprise')) {
+  const license = await loadActiveLicenseIdTier(env.DB, auth.user.id);
+  if (license === undefined || !isTeamOrEnterpriseTier(license.tier)) {
     return errorResponse('Alert thresholds require Team or Enterprise tier', 403);
   }
 

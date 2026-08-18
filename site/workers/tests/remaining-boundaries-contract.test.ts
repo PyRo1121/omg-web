@@ -16,8 +16,15 @@ import {
   decodeExtraRowArray,
   decodeOptionalExtraRow,
   FirehoseEventRowSchema,
+  isTeamOrEnterpriseTier,
+  LicenseIdTierRowSchema,
+  LicenseSeatsRowSchema,
+  LicenseTeamAuthRowSchema,
+  MemberUsageRowSchema,
   SessionJoinRowSchema,
   SiteAnalyticsTotalsRowSchema,
+  TeamMemberMachineRowSchema,
+  TierRowSchema,
 } from '../src/contracts/d1-extras';
 
 function isSuccess<A, E>(exit: Exit.Exit<A, E>): boolean {
@@ -218,5 +225,82 @@ describe('optional extra rows', () => {
       })
     );
     expect(row?.total_visitors).toBe(4);
+  });
+
+  it('decodes an id/tier license row used for authorization', async () => {
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(LicenseIdTierRowSchema, 'license', { id: 'lic_1', tier: 'team' })
+    );
+    expect(row?.id).toBe('lic_1');
+    expect(isTeamOrEnterpriseTier(row?.tier ?? '')).toBe(true);
+  });
+
+  it('rejects a license row without an id', async () => {
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(LicenseIdTierRowSchema, 'license', { tier: 'team' })
+    );
+    expect(row).toBeUndefined();
+  });
+
+  it('decodes seat counts from an active license', async () => {
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(LicenseSeatsRowSchema, 'seats', {
+        id: 'lic_1',
+        tier: 'enterprise',
+        max_seats: null,
+        used_seats: 3,
+      })
+    );
+    expect(row?.max_seats).toBe(0);
+    expect(row?.used_seats).toBe(3);
+  });
+
+  it('decodes a dashboard team license and member usage', async () => {
+    const license = await Effect.runPromise(
+      decodeOptionalExtraRow(LicenseTeamAuthRowSchema, 'team-license', {
+        id: 'lic_1',
+        tier: 'team',
+        status: 'active',
+        max_seats: 25,
+      })
+    );
+    expect(license?.status).toBe('active');
+
+    const machines = await Effect.runPromise(
+      decodeExtraRowArray(TeamMemberMachineRowSchema, 'machines', [
+        {
+          id: 'row_1',
+          machine_id: 'm1',
+          hostname: 'box',
+          os: 'linux',
+          arch: 'x64',
+          omg_version: '1.0.0',
+          user_name: null,
+          user_email: null,
+          is_active: 1,
+          first_seen_at: '2026-01-01T00:00:00.000Z',
+          last_seen_at: '2026-01-02T00:00:00.000Z',
+        },
+      ])
+    );
+    expect(machines[0]?.machine_id).toBe('m1');
+
+    const usage = await Effect.runPromise(
+      decodeOptionalExtraRow(MemberUsageRowSchema, 'usage', {
+        machine_id: 'm1',
+        total_commands: 9,
+        total_packages: 2,
+        total_time_saved_ms: 1000,
+        last_active: '2026-01-02',
+      })
+    );
+    expect(usage?.total_commands).toBe(9);
+  });
+
+  it('decodes a tier-only license lookup', async () => {
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(TierRowSchema, 'tier', { tier: 'enterprise' })
+    );
+    expect(isTeamOrEnterpriseTier(row?.tier ?? '')).toBe(true);
   });
 });

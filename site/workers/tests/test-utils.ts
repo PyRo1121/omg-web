@@ -19,10 +19,8 @@ export async function setupDatabase(db: D1Database) {
   for (const statement of statements) {
     try {
       await db.prepare(statement).run();
-    } catch (e) {
-      // Ignore "already exists" errors
-      // SAFETY: D1 rejects statements with Error-shaped errors that carry a message.
-      if (!(e as Error).message.includes('already exists')) {
+    } catch (e: unknown) {
+      if (!(e instanceof Error) || !e.message.includes('already exists')) {
         console.error('Failed to execute statement:', statement, e);
       }
     }

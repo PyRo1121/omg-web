@@ -10,6 +10,7 @@ import '../src/cloudflare-test.d.ts';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
+import { Schema } from '@effect/schema';
 import worker from '../src/worker';
 
 describe('Privacy API', () => {
@@ -422,9 +423,17 @@ describe('Privacy API', () => {
         throw new Error('Audit details must be stored as JSON text');
       }
       expect(audit.resource_type).toBe('customer');
-      // SAFETY: The typed D1 query selects the deletion audit row, and the Worker writes its details as JSON with a reason field.
-      const details = JSON.parse(audit.details) as { reason: string };
-      expect(details.reason).toBe('GDPR request');
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(audit.details);
+      } catch {
+        throw new Error('Audit details must be valid JSON');
+      }
+      const details = Schema.decodeUnknownEither(Schema.Struct({ reason: Schema.String }))(parsed);
+      if (details._tag !== 'Right') {
+        throw new Error('Audit details must include a reason string');
+      }
+      expect(details.right.reason).toBe('GDPR request');
     });
 
     it('should anonymize license record', async () => {
