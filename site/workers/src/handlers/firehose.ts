@@ -1,18 +1,30 @@
 // Firehose Handler - Streaming real-time events to Admin Dashboard
+import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
+import {
+  decodeExtraRowArray,
+  decodeStoredProperties,
+  FirehoseEventRowSchema,
+} from '../contracts/d1-extras';
 
 export async function handleGetFirehose(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
-  if (!token) {return errorResponse('Unauthorized', 401);}
+  if (!token) {
+    return errorResponse('Unauthorized', 401);
+  }
 
   const auth = await validateSession(env.DB, token);
-  if (!auth) {return errorResponse('Invalid session', 401);}
+  if (!auth) {
+    return errorResponse('Invalid session', 401);
+  }
 
   // Strictly Admin Only - Check admin column from database
   const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
     .bind(auth.user.id)
     .first();
-  if (adminCheck?.admin !== 1) {return errorResponse('Forbidden', 403);}
+  if (adminCheck?.admin !== 1) {
+    return errorResponse('Forbidden', 403);
+  }
 
   const url = new URL(request.url);
   const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 100);
@@ -35,7 +47,7 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
       FROM analytics_events
     `;
 
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
     if (since) {
       query += ` WHERE created_at > ?`;
@@ -49,11 +61,20 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
       .bind(...params)
       .all();
 
-    // Parse properties JSON for frontend convenience
-    const events = results.map((event: any) => ({
+    const decoded = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        FirehoseEventRowSchema,
+        'Firehose event row has an invalid shape',
+        results
+      )
+    );
+    if (Exit.isFailure(decoded)) {
+      return errorResponse('Failed to fetch firehose data', 500);
+    }
+
+    const events = decoded.value.map(event => ({
       ...event,
-      // SAFETY: The analytics schema stores properties as JSON text.
-      properties: event.properties ? JSON.parse(event.properties as string) : {},
+      properties: decodeStoredProperties(event.properties),
     }));
 
     return jsonResponse({

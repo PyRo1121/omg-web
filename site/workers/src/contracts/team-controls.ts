@@ -1,0 +1,165 @@
+// Boundary parser internals decode team-control JSON and D1 rows.
+// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON/D1 boundary parsing requires these operations.
+
+import { Effect } from 'effect';
+import { Schema } from '@effect/schema';
+
+/** A failure decoding a team-controls payload or stored JSON field. */
+export class TeamControlsParseError extends Error {
+  readonly _tag = 'TeamControlsParseError';
+  constructor(
+    readonly reason: string,
+    readonly cause?: unknown
+  ) {
+    super(reason);
+  }
+}
+
+const OptionalBoolean = Schema.optional(Schema.Boolean);
+const OptionalNumber = Schema.optional(Schema.Number);
+const OptionalString = Schema.optional(Schema.String);
+const JsonAtom = Schema.Union(Schema.String, Schema.Number, Schema.Boolean, Schema.Null);
+
+/** Body posted to create an enterprise policy. */
+export const CreatePolicyBodySchema = Schema.Struct({
+  scope: Schema.String,
+  rule: Schema.String,
+  value: Schema.String,
+  enforced: OptionalBoolean,
+});
+export type CreatePolicyBody = Schema.Schema.Type<typeof CreatePolicyBodySchema>;
+
+/** Body posted to update an enterprise policy. */
+export const UpdatePolicyBodySchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  value: OptionalString,
+  enforced: OptionalBoolean,
+});
+export type UpdatePolicyBody = Schema.Schema.Type<typeof UpdatePolicyBodySchema>;
+
+/** Body posted to delete an enterprise policy. */
+export const DeletePolicyBodySchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+});
+export type DeletePolicyBody = Schema.Schema.Type<typeof DeletePolicyBodySchema>;
+
+/** One notification channel setting. */
+export const NotificationSettingSchema = Schema.Struct({
+  type: Schema.String.pipe(Schema.minLength(1)),
+  enabled: Schema.Boolean,
+  threshold: OptionalNumber,
+  channels: Schema.Array(Schema.String),
+});
+export type NotificationSetting = Schema.Schema.Type<typeof NotificationSettingSchema>;
+
+/** Body posted to replace notification settings. */
+export const UpdateNotificationSettingsBodySchema = Schema.Struct({
+  settings: Schema.Array(NotificationSettingSchema),
+});
+export type UpdateNotificationSettingsBody = Schema.Schema.Type<
+  typeof UpdateNotificationSettingsBodySchema
+>;
+
+/** Body posted to revoke a team machine. */
+export const RevokeMemberBodySchema = Schema.Struct({
+  machine_id: Schema.String.pipe(Schema.minLength(1)),
+});
+export type RevokeMemberBody = Schema.Schema.Type<typeof RevokeMemberBodySchema>;
+
+/** Body posted to set an alert threshold. */
+export const AlertThresholdBodySchema = Schema.Struct({
+  threshold_type: Schema.String.pipe(Schema.minLength(1)),
+  value: Schema.Number,
+});
+export type AlertThresholdBody = Schema.Schema.Type<typeof AlertThresholdBodySchema>;
+
+/** Persisted notification_settings row. */
+export const NotificationSettingRowSchema = Schema.Struct({
+  type: Schema.String,
+  enabled: Schema.Union(Schema.Number, Schema.Boolean),
+  threshold: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
+  channels: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+});
+export type NotificationSettingRow = Schema.Schema.Type<typeof NotificationSettingRowSchema>;
+
+/** Audit log row returned to the team dashboard. */
+export const AuditLogRowSchema = Schema.Struct({
+  id: Schema.String,
+  action: Schema.String,
+  resource_type: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  resource_id: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  ip_address: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  user_agent: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  metadata: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  created_at: Schema.String,
+});
+export type AuditLogRow = Schema.Schema.Type<typeof AuditLogRowSchema>;
+
+const StoredStringArraySchema = Schema.Array(Schema.String);
+const StoredJsonObjectSchema = Schema.Record({ key: Schema.String, value: JsonAtom });
+
+/**
+ * Decode a stored JSON array of strings, returning `fallback` when empty or malformed.
+ *
+ * @param value - Persisted JSON text.
+ * @param fallback - Value used when the field is empty or invalid.
+ * @returns Typed channels, or the fallback.
+ */
+export function decodeStoredStringArray(
+  value: string | null | undefined,
+  fallback: ReadonlyArray<string>
+): ReadonlyArray<string> {
+  if (value === null || value === undefined || value.length === 0) {
+    return fallback;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+  const decoded = Schema.decodeUnknownEither(StoredStringArraySchema)(parsed);
+  return decoded._tag === 'Right' ? decoded.right : fallback;
+}
+
+/**
+ * Decode stored JSON object metadata, returning null when empty or malformed.
+ *
+ * @param value - Persisted JSON text.
+ * @returns A primitive record, or null.
+ */
+export function decodeStoredJsonObject(
+  value: string | null | undefined
+): Readonly<Record<string, string | number | boolean | null>> | null {
+  if (value === null || value === undefined || value.length === 0) {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  const decoded = Schema.decodeUnknownEither(StoredJsonObjectSchema)(parsed);
+  return decoded._tag === 'Right' ? decoded.right : null;
+}
+
+/**
+ * Decode a D1 row against a team-controls schema.
+ *
+ * @param schema - Row schema.
+ * @param reason - Parse error reason.
+ * @param value - The D1 result.
+ * @returns The typed row, or `TeamControlsParseError`.
+ */
+export function decodeTeamControlsRow<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  reason: string,
+  value: unknown
+): Effect.Effect<Schema.Schema.Type<S>, TeamControlsParseError> {
+  return Schema.decodeUnknown(schema)(value).pipe(
+    Effect.mapError(
+      (cause: unknown): TeamControlsParseError => new TeamControlsParseError(reason, cause)
+    )
+  );
+}

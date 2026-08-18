@@ -8,6 +8,13 @@ import {
   getAuthToken,
   logAudit,
 } from '../api';
+import { Effect, Exit } from 'effect';
+import { decodeJsonBody } from '../body';
+import {
+  MachineIdBodySchema,
+  SessionIdBodySchema,
+  UpdateProfileBodySchema,
+} from '../contracts/http-bodies';
 
 const SessionListRowSchema = Schema.Struct({
   id: Schema.String,
@@ -29,13 +36,11 @@ export async function handleUpdateProfile(request: Request, env: Env): Promise<R
     return errorResponse('Invalid or expired session', 401);
   }
 
-  let body: { name?: string };
-  try {
-    // SAFETY: The request boundary is restricted to the documented profile field.
-    body = await request.json();
-  } catch {
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, UpdateProfileBodySchema));
+  if (Exit.isFailure(decoded)) {
     return errorResponse('Invalid JSON body', 400);
   }
+  const body = decoded.value;
   const { user } = auth;
 
   if (body.name !== undefined) {
@@ -122,18 +127,12 @@ export async function handleRevokeMachine(request: Request, env: Env): Promise<R
     return errorResponse('Invalid or expired session', 401);
   }
 
-  let body: { machine_id?: string };
-  try {
-    // SAFETY: The request boundary is restricted to the documented machine field.
-    body = await request.json();
-  } catch {
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, MachineIdBodySchema));
+  if (Exit.isFailure(decoded)) {
     return errorResponse('Invalid JSON body', 400);
   }
+  const body = decoded.value;
   const { user } = auth;
-
-  if (!body.machine_id) {
-    return errorResponse('Machine ID required');
-  }
 
   // Get license
   const license = await env.DB.prepare(
@@ -216,17 +215,11 @@ export async function handleRevokeSession(request: Request, env: Env): Promise<R
     return errorResponse('Invalid or expired session', 401);
   }
 
-  let body: { session_id?: string };
-  try {
-    // SAFETY: The request boundary is restricted to the documented session field.
-    body = await request.json();
-  } catch {
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, SessionIdBodySchema));
+  if (Exit.isFailure(decoded)) {
     return errorResponse('Invalid JSON body', 400);
   }
-
-  if (!body.session_id) {
-    return errorResponse('Session ID required');
-  }
+  const body = decoded.value;
 
   // Can't revoke current session via this endpoint
   if (body.session_id === auth.session.id) {
@@ -441,16 +434,11 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
     return errorResponse('Invalid or expired session', 401);
   }
 
-  let body: { machine_id?: string };
-  try {
-    // SAFETY: The request boundary is restricted to the documented machine field.
-    body = await request.json();
-  } catch {
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, MachineIdBodySchema));
+  if (Exit.isFailure(decoded)) {
     return errorResponse('Invalid JSON body', 400);
   }
-  if (!body.machine_id) {
-    return errorResponse('Machine ID required');
-  }
+  const body = decoded.value;
 
   // Get license
   const license = await env.DB.prepare(

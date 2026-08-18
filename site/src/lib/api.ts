@@ -62,21 +62,30 @@ export async function get<T>(endpoint: string): Promise<T> {
   return apiRequest<T>(endpoint, { method: 'GET' });
 }
 
-export async function post<T>(endpoint: string, body?: any): Promise<T> {
+export async function post<T>(
+  endpoint: string,
+  body?: { readonly [key: string]: string | number | boolean | null | undefined }
+): Promise<T> {
   return apiRequest<T>(endpoint, {
     method: 'POST',
     body: body ? JSON.stringify(body) : undefined,
   });
 }
 
-export async function put<T>(endpoint: string, body?: any): Promise<T> {
+export async function put<T>(
+  endpoint: string,
+  body?: { readonly [key: string]: string | number | boolean | null | undefined }
+): Promise<T> {
   return apiRequest<T>(endpoint, {
     method: 'PUT',
     body: body ? JSON.stringify(body) : undefined,
   });
 }
 
-export async function del<T>(endpoint: string, body?: any): Promise<T> {
+export async function del<T>(
+  endpoint: string,
+  body?: { readonly [key: string]: string | number | boolean | null | undefined }
+): Promise<T> {
   return apiRequest<T>(endpoint, {
     method: 'DELETE',
     body: body ? JSON.stringify(body) : undefined,
@@ -647,7 +656,21 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics> {
   return apiRequest('/api/admin/analytics');
 }
 
-export async function getAdminFirehose(limit = 50): Promise<{ events: any[] }> {
+export interface AdminFirehoseEvent {
+  readonly id: string;
+  readonly event_type: string;
+  readonly event_name: string;
+  readonly properties: Readonly<Record<string, string | number | boolean | null>>;
+  readonly timestamp: string;
+  readonly session_id: string;
+  readonly machine_id: string;
+  readonly version: string;
+  readonly platform: string;
+  readonly duration_ms?: number;
+  readonly created_at: string;
+}
+
+export async function getAdminFirehose(limit = 50): Promise<{ events: AdminFirehoseEvent[] }> {
   return apiRequest(`/api/admin/firehose?limit=${limit}`);
 }
 

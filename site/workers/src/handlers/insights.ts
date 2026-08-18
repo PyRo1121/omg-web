@@ -1,6 +1,14 @@
 // AI Insights Handler - Using Cloudflare AI Gateway with Meta.com
-import type { Env} from '../api';
+import type { Env } from '../api';
 import { jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
+import { Effect, Exit } from 'effect';
+import {
+  decodeExtraRow,
+  decodeExtraRowArray,
+  InsightsErrorRowSchema,
+  MetaChatCompletionSchema,
+  WorkersAiTextSchema,
+} from '../contracts/d1-extras';
 
 // Simple in-memory rate limiter (5 requests per minute per user)
 // TODO: Replace with Cloudflare Rate Limiting API in production for distributed rate limiting
@@ -27,10 +35,14 @@ function checkRateLimit(userId: string): boolean {
 
 export async function handleGetSmartInsights(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
-  if (!token) {return errorResponse('Unauthorized', 401);}
+  if (!token) {
+    return errorResponse('Unauthorized', 401);
+  }
 
   const auth = await validateSession(env.DB, token);
-  if (!auth) {return errorResponse('Invalid session', 401);}
+  if (!auth) {
+    return errorResponse('Invalid session', 401);
+  }
 
   // Rate limiting: 5 requests per minute
   if (!checkRateLimit(auth.user.id)) {
@@ -64,9 +76,17 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
       `
       ).all();
 
-      const topErrors =
-        errorStats.results?.map((e: any) => `${e.error_message} (${e.occurrences}x)`).join(', ') ||
-        'None';
+      const decodedErrors = await Effect.runPromiseExit(
+        decodeExtraRowArray(
+          InsightsErrorRowSchema,
+          'Insights error row has an invalid shape',
+          errorStats.results
+        )
+      );
+      const topErrors = Exit.isFailure(decodedErrors)
+        ? 'None'
+        : decodedErrors.value.map(row => `${row.error_message} (${row.occurrences}x)`).join(', ') ||
+          'None';
       const timeHours = Math.round((Number(stats?.time_ms) || 0) / 3600000);
 
       contextData = `Platform Stats: ${stats?.users} total users, ${stats?.cmds?.toLocaleString()} commands executed, ${timeHours} hours saved system-wide.
@@ -145,8 +165,18 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
         });
 
         if (response.ok) {
-          const data: any = await response.json();
-          aiResponse = { response: data.choices?.[0]?.message?.content };
+          const payload: unknown = await response.json();
+          const decodedMeta = await Effect.runPromiseExit(
+            decodeExtraRow(
+              MetaChatCompletionSchema,
+              'Meta chat completion has an invalid shape',
+              payload
+            )
+          );
+          const content = Exit.isFailure(decodedMeta)
+            ? undefined
+            : decodedMeta.value.choices?.[0]?.message?.content;
+          aiResponse = { response: content };
           modelUsed = 'Meta.com (Llama 4 Maverick 17B)';
         } else {
           const errorText = await response.text();
@@ -159,13 +189,17 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
     } catch (metaError) {
       console.warn('Meta API failed, falling back to Workers AI:', metaError);
 
-      aiResponse = await env.AI.run('@cf/meta/llama-3.1-70b-instruct', {
+      const rawAi = await env.AI.run('@cf/meta/llama-3.1-70b-instruct', {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         max_tokens: 500,
       });
+      const decodedAi = await Effect.runPromiseExit(
+        decodeExtraRow(WorkersAiTextSchema, 'Workers AI response has an invalid shape', rawAi)
+      );
+      aiResponse = Exit.isFailure(decodedAi) ? { response: undefined } : decodedAi.value;
     }
 
     const insight =

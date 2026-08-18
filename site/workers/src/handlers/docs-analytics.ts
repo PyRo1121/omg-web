@@ -7,41 +7,10 @@
  */
 
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
-
-type DocsAnalyticsValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | DocsAnalyticsValue[]
-  | { readonly [key: string]: DocsAnalyticsValue | undefined };
-
-// Analytics event from docs site
-interface DocsAnalyticsProperties {
-  readonly [key: string]: DocsAnalyticsValue;
-  readonly utm?: {
-    readonly source?: string;
-    readonly medium?: string;
-    readonly campaign?: string;
-  };
-  readonly referrer?: string;
-  readonly url?: string;
-}
-
-interface DocsAnalyticsEvent {
-  event_type: 'pageview' | 'interaction' | 'navigation' | 'performance';
-  event_name: string;
-  properties: DocsAnalyticsProperties;
-  timestamp: string;
-  session_id: string;
-  duration_ms?: number;
-}
-
-// Batch request from docs site
-interface DocsAnalyticsBatch {
-  events: DocsAnalyticsEvent[];
-}
+import { Effect, Exit } from 'effect';
+import { decodeJsonBody } from '../body';
+import { DocsAnalyticsBatchSchema } from '../contracts/http-bodies';
+import { decodeExtraRowArray, DocsPageviewsRowSchema } from '../contracts/d1-extras';
 
 /**
  * POST /api/docs/analytics
@@ -63,8 +32,13 @@ export async function handleDocsAnalytics(
       }
     }
 
-    // Parse and validate payload
-    const body: DocsAnalyticsBatch = await request.json();
+    const decodedBody = await Effect.runPromiseExit(
+      decodeJsonBody(request, DocsAnalyticsBatchSchema)
+    );
+    if (Exit.isFailure(decodedBody)) {
+      return errorResponse('Invalid payload: events array required', 400);
+    }
+    const body = decodedBody.value;
     if (!body.events || !Array.isArray(body.events)) {
       return errorResponse('Invalid payload: events array required', 400);
     }
@@ -284,15 +258,19 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
         .all(),
     ]);
 
-    // Calculate summary stats
-    const totalPageviews = pageviewsResult.results.reduce(
-      (sum: number, row: any) => sum + (row.views || 0),
-      0
+    const decodedPageviews = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        DocsPageviewsRowSchema,
+        'Docs analytics pageview row has an invalid shape',
+        pageviewsResult.results
+      )
     );
-    const totalSessions = pageviewsResult.results.reduce(
-      (sum: number, row: any) => sum + (row.sessions || 0),
-      0
-    );
+    if (Exit.isFailure(decodedPageviews)) {
+      return errorResponse('Failed to load analytics dashboard', 500);
+    }
+
+    const totalPageviews = decodedPageviews.value.reduce((sum, row) => sum + row.views, 0);
+    const totalSessions = decodedPageviews.value.reduce((sum, row) => sum + row.sessions, 0);
 
     return jsonResponse({
       summary: {

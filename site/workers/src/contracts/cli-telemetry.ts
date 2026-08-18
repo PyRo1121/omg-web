@@ -1,0 +1,97 @@
+// Boundary parser internals decode CLI telemetry JSON.
+// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON boundary parsing requires these operations.
+
+import { Effect } from 'effect';
+import { Schema } from '@effect/schema';
+
+/** A failure decoding a CLI telemetry payload. */
+export class CliTelemetryParseError extends Error {
+  readonly _tag = 'CliTelemetryParseError';
+  constructor(
+    readonly reason: string,
+    readonly cause?: unknown
+  ) {
+    super(reason);
+  }
+}
+
+const OptionalBoolean = Schema.optional(Schema.Boolean);
+const OptionalNumber = Schema.optional(Schema.Number);
+const OptionalString = Schema.optional(Schema.Union(Schema.Null, Schema.String));
+const JsonAtom = Schema.Union(Schema.String, Schema.Number, Schema.Boolean, Schema.Null);
+
+/** One CLI telemetry event. Type is checked after decode so invalid types keep the existing 400 message. */
+export const TelemetryEventSchema = Schema.Struct({
+  type: Schema.String,
+  command: OptionalString,
+  subcommand: OptionalString,
+  packages: Schema.optional(Schema.Array(Schema.String)),
+  duration_ms: OptionalNumber,
+  success: OptionalBoolean,
+  error: OptionalString,
+  result_count: OptionalNumber,
+  updated_count: OptionalNumber,
+  session_id: OptionalString,
+  event_type: OptionalString,
+  start_time: OptionalString,
+  end_time: OptionalString,
+  commands_run: OptionalNumber,
+  duration_secs: OptionalNumber,
+  metric_type: OptionalString,
+  context: OptionalString,
+  feature: OptionalString,
+  enabled: OptionalBoolean,
+  metadata: Schema.optional(Schema.Record({ key: Schema.String, value: JsonAtom })),
+});
+export type TelemetryEvent = Schema.Schema.Type<typeof TelemetryEventSchema>;
+
+/** Envelope for a single CLI event. */
+export const SingleTelemetryRequestSchema = Schema.Struct({
+  event: TelemetryEventSchema,
+  timestamp: Schema.String,
+  machine_id: Schema.String,
+  version: Schema.String,
+  platform: Schema.String,
+  license_key: Schema.optional(Schema.String),
+  retries: OptionalNumber,
+});
+export type SingleTelemetryRequest = Schema.Schema.Type<typeof SingleTelemetryRequestSchema>;
+
+const TelemetryItemSchema = Schema.Struct({
+  event: TelemetryEventSchema,
+  timestamp: Schema.String,
+  machine_id: Schema.String,
+  version: Schema.String,
+  platform: Schema.String,
+  license_key: Schema.optional(Schema.String),
+  retries: OptionalNumber,
+});
+
+/** Envelope for a CLI event batch. */
+export const BatchTelemetryRequestSchema = Schema.Struct({
+  events: Schema.optional(Schema.Array(TelemetryItemSchema)),
+  batch_timestamp: Schema.optional(Schema.String),
+  machine_id: Schema.optional(Schema.String),
+});
+export type BatchTelemetryRequest = Schema.Schema.Type<typeof BatchTelemetryRequestSchema>;
+export type TelemetryItem = Schema.Schema.Type<typeof TelemetryItemSchema>;
+
+/**
+ * Decode a CLI telemetry payload.
+ *
+ * @param schema - Request schema.
+ * @param reason - Parse error reason.
+ * @param value - Raw JSON.
+ * @returns The typed payload, or `CliTelemetryParseError`.
+ */
+export function decodeCliTelemetry<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  reason: string,
+  value: unknown
+): Effect.Effect<Schema.Schema.Type<S>, CliTelemetryParseError> {
+  return Schema.decodeUnknown(schema)(value).pipe(
+    Effect.mapError(
+      (cause: unknown): CliTelemetryParseError => new CliTelemetryParseError(reason, cause)
+    )
+  );
+}

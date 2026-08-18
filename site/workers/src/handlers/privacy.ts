@@ -4,6 +4,13 @@ import { Effect, Exit } from 'effect';
 import { Schema } from '@effect/schema';
 import { decodeJsonBody } from '../body';
 import { type Env, jsonResponse, errorResponse, corsHeaders, generateId } from '../api';
+import {
+  decodeExtraRow,
+  decodeExtraRowArray,
+  IdRowSchema,
+  LicenseCustomerIdRowSchema,
+  PrivacyLicenseRowSchema,
+} from '../contracts/d1-extras';
 
 /** The GDPR deletion request body. */
 const DeleteRequestSchema = Schema.Struct({
@@ -273,8 +280,12 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
         .bind(body.email)
         .first();
       if (customer) {
-        // SAFETY: The SELECT projects the stable customer id column.
-        customerId = customer.id as string;
+        const decodedCustomer = await Effect.runPromiseExit(
+          decodeExtraRow(IdRowSchema, 'Privacy customer row has an invalid shape', customer)
+        );
+        if (Exit.isSuccess(decodedCustomer)) {
+          customerId = decodedCustomer.value.id;
+        }
       }
     }
 
@@ -285,10 +296,17 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
         .bind(body.license_key)
         .first();
       if (license) {
-        // SAFETY: The SELECT projects the stable license id column.
-        licenseId = license.id as string;
-        // SAFETY: The SELECT projects the stable customer id column.
-        customerId = license.customer_id as string;
+        const decodedLicense = await Effect.runPromiseExit(
+          decodeExtraRow(
+            LicenseCustomerIdRowSchema,
+            'Privacy license row has an invalid shape',
+            license
+          )
+        );
+        if (Exit.isSuccess(decodedLicense)) {
+          licenseId = decodedLicense.value.id;
+          customerId = decodedLicense.value.customer_id;
+        }
       }
     }
 
@@ -323,14 +341,17 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
     )
       .bind(customerId)
       .all();
-    exportData.licenses = licenses.results?.map((l: any) => ({
-      tier: l.tier,
-      status: l.status,
-      max_machines: l.max_machines,
-      activated_at: l.activated_at,
-      expires_at: l.expires_at,
-      created_at: l.created_at,
-    }));
+    const decodedLicenses = await Effect.runPromiseExit(
+      decodeExtraRowArray(
+        PrivacyLicenseRowSchema,
+        'Privacy license export row has an invalid shape',
+        licenses.results
+      )
+    );
+    if (Exit.isFailure(decodedLicenses)) {
+      return errorResponse('Failed to export licenses', 500);
+    }
+    exportData.licenses = [...decodedLicenses.value];
 
     // Machine usage
     if (licenseId) {

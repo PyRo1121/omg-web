@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { createResource, Show } from 'solid-js';
 import type { HighlighterCore } from 'shiki/core';
 import { createHighlighterCore } from 'shiki/core';
@@ -27,7 +27,7 @@ const getSharedHighlighter = () => {
 };
 
 interface CodeBlockProps {
-  children?: any;
+  children?: string;
   className?: string;
   inline?: boolean;
 }
@@ -50,7 +50,9 @@ const CodeBlock: Component<CodeBlockProps> = props => {
 
   const highlightedHtml = () => {
     const h = highlighter();
-    if (!h) {return '';}
+    if (!h) {
+      return '';
+    }
 
     try {
       return h.codeToHtml(code(), {

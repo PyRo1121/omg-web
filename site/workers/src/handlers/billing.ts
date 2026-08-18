@@ -11,6 +11,18 @@ import { Schema } from '@effect/schema';
 import { decodeJsonBody } from '../body';
 import { EmailAddress } from '../contracts/admin-session';
 import { forbiddenUnlessAdminSession } from '../admin-auth';
+import {
+  decodeStripeJson,
+  decodeStripeWebhookText,
+  StripeBalanceSchema,
+  StripeCheckoutSessionSchema,
+  StripeCustomerEmailSchema,
+  StripeCustomerListSchema,
+  StripeInvoiceListSchema,
+  StripeMetricsListSchema,
+  StripePortalSessionSchema,
+  StripeSubscriptionListSchema,
+} from '../contracts/stripe';
 
 const CheckoutBodySchema = Schema.Struct({
   priceId: Schema.String.pipe(Schema.minLength(1)),
@@ -20,39 +32,17 @@ const PortalBodySchema = Schema.Struct({
   email: Schema.optional(EmailAddress),
 });
 
-type StripeValue =
-  string | number | boolean | null | undefined | StripeValue[] | { [key: string]: StripeValue };
-
-interface StripeEventObject {
-  [key: string]: StripeValue;
-  id?: string;
-  customer?: string;
-  status?: string;
-  current_period_end?: number;
-  amount_paid?: number;
-  amount_due?: number;
-  currency?: string;
-  hosted_invoice_url?: string | null;
-  invoice_pdf?: string | null;
-  period_start?: number;
-  period_end?: number;
-  created?: number;
-  name?: string | null;
-  email?: string;
-  metadata?: { company?: string };
-  items?: {
-    data: Array<{
-      price: {
-        unit_amount?: number;
-        recurring?: { interval?: string; interval_count?: number };
-      };
-    }>;
-  };
-}
-
-interface StripeEvent {
-  type: string;
-  data: { object: StripeEventObject };
+async function readStripeJson<S extends Schema.Schema.AnyNoContext>(
+  response: Response,
+  schema: S,
+  reason: string
+): Promise<Schema.Schema.Type<S> | null> {
+  const payload: unknown = await response.json();
+  const decoded = await Effect.runPromiseExit(decodeStripeJson(schema, reason, payload));
+  if (Exit.isFailure(decoded)) {
+    return null;
+  }
+  return decoded.value;
 }
 
 /**
@@ -154,12 +144,14 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     }),
   });
 
-  // SAFETY: Stripe checkout responses expose these documented optional fields.
-  const session = (await stripeResponse.json()) as {
-    id?: string;
-    url?: string;
-    error?: { message: string };
-  };
+  const session = await readStripeJson(
+    stripeResponse,
+    StripeCheckoutSessionSchema,
+    'Stripe checkout session has an invalid shape'
+  );
+  if (!session) {
+    return errorResponse('Failed to create checkout session', 500);
+  }
 
   if (session.error) {
     return errorResponse(session.error.message);
@@ -223,8 +215,14 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
     }),
   });
 
-  // SAFETY: Stripe portal responses expose these documented optional fields.
-  const session = (await portalResponse.json()) as { url?: string; error?: { message: string } };
+  const session = await readStripeJson(
+    portalResponse,
+    StripePortalSessionSchema,
+    'Stripe portal session has an invalid shape'
+  );
+  if (!session) {
+    return errorResponse('Failed to create portal session');
+  }
 
   if (session.error || !session.url) {
     return errorResponse(session.error?.message || 'Failed to create portal session');
@@ -249,13 +247,11 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
     return new Response('Invalid signature', { status: 401 });
   }
 
-  let event: StripeEvent;
-  try {
-    // SAFETY: Stripe webhook signatures are verified before parsing the documented event envelope.
-    event = JSON.parse(body) as StripeEvent;
-  } catch {
+  const decodedEvent = await Effect.runPromiseExit(decodeStripeWebhookText(body));
+  if (Exit.isFailure(decodedEvent)) {
     return new Response('Invalid JSON', { status: 400 });
   }
+  const event = decodedEvent.value;
 
   switch (event.type) {
     case 'customer.subscription.created':
@@ -271,10 +267,20 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
         .first();
 
       if (!customer) {
-        // SAFETY: Stripe customer lookup returns the documented email field.
-        const stripeCustomer = (await fetch(`https://api.stripe.com/v1/customers/${customerId}`, {
-          headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
-        }).then(r => r.json())) as { email: string };
+        const stripeCustomerResponse = await fetch(
+          `https://api.stripe.com/v1/customers/${customerId}`,
+          {
+            headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+          }
+        );
+        const stripeCustomer = await readStripeJson(
+          stripeCustomerResponse,
+          StripeCustomerEmailSchema,
+          'Stripe customer lookup has an invalid shape'
+        );
+        if (!stripeCustomer) {
+          return new Response('Invalid Stripe customer', { status: 400 });
+        }
 
         const newCustomerId = crypto.randomUUID();
         await env.DB.prepare(
@@ -488,8 +494,15 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
       });
-      // SAFETY: Stripe customer list responses contain a data array and pagination flag.
-      const data = (await response.json()) as { data: any[]; has_more: boolean };
+      const data = await readStripeJson(
+        response,
+        StripeCustomerListSchema,
+        'Stripe customer list has an invalid shape'
+      );
+      if (!data) {
+        results.errors.push('Stripe customer list has an invalid shape');
+        break;
+      }
 
       for (const customer of data.data) {
         try {
@@ -532,8 +545,15 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
       });
-      // SAFETY: Stripe subscription list responses contain a data array and pagination flag.
-      const data = (await response.json()) as { data: any[]; has_more: boolean };
+      const data = await readStripeJson(
+        response,
+        StripeSubscriptionListSchema,
+        'Stripe subscription list has an invalid shape'
+      );
+      if (!data) {
+        results.errors.push('Stripe subscription list has an invalid shape');
+        break;
+      }
 
       for (const sub of data.data) {
         try {
@@ -584,8 +604,15 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
       });
-      // SAFETY: Stripe invoice list responses contain a data array and pagination flag.
-      const data = (await response.json()) as { data: any[]; has_more: boolean };
+      const data = await readStripeJson(
+        response,
+        StripeInvoiceListSchema,
+        'Stripe invoice list has an invalid shape'
+      );
+      if (!data) {
+        results.errors.push('Stripe invoice list has an invalid shape');
+        break;
+      }
 
       for (const invoice of data.data) {
         if (invoice.status !== 'paid') continue;
@@ -664,8 +691,14 @@ export async function handleAdminStripeMetrics(request: Request, env: Env): Prom
       headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
     }
   );
-  // SAFETY: Stripe subscriptions responses contain a data array of subscription records.
-  const subsData = (await subsResponse.json()) as { data: any[] };
+  const subsData = await readStripeJson(
+    subsResponse,
+    StripeMetricsListSchema,
+    'Stripe metrics subscription list has an invalid shape'
+  );
+  if (!subsData) {
+    return errorResponse('Failed to load Stripe metrics', 500);
+  }
 
   let mrr = 0;
   const tierCounts = { pro: 0, team: 0, enterprise: 0 } satisfies Record<string, number>;
@@ -701,13 +734,17 @@ export async function handleAdminStripeMetrics(request: Request, env: Env): Prom
   const balanceResponse = await fetch('https://api.stripe.com/v1/balance', {
     headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
   });
-  // SAFETY: Stripe balance responses contain available and pending balance arrays.
-  const balance = (await balanceResponse.json()) as { available: any[]; pending: any[] };
+  const balance = await readStripeJson(
+    balanceResponse,
+    StripeBalanceSchema,
+    'Stripe balance has an invalid shape'
+  );
+  if (!balance) {
+    return errorResponse('Failed to load Stripe balance', 500);
+  }
 
-  // SAFETY: Stripe balance entries expose numeric amount values.
-  const availableBalance = balance.available.reduce((sum: number, b: any) => sum + b.amount, 0);
-  // SAFETY: Stripe balance entries expose numeric amount values.
-  const pendingBalance = balance.pending.reduce((sum: number, b: any) => sum + b.amount, 0);
+  const availableBalance = balance.available.reduce((sum, funds) => sum + funds.amount, 0);
+  const pendingBalance = balance.pending.reduce((sum, funds) => sum + funds.amount, 0);
 
   return jsonResponse({
     mrr: Math.round(mrr),

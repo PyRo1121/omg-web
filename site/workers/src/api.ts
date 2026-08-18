@@ -6,11 +6,22 @@ interface RateLimit {
   limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
+/** Workers AI binding used by smart insights. The result is Schema-decoded at the call site. */
+export interface WorkersAiBinding {
+  run(
+    model: string,
+    input: {
+      readonly messages: ReadonlyArray<{ readonly role: string; readonly content: string }>;
+      readonly max_tokens: number;
+    }
+  ): Promise<{ readonly response?: string }>;
+}
+
 export interface Env {
   DB: D1Database;
   ANALYTICS_DB: D1Database;
   ASSETS: R2Bucket;
-  AI: any;
+  AI: WorkersAiBinding;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;
@@ -329,7 +340,9 @@ export async function validateSession(
     .bind(token)
     .first<SessionRow>();
 
-  if (!session) {return null;}
+  if (!session) {
+    return null;
+  }
 
   return {
     user: {
@@ -402,7 +415,9 @@ export async function verifyTurnstile(
     const formData = new URLSearchParams();
     formData.append('secret', secretKey);
     formData.append('response', token);
-    if (ip) {formData.append('remoteip', ip);}
+    if (ip) {
+      formData.append('remoteip', ip);
+    }
 
     const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',

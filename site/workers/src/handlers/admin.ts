@@ -10,6 +10,17 @@ import {
   getAuthToken,
   generateId,
 } from '../api';
+import { Effect, Exit } from 'effect';
+import { decodeJsonBody } from '../body';
+import {
+  AdminAssignTagBodySchema,
+  AdminCreateNoteBodySchema,
+  AdminCreateTagBodySchema,
+  AdminUpdateNoteBodySchema,
+  AdminUpdateUserBodySchema,
+  decodeThrownMessage,
+} from '../contracts/http-bodies';
+import { AuditCsvRowSchema, decodeExtraRowArray, UsageCsvRowSchema } from '../contracts/d1-extras';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -391,16 +402,11 @@ export async function handleAdminUpdateUser(request: Request, env: Env): Promise
     return result.error;
   }
 
-  let body: { userId: string; tier?: string; status?: string };
-  try {
-    // SAFETY: The request boundary is restricted to the documented admin user fields.
-    body = await request.json();
-  } catch {
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, AdminUpdateUserBodySchema));
+  if (Exit.isFailure(decoded)) {
     return errorResponse('Invalid JSON body', 400);
   }
-  if (!body.userId) {
-    return errorResponse('User ID required');
-  }
+  const body = decoded.value;
 
   if (body.tier) {
     await env.DB.prepare(`UPDATE licenses SET tier = ? WHERE customer_id = ?`)
@@ -465,9 +471,17 @@ export async function handleAdminExportUsage(request: Request, env: Env): Promis
     `SELECT date, license_id, commands_run, time_saved_ms FROM usage_daily ORDER BY date DESC LIMIT 1000`
   ).all();
   const headers = ['date', 'license_id', 'commands_run', 'time_saved_ms'];
+  const decodedUsage = await Effect.runPromiseExit(
+    decodeExtraRowArray(UsageCsvRowSchema, 'Usage CSV row has an invalid shape', usage.results)
+  );
+  if (Exit.isFailure(decodedUsage)) {
+    return errorResponse('Failed to export usage', 500);
+  }
   const csv = [
     headers.join(','),
-    ...(usage.results || []).map((u: any) => headers.map(h => escapeCSV(u[h])).join(',')),
+    ...decodedUsage.value.map(row =>
+      [row.date, row.license_id, row.commands_run, row.time_saved_ms].map(escapeCSV).join(',')
+    ),
   ].join('\n');
 
   return new Response(csv, {
@@ -488,9 +502,17 @@ export async function handleAdminExportAudit(request: Request, env: Env): Promis
     `SELECT created_at, action, customer_id, ip_address FROM audit_log ORDER BY created_at DESC LIMIT 1000`
   ).all();
   const headers = ['created_at', 'action', 'customer_id', 'ip_address'];
+  const decodedLogs = await Effect.runPromiseExit(
+    decodeExtraRowArray(AuditCsvRowSchema, 'Audit CSV row has an invalid shape', logs.results)
+  );
+  if (Exit.isFailure(decodedLogs)) {
+    return errorResponse('Failed to export audit log', 500);
+  }
   const csv = [
     headers.join(','),
-    ...(logs.results || []).map((l: any) => headers.map(h => escapeCSV(l[h])).join(',')),
+    ...decodedLogs.value.map(row =>
+      [row.created_at, row.action, row.customer_id, row.ip_address].map(escapeCSV).join(',')
+    ),
   ].join('\n');
 
   return new Response(csv, {
@@ -932,7 +954,7 @@ export async function handleAdminGetNotes(request: Request, env: Env): Promise<R
   }
 
   const notes = await env.DB.prepare(
-    `SELECT n.*, c.email as author_email 
+    `SELECT n.id, n.customer_id, n.author_id, n.note_type, n.content, n.is_pinned, n.created_at, n.updated_at, c.email as author_email 
      FROM customer_notes n 
      LEFT JOIN customers c ON n.author_id = c.id 
      WHERE n.customer_id = ? 
@@ -954,17 +976,11 @@ export async function handleAdminCreateNote(request: Request, env: Env): Promise
   }
   const { context } = result;
 
-  let body: { customerId: string; content: string; noteType?: string };
-  try {
-    // SAFETY: The request boundary is restricted to the documented customer note fields.
-    body = await request.json();
-  } catch {
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, AdminCreateNoteBodySchema));
+  if (Exit.isFailure(decoded)) {
     return errorResponse('Invalid JSON body', 400);
   }
-
-  if (!body.customerId || !body.content) {
-    return errorResponse('Customer ID and content required', 400);
-  }
+  const body = decoded.value;
 
   const noteId = generateId();
   const noteType = body.noteType || 'general';
@@ -999,17 +1015,11 @@ export async function handleAdminUpdateNote(request: Request, env: Env): Promise
   }
   const { context } = result;
 
-  let body: { noteId: string; content?: string; isPinned?: boolean };
-  try {
-    // SAFETY: The request boundary is restricted to the documented note update fields.
-    body = await request.json();
-  } catch {
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, AdminUpdateNoteBodySchema));
+  if (Exit.isFailure(decoded)) {
     return errorResponse('Invalid JSON body', 400);
   }
-
-  if (!body.noteId) {
-    return errorResponse('Note ID required', 400);
-  }
+  const body = decoded.value;
 
   // Build dynamic update query
   const updates: string[] = ['updated_at = CURRENT_TIMESTAMP'];
@@ -1114,7 +1124,7 @@ export async function handleAdminGetCustomerTags(request: Request, env: Env): Pr
   }
 
   const tags = await env.DB.prepare(
-    `SELECT t.* FROM customer_tags t
+    `SELECT t.id, t.name, t.color, t.description, t.created_by, t.created_at FROM customer_tags t
      JOIN customer_tag_assignments cta ON t.id = cta.tag_id
      WHERE cta.customer_id = ?
      ORDER BY t.name ASC`
@@ -1135,17 +1145,11 @@ export async function handleAdminCreateTag(request: Request, env: Env): Promise<
   }
   const { context } = result;
 
-  let body: { name: string; color?: string; description?: string };
-  try {
-    // SAFETY: The request boundary is restricted to the documented customer tag fields.
-    body = await request.json();
-  } catch {
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, AdminCreateTagBodySchema));
+  if (Exit.isFailure(decoded)) {
     return errorResponse('Invalid JSON body', 400);
   }
-
-  if (!body.name) {
-    return errorResponse('Tag name required', 400);
-  }
+  const body = decoded.value;
 
   const tagId = generateId();
   const color = body.color || '#6366f1'; // Default indigo
@@ -1180,17 +1184,11 @@ export async function handleAdminAssignTag(request: Request, env: Env): Promise<
   }
   const { context } = result;
 
-  let body: { customerId: string; tagId: string };
-  try {
-    // SAFETY: The request boundary is restricted to the documented tag assignment fields.
-    body = await request.json();
-  } catch {
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, AdminAssignTagBodySchema));
+  if (Exit.isFailure(decoded)) {
     return errorResponse('Invalid JSON body', 400);
   }
-
-  if (!body.customerId || !body.tagId) {
-    return errorResponse('Customer ID and Tag ID required', 400);
-  }
+  const body = decoded.value;
 
   try {
     await env.DB.prepare(
@@ -1199,8 +1197,9 @@ export async function handleAdminAssignTag(request: Request, env: Env): Promise<
     )
       .bind(body.customerId, body.tagId, context.user.id)
       .run();
-  } catch (e: any) {
-    if (e.message?.includes('UNIQUE constraint') || e.message?.includes('PRIMARY KEY')) {
+  } catch (e) {
+    const message = decodeThrownMessage(e);
+    if (message.includes('UNIQUE constraint') || message.includes('PRIMARY KEY')) {
       return secureJsonResponse({
         request_id: context.requestId,
         success: true,

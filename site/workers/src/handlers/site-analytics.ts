@@ -1,22 +1,8 @@
 import { Schema } from '@effect/schema';
+import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
-
-interface TrackingEvent {
-  event_type: 'pageview' | 'click' | 'form' | 'error' | 'performance';
-  event_name: string;
-  properties: TrackingProperties;
-  timestamp: number;
-  session_id: string;
-  duration_ms?: number;
-}
-
-interface TrackingBatch {
-  events: TrackingEvent[];
-}
-
-type TrackingProperty =
-  string | number | boolean | null | TrackingProperty[] | { [key: string]: TrackingProperty };
-type TrackingProperties = Record<string, TrackingProperty>;
+import { decodeJsonBody } from '../body';
+import { TrackingBatchSchema, optionalStringField } from '../contracts/http-bodies';
 
 const GeoNumber = Schema.Union(Schema.Number, Schema.Null).pipe(
   Schema.transform(Schema.Number, {
@@ -171,7 +157,11 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
       }
     }
 
-    const body: TrackingBatch = await request.json();
+    const decodedBody = await Effect.runPromiseExit(decodeJsonBody(request, TrackingBatchSchema));
+    if (Exit.isFailure(decodedBody)) {
+      return errorResponse('Invalid payload', 400);
+    }
+    const body = decodedBody.value;
     if (!body.events || !Array.isArray(body.events) || body.events.length > 50) {
       return errorResponse('Invalid payload', 400);
     }
@@ -194,8 +184,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
 
       const eventId = generateId();
       const props = event.properties || {};
-      // SAFETY: Analytics clients send referrer as a string when present; absent values map to direct.
-      const referrerDomain = extractReferrerDomain(props.referrer as string);
+      const referrerDomain = extractReferrerDomain(optionalStringField(props.referrer) ?? null);
 
       statements.push(
         env.DB.prepare(
@@ -226,7 +215,15 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
              page_path = excluded.page_path,
              last_seen_at = excluded.last_seen_at,
              page_count = page_count + 1`
-        ).bind(visitorId, event.session_id, props.path || '/', country, city, referrerDomain, now)
+        ).bind(
+          visitorId,
+          event.session_id,
+          optionalStringField(props.path) ?? '/',
+          country,
+          city,
+          referrerDomain,
+          now
+        )
       );
 
       if (event.event_type === 'pageview') {

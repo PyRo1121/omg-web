@@ -197,6 +197,22 @@ describe('Telemetry API', () => {
       expect(stored?.enabled).toBe(1);
     });
 
+    it('should return 400 for invalid JSON', async () => {
+      const request = new Request('http://localhost/api/cli/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: 'not-json',
+      });
+
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(request, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toContain('Invalid JSON body');
+    });
+
     it('should return 401 when license_key is missing', async () => {
       const request = new Request('http://localhost/api/cli/event', {
         method: 'POST',
@@ -313,20 +329,6 @@ describe('Telemetry API', () => {
       expect(response.status).toBe(400);
       const body = await response.json();
       expect(body.error).toContain('Invalid event type');
-    });
-
-    it('should return 500 for malformed JSON', async () => {
-      const request = new Request('http://localhost/api/cli/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: 'invalid json{',
-      });
-
-      const ctx = createExecutionContext();
-      const response = await worker.fetch(request, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(500);
     });
   });
 

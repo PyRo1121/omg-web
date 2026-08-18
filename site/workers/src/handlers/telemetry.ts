@@ -1,5 +1,12 @@
 // CLI telemetry event handlers
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
+import { Effect, Exit } from 'effect';
+import { decodeJsonBody } from '../body';
+import {
+  BatchTelemetryRequestSchema,
+  SingleTelemetryRequestSchema,
+  type TelemetryEvent,
+} from '../contracts/cli-telemetry';
 
 // ========== Payload Size Limits ==========
 const MAX_EVENT_PAYLOAD_BYTES = 100 * 1024; // 100 KB
@@ -17,31 +24,6 @@ const RATE_LIMIT_WINDOW_SECONDS = 60;
 // ========== Validation Helpers ==========
 
 type ContentLengthCheck = { valid: true } | { valid: false; error: Response };
-type TelemetryEventType = 'command' | 'session' | 'performance' | 'feature';
-type TelemetryValue = string | number | boolean | null | string[] | Record<string, string>;
-
-interface TelemetryEvent {
-  type: TelemetryEventType;
-  [key: string]: TelemetryValue;
-}
-
-interface TelemetryItem {
-  event: TelemetryEvent;
-  timestamp: string;
-  machine_id: string;
-  version: string;
-  platform: string;
-  license_key?: string;
-  retries?: number;
-}
-
-interface SingleTelemetryRequest extends TelemetryItem {}
-
-interface BatchTelemetryRequest {
-  events: TelemetryItem[];
-  batch_timestamp: string;
-  machine_id: string;
-}
 
 /**
  * Check Content-Length header before parsing JSON
@@ -69,7 +51,10 @@ function validateContentLength(request: Request, maxBytes: number): ContentLengt
 /**
  * Truncate string to max length (don't reject)
  */
-function truncateString(value: TelemetryValue | undefined, maxLength: number): string | null {
+function truncateString(
+  value: string | number | boolean | null | undefined,
+  maxLength: number
+): string | null {
   if (value === null || value === undefined) return null;
   const str = String(value);
   return str.length > maxLength ? str.slice(0, maxLength) : str;
@@ -78,8 +63,8 @@ function truncateString(value: TelemetryValue | undefined, maxLength: number): s
 /**
  * Truncate array to max length (don't reject)
  */
-function truncateArray(value: TelemetryValue | undefined, maxLength: number): string[] {
-  if (!Array.isArray(value)) return [];
+function truncateArray(value: ReadonlyArray<string> | undefined, maxLength: number): string[] {
+  if (value === undefined) return [];
   return value.slice(0, maxLength);
 }
 
@@ -141,8 +126,13 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
       return lengthCheck.error;
     }
 
-    // SAFETY: The event envelope is validated by the event-type switch and field sanitization below before persistence.
-    const body = (await request.json()) as SingleTelemetryRequest;
+    const decoded = await Effect.runPromiseExit(
+      decodeJsonBody(request, SingleTelemetryRequestSchema)
+    );
+    if (Exit.isFailure(decoded)) {
+      return errorResponse('Invalid JSON body', 400);
+    }
+    const body = decoded.value;
 
     if (!body.license_key) {
       return errorResponse('License key required', 401);
@@ -296,8 +286,13 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
       return lengthCheck.error;
     }
 
-    // SAFETY: The batch envelope is validated by size, license checks, event-type switching, and field sanitization before persistence.
-    const body = (await request.json()) as BatchTelemetryRequest;
+    const decoded = await Effect.runPromiseExit(
+      decodeJsonBody(request, BatchTelemetryRequestSchema)
+    );
+    if (Exit.isFailure(decoded)) {
+      return errorResponse('Invalid JSON body', 400);
+    }
+    const body = decoded.value;
 
     if (!body.events || body.events.length === 0) {
       return jsonResponse({ success: true, processed: 0 });

@@ -6,27 +6,22 @@ import {
   getAuthToken,
   logAudit,
 } from '../api';
-
-/**
- * Parse a stored JSON string, returning `fallback` when the value is empty or malformed.
- * Persisted fields must never crash a read path on corrupt data.
- */
-function parseJsonField<T>(value: string | null | undefined, fallback: T): T {
-  if (value === null || value === undefined || value.length === 0) return fallback;
-  try {
-    // SAFETY: JSON.parse returns unknown; T expresses the stored shape the caller knows.
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-interface NotificationSetting {
-  type: string;
-  enabled: boolean;
-  threshold?: number;
-  channels: string[];
-}
+import { Effect, Exit } from 'effect';
+import { decodeJsonBody } from '../body';
+import {
+  AlertThresholdBodySchema,
+  AuditLogRowSchema,
+  CreatePolicyBodySchema,
+  decodeStoredJsonObject,
+  decodeStoredStringArray,
+  decodeTeamControlsRow,
+  DeletePolicyBodySchema,
+  NotificationSettingRowSchema,
+  RevokeMemberBodySchema,
+  UpdateNotificationSettingsBodySchema,
+  UpdatePolicyBodySchema,
+  type NotificationSetting,
+} from '../contracts/team-controls';
 
 export async function handleGetPolicies(request: Request, env: Env): Promise<Response> {
   const token = getAuthToken(request);
@@ -72,14 +67,11 @@ export async function handleCreatePolicy(request: Request, env: Env): Promise<Re
     return errorResponse('Policy management requires Enterprise tier', 403);
   }
 
-  // SAFETY: The enterprise policy endpoint consumes the documented policy fields.
-  const body = (await request.json()) as {
-    scope: string;
-    rule: string;
-    value: string;
-    enforced?: boolean;
-  };
-  const { scope, rule, value, enforced = true } = body;
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, CreatePolicyBodySchema));
+  if (Exit.isFailure(decoded)) {
+    return errorResponse('Invalid JSON body', 400);
+  }
+  const { scope, rule, value, enforced = true } = decoded.value;
 
   if (!scope || !rule || value === undefined) {
     return errorResponse('Missing required fields: scope, rule, value', 400);
@@ -123,9 +115,11 @@ export async function handleUpdatePolicy(request: Request, env: Env): Promise<Re
     return errorResponse('Policy management requires Enterprise tier', 403);
   }
 
-  // SAFETY: The policy update endpoint consumes the documented update fields.
-  const body = (await request.json()) as { id: string; value?: string; enforced?: boolean };
-  const { id, value, enforced } = body;
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, UpdatePolicyBodySchema));
+  if (Exit.isFailure(decoded)) {
+    return errorResponse('Invalid JSON body', 400);
+  }
+  const { id, value, enforced } = decoded.value;
 
   if (!id) return errorResponse('Missing policy id', 400);
 
@@ -136,7 +130,7 @@ export async function handleUpdatePolicy(request: Request, env: Env): Promise<Re
   if (!existing) return errorResponse('Policy not found', 404);
 
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: Array<string | number> = [];
 
   if (value !== undefined) {
     updates.push('value = ?');
@@ -149,9 +143,8 @@ export async function handleUpdatePolicy(request: Request, env: Env): Promise<Re
 
   if (updates.length === 0) return errorResponse('No updates provided', 400);
 
-  values.push(id, license.id);
   await env.DB.prepare(`UPDATE policies SET ${updates.join(', ')} WHERE id = ? AND license_id = ?`)
-    .bind(...values)
+    .bind(...values, id, license.id)
     .run();
 
   await logAudit(env.DB, auth.user.id, 'policy.update', 'policy', id, request, { value, enforced });
@@ -176,9 +169,11 @@ export async function handleDeletePolicy(request: Request, env: Env): Promise<Re
     return errorResponse('Policy management requires Enterprise tier', 403);
   }
 
-  // SAFETY: The policy delete endpoint consumes the documented policy id.
-  const body = (await request.json()) as { id: string };
-  const { id } = body;
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, DeletePolicyBodySchema));
+  if (Exit.isFailure(decoded)) {
+    return errorResponse('Invalid JSON body', 400);
+  }
+  const { id } = decoded.value;
 
   if (!id) return errorResponse('Missing policy id', 400);
 
@@ -224,7 +219,20 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
     { type: 'license_expiring', enabled: true, threshold: 30, channels: ['email'] },
   ];
 
-  const existingMap = new Map((settings.results || []).map((s: any) => [s.type, s]));
+  const decodedSettings = await Effect.runPromiseExit(
+    Effect.forEach(settings.results || [], row =>
+      decodeTeamControlsRow(
+        NotificationSettingRowSchema,
+        'Notification setting row has an invalid shape',
+        row
+      )
+    )
+  );
+  if (Exit.isFailure(decodedSettings)) {
+    return errorResponse('Failed to load notification settings', 500);
+  }
+
+  const existingMap = new Map(decodedSettings.value.map(setting => [setting.type, setting]));
   const merged = defaultSettings.map(def => {
     const existing = existingMap.get(def.type);
     if (existing) {
@@ -232,8 +240,7 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
         ...def,
         enabled: !!existing.enabled,
         threshold: existing.threshold ?? def.threshold,
-        // SAFETY: Persisted notification channels are stored as JSON text.
-        channels: parseJsonField(existing.channels, def.channels),
+        channels: decodeStoredStringArray(existing.channels, def.channels),
       };
     }
     return def;
@@ -263,9 +270,13 @@ export async function handleUpdateNotificationSettings(
     return errorResponse('Notifications require Team or Enterprise tier', 403);
   }
 
-  // SAFETY: The notification endpoint consumes the documented settings collection.
-  const body = (await request.json()) as { settings: NotificationSetting[] };
-  const { settings } = body;
+  const decoded = await Effect.runPromiseExit(
+    decodeJsonBody(request, UpdateNotificationSettingsBodySchema)
+  );
+  if (Exit.isFailure(decoded)) {
+    return errorResponse('Invalid JSON body', 400);
+  }
+  const { settings } = decoded.value;
 
   if (!settings || !Array.isArray(settings)) {
     return errorResponse('Missing settings array', 400);
@@ -314,9 +325,11 @@ export async function handleRevokeMember(request: Request, env: Env): Promise<Re
     return errorResponse('Member management requires Team or Enterprise tier', 403);
   }
 
-  // SAFETY: The member revoke endpoint consumes the documented machine id.
-  const body = (await request.json()) as { machine_id: string };
-  const { machine_id } = body;
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, RevokeMemberBodySchema));
+  if (Exit.isFailure(decoded)) {
+    return errorResponse('Invalid JSON body', 400);
+  }
+  const { machine_id } = decoded.value;
 
   if (!machine_id) return errorResponse('Missing machine_id', 400);
 
@@ -376,7 +389,7 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
 
   let query = `SELECT id, action, resource_type, resource_id, ip_address, user_agent, metadata, created_at 
                FROM audit_log WHERE customer_id = ?`;
-  const params: any[] = [auth.user.id];
+  const params: Array<string | number> = [auth.user.id];
 
   if (action) {
     query += ` AND action LIKE ?`;
@@ -400,11 +413,19 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
     .bind(auth.user.id)
     .first();
 
+  const decodedLogs = await Effect.runPromiseExit(
+    Effect.forEach(logs.results || [], row =>
+      decodeTeamControlsRow(AuditLogRowSchema, 'Audit log row has an invalid shape', row)
+    )
+  );
+  if (Exit.isFailure(decodedLogs)) {
+    return errorResponse('Failed to load audit logs', 500);
+  }
+
   return jsonResponse({
-    // SAFETY: Audit metadata is stored as JSON text; malformed rows fall back to null.
-    logs: (logs.results || []).map((log: any) => ({
+    logs: decodedLogs.value.map(log => ({
       ...log,
-      metadata: log.metadata ? parseJsonField(log.metadata, null) : null,
+      metadata: log.metadata ? decodeStoredJsonObject(log.metadata) : null,
     })),
     total: countResult?.total || 0,
     limit,
@@ -481,9 +502,11 @@ export async function handleUpdateAlertThreshold(request: Request, env: Env): Pr
     return errorResponse('Alert thresholds require Team or Enterprise tier', 403);
   }
 
-  // SAFETY: The alert endpoint consumes the documented threshold fields.
-  const body = (await request.json()) as { threshold_type: string; value: number };
-  const { threshold_type, value } = body;
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, AlertThresholdBodySchema));
+  if (Exit.isFailure(decoded)) {
+    return errorResponse('Invalid JSON body', 400);
+  }
+  const { threshold_type, value } = decoded.value;
 
   if (!threshold_type || value === undefined) {
     return errorResponse('Missing threshold_type or value', 400);
