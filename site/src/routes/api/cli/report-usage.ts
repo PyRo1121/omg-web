@@ -4,7 +4,7 @@ import { eq, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { ACHIEVEMENTS, checkAchievementProgress } from '~/lib/achievements';
 import { parseCLITelemetryReport } from '~/lib/dashboard-contract';
-import { storedDataErrorResponse } from '~/lib/api-error';
+import { internalErrorResponse, storedDataErrorResponse } from '~/lib/api-error';
 import {
   LicenseRowSchema,
   MachineRowSchema,
@@ -35,7 +35,7 @@ async function updateAchievements(
     vulnerabilities_found: number;
     time_saved_ms: number;
   }
-) {
+): Promise<'ok' | 'invalid'> {
   for (const achievement of ACHIEVEMENTS) {
     const progress = checkAchievementProgress(achievement, stats);
     const isUnlocked = progress >= 100;
@@ -58,7 +58,7 @@ async function updateAchievements(
       existing
     );
     if (isInvalidD1Row(existingLookup)) {
-      throw new Error('Failed to load stored achievement');
+      return 'invalid';
     }
     const existingAchievement =
       existingLookup._tag === 'present' ? existingLookup.value : undefined;
@@ -96,6 +96,7 @@ async function updateAchievements(
         .run();
     }
   }
+  return 'ok';
 }
 
 export async function POST(event: APIEvent) {
@@ -305,7 +306,10 @@ export async function POST(event: APIEvent) {
       time_saved_ms: totalStatsLookup.value.reduce((sum, s) => sum + s.timeSavedMs, 0),
     };
 
-    await updateAchievements(db, activeLicense.userId, stats);
+    const achievementResult = await updateAchievements(db, activeLicense.userId, stats);
+    if (achievementResult === 'invalid') {
+      return storedDataErrorResponse();
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -313,15 +317,6 @@ export async function POST(event: APIEvent) {
     });
   } catch (error: unknown) {
     console.error('[CLI Report Usage] Error:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return internalErrorResponse();
   }
 }

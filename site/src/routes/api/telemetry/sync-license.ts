@@ -170,9 +170,15 @@ export async function POST(event: APIEvent) {
 
       console.log('[Sync License] Database updated successfully');
 
-      // Sync machines and usage from external API to auth-db
-      const machinesSynced = await syncMachines(db, license.id, externalData.machines);
-      const usageSynced = await syncUsage(db, license.id, externalData.usage);
+      const extras = await syncExternalRecords(
+        db,
+        license.id,
+        externalData.machines,
+        externalData.usage
+      );
+      if (extras._tag === 'invalid') {
+        return storedDataErrorResponse();
+      }
 
       return new Response(
         JSON.stringify({
@@ -180,8 +186,8 @@ export async function POST(event: APIEvent) {
           old_tier: license.tier,
           new_tier: newTier,
           max_machines: maxMachines,
-          machines_synced: machinesSynced,
-          usage_synced: usageSynced,
+          machines_synced: extras.machines,
+          usage_synced: extras.usage,
         }),
         {
           status: 200,
@@ -192,17 +198,23 @@ export async function POST(event: APIEvent) {
 
     console.log('[Sync License] No update needed - tiers match');
 
-    // Sync machines and usage from external API to auth-db
-    const machinesSynced = await syncMachines(db, license.id, externalData.machines);
-    const usageSynced = await syncUsage(db, license.id, externalData.usage);
+    const extras = await syncExternalRecords(
+      db,
+      license.id,
+      externalData.machines,
+      externalData.usage
+    );
+    if (extras._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
 
     return new Response(
       JSON.stringify({
         synced: true,
         message: 'Already up to date',
         tier: newTier,
-        machines_synced: machinesSynced,
-        usage_synced: usageSynced,
+        machines_synced: extras.machines,
+        usage_synced: extras.usage,
       }),
       {
         status: 200,
@@ -214,7 +226,6 @@ export async function POST(event: APIEvent) {
     return new Response(
       JSON.stringify({
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
         synced: false,
       }),
       {
@@ -223,6 +234,51 @@ export async function POST(event: APIEvent) {
       }
     );
   }
+}
+
+type StoredRowSync = { readonly _tag: 'ok'; readonly count: number } | { readonly _tag: 'invalid' };
+
+type ExternalRecordSync =
+  | { readonly _tag: 'ok'; readonly machines: number; readonly usage: number }
+  | { readonly _tag: 'invalid' };
+
+async function syncExternalRecords(
+  db: ReturnType<typeof drizzle>,
+  licenseId: string,
+  machines:
+    | ReadonlyArray<{
+        machine_id: string;
+        hostname?: string;
+        os?: string;
+        arch?: string;
+        omg_version?: string;
+        is_active: number;
+        first_seen_at?: string;
+        last_seen_at?: string;
+      }>
+    | undefined,
+  usage:
+    | ReadonlyArray<{
+        date: string;
+        commands_run: number;
+        packages_installed: number;
+        packages_searched: number;
+        runtimes_switched: number;
+        sbom_generated: number;
+        vulnerabilities_found: number;
+        time_saved_ms: number;
+      }>
+    | undefined
+): Promise<ExternalRecordSync> {
+  const machinesSynced = await syncMachines(db, licenseId, machines);
+  if (machinesSynced._tag === 'invalid') {
+    return { _tag: 'invalid' };
+  }
+  const usageSynced = await syncUsage(db, licenseId, usage);
+  if (usageSynced._tag === 'invalid') {
+    return { _tag: 'invalid' };
+  }
+  return { _tag: 'ok', machines: machinesSynced.count, usage: usageSynced.count };
 }
 
 /**
@@ -242,77 +298,71 @@ async function syncMachines(
     first_seen_at?: string;
     last_seen_at?: string;
   }>
-): Promise<number> {
+): Promise<StoredRowSync> {
   if (!machines || machines.length === 0) {
-    return 0;
+    return { _tag: 'ok', count: 0 };
   }
 
   let synced = 0;
 
   for (const m of machines) {
-    try {
-      // Check if machine already exists in auth-db
-      const existing = await db
-        .select({ id: schema.machine.id })
-        .from(schema.machine)
-        .where(
-          and(eq(schema.machine.licenseId, licenseId), eq(schema.machine.machineId, m.machine_id))
-        )
-        .limit(1)
-        .get();
+    const existing = await db
+      .select({ id: schema.machine.id })
+      .from(schema.machine)
+      .where(
+        and(eq(schema.machine.licenseId, licenseId), eq(schema.machine.machineId, m.machine_id))
+      )
+      .limit(1)
+      .get();
 
-      const existingLookup = await readOptionalD1Row(
-        IdRowSchema,
-        'Machine id row has an invalid shape',
-        existing
-      );
-      if (isInvalidD1Row(existingLookup)) {
-        throw new Error('Stored machine row has an invalid shape');
-      }
-
-      const now = new Date();
-      const firstSeen = m.first_seen_at ? new Date(m.first_seen_at) : now;
-      const lastSeen = m.last_seen_at ? new Date(m.last_seen_at) : now;
-
-      if (existingLookup._tag === 'present') {
-        await db
-          .update(schema.machine)
-          .set({
-            hostname: m.hostname || null,
-            os: m.os || null,
-            arch: m.arch || null,
-            omgVersion: m.omg_version || null,
-            isActive: m.is_active === 1,
-            lastSeenAt: lastSeen,
-          })
-          .where(eq(schema.machine.id, existingLookup.value.id))
-          .run();
-      } else {
-        // Insert new machine
-        await db
-          .insert(schema.machine)
-          .values({
-            id: crypto.randomUUID(),
-            licenseId,
-            machineId: m.machine_id,
-            hostname: m.hostname || null,
-            os: m.os || null,
-            arch: m.arch || null,
-            omgVersion: m.omg_version || null,
-            isActive: m.is_active === 1,
-            firstSeenAt: firstSeen,
-            lastSeenAt: lastSeen,
-          })
-          .run();
-      }
-      synced++;
-    } catch (err: unknown) {
-      console.error(`[Sync Machines] Error syncing machine ${m.machine_id}:`, err);
+    const existingLookup = await readOptionalD1Row(
+      IdRowSchema,
+      'Machine id row has an invalid shape',
+      existing
+    );
+    if (isInvalidD1Row(existingLookup)) {
+      return { _tag: 'invalid' };
     }
+
+    const now = new Date();
+    const firstSeen = m.first_seen_at ? new Date(m.first_seen_at) : now;
+    const lastSeen = m.last_seen_at ? new Date(m.last_seen_at) : now;
+
+    if (existingLookup._tag === 'present') {
+      await db
+        .update(schema.machine)
+        .set({
+          hostname: m.hostname || null,
+          os: m.os || null,
+          arch: m.arch || null,
+          omgVersion: m.omg_version || null,
+          isActive: m.is_active === 1,
+          lastSeenAt: lastSeen,
+        })
+        .where(eq(schema.machine.id, existingLookup.value.id))
+        .run();
+    } else {
+      await db
+        .insert(schema.machine)
+        .values({
+          id: crypto.randomUUID(),
+          licenseId,
+          machineId: m.machine_id,
+          hostname: m.hostname || null,
+          os: m.os || null,
+          arch: m.arch || null,
+          omgVersion: m.omg_version || null,
+          isActive: m.is_active === 1,
+          firstSeenAt: firstSeen,
+          lastSeenAt: lastSeen,
+        })
+        .run();
+    }
+    synced++;
   }
 
   console.log(`[Sync Machines] Synced ${synced}/${machines.length} machines`);
-  return synced;
+  return { _tag: 'ok', count: synced };
 }
 
 /**
@@ -332,72 +382,64 @@ async function syncUsage(
     vulnerabilities_found: number;
     time_saved_ms: number;
   }>
-): Promise<number> {
+): Promise<StoredRowSync> {
   if (!usage || usage.length === 0) {
-    return 0;
+    return { _tag: 'ok', count: 0 };
   }
 
   let synced = 0;
 
   for (const day of usage) {
-    try {
-      // Check if usage record already exists for this date
-      const existing = await db
-        .select({ id: schema.usageDaily.id })
-        .from(schema.usageDaily)
-        .where(
-          and(eq(schema.usageDaily.licenseId, licenseId), eq(schema.usageDaily.date, day.date))
-        )
-        .limit(1)
-        .get();
+    const existing = await db
+      .select({ id: schema.usageDaily.id })
+      .from(schema.usageDaily)
+      .where(and(eq(schema.usageDaily.licenseId, licenseId), eq(schema.usageDaily.date, day.date)))
+      .limit(1)
+      .get();
 
-      const existingLookup = await readOptionalD1Row(
-        IdRowSchema,
-        'Usage daily id row has an invalid shape',
-        existing
-      );
-      if (isInvalidD1Row(existingLookup)) {
-        throw new Error('Stored usage row has an invalid shape');
-      }
-
-      if (existingLookup._tag === 'present') {
-        await db
-          .update(schema.usageDaily)
-          .set({
-            commandsRun: day.commands_run || 0,
-            packagesInstalled: day.packages_installed || 0,
-            packagesSearched: day.packages_searched || 0,
-            runtimesSwitched: day.runtimes_switched || 0,
-            sbomGenerated: day.sbom_generated || 0,
-            vulnerabilitiesFound: day.vulnerabilities_found || 0,
-            timeSavedMs: day.time_saved_ms || 0,
-          })
-          .where(eq(schema.usageDaily.id, existingLookup.value.id))
-          .run();
-      } else {
-        // Insert new usage record
-        await db
-          .insert(schema.usageDaily)
-          .values({
-            id: crypto.randomUUID(),
-            licenseId,
-            date: day.date,
-            commandsRun: day.commands_run || 0,
-            packagesInstalled: day.packages_installed || 0,
-            packagesSearched: day.packages_searched || 0,
-            runtimesSwitched: day.runtimes_switched || 0,
-            sbomGenerated: day.sbom_generated || 0,
-            vulnerabilitiesFound: day.vulnerabilities_found || 0,
-            timeSavedMs: day.time_saved_ms || 0,
-          })
-          .run();
-      }
-      synced++;
-    } catch (err: unknown) {
-      console.error(`[Sync Usage] Error syncing date ${day.date}:`, err);
+    const existingLookup = await readOptionalD1Row(
+      IdRowSchema,
+      'Usage daily id row has an invalid shape',
+      existing
+    );
+    if (isInvalidD1Row(existingLookup)) {
+      return { _tag: 'invalid' };
     }
+
+    if (existingLookup._tag === 'present') {
+      await db
+        .update(schema.usageDaily)
+        .set({
+          commandsRun: day.commands_run || 0,
+          packagesInstalled: day.packages_installed || 0,
+          packagesSearched: day.packages_searched || 0,
+          runtimesSwitched: day.runtimes_switched || 0,
+          sbomGenerated: day.sbom_generated || 0,
+          vulnerabilitiesFound: day.vulnerabilities_found || 0,
+          timeSavedMs: day.time_saved_ms || 0,
+        })
+        .where(eq(schema.usageDaily.id, existingLookup.value.id))
+        .run();
+    } else {
+      await db
+        .insert(schema.usageDaily)
+        .values({
+          id: crypto.randomUUID(),
+          licenseId,
+          date: day.date,
+          commandsRun: day.commands_run || 0,
+          packagesInstalled: day.packages_installed || 0,
+          packagesSearched: day.packages_searched || 0,
+          runtimesSwitched: day.runtimes_switched || 0,
+          sbomGenerated: day.sbom_generated || 0,
+          vulnerabilitiesFound: day.vulnerabilities_found || 0,
+          timeSavedMs: day.time_saved_ms || 0,
+        })
+        .run();
+    }
+    synced++;
   }
 
   console.log(`[Sync Usage] Synced ${synced}/${usage.length} usage days`);
-  return synced;
+  return { _tag: 'ok', count: synced };
 }
