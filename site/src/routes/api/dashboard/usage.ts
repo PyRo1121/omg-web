@@ -3,10 +3,25 @@ import { drizzle } from 'drizzle-orm/d1';
 import { eq, desc, gte, sql, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  CommandCountRowSchema,
+  DailyUsageChartRowSchema,
+  FeatureUsageRowSchema,
+  LicenseRowSchema,
+  MachineRowSchema,
+  TotalCommandsRowSchema,
+  isInvalidD1Row,
+  optionalD1RowValue,
+  readD1RowArray,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 function getEnv(event: APIEvent): CloudflareEnv {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) {throw new Error('Cloudflare environment not available');}
+  if (!env) {
+    throw new Error('Cloudflare environment not available');
+  }
 
   return {
     DB: env.DB,
@@ -63,24 +78,23 @@ export async function GET(event: APIEvent) {
     const db = drizzle(env.DB, { schema });
     const userId = session.user.id;
 
-    // Get user's license
-    const license = await db
-      .select()
-      .from(schema.license)
-      .where(eq(schema.license.userId, userId))
-      .limit(1)
-      .get();
-
-    if (!license) {
+    const licenseLookup = await readOptionalD1Row(
+      LicenseRowSchema,
+      'License row has an invalid shape',
+      await db.select().from(schema.license).where(eq(schema.license.userId, userId)).limit(1).get()
+    );
+    if (isInvalidD1Row(licenseLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (licenseLookup._tag === 'missing') {
       return new Response(JSON.stringify({ error: 'No license found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const licenseId = license.id;
+    const licenseId = licenseLookup.value.id;
 
-    // Calculate date ranges
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
@@ -97,84 +111,104 @@ export async function GET(event: APIEvent) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const monthAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-    // Total commands this month from usageDaily
-    const monthlyStats = await db
-      .select({
-        totalCommands: sql<number>`COALESCE(SUM(${schema.usageDaily.commandsRun}), 0)`,
-      })
-      .from(schema.usageDaily)
-      .where(
-        and(
-          eq(schema.usageDaily.licenseId, licenseId),
-          gte(schema.usageDaily.date, startOfMonthStr)
+    const monthlyLookup = await readOptionalD1Row(
+      TotalCommandsRowSchema,
+      'Monthly usage totals have an invalid shape',
+      await db
+        .select({
+          totalCommands: sql<number>`COALESCE(SUM(${schema.usageDaily.commandsRun}), 0)`,
+        })
+        .from(schema.usageDaily)
+        .where(
+          and(
+            eq(schema.usageDaily.licenseId, licenseId),
+            gte(schema.usageDaily.date, startOfMonthStr)
+          )
         )
-      )
-      .get();
-
-    // Commands this week and last week for trend
-    const thisWeekStats = await db
-      .select({
-        totalCommands: sql<number>`COALESCE(SUM(${schema.usageDaily.commandsRun}), 0)`,
-      })
-      .from(schema.usageDaily)
-      .where(
-        and(eq(schema.usageDaily.licenseId, licenseId), gte(schema.usageDaily.date, weekAgoStr))
-      )
-      .get();
-
-    const lastWeekStats = await db
-      .select({
-        totalCommands: sql<number>`COALESCE(SUM(${schema.usageDaily.commandsRun}), 0)`,
-      })
-      .from(schema.usageDaily)
-      .where(
-        and(
-          eq(schema.usageDaily.licenseId, licenseId),
-          gte(schema.usageDaily.date, twoWeeksAgoStr),
-          sql`${schema.usageDaily.date} < ${weekAgoStr}`
+        .get()
+    );
+    const thisWeekLookup = await readOptionalD1Row(
+      TotalCommandsRowSchema,
+      'This-week usage totals have an invalid shape',
+      await db
+        .select({
+          totalCommands: sql<number>`COALESCE(SUM(${schema.usageDaily.commandsRun}), 0)`,
+        })
+        .from(schema.usageDaily)
+        .where(
+          and(eq(schema.usageDaily.licenseId, licenseId), gte(schema.usageDaily.date, weekAgoStr))
         )
-      )
-      .get();
+        .get()
+    );
+    const lastWeekLookup = await readOptionalD1Row(
+      TotalCommandsRowSchema,
+      'Last-week usage totals have an invalid shape',
+      await db
+        .select({
+          totalCommands: sql<number>`COALESCE(SUM(${schema.usageDaily.commandsRun}), 0)`,
+        })
+        .from(schema.usageDaily)
+        .where(
+          and(
+            eq(schema.usageDaily.licenseId, licenseId),
+            gte(schema.usageDaily.date, twoWeeksAgoStr),
+            sql`${schema.usageDaily.date} < ${weekAgoStr}`
+          )
+        )
+        .get()
+    );
+    if (
+      isInvalidD1Row(monthlyLookup) ||
+      isInvalidD1Row(thisWeekLookup) ||
+      isInvalidD1Row(lastWeekLookup)
+    ) {
+      return storedDataErrorResponse();
+    }
 
+    const thisWeekCommands = optionalD1RowValue(thisWeekLookup)?.totalCommands ?? 0;
+    const lastWeekCommands = optionalD1RowValue(lastWeekLookup)?.totalCommands ?? 0;
     const commandsTrend =
-      lastWeekStats?.totalCommands && Number(lastWeekStats.totalCommands) > 0
-        ? ((Number(thisWeekStats?.totalCommands || 0) - Number(lastWeekStats.totalCommands)) /
-            Number(lastWeekStats.totalCommands)) *
-          100
-        : 0;
+      lastWeekCommands > 0 ? ((thisWeekCommands - lastWeekCommands) / lastWeekCommands) * 100 : 0;
 
-    // Active machines count
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const machines = await db
-      .select()
-      .from(schema.machine)
-      .where(eq(schema.machine.licenseId, licenseId))
-      .all();
-
+    const machinesLookup = await readD1RowArray(
+      MachineRowSchema,
+      'Machine rows have an invalid shape',
+      await db.select().from(schema.machine).where(eq(schema.machine.licenseId, licenseId)).all()
+    );
+    if (machinesLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
+    const machines = machinesLookup.value;
     const activeMachines = machines.filter(
       m => m.isActive && m.lastSeenAt.getTime() > oneDayAgo.getTime()
     );
 
-    // Command distribution from commandUsage
-    const commandDistribution = await db
-      .select({
-        command: schema.commandUsage.command,
-        count: sql<number>`COUNT(*)`,
-      })
-      .from(schema.commandUsage)
-      .where(
-        and(
-          eq(schema.commandUsage.licenseId, licenseId),
-          gte(schema.commandUsage.createdAt, startOfMonth)
+    const commandDistributionLookup = await readD1RowArray(
+      CommandCountRowSchema,
+      'Command distribution rows have an invalid shape',
+      await db
+        .select({
+          command: schema.commandUsage.command,
+          count: sql<number>`COUNT(*)`,
+        })
+        .from(schema.commandUsage)
+        .where(
+          and(
+            eq(schema.commandUsage.licenseId, licenseId),
+            gte(schema.commandUsage.createdAt, startOfMonth)
+          )
         )
-      )
-      .groupBy(schema.commandUsage.command)
-      .orderBy(desc(sql`COUNT(*)`))
-      .all();
+        .groupBy(schema.commandUsage.command)
+        .orderBy(desc(sql`COUNT(*)`))
+        .all()
+    );
+    if (commandDistributionLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
+    const commandDistribution = commandDistributionLookup.value;
+    const totalCommands = commandDistribution.reduce((sum, c) => sum + c.count, 0);
 
-    const totalCommands = commandDistribution.reduce((sum, c) => sum + Number(c.count), 0);
-
-    // Feature adoption - check various features
     const featureChecks = [
       { feature: 'aur', check: 'aur' },
       { feature: 'daemon', check: 'daemon' },
@@ -184,58 +218,76 @@ export async function GET(event: APIEvent) {
       { feature: 'audit', check: 'audit' },
     ];
 
-    const featureAdoption = await Promise.all(
+    const featureAdoptionLookups = await Promise.all(
       featureChecks.map(async ({ feature, check }) => {
-        const usage = await db
-          .select({
-            count: sql<number>`COUNT(*)`,
-            lastUsed: sql<number>`MAX(${schema.commandUsage.createdAt})`,
-          })
-          .from(schema.commandUsage)
-          .where(
-            and(
-              eq(schema.commandUsage.licenseId, licenseId),
-              sql`${schema.commandUsage.command} LIKE '%${check}%' OR ${schema.commandUsage.packageName} LIKE '%${check}%'`
+        const usageLookup = await readOptionalD1Row(
+          FeatureUsageRowSchema,
+          'Feature usage row has an invalid shape',
+          await db
+            .select({
+              count: sql<number>`COUNT(*)`,
+              lastUsed: sql<number>`MAX(${schema.commandUsage.createdAt})`,
+            })
+            .from(schema.commandUsage)
+            .where(
+              and(
+                eq(schema.commandUsage.licenseId, licenseId),
+                sql`${schema.commandUsage.command} LIKE '%${check}%' OR ${schema.commandUsage.packageName} LIKE '%${check}%'`
+              )
             )
-          )
-          .get();
-
-        return {
-          feature,
-          adopted: Number(usage?.count || 0) > 0,
-          usageCount: Number(usage?.count || 0),
-          lastUsed: usage?.lastUsed ? new Date(Number(usage.lastUsed)).toISOString() : null,
-        };
+            .get()
+        );
+        return { feature, usageLookup };
       })
     );
+    if (featureAdoptionLookups.some(item => isInvalidD1Row(item.usageLookup))) {
+      return storedDataErrorResponse();
+    }
 
-    // Daily usage for the last 30 days
-    const dailyUsage = await db
-      .select({
-        date: schema.usageDaily.date,
-        commands: schema.usageDaily.commandsRun,
-        timeSavedMs: schema.usageDaily.timeSavedMs,
-      })
-      .from(schema.usageDaily)
-      .where(
-        and(eq(schema.usageDaily.licenseId, licenseId), gte(schema.usageDaily.date, monthAgoStr))
-      )
-      .orderBy(schema.usageDaily.date)
-      .all();
+    const featureAdoption = featureAdoptionLookups.map(({ feature, usageLookup }) => {
+      const usage = optionalD1RowValue(usageLookup);
+      const usageCount = usage?.count ?? 0;
+      return {
+        feature,
+        adopted: usageCount > 0,
+        usageCount,
+        lastUsed: usage?.lastUsed ? usage.lastUsed.toISOString() : null,
+      };
+    });
+
+    const dailyUsageLookup = await readD1RowArray(
+      DailyUsageChartRowSchema,
+      'Daily usage rows have an invalid shape',
+      await db
+        .select({
+          date: schema.usageDaily.date,
+          commands: schema.usageDaily.commandsRun,
+          timeSavedMs: schema.usageDaily.timeSavedMs,
+        })
+        .from(schema.usageDaily)
+        .where(
+          and(eq(schema.usageDaily.licenseId, licenseId), gte(schema.usageDaily.date, monthAgoStr))
+        )
+        .orderBy(schema.usageDaily.date)
+        .all()
+    );
+    if (dailyUsageLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
 
     const response: UserUsageResponse = {
-      totalCommandsThisMonth: Number(monthlyStats?.totalCommands || 0),
-      commandsThisWeek: Number(thisWeekStats?.totalCommands || 0),
+      totalCommandsThisMonth: optionalD1RowValue(monthlyLookup)?.totalCommands ?? 0,
+      commandsThisWeek: thisWeekCommands,
       commandsTrend: Math.round(commandsTrend * 10) / 10,
       activeMachinesCount: activeMachines.length,
       totalMachinesCount: machines.length,
       commandDistribution: commandDistribution.map(c => ({
         command: c.command,
-        count: Number(c.count),
-        percentage: totalCommands > 0 ? Math.round((Number(c.count) / totalCommands) * 100) : 0,
+        count: c.count,
+        percentage: totalCommands > 0 ? Math.round((c.count / totalCommands) * 100) : 0,
       })),
       featureAdoption,
-      dailyUsage: dailyUsage.map(d => ({
+      dailyUsage: dailyUsageLookup.value.map(d => ({
         date: d.date,
         commands: d.commands,
         timeSavedMs: d.timeSavedMs,

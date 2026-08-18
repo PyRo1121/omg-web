@@ -3,10 +3,23 @@ import { drizzle } from 'drizzle-orm/d1';
 import { eq, desc, gte, lte, and, sql } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  CommandHistoryRowSchema,
+  CommandNameRowSchema,
+  CountRowSchema,
+  LicenseRowSchema,
+  isInvalidD1Row,
+  optionalD1RowValue,
+  readD1RowArray,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 function getEnv(event: APIEvent): CloudflareEnv {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) {throw new Error('Cloudflare environment not available');}
+  if (!env) {
+    throw new Error('Cloudflare environment not available');
+  }
 
   return {
     DB: env.DB,
@@ -63,24 +76,23 @@ export async function GET(event: APIEvent) {
     const db = drizzle(env.DB, { schema });
     const userId = session.user.id;
 
-    // Get user's license
-    const license = await db
-      .select()
-      .from(schema.license)
-      .where(eq(schema.license.userId, userId))
-      .limit(1)
-      .get();
-
-    if (!license) {
+    const licenseLookup = await readOptionalD1Row(
+      LicenseRowSchema,
+      'License row has an invalid shape',
+      await db.select().from(schema.license).where(eq(schema.license.userId, userId)).limit(1).get()
+    );
+    if (isInvalidD1Row(licenseLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (licenseLookup._tag === 'missing') {
       return new Response(JSON.stringify({ error: 'No license found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const licenseId = license.id;
+    const licenseId = licenseLookup.value.id;
 
-    // Parse query parameters
     const url = new URL(event.request.url);
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
     const offset = parseInt(url.searchParams.get('offset') || '0');
@@ -89,7 +101,6 @@ export async function GET(event: APIEvent) {
     const endDate = url.searchParams.get('endDate');
     const successFilter = url.searchParams.get('success');
 
-    // Build query conditions
     const conditions = [eq(schema.commandUsage.licenseId, licenseId)];
 
     if (commandFilter) {
@@ -115,51 +126,68 @@ export async function GET(event: APIEvent) {
       conditions.push(eq(schema.commandUsage.success, successFilter === 'true'));
     }
 
-    // Get total count for pagination
-    const totalResult = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(schema.commandUsage)
-      .where(and(...conditions))
-      .get();
+    const totalLookup = await readOptionalD1Row(
+      CountRowSchema,
+      'Command history count has an invalid shape',
+      await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(schema.commandUsage)
+        .where(and(...conditions))
+        .get()
+    );
+    if (isInvalidD1Row(totalLookup)) {
+      return storedDataErrorResponse();
+    }
+    const total = optionalD1RowValue(totalLookup)?.count ?? 0;
 
-    const total = Number(totalResult?.count || 0);
+    const commandsLookup = await readD1RowArray(
+      CommandHistoryRowSchema,
+      'Command history rows have an invalid shape',
+      await db
+        .select({
+          id: schema.commandUsage.id,
+          command: schema.commandUsage.command,
+          packageName: schema.commandUsage.packageName,
+          runtimeName: schema.commandUsage.runtimeName,
+          success: schema.commandUsage.success,
+          durationMs: schema.commandUsage.durationMs,
+          createdAt: schema.commandUsage.createdAt,
+        })
+        .from(schema.commandUsage)
+        .where(and(...conditions))
+        .orderBy(desc(schema.commandUsage.createdAt))
+        .limit(limit)
+        .offset(offset)
+        .all()
+    );
+    if (commandsLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
 
-    // Get commands with machine info
-    const commands = await db
-      .select({
-        id: schema.commandUsage.id,
-        command: schema.commandUsage.command,
-        packageName: schema.commandUsage.packageName,
-        runtimeName: schema.commandUsage.runtimeName,
-        success: schema.commandUsage.success,
-        durationMs: schema.commandUsage.durationMs,
-        createdAt: schema.commandUsage.createdAt,
-      })
-      .from(schema.commandUsage)
-      .where(and(...conditions))
-      .orderBy(desc(schema.commandUsage.createdAt))
-      .limit(limit)
-      .offset(offset)
-      .all();
-
-    // Get available command types for filter dropdown
-    const availableCommands = await db
-      .select({ command: schema.commandUsage.command })
-      .from(schema.commandUsage)
-      .where(eq(schema.commandUsage.licenseId, licenseId))
-      .groupBy(schema.commandUsage.command)
-      .all();
+    const availableCommandsLookup = await readD1RowArray(
+      CommandNameRowSchema,
+      'Available command rows have an invalid shape',
+      await db
+        .select({ command: schema.commandUsage.command })
+        .from(schema.commandUsage)
+        .where(eq(schema.commandUsage.licenseId, licenseId))
+        .groupBy(schema.commandUsage.command)
+        .all()
+    );
+    if (availableCommandsLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
 
     const response: CommandHistoryResponse = {
-      commands: commands.map(c => ({
+      commands: commandsLookup.value.map(c => ({
         id: c.id,
         command: c.command,
-        packageName: c.packageName,
-        runtimeName: c.runtimeName,
+        packageName: c.packageName ?? null,
+        runtimeName: c.runtimeName ?? null,
         success: c.success,
-        durationMs: c.durationMs,
-        createdAt: new Date(c.createdAt).toISOString(),
-        machineHostname: null, // Could join with machine table if needed
+        durationMs: c.durationMs ?? null,
+        createdAt: c.createdAt.toISOString(),
+        machineHostname: null,
       })),
       pagination: {
         limit,
@@ -168,7 +196,7 @@ export async function GET(event: APIEvent) {
         hasMore: offset + limit < total,
       },
       filters: {
-        availableCommands: availableCommands.map(c => c.command),
+        availableCommands: availableCommandsLookup.value.map(c => c.command),
       },
     };
 

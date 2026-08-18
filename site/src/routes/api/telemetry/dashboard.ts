@@ -7,6 +7,21 @@ import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import { ACHIEVEMENTS, checkAchievementProgress } from '~/lib/achievements';
 import { parseTelemetryDashboard } from '~/lib/contracts/telemetry-dashboard';
 import type { TelemetryDashboardResponse } from '~/types/telemetry';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  CountRowSchema,
+  LicenseRowSchema,
+  MachineRowSchema,
+  UsageDailyRowSchema,
+  UsageTotalsRowSchema,
+  UserAchievementJoinRowSchema,
+  UserRoleRowSchema,
+  WeekStatsRowSchema,
+  isInvalidD1Row,
+  optionalD1RowValue,
+  readD1RowArray,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 function internalErrorResponse(): Response {
   return new Response(JSON.stringify({ error: 'Internal server error' }), {
@@ -68,12 +83,16 @@ export async function GET(event: APIEvent) {
 
     console.log('[Dashboard API] Querying license for userId:', userId);
 
-    let license = await db
-      .select()
-      .from(schema.license)
-      .where(eq(schema.license.userId, userId))
-      .limit(1)
-      .get();
+    const licenseLookup = await readOptionalD1Row(
+      LicenseRowSchema,
+      'License row has an invalid shape',
+      await db.select().from(schema.license).where(eq(schema.license.userId, userId)).limit(1).get()
+    );
+    if (isInvalidD1Row(licenseLookup)) {
+      return storedDataErrorResponse();
+    }
+
+    let license = optionalD1RowValue(licenseLookup);
 
     console.log(
       '[Dashboard API] License found:',
@@ -100,32 +119,41 @@ export async function GET(event: APIEvent) {
         })
         .run();
 
-      license = await db
-        .select()
-        .from(schema.license)
-        .where(eq(schema.license.id, licenseId))
-        .limit(1)
-        .get();
-
-      console.log(
-        '[Dashboard API] Created new license:',
-        license ? `id=${license.id}, tier=${license.tier}` : 'failed'
+      const createdLookup = await readOptionalD1Row(
+        LicenseRowSchema,
+        'Created license row has an invalid shape',
+        await db
+          .select()
+          .from(schema.license)
+          .where(eq(schema.license.id, licenseId))
+          .limit(1)
+          .get()
       );
+      if (isInvalidD1Row(createdLookup) || createdLookup._tag === 'missing') {
+        return new Response(JSON.stringify({ error: 'Failed to create license' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      license = createdLookup.value;
+
+      console.log('[Dashboard API] Created new license:', `id=${license.id}, tier=${license.tier}`);
     }
 
-    if (!license) {
-      return new Response(JSON.stringify({ error: 'Failed to create license' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const machinesLookup = await readD1RowArray(
+      MachineRowSchema,
+      'Machine rows have an invalid shape',
+      await db
+        .select()
+        .from(schema.machine)
+        .where(eq(schema.machine.licenseId, license.id))
+        .orderBy(desc(schema.machine.lastSeenAt))
+        .all()
+    );
+    if (machinesLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
     }
-
-    const machines = await db
-      .select()
-      .from(schema.machine)
-      .where(eq(schema.machine.licenseId, license.id))
-      .orderBy(desc(schema.machine.lastSeenAt))
-      .all();
+    const machines = machinesLookup.value;
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -147,14 +175,24 @@ export async function GET(event: APIEvent) {
       )
       .get();
 
+    const usageStatsLookup = await readOptionalD1Row(
+      UsageTotalsRowSchema,
+      'Usage totals have an invalid shape',
+      usageStatsResult
+    );
+    if (isInvalidD1Row(usageStatsLookup)) {
+      return storedDataErrorResponse();
+    }
+    const usageTotals = optionalD1RowValue(usageStatsLookup);
+
     const usageStats = {
-      total_commands: Number(usageStatsResult?.totalCommands || 0),
-      total_packages_installed: Number(usageStatsResult?.totalPackagesInstalled || 0),
-      total_packages_searched: Number(usageStatsResult?.totalPackagesSearched || 0),
-      total_runtimes_switched: Number(usageStatsResult?.totalRuntimesSwitched || 0),
-      total_sbom_generated: Number(usageStatsResult?.totalSbomGenerated || 0),
-      total_vulnerabilities_found: Number(usageStatsResult?.totalVulnerabilitiesFound || 0),
-      total_time_saved_ms: Number(usageStatsResult?.totalTimeSavedMs || 0),
+      total_commands: usageTotals?.totalCommands ?? 0,
+      total_packages_installed: usageTotals?.totalPackagesInstalled ?? 0,
+      total_packages_searched: usageTotals?.totalPackagesSearched ?? 0,
+      total_runtimes_switched: usageTotals?.totalRuntimesSwitched ?? 0,
+      total_sbom_generated: usageTotals?.totalSbomGenerated ?? 0,
+      total_vulnerabilities_found: usageTotals?.totalVulnerabilitiesFound ?? 0,
+      total_time_saved_ms: usageTotals?.totalTimeSavedMs ?? 0,
     };
 
     const fourteenDaysAgo = new Date();
@@ -170,6 +208,14 @@ export async function GET(event: APIEvent) {
       .orderBy(desc(schema.usageDaily.date))
       .all();
 
+    const dailyUsageLookup = await readD1RowArray(
+      UsageDailyRowSchema,
+      'Daily usage rows have an invalid shape',
+      dailyUsage
+    );
+    if (dailyUsageLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const dateStr7 = sevenDaysAgo.toISOString().split('T')[0];
@@ -200,15 +246,31 @@ export async function GET(event: APIEvent) {
       )
       .get();
 
-    const commandsTrend = previousWeekStats?.totalCommands
-      ? ((Number(lastWeekStats?.totalCommands || 0) - Number(previousWeekStats.totalCommands)) /
-          Number(previousWeekStats.totalCommands)) *
+    const lastWeekLookup = await readOptionalD1Row(
+      WeekStatsRowSchema,
+      'Last-week stats have an invalid shape',
+      lastWeekStats
+    );
+    const previousWeekLookup = await readOptionalD1Row(
+      WeekStatsRowSchema,
+      'Previous-week stats have an invalid shape',
+      previousWeekStats
+    );
+    if (isInvalidD1Row(lastWeekLookup) || isInvalidD1Row(previousWeekLookup)) {
+      return storedDataErrorResponse();
+    }
+    const lastWeek = optionalD1RowValue(lastWeekLookup);
+    const previousWeek = optionalD1RowValue(previousWeekLookup);
+
+    const commandsTrend = previousWeek?.totalCommands
+      ? ((Number(lastWeek?.totalCommands || 0) - Number(previousWeek.totalCommands)) /
+          Number(previousWeek.totalCommands)) *
         100
       : 0;
 
-    const timeSavedTrend = previousWeekStats?.totalTimeSaved
-      ? ((Number(lastWeekStats?.totalTimeSaved || 0) - Number(previousWeekStats.totalTimeSaved)) /
-          Number(previousWeekStats.totalTimeSaved)) *
+    const timeSavedTrend = previousWeek?.totalTimeSaved
+      ? ((Number(lastWeek?.totalTimeSaved || 0) - Number(previousWeek.totalTimeSaved)) /
+          Number(previousWeek.totalTimeSaved)) *
         100
       : 0;
 
@@ -233,7 +295,15 @@ export async function GET(event: APIEvent) {
       .where(eq(schema.userAchievement.userId, userId))
       .all();
 
-    const achievementMap = new Map(userAchievements.map(a => [a.achievementId, a]));
+    const userAchievementsLookup = await readD1RowArray(
+      UserAchievementJoinRowSchema,
+      'Achievement rows have an invalid shape',
+      userAchievements
+    );
+    if (userAchievementsLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
+    const achievementMap = new Map(userAchievementsLookup.value.map(a => [a.achievementId, a]));
 
     const achievementStats = {
       commands_run: usageStats.total_commands,
@@ -276,10 +346,23 @@ export async function GET(event: APIEvent) {
       .having(sql`SUM(${schema.usageDaily.commandsRun}) < ${usageStats.total_commands}`)
       .all();
 
+    const totalUsersLookup = await readOptionalD1Row(
+      CountRowSchema,
+      'Total user count has an invalid shape',
+      totalUsers
+    );
+    const userRankLookup = await readD1RowArray(
+      CountRowSchema,
+      'User rank rows have an invalid shape',
+      userRank
+    );
+    if (isInvalidD1Row(totalUsersLookup) || userRankLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
+    const totalUserCount = optionalD1RowValue(totalUsersLookup)?.count ?? 0;
+
     const percentile =
-      totalUsers?.count && totalUsers.count > 0
-        ? Math.round((userRank.length / Number(totalUsers.count)) * 100)
-        : 0;
+      totalUserCount > 0 ? Math.round((userRankLookup.value.length / totalUserCount) * 100) : 0;
 
     console.log('[Dashboard API] Returning tier to frontend:', license.tier);
 
@@ -290,21 +373,24 @@ export async function GET(event: APIEvent) {
       .limit(1)
       .get();
 
-    console.log(
-      '[Dashboard API] User role query - userId:',
-      userId,
-      'userRecord:',
-      userRecord,
-      'role:',
-      userRecord?.role
+    const userRecordLookup = await readOptionalD1Row(
+      UserRoleRowSchema,
+      'User role row has an invalid shape',
+      userRecord
     );
+    if (isInvalidD1Row(userRecordLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (userRecordLookup._tag === 'missing') {
+      return storedDataErrorResponse();
+    }
 
     const response: TelemetryDashboardResponse = {
       user: {
         id: session.user.id,
         email: session.user.email,
         name: session.user.name,
-        role: userRecord?.role || 'user',
+        role: userRecordLookup.value.role,
       },
       license: {
         id: license.id,
@@ -318,10 +404,10 @@ export async function GET(event: APIEvent) {
       machines: machines.map(m => ({
         id: m.id,
         machine_id: m.machineId,
-        hostname: m.hostname,
-        os: m.os,
-        arch: m.arch,
-        omg_version: m.omgVersion,
+        hostname: m.hostname ?? null,
+        os: m.os ?? null,
+        arch: m.arch ?? null,
+        omg_version: m.omgVersion ?? null,
         is_active: m.isActive ? 1 : 0,
         last_seen_at: m.lastSeenAt.toISOString(),
       })),
@@ -330,7 +416,7 @@ export async function GET(event: APIEvent) {
         commands_trend: Math.round(commandsTrend * 10) / 10,
         time_saved_trend: Math.round(timeSavedTrend * 10) / 10,
       },
-      daily: dailyUsage.map(d => ({
+      daily: dailyUsageLookup.value.map(d => ({
         date: d.date,
         commands_run: d.commandsRun,
         packages_installed: d.packagesInstalled,

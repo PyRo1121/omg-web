@@ -4,6 +4,13 @@ import { eq, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import { parseExternalLicenseResponse } from '~/lib/dashboard-contract';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  IdRowSchema,
+  LicenseRowSchema,
+  isInvalidD1Row,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 type LicenseTier = 'free' | 'team' | 'enterprise';
 
@@ -19,7 +26,9 @@ function parseLicenseTier(value: string | undefined): LicenseTier {
 
 function getEnv(event: APIEvent): CloudflareEnv {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) {throw new Error('Cloudflare environment not available');}
+  if (!env) {
+    throw new Error('Cloudflare environment not available');
+  }
 
   return {
     DB: env.DB,
@@ -58,24 +67,29 @@ export async function POST(event: APIEvent) {
 
     console.log('[Sync License] Querying license for userId:', userId);
 
-    const license = await db
-      .select()
-      .from(schema.license)
-      .where(eq(schema.license.userId, userId))
-      .limit(1)
-      .get();
+    const licenseLookup = await readOptionalD1Row(
+      LicenseRowSchema,
+      'License row has an invalid shape',
+      await db.select().from(schema.license).where(eq(schema.license.userId, userId)).limit(1).get()
+    );
+    if (isInvalidD1Row(licenseLookup)) {
+      return storedDataErrorResponse();
+    }
 
     console.log(
       '[Sync License] License found:',
-      license ? `id=${license.id}, tier=${license.tier}, licenseKey=${license.licenseKey}` : 'null'
+      licenseLookup._tag === 'present'
+        ? `id=${licenseLookup.value.id}, tier=${licenseLookup.value.tier}, licenseKey=${licenseLookup.value.licenseKey}`
+        : 'null'
     );
 
-    if (!license) {
+    if (licenseLookup._tag === 'missing') {
       return new Response(JSON.stringify({ error: 'No license found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    const license = licenseLookup.value;
 
     const externalApiResponse = await fetch('https://api.pyro1121.com/api/validate-license', {
       method: 'POST',
@@ -229,7 +243,9 @@ async function syncMachines(
     last_seen_at?: string;
   }>
 ): Promise<number> {
-  if (!machines || machines.length === 0) {return 0;}
+  if (!machines || machines.length === 0) {
+    return 0;
+  }
 
   let synced = 0;
 
@@ -245,12 +261,20 @@ async function syncMachines(
         .limit(1)
         .get();
 
+      const existingLookup = await readOptionalD1Row(
+        IdRowSchema,
+        'Machine id row has an invalid shape',
+        existing
+      );
+      if (isInvalidD1Row(existingLookup)) {
+        throw new Error('Stored machine row has an invalid shape');
+      }
+
       const now = new Date();
       const firstSeen = m.first_seen_at ? new Date(m.first_seen_at) : now;
       const lastSeen = m.last_seen_at ? new Date(m.last_seen_at) : now;
 
-      if (existing) {
-        // Update existing machine
+      if (existingLookup._tag === 'present') {
         await db
           .update(schema.machine)
           .set({
@@ -261,7 +285,7 @@ async function syncMachines(
             isActive: m.is_active === 1,
             lastSeenAt: lastSeen,
           })
-          .where(eq(schema.machine.id, existing.id))
+          .where(eq(schema.machine.id, existingLookup.value.id))
           .run();
       } else {
         // Insert new machine
@@ -282,7 +306,7 @@ async function syncMachines(
           .run();
       }
       synced++;
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(`[Sync Machines] Error syncing machine ${m.machine_id}:`, err);
     }
   }
@@ -309,7 +333,9 @@ async function syncUsage(
     time_saved_ms: number;
   }>
 ): Promise<number> {
-  if (!usage || usage.length === 0) {return 0;}
+  if (!usage || usage.length === 0) {
+    return 0;
+  }
 
   let synced = 0;
 
@@ -325,8 +351,16 @@ async function syncUsage(
         .limit(1)
         .get();
 
-      if (existing) {
-        // Update with latest values from licensing DB (source of truth)
+      const existingLookup = await readOptionalD1Row(
+        IdRowSchema,
+        'Usage daily id row has an invalid shape',
+        existing
+      );
+      if (isInvalidD1Row(existingLookup)) {
+        throw new Error('Stored usage row has an invalid shape');
+      }
+
+      if (existingLookup._tag === 'present') {
         await db
           .update(schema.usageDaily)
           .set({
@@ -338,7 +372,7 @@ async function syncUsage(
             vulnerabilitiesFound: day.vulnerabilities_found || 0,
             timeSavedMs: day.time_saved_ms || 0,
           })
-          .where(eq(schema.usageDaily.id, existing.id))
+          .where(eq(schema.usageDaily.id, existingLookup.value.id))
           .run();
       } else {
         // Insert new usage record
@@ -359,7 +393,7 @@ async function syncUsage(
           .run();
       }
       synced++;
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(`[Sync Usage] Error syncing date ${day.date}:`, err);
     }
   }

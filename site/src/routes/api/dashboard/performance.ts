@@ -3,6 +3,17 @@ import { drizzle } from 'drizzle-orm/d1';
 import { eq, gte, and, sql } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  CommandPerformanceRowSchema,
+  DailyPerformanceRowSchema,
+  LicenseRowSchema,
+  TimeSavedRowSchema,
+  isInvalidD1Row,
+  optionalD1RowValue,
+  readD1RowArray,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 function getEnv(event: APIEvent): CloudflareEnv {
   const env = event.nativeEvent.context.cloudflare?.env;
@@ -77,24 +88,23 @@ export async function GET(event: APIEvent) {
     const db = drizzle(env.DB, { schema });
     const userId = session.user.id;
 
-    // Get user's license
-    const license = await db
-      .select()
-      .from(schema.license)
-      .where(eq(schema.license.userId, userId))
-      .limit(1)
-      .get();
-
-    if (!license) {
+    const licenseLookup = await readOptionalD1Row(
+      LicenseRowSchema,
+      'License row has an invalid shape',
+      await db.select().from(schema.license).where(eq(schema.license.userId, userId)).limit(1).get()
+    );
+    if (isInvalidD1Row(licenseLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (licenseLookup._tag === 'missing') {
       return new Response(JSON.stringify({ error: 'No license found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const licenseId = license.id;
+    const licenseId = licenseLookup.value.id;
 
-    // Parse query parameters
     const url = new URL(event.request.url);
     const days = parseInt(url.searchParams.get('days') || '30');
 
@@ -102,85 +112,98 @@ export async function GET(event: APIEvent) {
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString().split('T')[0];
 
-    // Calculate average durations by command type from commandUsage
-    const commandPerformance = await db
-      .select({
-        command: schema.commandUsage.command,
-        avgDuration: sql<number>`AVG(${schema.commandUsage.durationMs})`,
-        minDuration: sql<number>`MIN(${schema.commandUsage.durationMs})`,
-        maxDuration: sql<number>`MAX(${schema.commandUsage.durationMs})`,
-        count: sql<number>`COUNT(*)`,
-        successCount: sql<number>`SUM(CASE WHEN ${schema.commandUsage.success} = 1 THEN 1 ELSE 0 END)`,
-      })
-      .from(schema.commandUsage)
-      .where(
-        and(
-          eq(schema.commandUsage.licenseId, licenseId),
-          gte(schema.commandUsage.createdAt, startDate),
-          sql`${schema.commandUsage.durationMs} IS NOT NULL`
+    const commandPerformanceLookup = await readD1RowArray(
+      CommandPerformanceRowSchema,
+      'Command performance rows have an invalid shape',
+      await db
+        .select({
+          command: schema.commandUsage.command,
+          avgDuration: sql<number>`AVG(${schema.commandUsage.durationMs})`,
+          minDuration: sql<number>`MIN(${schema.commandUsage.durationMs})`,
+          maxDuration: sql<number>`MAX(${schema.commandUsage.durationMs})`,
+          count: sql<number>`COUNT(*)`,
+          successCount: sql<number>`SUM(CASE WHEN ${schema.commandUsage.success} = 1 THEN 1 ELSE 0 END)`,
+        })
+        .from(schema.commandUsage)
+        .where(
+          and(
+            eq(schema.commandUsage.licenseId, licenseId),
+            gte(schema.commandUsage.createdAt, startDate),
+            sql`${schema.commandUsage.durationMs} IS NOT NULL`
+          )
         )
-      )
-      .groupBy(schema.commandUsage.command)
-      .all();
+        .groupBy(schema.commandUsage.command)
+        .all()
+    );
+    if (commandPerformanceLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
+    const commandPerformance = commandPerformanceLookup.value;
 
-    // Build metrics array
     const metrics: PerformanceMetric[] = commandPerformance.map(p => ({
       metricType: p.command,
-      avgValue: Math.round(Number(p.avgDuration) || 0),
-      minValue: Number(p.minDuration) || 0,
-      maxValue: Number(p.maxDuration) || 0,
-      p50Value: Math.round(Number(p.avgDuration) || 0), // Simplified - would need window functions for real percentiles
-      p95Value: Math.round((Number(p.maxDuration) || 0) * 0.95),
-      sampleCount: Number(p.count),
+      avgValue: Math.round(p.avgDuration),
+      minValue: p.minDuration,
+      maxValue: p.maxDuration,
+      p50Value: Math.round(p.avgDuration),
+      p95Value: Math.round(p.maxDuration * 0.95),
+      sampleCount: p.count,
     }));
 
-    // Calculate summary metrics
     const searchMetric = commandPerformance.find(p => p.command === 'search');
     const installMetric = commandPerformance.find(p => p.command === 'install');
     const updateMetric = commandPerformance.find(p => p.command === 'update');
 
-    const totalCommands = commandPerformance.reduce((sum, p) => sum + Number(p.count), 0);
-    const successfulCommands = commandPerformance.reduce(
-      (sum, p) => sum + Number(p.successCount),
-      0
-    );
+    const totalCommands = commandPerformance.reduce((sum, p) => sum + p.count, 0);
+    const successfulCommands = commandPerformance.reduce((sum, p) => sum + p.successCount, 0);
 
-    // Get total time saved from usageDaily
-    const timeSavedResult = await db
-      .select({
-        totalTimeSaved: sql<number>`COALESCE(SUM(${schema.usageDaily.timeSavedMs}), 0)`,
-      })
-      .from(schema.usageDaily)
-      .where(
-        and(eq(schema.usageDaily.licenseId, licenseId), gte(schema.usageDaily.date, startDateStr))
-      )
-      .get();
-
-    // Get daily performance trends
-    const dailyPerformance = await db
-      .select({
-        date: sql<string>`date(${schema.commandUsage.createdAt} / 1000, 'unixepoch')`,
-        command: schema.commandUsage.command,
-        avgDuration: sql<number>`AVG(${schema.commandUsage.durationMs})`,
-      })
-      .from(schema.commandUsage)
-      .where(
-        and(
-          eq(schema.commandUsage.licenseId, licenseId),
-          gte(schema.commandUsage.createdAt, startDate),
-          sql`${schema.commandUsage.durationMs} IS NOT NULL`
+    const timeSavedLookup = await readOptionalD1Row(
+      TimeSavedRowSchema,
+      'Time saved totals have an invalid shape',
+      await db
+        .select({
+          totalTimeSaved: sql<number>`COALESCE(SUM(${schema.usageDaily.timeSavedMs}), 0)`,
+        })
+        .from(schema.usageDaily)
+        .where(
+          and(eq(schema.usageDaily.licenseId, licenseId), gte(schema.usageDaily.date, startDateStr))
         )
-      )
-      .groupBy(
-        sql`date(${schema.commandUsage.createdAt} / 1000, 'unixepoch')`,
-        schema.commandUsage.command
-      )
-      .orderBy(sql`date(${schema.commandUsage.createdAt} / 1000, 'unixepoch')`)
-      .all();
+        .get()
+    );
+    if (isInvalidD1Row(timeSavedLookup)) {
+      return storedDataErrorResponse();
+    }
 
-    // Transform daily performance into trends
+    const dailyPerformanceLookup = await readD1RowArray(
+      DailyPerformanceRowSchema,
+      'Daily performance rows have an invalid shape',
+      await db
+        .select({
+          date: sql<string>`date(${schema.commandUsage.createdAt} / 1000, 'unixepoch')`,
+          command: schema.commandUsage.command,
+          avgDuration: sql<number>`AVG(${schema.commandUsage.durationMs})`,
+        })
+        .from(schema.commandUsage)
+        .where(
+          and(
+            eq(schema.commandUsage.licenseId, licenseId),
+            gte(schema.commandUsage.createdAt, startDate),
+            sql`${schema.commandUsage.durationMs} IS NOT NULL`
+          )
+        )
+        .groupBy(
+          sql`date(${schema.commandUsage.createdAt} / 1000, 'unixepoch')`,
+          schema.commandUsage.command
+        )
+        .orderBy(sql`date(${schema.commandUsage.createdAt} / 1000, 'unixepoch')`)
+        .all()
+    );
+    if (dailyPerformanceLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
+
     const trendsMap = new Map<string, PerformanceTrend>();
-    dailyPerformance.forEach(p => {
+    dailyPerformanceLookup.value.forEach(p => {
       if (!trendsMap.has(p.date)) {
         trendsMap.set(p.date, {
           date: p.date,
@@ -194,7 +217,7 @@ export async function GET(event: APIEvent) {
       if (trend === undefined) {
         return;
       }
-      const avgMs = Math.round(Number(p.avgDuration) || 0);
+      const avgMs = Math.round(p.avgDuration);
       switch (p.command) {
         case 'search':
           trend.avgSearchMs = avgMs;
@@ -210,7 +233,6 @@ export async function GET(event: APIEvent) {
 
     const trends = Array.from(trendsMap.values()).toSorted((a, b) => a.date.localeCompare(b.date));
 
-    // Build sparkline data (last 14 data points)
     const recentTrends = trends.slice(-14);
     const sparklineData = {
       startup: recentTrends.map(t => t.avgStartupMs),
@@ -220,11 +242,11 @@ export async function GET(event: APIEvent) {
 
     const response: PerformanceResponse = {
       summary: {
-        avgStartupMs: 0, // Would need daemon startup data
-        avgSearchMs: Math.round(Number(searchMetric?.avgDuration) || 0),
-        avgInstallMs: Math.round(Number(installMetric?.avgDuration) || 0),
-        avgUpdateMs: Math.round(Number(updateMetric?.avgDuration) || 0),
-        totalTimeSavedMs: Number(timeSavedResult?.totalTimeSaved || 0),
+        avgStartupMs: 0,
+        avgSearchMs: Math.round(searchMetric?.avgDuration ?? 0),
+        avgInstallMs: Math.round(installMetric?.avgDuration ?? 0),
+        avgUpdateMs: Math.round(updateMetric?.avgDuration ?? 0),
+        totalTimeSavedMs: optionalD1RowValue(timeSavedLookup)?.totalTimeSaved ?? 0,
         commandSuccessRate:
           totalCommands > 0 ? Math.round((successfulCommands / totalCommands) * 100) : 100,
       },

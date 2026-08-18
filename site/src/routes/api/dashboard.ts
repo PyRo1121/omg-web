@@ -5,6 +5,8 @@ import { eq } from 'drizzle-orm';
 import * as schema from '../../db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import { parseAccountDashboard } from '~/lib/contracts/dashboard';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import { AccountRowSchema, SessionRowSchema, readD1RowArray } from '~/lib/contracts/d1-rows';
 
 function internalErrorResponse(): Response {
   return new Response(JSON.stringify({ error: 'Internal server error' }), {
@@ -67,6 +69,20 @@ export async function GET(event: APIEvent) {
       .where(eq(schema.account.userId, session.user.id))
       .all();
 
+    const sessionsLookup = await readD1RowArray(
+      SessionRowSchema,
+      'Session rows have an invalid shape',
+      userSessions
+    );
+    const accountsLookup = await readD1RowArray(
+      AccountRowSchema,
+      'Account rows have an invalid shape',
+      userAccounts
+    );
+    if (sessionsLookup._tag === 'invalid' || accountsLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
+
     const response = {
       user: {
         id: session.user.id,
@@ -76,15 +92,15 @@ export async function GET(event: APIEvent) {
         image: session.user.image || null,
         createdAt: new Date(session.user.createdAt).toISOString(),
       },
-      sessions: userSessions.map(s => ({
+      sessions: sessionsLookup.value.map(s => ({
         id: s.id,
-        ipAddress: s.ipAddress,
-        userAgent: s.userAgent,
-        createdAt: new Date(s.createdAt).toISOString(),
-        expiresAt: new Date(s.expiresAt).toISOString(),
+        ipAddress: s.ipAddress ?? null,
+        userAgent: s.userAgent ?? null,
+        createdAt: s.createdAt.toISOString(),
+        expiresAt: s.expiresAt.toISOString(),
         isCurrent: s.token === currentSessionToken,
       })),
-      accounts: userAccounts.map(a => ({
+      accounts: accountsLookup.value.map(a => ({
         provider: a.providerId,
         accountId: a.accountId,
       })),

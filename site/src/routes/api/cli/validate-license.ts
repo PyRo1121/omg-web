@@ -3,10 +3,20 @@ import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { parseLicenseValidationRequest } from '~/lib/dashboard-contract';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  LicenseValidateRowSchema,
+  MachineRowSchema,
+  isInvalidD1Row,
+  readD1RowArray,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 function getEnv(event: APIEvent) {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) {throw new Error('Environment not available');}
+  if (!env) {
+    throw new Error('Environment not available');
+  }
   return env;
 }
 
@@ -22,20 +32,26 @@ export async function POST(event: APIEvent) {
       });
     }
 
-    const license = await db
-      .select({
-        id: schema.license.id,
-        tier: schema.license.tier,
-        status: schema.license.status,
-        maxMachines: schema.license.maxMachines,
-        expiresAt: schema.license.expiresAt,
-      })
-      .from(schema.license)
-      .where(eq(schema.license.licenseKey, parsedBody.value.license_key))
-      .limit(1)
-      .get();
-
-    if (!license) {
+    const licenseLookup = await readOptionalD1Row(
+      LicenseValidateRowSchema,
+      'License row has an invalid shape',
+      await db
+        .select({
+          id: schema.license.id,
+          tier: schema.license.tier,
+          status: schema.license.status,
+          maxMachines: schema.license.maxMachines,
+          expiresAt: schema.license.expiresAt,
+        })
+        .from(schema.license)
+        .where(eq(schema.license.licenseKey, parsedBody.value.license_key))
+        .limit(1)
+        .get()
+    );
+    if (isInvalidD1Row(licenseLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (licenseLookup._tag === 'missing') {
       return new Response(
         JSON.stringify({
           valid: false,
@@ -47,6 +63,7 @@ export async function POST(event: APIEvent) {
         }
       );
     }
+    const license = licenseLookup.value;
 
     if (license.status !== 'active') {
       return new Response(
@@ -62,7 +79,7 @@ export async function POST(event: APIEvent) {
       );
     }
 
-    if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
+    if (license.expiresAt && license.expiresAt < new Date()) {
       await db
         .update(schema.license)
         .set({ status: 'expired' })
@@ -82,18 +99,21 @@ export async function POST(event: APIEvent) {
       );
     }
 
-    const machines = await db
-      .select()
-      .from(schema.machine)
-      .where(eq(schema.machine.licenseId, license.id))
-      .all();
+    const machinesLookup = await readD1RowArray(
+      MachineRowSchema,
+      'Machine rows have an invalid shape',
+      await db.select().from(schema.machine).where(eq(schema.machine.licenseId, license.id)).all()
+    );
+    if (machinesLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
 
     return new Response(
       JSON.stringify({
         valid: true,
         tier: license.tier,
         max_machines: license.maxMachines,
-        current_machines: machines.length,
+        current_machines: machinesLookup.value.length,
         expires_at: license.expiresAt,
       }),
       {

@@ -4,10 +4,22 @@ import { eq, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { ACHIEVEMENTS, checkAchievementProgress } from '~/lib/achievements';
 import { parseCLITelemetryReport } from '~/lib/dashboard-contract';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  LicenseRowSchema,
+  MachineRowSchema,
+  UsageDailyRowSchema,
+  UserAchievementRowSchema,
+  isInvalidD1Row,
+  readD1RowArray,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 function getEnv(event: APIEvent) {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) {throw new Error('Environment not available');}
+  if (!env) {
+    throw new Error('Environment not available');
+  }
   return env;
 }
 
@@ -40,8 +52,19 @@ async function updateAchievements(
       .limit(1)
       .get();
 
-    if (existing) {
-      if (!existing.isUnlocked && isUnlocked) {
+    const existingLookup = await readOptionalD1Row(
+      UserAchievementRowSchema,
+      'User achievement row has an invalid shape',
+      existing
+    );
+    if (isInvalidD1Row(existingLookup)) {
+      throw new Error('Failed to load stored achievement');
+    }
+    const existingAchievement =
+      existingLookup._tag === 'present' ? existingLookup.value : undefined;
+
+    if (existingAchievement) {
+      if (!existingAchievement.isUnlocked && isUnlocked) {
         await db
           .update(schema.userAchievement)
           .set({
@@ -49,13 +72,13 @@ async function updateAchievements(
             isUnlocked: true,
             unlockedAt: new Date(),
           })
-          .where(eq(schema.userAchievement.id, existing.id))
+          .where(eq(schema.userAchievement.id, existingAchievement.id))
           .run();
       } else {
         await db
           .update(schema.userAchievement)
           .set({ progress: Math.round(progress) })
-          .where(eq(schema.userAchievement.id, existing.id))
+          .where(eq(schema.userAchievement.id, existingAchievement.id))
           .run();
       }
     } else {
@@ -95,37 +118,64 @@ export async function POST(event: APIEvent) {
       .limit(1)
       .get();
 
-    if (!license || license.status !== 'active') {
+    const licenseLookup = await readOptionalD1Row(
+      LicenseRowSchema,
+      'License row has an invalid shape',
+      license
+    );
+    if (isInvalidD1Row(licenseLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (licenseLookup._tag === 'missing' || licenseLookup.value.status !== 'active') {
       return new Response(JSON.stringify({ error: 'Invalid or inactive license' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    const activeLicense = licenseLookup.value;
 
     const machine = await db
       .select()
       .from(schema.machine)
       .where(
-        and(eq(schema.machine.licenseId, license.id), eq(schema.machine.machineId, body.machine_id))
+        and(
+          eq(schema.machine.licenseId, activeLicense.id),
+          eq(schema.machine.machineId, body.machine_id)
+        )
       )
       .limit(1)
       .get();
 
+    const machineLookup = await readOptionalD1Row(
+      MachineRowSchema,
+      'Machine row has an invalid shape',
+      machine
+    );
+    if (isInvalidD1Row(machineLookup)) {
+      return storedDataErrorResponse();
+    }
     const now = new Date();
 
-    if (!machine) {
-      const machines = await db
-        .select()
-        .from(schema.machine)
-        .where(eq(schema.machine.licenseId, license.id))
-        .all();
+    if (machineLookup._tag === 'missing') {
+      const machinesLookup = await readD1RowArray(
+        MachineRowSchema,
+        'Machine rows have an invalid shape',
+        await db
+          .select()
+          .from(schema.machine)
+          .where(eq(schema.machine.licenseId, activeLicense.id))
+          .all()
+      );
+      if (machinesLookup._tag === 'invalid') {
+        return storedDataErrorResponse();
+      }
 
-      if (machines.length >= license.maxMachines) {
+      if (machinesLookup.value.length >= activeLicense.maxMachines) {
         return new Response(
           JSON.stringify({
             error: 'Maximum machines reached',
-            current: machines.length,
-            max: license.maxMachines,
+            current: machinesLookup.value.length,
+            max: activeLicense.maxMachines,
           }),
           {
             status: 403,
@@ -138,7 +188,7 @@ export async function POST(event: APIEvent) {
         .insert(schema.machine)
         .values({
           id: crypto.randomUUID(),
-          licenseId: license.id,
+          licenseId: activeLicense.id,
           machineId: body.machine_id,
           hostname: body.hostname || null,
           os: body.os || null,
@@ -151,29 +201,40 @@ export async function POST(event: APIEvent) {
         })
         .run();
     } else {
+      const foundMachine = machineLookup.value;
       await db
         .update(schema.machine)
         .set({
           lastSeenAt: now,
-          omgVersion: body.omg_version || machine.omgVersion,
-          hostname: body.hostname || machine.hostname,
-          os: body.os || machine.os,
-          arch: body.arch || machine.arch,
+          omgVersion: body.omg_version || foundMachine.omgVersion,
+          hostname: body.hostname || foundMachine.hostname,
+          os: body.os || foundMachine.os,
+          arch: body.arch || foundMachine.arch,
           isActive: true,
         })
-        .where(eq(schema.machine.id, machine.id))
+        .where(eq(schema.machine.id, foundMachine.id))
         .run();
     }
 
     const today = now.toISOString().split('T')[0];
-    const existingUsage = await db
-      .select()
-      .from(schema.usageDaily)
-      .where(and(eq(schema.usageDaily.licenseId, license.id), eq(schema.usageDaily.date, today)))
-      .limit(1)
-      .get();
+    const existingUsageLookup = await readOptionalD1Row(
+      UsageDailyRowSchema,
+      'Usage daily row has an invalid shape',
+      await db
+        .select()
+        .from(schema.usageDaily)
+        .where(
+          and(eq(schema.usageDaily.licenseId, activeLicense.id), eq(schema.usageDaily.date, today))
+        )
+        .limit(1)
+        .get()
+    );
+    if (isInvalidD1Row(existingUsageLookup)) {
+      return storedDataErrorResponse();
+    }
 
-    if (existingUsage) {
+    if (existingUsageLookup._tag === 'present') {
+      const existingUsage = existingUsageLookup.value;
       await db
         .update(schema.usageDaily)
         .set({
@@ -194,7 +255,7 @@ export async function POST(event: APIEvent) {
         .insert(schema.usageDaily)
         .values({
           id: crypto.randomUUID(),
-          licenseId: license.id,
+          licenseId: activeLicense.id,
           date: today,
           commandsRun: body.commands_run || 0,
           packagesInstalled: body.packages_installed || 0,
@@ -213,23 +274,38 @@ export async function POST(event: APIEvent) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-    const totalStats = await db
-      .select()
-      .from(schema.usageDaily)
-      .where(and(eq(schema.usageDaily.licenseId, license.id), eq(schema.usageDaily.date, dateStr)))
-      .all();
+    const totalStatsLookup = await readD1RowArray(
+      UsageDailyRowSchema,
+      'Usage daily rows have an invalid shape',
+      await db
+        .select()
+        .from(schema.usageDaily)
+        .where(
+          and(
+            eq(schema.usageDaily.licenseId, activeLicense.id),
+            eq(schema.usageDaily.date, dateStr)
+          )
+        )
+        .all()
+    );
+    if (totalStatsLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
 
     const stats = {
-      commands_run: totalStats.reduce((sum, s) => sum + s.commandsRun, 0),
-      packages_searched: totalStats.reduce((sum, s) => sum + s.packagesSearched, 0),
-      packages_installed: totalStats.reduce((sum, s) => sum + s.packagesInstalled, 0),
-      runtimes_switched: totalStats.reduce((sum, s) => sum + s.runtimesSwitched, 0),
-      sbom_generated: totalStats.reduce((sum, s) => sum + s.sbomGenerated, 0),
-      vulnerabilities_found: totalStats.reduce((sum, s) => sum + s.vulnerabilitiesFound, 0),
-      time_saved_ms: totalStats.reduce((sum, s) => sum + s.timeSavedMs, 0),
+      commands_run: totalStatsLookup.value.reduce((sum, s) => sum + s.commandsRun, 0),
+      packages_searched: totalStatsLookup.value.reduce((sum, s) => sum + s.packagesSearched, 0),
+      packages_installed: totalStatsLookup.value.reduce((sum, s) => sum + s.packagesInstalled, 0),
+      runtimes_switched: totalStatsLookup.value.reduce((sum, s) => sum + s.runtimesSwitched, 0),
+      sbom_generated: totalStatsLookup.value.reduce((sum, s) => sum + s.sbomGenerated, 0),
+      vulnerabilities_found: totalStatsLookup.value.reduce(
+        (sum, s) => sum + s.vulnerabilitiesFound,
+        0
+      ),
+      time_saved_ms: totalStatsLookup.value.reduce((sum, s) => sum + s.timeSavedMs, 0),
     };
 
-    await updateAchievements(db, license.userId, stats);
+    await updateAchievements(db, activeLicense.userId, stats);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
