@@ -46,9 +46,11 @@ const BackgroundMesh: Component = () => {
       animationFrameId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      // Animate vertices
-      // SAFETY: Three.js BufferAttribute position arrays are always Float32Array.
-      const positions = geometry.attributes.position.array as Float32Array;
+      const positions = geometry.attributes.position.array;
+      if (!(positions instanceof Float32Array)) {
+        renderer.render(scene, camera);
+        return;
+      }
       for (let i = 0; i < positions.length; i += 3) {
         const x = positions[i];
         const y = positions[i + 1];

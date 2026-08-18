@@ -477,11 +477,12 @@ export const AdminDashboard: Component = () => {
     actions.setTab(nextTab);
 
     setTimeout(() => {
-      // SAFETY: The tab buttons always render with these aria attributes.
       const nextButton = document.querySelector(
         `[role="tab"][aria-controls="tabpanel-${nextTab}"]`
-      ) as HTMLElement;
-      nextButton?.focus();
+      );
+      if (nextButton instanceof HTMLElement) {
+        nextButton.focus();
+      }
     }, 0);
   };
 

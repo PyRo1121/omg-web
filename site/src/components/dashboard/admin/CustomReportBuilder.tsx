@@ -19,6 +19,7 @@ import {
   FileText,
 } from 'lucide-solid';
 import { useAdminAdvancedMetrics } from '../../../lib/api-hooks';
+import { nestedNumber } from '../../../lib/nested-metric';
 import { valueForKey } from '../../../lib/lookup';
 import type { AdminAdvancedMetrics } from '../../../lib/api';
 import { CardSkeleton } from '../../ui/Skeleton';
@@ -289,10 +290,6 @@ const FilterRow: Component<{
   );
 };
 
-type ReportDataValue =
-  string | number | boolean | null | ReportDataValue[] | { [key: string]: ReportDataValue };
-type ReportData = AdminAdvancedMetrics & Record<string, ReportDataValue>;
-
 function formatReportValue(value: number, format: 'number' | 'currency' | 'percent') {
   if (format === 'currency') {
     return `$${value.toLocaleString()}`;
@@ -305,20 +302,21 @@ function formatReportValue(value: number, format: 'number' | 'currency' | 'perce
 
 const ReportPreview: Component<{
   config: ReportConfig;
-  data: ReportData | undefined;
+  data: AdminAdvancedMetrics | undefined;
 }> = props => {
   const selectedMetrics = createMemo(() =>
     AVAILABLE_METRICS.filter(m => props.config.metrics.includes(m.id))
   );
 
   const chartData = createMemo(() => {
-    if (!props.data) {
+    const data = props.data;
+    if (data === undefined) {
       return [];
     }
     const metrics = selectedMetrics();
     return metrics.map(metric => ({
       label: metric.name,
-      value: Number(getNestedValue(props.data, metric.dataKey)) || 0,
+      value: nestedNumber(data, metric.dataKey),
       color: CATEGORY_COLORS[metric.category],
     }));
   });
@@ -360,7 +358,8 @@ const ReportPreview: Component<{
           <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <For each={selectedMetrics()}>
               {metric => {
-                const value = Number(getNestedValue(props.data, metric.dataKey)) || 0;
+                const data = props.data;
+                const value = data === undefined ? 0 : nestedNumber(data, metric.dataKey);
                 return (
                   <div class="bg-void-850 rounded-xl border border-white/5 p-4">
                     <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
@@ -395,7 +394,8 @@ const ReportPreview: Component<{
               <tbody>
                 <For each={selectedMetrics()}>
                   {metric => {
-                    const value = Number(getNestedValue(props.data, metric.dataKey)) || 0;
+                    const data = props.data;
+                    const value = data === undefined ? 0 : nestedNumber(data, metric.dataKey);
                     return (
                       <tr class="border-b border-white/5">
                         <td class="px-4 py-3 text-white">{metric.name}</td>
@@ -446,24 +446,6 @@ const ReportPreview: Component<{
     </div>
   );
 };
-
-function isReportObject(value: ReportDataValue | undefined): value is ReportData {
-  return value instanceof Object && !Array.isArray(value);
-}
-
-function getNestedValue(obj: ReportData | undefined, path: string): ReportDataValue | undefined {
-  if (!obj) {
-    return undefined;
-  }
-  let current: ReportDataValue | undefined = obj;
-  for (const key of path.split('.')) {
-    if (!isReportObject(current)) {
-      return undefined;
-    }
-    current = current[key];
-  }
-  return current;
-}
 
 function generateSparklineData(points: number): number[] {
   let value = 50;
@@ -843,11 +825,7 @@ export const CustomReportBuilder: Component = () => {
 
           <Show when={metricsQuery.isSuccess}>
             <div class="bg-void-850 rounded-2xl border border-white/5 p-6">
-              <ReportPreview
-                config={currentConfig()}
-                // SAFETY: useAdminAdvancedMetrics parses the API response as AdminAdvancedMetrics.
-                data={metricsQuery.data as ReportData}
-              />
+              <ReportPreview config={currentConfig()} data={metricsQuery.data} />
             </div>
           </Show>
 

@@ -1,3 +1,5 @@
+import { inputDelayMs, layoutShiftDelta } from './performance-entry';
+
 const API_URL = 'https://api.pyro1121.com/api/site/analytics/track';
 const BATCH_INTERVAL = 5000;
 const SESSION_TIMEOUT = 30 * 60 * 1000;
@@ -46,7 +48,9 @@ function getSessionId(): string {
 }
 
 function getUtmParams(): UtmParams {
-  if (!('window' in globalThis)) {return {};}
+  if (!('window' in globalThis)) {
+    return {};
+  }
   const params = new URLSearchParams(globalThis.window.location.search);
   const utm: UtmParams = {};
   const values = {
@@ -56,21 +60,37 @@ function getUtmParams(): UtmParams {
     content: params.get('utm_content'),
     term: params.get('utm_term'),
   };
-  if (values.source) {utm.source = values.source;}
-  if (values.medium) {utm.medium = values.medium;}
-  if (values.campaign) {utm.campaign = values.campaign;}
-  if (values.content) {utm.content = values.content;}
-  if (values.term) {utm.term = values.term;}
+  if (values.source) {
+    utm.source = values.source;
+  }
+  if (values.medium) {
+    utm.medium = values.medium;
+  }
+  if (values.campaign) {
+    utm.campaign = values.campaign;
+  }
+  if (values.content) {
+    utm.content = values.content;
+  }
+  if (values.term) {
+    utm.term = values.term;
+  }
   return utm;
 }
 
 function getReferrer(): string {
-  if (!('document' in globalThis)) {return 'direct';}
+  if (!('document' in globalThis)) {
+    return 'direct';
+  }
   const ref = globalThis.document.referrer;
-  if (!ref) {return 'direct';}
+  if (!ref) {
+    return 'direct';
+  }
   try {
     const url = new URL(ref);
-    if (url.hostname === globalThis.window.location.hostname) {return 'internal';}
+    if (url.hostname === globalThis.window.location.hostname) {
+      return 'internal';
+    }
     return url.hostname;
   } catch {
     return 'direct';
@@ -78,7 +98,9 @@ function getReferrer(): string {
 }
 
 async function flushEvents(): Promise<void> {
-  if (eventQueue.length === 0) {return;}
+  if (eventQueue.length === 0) {
+    return;
+  }
 
   const events = [...eventQueue];
   eventQueue = [];
@@ -100,7 +122,9 @@ async function flushEvents(): Promise<void> {
 }
 
 function scheduleFlush(): void {
-  if (flushTimeout) {return;}
+  if (flushTimeout) {
+    return;
+  }
   flushTimeout = setTimeout(() => {
     flushTimeout = null;
     flushEvents();
@@ -108,7 +132,9 @@ function scheduleFlush(): void {
 }
 
 function getPagePath(): string {
-  if (!('window' in globalThis)) {return '';}
+  if (!('window' in globalThis)) {
+    return '';
+  }
   return globalThis.window.location.pathname;
 }
 
@@ -122,7 +148,9 @@ function queueEvent(event: Omit<AnalyticsEvent, 'timestamp' | 'session_id'>): vo
 }
 
 export function trackPageview(path?: string): void {
-  if (!('window' in globalThis)) {return;}
+  if (!('window' in globalThis)) {
+    return;
+  }
 
   queueEvent({
     event_type: 'pageview',
@@ -192,7 +220,9 @@ export function trackPerformance(metrics: {
 }
 
 export function initAnalytics(): void {
-  if (!('window' in globalThis)) {return;}
+  if (!('window' in globalThis)) {
+    return;
+  }
 
   trackPageview();
 
@@ -227,16 +257,14 @@ export function initAnalytics(): void {
           if (entry.entryType === 'largest-contentful-paint') {
             metrics.lcp = entry.startTime;
           } else if (entry.entryType === 'first-input') {
-            // SAFETY: PerformanceObserver entries observed with type "first-input" are PerformanceEventTiming.
-            metrics.fid = (entry as PerformanceEventTiming).processingStart - entry.startTime;
+            const delay = inputDelayMs(entry);
+            if (delay !== undefined) {
+              metrics.fid = delay;
+            }
           } else if (entry.entryType === 'layout-shift') {
-            // SAFETY: PerformanceObserver entries with type "layout-shift" expose these fields.
-            const layoutShift = entry as PerformanceEntry & {
-              hadRecentInput?: boolean;
-              value?: number;
-            };
-            if (!layoutShift.hadRecentInput) {
-              metrics.cls = (metrics.cls || 0) + (layoutShift.value || 0);
+            const delta = layoutShiftDelta(entry);
+            if (delta !== undefined) {
+              metrics.cls = (metrics.cls || 0) + delta;
             }
           }
         }

@@ -10,6 +10,13 @@
  * - Geo derived from edge/CDN headers on server
  */
 
+import {
+  inputDelayMs,
+  interactionMs,
+  layoutShiftDelta,
+  navigationTtfbMs,
+} from './performance-entry';
+
 const ANALYTICS_ENDPOINT = 'https://api.pyro1121.com/api/site/analytics/events';
 const BATCH_INTERVAL_MS = 3000;
 const MAX_BATCH_SIZE = 20;
@@ -112,7 +119,9 @@ function getReferrerDomain(): string {
  * Get UTM parameters from current URL
  */
 function getUtmParams(): UtmParams {
-  if (!('window' in globalThis)) {return {};}
+  if (!('window' in globalThis)) {
+    return {};
+  }
   const params = new URLSearchParams(globalThis.window.location.search);
   const utm: UtmParams = {};
   const values = {
@@ -122,11 +131,21 @@ function getUtmParams(): UtmParams {
     content: params.get('utm_content'),
     term: params.get('utm_term'),
   };
-  if (values.source) {utm.source = values.source;}
-  if (values.medium) {utm.medium = values.medium;}
-  if (values.campaign) {utm.campaign = values.campaign;}
-  if (values.content) {utm.content = values.content;}
-  if (values.term) {utm.term = values.term;}
+  if (values.source) {
+    utm.source = values.source;
+  }
+  if (values.medium) {
+    utm.medium = values.medium;
+  }
+  if (values.campaign) {
+    utm.campaign = values.campaign;
+  }
+  if (values.content) {
+    utm.content = values.content;
+  }
+  if (values.term) {
+    utm.term = values.term;
+  }
   return utm;
 }
 
@@ -160,7 +179,9 @@ function queueEvent(type: EventType, name: string, properties: AnalyticsProperti
  * Schedule a flush of the event queue
  */
 function scheduleFlush(): void {
-  if (flushTimer) {return;}
+  if (flushTimer) {
+    return;
+  }
   flushTimer = setTimeout(() => {
     flushTimer = null;
     flushEvents();
@@ -171,7 +192,9 @@ function scheduleFlush(): void {
  * Flush events using Beacon API for reliability
  */
 function flushEvents(): void {
-  if (eventQueue.length === 0) {return;}
+  if (eventQueue.length === 0) {
+    return;
+  }
 
   const events = [...eventQueue];
   eventQueue = [];
@@ -219,7 +242,9 @@ async function sendWithFetch(payload: string, events: AnalyticsEvent[]): Promise
  * Track a page view
  */
 export function trackPageView(): void {
-  if (!('window' in globalThis)) {return;}
+  if (!('window' in globalThis)) {
+    return;
+  }
 
   currentPageViewId = generatePageViewId();
   pageLoadTime = Date.now();
@@ -261,7 +286,9 @@ export function trackScrollDepth(depth: number): void {
  * Track time spent on page (call on page unload)
  */
 export function trackTimeOnPage(): void {
-  if (pageLoadTime === 0) {return;}
+  if (pageLoadTime === 0) {
+    return;
+  }
 
   const timeSpentMs = Date.now() - pageLoadTime;
   const timeSpentSec = Math.round(timeSpentMs / 1000);
@@ -296,8 +323,12 @@ export function trackEngagement(action: string, properties?: AnalyticsProperties
  * Report Core Web Vitals
  */
 function getDeviceType(width: number): 'mobile' | 'tablet' | 'desktop' {
-  if (width < 768) {return 'mobile';}
-  if (width < 1024) {return 'tablet';}
+  if (width < 768) {
+    return 'mobile';
+  }
+  if (width < 1024) {
+    return 'tablet';
+  }
   return 'desktop';
 }
 
@@ -306,13 +337,19 @@ function getMetricRating(
   goodThreshold: number,
   needsImprovementThreshold: number
 ): 'good' | 'needs-improvement' | 'poor' {
-  if (value <= goodThreshold) {return 'good';}
-  if (value <= needsImprovementThreshold) {return 'needs-improvement';}
+  if (value <= goodThreshold) {
+    return 'good';
+  }
+  if (value <= needsImprovementThreshold) {
+    return 'needs-improvement';
+  }
   return 'poor';
 }
 
 export function reportWebVitals(metrics: WebVitalsMetrics): void {
-  if (vitalsReported) {return;}
+  if (vitalsReported) {
+    return;
+  }
   vitalsReported = true;
 
   const vitalsWithRating: AnalyticsProperties = {};
@@ -349,7 +386,9 @@ function initScrollTracking(): void {
   let ticking = false;
 
   const handleScroll = () => {
-    if (ticking) {return;}
+    if (ticking) {
+      return;
+    }
     ticking = true;
 
     requestAnimationFrame(() => {
@@ -369,7 +408,9 @@ function initScrollTracking(): void {
  * Initialize Web Vitals collection using PerformanceObserver
  */
 function initWebVitalsCollection(): void {
-  if (!('PerformanceObserver' in window)) {return;}
+  if (!('PerformanceObserver' in window)) {
+    return;
+  }
 
   const metrics: WebVitalsMetrics = {};
   let lcpReported = false;
@@ -403,9 +444,10 @@ function initWebVitalsCollection(): void {
   try {
     const inpObserver = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
-        // SAFETY: PerformanceObserver entries observed with type "event" are PerformanceEventTiming per the Web Performance API.
-        const eventEntry = entry as PerformanceEventTiming;
-        const duration = eventEntry.processingEnd - eventEntry.startTime;
+        const duration = interactionMs(entry);
+        if (duration === undefined) {
+          continue;
+        }
         if (!metrics.inp || duration > metrics.inp) {
           metrics.inp = duration;
         }
@@ -417,9 +459,10 @@ function initWebVitalsCollection(): void {
     try {
       const fidObserver = new PerformanceObserver(list => {
         for (const entry of list.getEntries()) {
-          // SAFETY: PerformanceObserver entries observed with type "first-input" are PerformanceEventTiming per the Web Performance API.
-          const eventEntry = entry as PerformanceEventTiming;
-          metrics.inp = eventEntry.processingStart - eventEntry.startTime;
+          const delay = inputDelayMs(entry);
+          if (delay !== undefined) {
+            metrics.inp = delay;
+          }
         }
       });
       fidObserver.observe({ type: 'first-input', buffered: true });
@@ -432,15 +475,12 @@ function initWebVitalsCollection(): void {
   try {
     const clsObserver = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
-        // SAFETY: PerformanceObserver entries observed with type "layout-shift" expose these layout-shift fields.
-        const layoutShift = entry as PerformanceEntry & {
-          hadRecentInput?: boolean;
-          value?: number;
-        };
-        if (!layoutShift.hadRecentInput && layoutShift.value) {
-          clsValue += layoutShift.value;
-          clsEntries.push(entry);
+        const delta = layoutShiftDelta(entry);
+        if (delta === undefined) {
+          continue;
         }
+        clsValue += delta;
+        clsEntries.push(entry);
       }
       metrics.cls = clsValue;
     });
@@ -460,11 +500,9 @@ function initWebVitalsCollection(): void {
     });
     paintObserver.observe({ type: 'paint', buffered: true });
 
-    // Get TTFB from navigation timing
-    // SAFETY: Entries returned for the "navigation" performance entry type are PerformanceNavigationTiming.
-    const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-    if (navEntry) {
-      metrics.ttfb = navEntry.responseStart - navEntry.requestStart;
+    const ttfb = navigationTtfbMs(performance.getEntriesByType('navigation'));
+    if (ttfb !== undefined) {
+      metrics.ttfb = ttfb;
     }
   } catch {
     // Navigation timing not available
@@ -507,9 +545,13 @@ function initCtaTracking(): void {
   document.addEventListener(
     'click',
     e => {
-      if (!(e.target instanceof HTMLElement)) {return;}
+      if (!(e.target instanceof HTMLElement)) {
+        return;
+      }
       const link = e.target.closest('a, button');
-      if (!link) {return;}
+      if (!link) {
+        return;
+      }
 
       const href = link.getAttribute('href') || '';
       const dataTrack = link.getAttribute('data-track-cta');
@@ -517,7 +559,9 @@ function initCtaTracking(): void {
       // Auto-detect CTA type from href or data attribute
       if (dataTrack) {
         const parsedCtaType = parseCtaType(dataTrack);
-        if (parsedCtaType) {trackCtaClick(parsedCtaType, link.textContent?.trim());}
+        if (parsedCtaType) {
+          trackCtaClick(parsedCtaType, link.textContent?.trim());
+        }
       } else if (href.includes('install') || href.includes('#install')) {
         trackCtaClick('install', link.textContent?.trim());
       } else if (href.includes('signup') || href.includes('login')) {
@@ -569,7 +613,9 @@ function initNavigationTracking(): void {
  * Initialize all analytics tracking
  */
 export function initAnalytics(): void {
-  if (!('window' in globalThis) || isInitialized) {return;}
+  if (!('window' in globalThis) || isInitialized) {
+    return;
+  }
   isInitialized = true;
 
   // Track initial page view

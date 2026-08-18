@@ -16,8 +16,10 @@ export const Tooltip: Component<TooltipProps> = props => {
   const delay = () => props.delay || 200;
 
   const handleMouseEnter = (e: MouseEvent) => {
-    // SAFETY: The handler is attached to a div element rendered by this component.
-    const target = e.currentTarget as HTMLElement;
+    const target = e.currentTarget;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
     const rect = target.getBoundingClientRect();
 
     const position = props.position || 'top';

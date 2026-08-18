@@ -44,8 +44,8 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
 
   createEffect(() => {
     if (props.userId) {
-      // SAFETY: Only HTMLElements can receive focus through drawer interactions.
-      previousActiveElement = document.activeElement as HTMLElement | null;
+      const active = document.activeElement;
+      previousActiveElement = active instanceof HTMLElement ? active : null;
 
       setTimeout(() => {
         const closeButton = drawerRef?.querySelector('button');

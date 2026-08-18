@@ -201,10 +201,14 @@ function isHealthUpdate(value: unknown): value is HealthUpdate {
  * @returns A typed message, or `null` when the payload does not match any known event shape.
  */
 export function parseTelemetryMessage(value: unknown): TelemetryMessage | null {
-  if (!isObject(value) || !isString(field(value, 'timestamp'))) {return null;}
+  if (!isObject(value)) {
+    return null;
+  }
+  const timestamp = field(value, 'timestamp');
+  if (!isString(timestamp)) {
+    return null;
+  }
   const data = field(value, 'data');
-  // SAFETY: The isString guard above establishes the timestamp field type.
-  const timestamp = field(value, 'timestamp') as string;
 
   switch (field(value, 'type')) {
     case 'command_event':

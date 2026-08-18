@@ -30,8 +30,11 @@ const Header: Component = () => {
     };
 
     const handleClickOutside = (e: MouseEvent) => {
-      // SAFETY: The click target is always an Element when it reaches this handler.
-      if (userMenuOpen() && !(e.target as Element).closest('.user-menu-container')) {
+      const target = e.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      if (userMenuOpen() && !target.closest('.user-menu-container')) {
         setUserMenuOpen(false);
       }
     };
