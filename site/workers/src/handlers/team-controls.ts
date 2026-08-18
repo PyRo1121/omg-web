@@ -14,7 +14,7 @@ import {
   CreatePolicyBodySchema,
   decodeStoredJsonObject,
   decodeStoredStringArray,
-  decodeTeamControlsRow,
+  decodeTeamControlsRowArray,
   DeletePolicyBodySchema,
   NotificationSettingRowSchema,
   RevokeMemberBodySchema,
@@ -224,12 +224,10 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
   ];
 
   const decodedSettings = await Effect.runPromiseExit(
-    Effect.forEach(settings.results || [], row =>
-      decodeTeamControlsRow(
-        NotificationSettingRowSchema,
-        'Notification setting row has an invalid shape',
-        row
-      )
+    decodeTeamControlsRowArray(
+      NotificationSettingRowSchema,
+      'Notification setting row has an invalid shape',
+      settings.results
     )
   );
   if (Exit.isFailure(decodedSettings)) {
@@ -237,18 +235,26 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
   }
 
   const existingMap = new Map(decodedSettings.value.map(setting => [setting.type, setting]));
-  const merged = defaultSettings.map(def => {
+  const merged: NotificationSetting[] = [];
+  for (const def of defaultSettings) {
     const existing = existingMap.get(def.type);
-    if (existing) {
-      return {
-        ...def,
-        enabled: !!existing.enabled,
-        threshold: existing.threshold ?? def.threshold,
-        channels: decodeStoredStringArray(existing.channels, def.channels),
-      };
+    if (existing === undefined) {
+      merged.push(def);
+      continue;
     }
-    return def;
-  });
+    const decodedChannels = await Effect.runPromiseExit(
+      decodeStoredStringArray(existing.channels, def.channels)
+    );
+    if (Exit.isFailure(decodedChannels)) {
+      return errorResponse('Failed to load notification settings', 500);
+    }
+    merged.push({
+      ...def,
+      enabled: !!existing.enabled,
+      threshold: existing.threshold ?? def.threshold,
+      channels: [...decodedChannels.value],
+    });
+  }
 
   return jsonResponse({ settings: merged });
 }
@@ -410,19 +416,32 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
   );
 
   const decodedLogs = await Effect.runPromiseExit(
-    Effect.forEach(logs.results || [], row =>
-      decodeTeamControlsRow(AuditLogRowSchema, 'Audit log row has an invalid shape', row)
+    decodeTeamControlsRowArray(
+      AuditLogRowSchema,
+      'Audit log row has an invalid shape',
+      logs.results
     )
   );
   if (Exit.isFailure(decodedLogs)) {
     return errorResponse('Failed to load audit logs', 500);
   }
 
+  const decodedWithMetadata = await Effect.runPromiseExit(
+    Effect.forEach(decodedLogs.value, log =>
+      decodeStoredJsonObject(log.metadata).pipe(
+        Effect.map(metadata => ({
+          ...log,
+          metadata,
+        }))
+      )
+    )
+  );
+  if (Exit.isFailure(decodedWithMetadata)) {
+    return errorResponse('Failed to load audit logs', 500);
+  }
+
   return jsonResponse({
-    logs: decodedLogs.value.map(log => ({
-      ...log,
-      metadata: log.metadata ? decodeStoredJsonObject(log.metadata) : null,
-    })),
+    logs: decodedWithMetadata.value,
     total: totalRow?.total ?? 0,
     limit,
     offset,

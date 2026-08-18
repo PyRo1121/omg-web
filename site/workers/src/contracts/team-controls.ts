@@ -99,49 +99,68 @@ const StoredStringArraySchema = Schema.Array(Schema.String);
 const StoredJsonObjectSchema = Schema.Record({ key: Schema.String, value: JsonAtom });
 
 /**
- * Decode a stored JSON array of strings, returning `fallback` when empty or malformed.
+ * Decode a stored JSON array of strings.
+ *
+ * Missing or empty values use `fallback`. Corrupt JSON fails.
  *
  * @param value - Persisted JSON text.
- * @param fallback - Value used when the field is empty or invalid.
- * @returns Typed channels, or the fallback.
+ * @param fallback - Value used when the field is empty.
+ * @returns Typed channels, the fallback, or `TeamControlsParseError`.
  */
 export function decodeStoredStringArray(
   value: string | null | undefined,
   fallback: ReadonlyArray<string>
-): ReadonlyArray<string> {
+): Effect.Effect<ReadonlyArray<string>, TeamControlsParseError> {
   if (value === null || value === undefined || value.length === 0) {
-    return fallback;
+    return Effect.succeed(fallback);
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(value);
-  } catch {
-    return fallback;
+  } catch (cause: unknown) {
+    return Effect.fail(
+      new TeamControlsParseError('Stored channels JSON has an invalid shape', cause)
+    );
   }
-  const decoded = Schema.decodeUnknownEither(StoredStringArraySchema)(parsed);
-  return decoded._tag === 'Right' ? decoded.right : fallback;
+  return Schema.decodeUnknown(StoredStringArraySchema)(parsed).pipe(
+    Effect.mapError(
+      (cause: unknown): TeamControlsParseError =>
+        new TeamControlsParseError('Stored channels JSON has an invalid shape', cause)
+    )
+  );
 }
 
 /**
- * Decode stored JSON object metadata, returning null when empty or malformed.
+ * Decode stored JSON object metadata.
+ *
+ * Missing or empty values become null. Corrupt JSON fails.
  *
  * @param value - Persisted JSON text.
- * @returns A primitive record, or null.
+ * @returns A primitive record, null, or `TeamControlsParseError`.
  */
 export function decodeStoredJsonObject(
   value: string | null | undefined
-): Readonly<Record<string, string | number | boolean | null>> | null {
+): Effect.Effect<
+  Readonly<Record<string, string | number | boolean | null>> | null,
+  TeamControlsParseError
+> {
   if (value === null || value === undefined || value.length === 0) {
-    return null;
+    return Effect.succeed(null);
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(value);
-  } catch {
-    return null;
+  } catch (cause: unknown) {
+    return Effect.fail(
+      new TeamControlsParseError('Stored metadata JSON has an invalid shape', cause)
+    );
   }
-  const decoded = Schema.decodeUnknownEither(StoredJsonObjectSchema)(parsed);
-  return decoded._tag === 'Right' ? decoded.right : null;
+  return Schema.decodeUnknown(StoredJsonObjectSchema)(parsed).pipe(
+    Effect.mapError(
+      (cause: unknown): TeamControlsParseError =>
+        new TeamControlsParseError('Stored metadata JSON has an invalid shape', cause)
+    )
+  );
 }
 
 /**
@@ -162,4 +181,26 @@ export function decodeTeamControlsRow<S extends Schema.Schema.AnyNoContext>(
       (cause: unknown): TeamControlsParseError => new TeamControlsParseError(reason, cause)
     )
   );
+}
+
+/**
+ * Decode a D1 `.all().results` array against a team-controls item schema.
+ *
+ * @param schema - Item schema.
+ * @param reason - Parse error reason.
+ * @param value - The `results` array.
+ * @returns Typed items, or `TeamControlsParseError`.
+ */
+export function decodeTeamControlsRowArray<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  reason: string,
+  value: unknown
+): Effect.Effect<ReadonlyArray<Schema.Schema.Type<S>>, TeamControlsParseError> {
+  if (value === undefined || value === null) {
+    return Effect.succeed([]);
+  }
+  if (!Array.isArray(value)) {
+    return Effect.fail(new TeamControlsParseError(reason));
+  }
+  return Effect.forEach(value, row => decodeTeamControlsRow(schema, reason, row));
 }
