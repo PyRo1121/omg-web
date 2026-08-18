@@ -22,6 +22,7 @@ import {
 } from '../contracts/http-bodies';
 import {
   AdminActivityRowSchema,
+  AdminAuditLogRowSchema,
   AdminCohortRowSchema,
   AdminCommandCountRowSchema,
   AdminCountsRowSchema,
@@ -49,6 +50,7 @@ import {
   AdminTagCatalogRowSchema,
   AdminUsageDailyRowSchema,
   AdminUsageTotalsRowSchema,
+  AdminUsersExportRowSchema,
   AdminUsersListRowSchema,
   AdminVersionCountRowSchema,
   AtRiskRowSchema,
@@ -974,19 +976,32 @@ export async function handleAdminExportUsers(request: Request, env: Env): Promis
   const users = await env.DB.prepare(
     `SELECT c.id, c.email, c.company, c.created_at, l.tier, l.status, (SELECT COUNT(*) FROM machines m WHERE m.license_id = l.id AND m.is_active = 1) as active_machines, (SELECT SUM(commands_run) FROM usage_daily u WHERE u.license_id = l.id) as total_commands FROM customers c LEFT JOIN licenses l ON c.id = l.customer_id ORDER BY c.created_at DESC`
   ).all();
-  const headers = [
-    'id',
-    'email',
-    'company',
-    'created_at',
-    'tier',
-    'status',
-    'active_machines',
-    'total_commands',
-  ];
+  const decodedUsers = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminUsersExportRowSchema,
+      'Admin users export row has an invalid shape',
+      users.results
+    )
+  );
+  if (Exit.isFailure(decodedUsers)) {
+    return errorResponse('Failed to export users', 500);
+  }
   const csv = [
-    headers.join(','),
-    ...(users.results || []).map(u => headers.map(h => escapeCSV(u[h])).join(',')),
+    'id,email,company,created_at,tier,status,active_machines,total_commands',
+    ...decodedUsers.value.map(row =>
+      [
+        row.id,
+        row.email,
+        row.company,
+        row.created_at,
+        row.tier,
+        row.status,
+        row.active_machines,
+        row.total_commands,
+      ]
+        .map(escapeCSV)
+        .join(',')
+    ),
   ].join('\n');
   return new Response(csv, {
     headers: {
@@ -1004,14 +1019,24 @@ export async function handleAdminAuditLog(request: Request, env: Env): Promise<R
   }
   const { context } = result;
   const url = new URL(request.url);
-  const page = parseInt(url.searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+  const page = parseInt(url.searchParams.get('page') || '1', 10);
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 100);
   const logs = await env.DB.prepare(
     `SELECT a.id, a.customer_id, c.email as user_email, a.action, a.ip_address, a.metadata, a.created_at FROM audit_log a LEFT JOIN customers c ON a.customer_id = c.id ORDER BY a.created_at DESC LIMIT ? OFFSET ?`
   )
     .bind(limit, (page - 1) * limit)
     .all();
-  return secureJsonResponse({ request_id: context.requestId, logs: logs.results || [] });
+  const decodedLogs = await Effect.runPromiseExit(
+    decodeExtraRowArray(
+      AdminAuditLogRowSchema,
+      'Admin audit log row has an invalid shape',
+      logs.results
+    )
+  );
+  if (Exit.isFailure(decodedLogs)) {
+    return errorResponse('Failed to load audit log', 500);
+  }
+  return secureJsonResponse({ request_id: context.requestId, logs: decodedLogs.value });
 }
 
 export async function handleAdminAdvancedMetrics(request: Request, env: Env): Promise<Response> {

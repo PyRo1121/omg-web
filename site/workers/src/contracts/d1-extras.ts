@@ -613,6 +613,31 @@ export const AdminUsersListRowSchema = Schema.Struct({
 });
 export type AdminUsersListRow = Schema.Schema.Type<typeof AdminUsersListRowSchema>;
 
+/** Admin users CSV export row. */
+export const AdminUsersExportRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  email: Schema.optional(NullableString),
+  company: Schema.optional(NullableString),
+  created_at: Schema.optional(NullableString),
+  tier: Schema.optional(NullableString),
+  status: Schema.optional(NullableString),
+  active_machines: D1Number,
+  total_commands: D1Number,
+});
+export type AdminUsersExportRow = Schema.Schema.Type<typeof AdminUsersExportRowSchema>;
+
+/** Admin audit-log JSON list row. */
+export const AdminAuditLogRowSchema = Schema.Struct({
+  id: Schema.String,
+  customer_id: Schema.optional(NullableString),
+  user_email: Schema.optional(NullableString),
+  action: Schema.String,
+  ip_address: Schema.optional(NullableString),
+  metadata: Schema.optional(NullableString),
+  created_at: Schema.String,
+});
+export type AdminAuditLogRow = Schema.Schema.Type<typeof AdminAuditLogRowSchema>;
+
 /** Admin user-detail machine row. */
 export const AdminMachineRowSchema = Schema.Struct({
   id: Schema.String,

@@ -12,6 +12,7 @@ import { decodeJsonBody } from '../src/body';
 import { MachineIdBodySchema, TrackingBatchSchema } from '../src/contracts/http-bodies';
 import {
   AdminActivityRowSchema,
+  AdminAuditLogRowSchema,
   AdminChurnRiskSegmentRowSchema,
   AdminCohortRowSchema,
   AdminCommandCountRowSchema,
@@ -37,6 +38,7 @@ import {
   AdminStatusCountRowSchema,
   AdminTagCatalogRowSchema,
   AdminUsageDailyRowSchema,
+  AdminUsersExportRowSchema,
   AdminUsersListRowSchema,
   AdminVersionCountRowSchema,
   AnalyticsSaltRowSchema,
@@ -828,5 +830,50 @@ describe('remaining D1 result arrays', () => {
       decodeExtraRowArray(AdminChurnRiskSegmentRowSchema, 'churn', [{ tier: 'pro', user_count: 1 }])
     );
     expect(Exit.isFailure(badChurn)).toBe(true);
+  });
+
+  it('decodes admin users CSV and audit-log rows, and rejects index-style holes', async () => {
+    const exported = await Effect.runPromise(
+      decodeExtraRowArray(AdminUsersExportRowSchema, 'users-csv', [
+        {
+          id: 'c1',
+          email: 'a@example.com',
+          company: null,
+          created_at: '2026-08-17',
+          tier: 'pro',
+          status: 'active',
+          active_machines: 2,
+          total_commands: null,
+        },
+      ])
+    );
+    expect(exported[0]?.total_commands).toBe(0);
+
+    const logs = await Effect.runPromise(
+      decodeExtraRowArray(AdminAuditLogRowSchema, 'audit', [
+        {
+          id: 'a1',
+          customer_id: 'c1',
+          user_email: null,
+          action: 'login',
+          ip_address: '127.0.0.1',
+          metadata: '{}',
+          created_at: '2026-08-17T00:00:00Z',
+        },
+      ])
+    );
+    expect(logs[0]?.user_email).toBeNull();
+
+    const badExport = await Effect.runPromiseExit(
+      decodeExtraRowArray(AdminUsersExportRowSchema, 'users-csv', [
+        { email: 'a@example.com', active_machines: 1, total_commands: 2 },
+      ])
+    );
+    expect(Exit.isFailure(badExport)).toBe(true);
+
+    const badLog = await Effect.runPromiseExit(
+      decodeExtraRowArray(AdminAuditLogRowSchema, 'audit', [{ id: 'a1', created_at: 'x' }])
+    );
+    expect(Exit.isFailure(badLog)).toBe(true);
   });
 });
