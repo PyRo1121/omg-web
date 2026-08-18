@@ -1,7 +1,7 @@
 // Boundary parser internals decode remaining D1 rows and provider JSON.
 // oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON/D1 boundary parsing requires these operations.
 
-import { Effect } from 'effect';
+import { Effect, Exit } from 'effect';
 import { Schema } from '@effect/schema';
 
 /** A failure decoding a remaining D1 row or provider payload. */
@@ -1033,30 +1033,40 @@ export function decodeExtraRowArray<S extends Schema.Schema.AnyNoContext>(
 }
 
 /**
- * Decode a single optional D1 `.first()` row, returning undefined when the shape is wrong.
+ * Decode a single optional D1 `.first()` row.
+ *
+ * Missing rows (`null` / `undefined`) become `undefined`. Malformed rows fail.
  *
  * @param schema - Row schema.
  * @param reason - Parse error reason.
  * @param value - The `.first()` result.
- * @returns The typed row, or undefined.
+ * @returns The typed row, `undefined` when missing, or `ExtraRowParseError`.
  */
 export function decodeOptionalExtraRow<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
   value: unknown
-): Effect.Effect<Schema.Schema.Type<S> | undefined> {
-  return decodeExtraRow(schema, reason, value).pipe(Effect.orElseSucceed(() => undefined));
+): Effect.Effect<Schema.Schema.Type<S> | undefined, ExtraRowParseError> {
+  if (value === undefined || value === null) {
+    return Effect.succeed(undefined);
+  }
+  return decodeExtraRow(schema, reason, value);
 }
 
 /**
  * Whether a customers.admin flag row authorizes admin APIs.
  *
+ * Missing or unreadable rows deny admin. Only `admin === 1` grants it.
+ *
  * @param row - The `.first()` result from `SELECT admin`.
  * @returns True only when admin is exactly 1.
  */
 export async function customerIsAdmin(row: unknown): Promise<boolean> {
-  const decoded = await Effect.runPromise(
+  const decoded = await Effect.runPromiseExit(
     decodeOptionalExtraRow(AdminFlagRowSchema, 'Admin flag row has an invalid shape', row)
   );
-  return decoded?.admin === 1;
+  if (Exit.isFailure(decoded) || decoded.value === undefined) {
+    return false;
+  }
+  return decoded.value.admin === 1;
 }

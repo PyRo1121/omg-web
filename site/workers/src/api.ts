@@ -1,7 +1,7 @@
 // API Types and Utilities for OMG Dashboard
 // All authenticated endpoints require a valid session token
 
-import { Effect } from 'effect';
+import { Effect, Exit } from 'effect';
 import { decodeOptionalExtraRow, SessionJoinRowSchema } from './contracts/d1-extras';
 
 // Rate limiter interface from Cloudflare Workers
@@ -332,12 +332,13 @@ export async function validateSession(
     .bind(token)
     .first();
 
-  const session = await Effect.runPromise(
+  const decodedSession = await Effect.runPromiseExit(
     decodeOptionalExtraRow(SessionJoinRowSchema, 'Session join row has an invalid shape', row)
   );
-  if (session === undefined) {
+  if (Exit.isFailure(decodedSession) || decodedSession.value === undefined) {
     return null;
   }
+  const session = decodedSession.value;
 
   return {
     user: {

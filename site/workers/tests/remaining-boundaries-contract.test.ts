@@ -267,6 +267,13 @@ describe('optional extra rows', () => {
     expect(row).toBeUndefined();
   });
 
+  it('rejects an invalid session join row', async () => {
+    const exit = await Effect.runPromiseExit(
+      decodeOptionalExtraRow(SessionJoinRowSchema, 'session', { id: 1 })
+    );
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
+
   it('decodes a session join row', async () => {
     const row = await Effect.runPromise(
       decodeOptionalExtraRow(SessionJoinRowSchema, 'session', {
@@ -281,13 +288,6 @@ describe('optional extra rows', () => {
       })
     );
     expect(row?.email).toBe('a@b.com');
-  });
-
-  it('returns undefined for an invalid session join row', async () => {
-    const row = await Effect.runPromise(
-      decodeOptionalExtraRow(SessionJoinRowSchema, 'session', { id: 1 })
-    );
-    expect(row).toBeUndefined();
   });
 
   it('decodes a salt blob from ArrayBuffer', async () => {
@@ -318,10 +318,10 @@ describe('optional extra rows', () => {
   });
 
   it('rejects a license row without an id', async () => {
-    const row = await Effect.runPromise(
+    const exit = await Effect.runPromiseExit(
       decodeOptionalExtraRow(LicenseIdTierRowSchema, 'license', { tier: 'team' })
     );
-    expect(row).toBeUndefined();
+    expect(Exit.isFailure(exit)).toBe(true);
   });
 
   it('decodes seat counts from an active license', async () => {
@@ -390,6 +390,7 @@ describe('optional extra rows', () => {
     await expect(customerIsAdmin({ admin: 1 })).resolves.toBe(true);
     await expect(customerIsAdmin({ admin: 0 })).resolves.toBe(false);
     await expect(customerIsAdmin(null)).resolves.toBe(false);
+    await expect(customerIsAdmin({ nope: true })).resolves.toBe(false);
   });
 
   it('decodes an admin customer detail row', async () => {
@@ -452,10 +453,10 @@ describe('optional extra rows', () => {
   });
 
   it('rejects an admin flag row without admin', async () => {
-    const row = await Effect.runPromise(
+    const exit = await Effect.runPromiseExit(
       decodeOptionalExtraRow(AdminFlagRowSchema, 'admin', { nope: true })
     );
-    expect(row).toBeUndefined();
+    expect(Exit.isFailure(exit)).toBe(true);
   });
 });
 
