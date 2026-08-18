@@ -2,11 +2,15 @@ import type { APIEvent } from '@solidjs/start/server';
 import { gte, desc, eq } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import { UsageExportRowSchema, readD1RowArray } from '~/lib/contracts/d1-rows';
 
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) {return adminCheck;}
+    if (adminCheck instanceof Response) {
+      return adminCheck;
+    }
 
     const { db } = adminCheck;
 
@@ -19,28 +23,36 @@ export async function GET(event: APIEvent) {
     const dateStr = startDate.toISOString().split('T')[0];
 
     // Get usage data with user and license info
-    const usageData = await db
-      .select({
-        date: schema.usageDaily.date,
-        userId: schema.license.userId,
-        email: schema.user.email,
-        name: schema.user.name,
-        tier: schema.license.tier,
-        status: schema.license.status,
-        commandsRun: schema.usageDaily.commandsRun,
-        packagesInstalled: schema.usageDaily.packagesInstalled,
-        packagesSearched: schema.usageDaily.packagesSearched,
-        runtimesSwitched: schema.usageDaily.runtimesSwitched,
-        sbomGenerated: schema.usageDaily.sbomGenerated,
-        vulnerabilitiesFound: schema.usageDaily.vulnerabilitiesFound,
-        timeSavedMs: schema.usageDaily.timeSavedMs,
-      })
-      .from(schema.usageDaily)
-      .innerJoin(schema.license, eq(schema.usageDaily.licenseId, schema.license.id))
-      .innerJoin(schema.user, eq(schema.license.userId, schema.user.id))
-      .where(gte(schema.usageDaily.date, dateStr))
-      .orderBy(desc(schema.usageDaily.date), schema.user.email)
-      .all();
+    const usageDataLookup = await readD1RowArray(
+      UsageExportRowSchema,
+      'Usage export rows have an invalid shape',
+      await db
+        .select({
+          date: schema.usageDaily.date,
+          userId: schema.license.userId,
+          email: schema.user.email,
+          name: schema.user.name,
+          tier: schema.license.tier,
+          status: schema.license.status,
+          commandsRun: schema.usageDaily.commandsRun,
+          packagesInstalled: schema.usageDaily.packagesInstalled,
+          packagesSearched: schema.usageDaily.packagesSearched,
+          runtimesSwitched: schema.usageDaily.runtimesSwitched,
+          sbomGenerated: schema.usageDaily.sbomGenerated,
+          vulnerabilitiesFound: schema.usageDaily.vulnerabilitiesFound,
+          timeSavedMs: schema.usageDaily.timeSavedMs,
+        })
+        .from(schema.usageDaily)
+        .innerJoin(schema.license, eq(schema.usageDaily.licenseId, schema.license.id))
+        .innerJoin(schema.user, eq(schema.license.userId, schema.user.id))
+        .where(gte(schema.usageDaily.date, dateStr))
+        .orderBy(desc(schema.usageDaily.date), schema.user.email)
+        .all()
+    );
+    if (usageDataLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
+    const usageData = usageDataLookup.value;
 
     if (format === 'json') {
       return new Response(

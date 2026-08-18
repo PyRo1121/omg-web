@@ -3,6 +3,17 @@ import { sql, eq, desc, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
 import { parseAdminCrmNoteInput } from '~/lib/dashboard-contract';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  CountRowSchema,
+  CustomerNoteJoinRowSchema,
+  CustomerNoteRowSchema,
+  IdRowSchema,
+  isInvalidD1Row,
+  optionalD1RowValue,
+  readD1RowArray,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 type NoteType = 'general' | 'call' | 'meeting' | 'support' | 'escalation';
 
@@ -41,15 +52,20 @@ export async function GET(event: APIEvent) {
       });
     }
 
-    // Verify customer exists
-    const customer = await db
-      .select({ id: schema.user.id })
-      .from(schema.user)
-      .where(eq(schema.user.id, customerId))
-      .limit(1)
-      .get();
-
-    if (!customer) {
+    const customerLookup = await readOptionalD1Row(
+      IdRowSchema,
+      'Customer id row has an invalid shape',
+      await db
+        .select({ id: schema.user.id })
+        .from(schema.user)
+        .where(eq(schema.user.id, customerId))
+        .limit(1)
+        .get()
+    );
+    if (isInvalidD1Row(customerLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (customerLookup._tag === 'missing') {
       return new Response(JSON.stringify({ error: 'Customer not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
@@ -63,43 +79,51 @@ export async function GET(event: APIEvent) {
       conditions.push(eq(schema.customerNote.noteType, parsedNoteType));
     }
 
-    // Get notes with author info
-    const notes = await db
-      .select({
-        id: schema.customerNote.id,
-        content: schema.customerNote.content,
-        noteType: schema.customerNote.noteType,
-        isPinned: schema.customerNote.isPinned,
-        createdAt: schema.customerNote.createdAt,
-        updatedAt: schema.customerNote.updatedAt,
-        authorId: schema.customerNote.authorId,
-        authorName: schema.user.name,
-        authorEmail: schema.user.email,
-      })
-      .from(schema.customerNote)
-      .innerJoin(schema.user, eq(schema.customerNote.authorId, schema.user.id))
-      .where(and(...conditions))
-      .orderBy(desc(schema.customerNote.isPinned), desc(schema.customerNote.createdAt))
-      .limit(limit)
-      .offset(offset)
-      .all();
-
-    // Get total count
-    const totalCount = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(schema.customerNote)
-      .where(and(...conditions))
-      .get();
+    const notesLookup = await readD1RowArray(
+      CustomerNoteJoinRowSchema,
+      'Customer note rows have an invalid shape',
+      await db
+        .select({
+          id: schema.customerNote.id,
+          content: schema.customerNote.content,
+          noteType: schema.customerNote.noteType,
+          isPinned: schema.customerNote.isPinned,
+          createdAt: schema.customerNote.createdAt,
+          updatedAt: schema.customerNote.updatedAt,
+          authorId: schema.customerNote.authorId,
+          authorName: schema.user.name,
+          authorEmail: schema.user.email,
+        })
+        .from(schema.customerNote)
+        .innerJoin(schema.user, eq(schema.customerNote.authorId, schema.user.id))
+        .where(and(...conditions))
+        .orderBy(desc(schema.customerNote.isPinned), desc(schema.customerNote.createdAt))
+        .limit(limit)
+        .offset(offset)
+        .all()
+    );
+    const totalCountLookup = await readOptionalD1Row(
+      CountRowSchema,
+      'Customer note count has an invalid shape',
+      await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(schema.customerNote)
+        .where(and(...conditions))
+        .get()
+    );
+    if (notesLookup._tag === 'invalid' || isInvalidD1Row(totalCountLookup)) {
+      return storedDataErrorResponse();
+    }
 
     return new Response(
       JSON.stringify({
-        notes: notes.map(n => ({
+        notes: notesLookup.value.map(n => ({
           id: n.id,
           content: n.content,
           noteType: n.noteType,
           isPinned: n.isPinned,
-          createdAt: new Date(n.createdAt).toISOString(),
-          updatedAt: new Date(n.updatedAt).toISOString(),
+          createdAt: n.createdAt.toISOString(),
+          updatedAt: n.updatedAt.toISOString(),
           author: {
             id: n.authorId,
             name: n.authorName,
@@ -109,7 +133,7 @@ export async function GET(event: APIEvent) {
         pagination: {
           limit,
           offset,
-          total: Number(totalCount?.count || 0),
+          total: optionalD1RowValue(totalCountLookup)?.count ?? 0,
         },
       }),
       {
@@ -161,15 +185,20 @@ export async function POST(event: APIEvent) {
       });
     }
 
-    // Verify customer exists
-    const customer = await db
-      .select({ id: schema.user.id })
-      .from(schema.user)
-      .where(eq(schema.user.id, customerId))
-      .limit(1)
-      .get();
-
-    if (!customer) {
+    const customerLookup = await readOptionalD1Row(
+      IdRowSchema,
+      'Customer id row has an invalid shape',
+      await db
+        .select({ id: schema.user.id })
+        .from(schema.user)
+        .where(eq(schema.user.id, customerId))
+        .limit(1)
+        .get()
+    );
+    if (isInvalidD1Row(customerLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (customerLookup._tag === 'missing') {
       return new Response(JSON.stringify({ error: 'Customer not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
@@ -197,30 +226,34 @@ export async function POST(event: APIEvent) {
       .run();
 
     // Fetch the created note with author info
-    const createdNote = await db
-      .select({
-        id: schema.customerNote.id,
-        content: schema.customerNote.content,
-        noteType: schema.customerNote.noteType,
-        isPinned: schema.customerNote.isPinned,
-        createdAt: schema.customerNote.createdAt,
-        updatedAt: schema.customerNote.updatedAt,
-        authorId: schema.customerNote.authorId,
-        authorName: schema.user.name,
-        authorEmail: schema.user.email,
-      })
-      .from(schema.customerNote)
-      .innerJoin(schema.user, eq(schema.customerNote.authorId, schema.user.id))
-      .where(eq(schema.customerNote.id, noteId))
-      .limit(1)
-      .get();
-
-    if (createdNote === undefined) {
+    const createdNoteLookup = await readOptionalD1Row(
+      CustomerNoteJoinRowSchema,
+      'Created note row has an invalid shape',
+      await db
+        .select({
+          id: schema.customerNote.id,
+          content: schema.customerNote.content,
+          noteType: schema.customerNote.noteType,
+          isPinned: schema.customerNote.isPinned,
+          createdAt: schema.customerNote.createdAt,
+          updatedAt: schema.customerNote.updatedAt,
+          authorId: schema.customerNote.authorId,
+          authorName: schema.user.name,
+          authorEmail: schema.user.email,
+        })
+        .from(schema.customerNote)
+        .innerJoin(schema.user, eq(schema.customerNote.authorId, schema.user.id))
+        .where(eq(schema.customerNote.id, noteId))
+        .limit(1)
+        .get()
+    );
+    if (isInvalidD1Row(createdNoteLookup) || createdNoteLookup._tag === 'missing') {
       return new Response(JSON.stringify({ error: 'Failed to load created note' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    const createdNote = createdNoteLookup.value;
 
     return new Response(
       JSON.stringify({
@@ -230,8 +263,8 @@ export async function POST(event: APIEvent) {
           content: createdNote.content,
           noteType: createdNote.noteType,
           isPinned: createdNote.isPinned,
-          createdAt: new Date(createdNote.createdAt).toISOString(),
-          updatedAt: new Date(createdNote.updatedAt).toISOString(),
+          createdAt: createdNote.createdAt.toISOString(),
+          updatedAt: createdNote.updatedAt.toISOString(),
           author: {
             id: createdNote.authorId,
             name: createdNote.authorName,
@@ -285,15 +318,20 @@ export async function PUT(event: APIEvent) {
       });
     }
 
-    // Verify note exists
-    const existingNote = await db
-      .select()
-      .from(schema.customerNote)
-      .where(eq(schema.customerNote.id, noteId))
-      .limit(1)
-      .get();
-
-    if (!existingNote) {
+    const existingNoteLookup = await readOptionalD1Row(
+      CustomerNoteRowSchema,
+      'Customer note row has an invalid shape',
+      await db
+        .select()
+        .from(schema.customerNote)
+        .where(eq(schema.customerNote.id, noteId))
+        .limit(1)
+        .get()
+    );
+    if (isInvalidD1Row(existingNoteLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (existingNoteLookup._tag === 'missing') {
       return new Response(JSON.stringify({ error: 'Note not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
@@ -362,15 +400,20 @@ export async function DELETE(event: APIEvent) {
       });
     }
 
-    // Verify note exists
-    const existingNote = await db
-      .select({ id: schema.customerNote.id })
-      .from(schema.customerNote)
-      .where(eq(schema.customerNote.id, noteId))
-      .limit(1)
-      .get();
-
-    if (!existingNote) {
+    const existingNoteLookup = await readOptionalD1Row(
+      IdRowSchema,
+      'Customer note id row has an invalid shape',
+      await db
+        .select({ id: schema.customerNote.id })
+        .from(schema.customerNote)
+        .where(eq(schema.customerNote.id, noteId))
+        .limit(1)
+        .get()
+    );
+    if (isInvalidD1Row(existingNoteLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (existingNoteLookup._tag === 'missing') {
       return new Response(JSON.stringify({ error: 'Note not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },

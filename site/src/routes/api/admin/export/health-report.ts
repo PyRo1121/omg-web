@@ -2,58 +2,77 @@ import type { APIEvent } from '@solidjs/start/server';
 import { sql, desc, eq } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import { HealthExportRowSchema, readD1RowArray } from '~/lib/contracts/d1-rows';
 
 const addRiskBucket = (score: number): string => {
-      if (score >= 80) {return 'excellent';}
-      if (score >= 60) {return 'good';}
-      if (score >= 40) {return 'fair';}
-      if (score >= 20) {return 'poor';}
-      return 'critical';
-    };
+  if (score >= 80) {
+    return 'excellent';
+  }
+  if (score >= 60) {
+    return 'good';
+  }
+  if (score >= 40) {
+    return 'fair';
+  }
+  if (score >= 20) {
+    return 'poor';
+  }
+  return 'critical';
+};
 
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) {return adminCheck;}
+    if (adminCheck instanceof Response) {
+      return adminCheck;
+    }
 
     const { db } = adminCheck;
 
     const url = new URL(event.request.url);
     const format = url.searchParams.get('format') || 'csv';
     // Get latest health scores for all users with their info
-    const healthData = await db
-      .select({
-        userId: schema.customerHealthHistory.userId,
-        email: schema.user.email,
-        name: schema.user.name,
-        tier: schema.license.tier,
-        status: schema.license.status,
-        overallScore: schema.customerHealthHistory.overallScore,
-        engagementScore: schema.customerHealthHistory.engagementScore,
-        activationScore: schema.customerHealthHistory.activationScore,
-        growthScore: schema.customerHealthHistory.growthScore,
-        riskScore: schema.customerHealthHistory.riskScore,
-        lifecycleStage: schema.customerHealthHistory.lifecycleStage,
-        churnProbability: schema.customerHealthHistory.churnProbability,
-        upgradeProbability: schema.customerHealthHistory.upgradeProbability,
-        commandVelocity7d: schema.customerHealthHistory.commandVelocity7d,
-        recordedAt: schema.customerHealthHistory.recordedAt,
-      })
-      .from(schema.customerHealthHistory)
-      .innerJoin(schema.user, eq(schema.customerHealthHistory.userId, schema.user.id))
-      .leftJoin(schema.license, eq(schema.user.id, schema.license.userId))
-      .where(
-        sql`${schema.customerHealthHistory.recordedAt} = (
+    const healthDataLookup = await readD1RowArray(
+      HealthExportRowSchema,
+      'Health export rows have an invalid shape',
+      await db
+        .select({
+          userId: schema.customerHealthHistory.userId,
+          email: schema.user.email,
+          name: schema.user.name,
+          tier: schema.license.tier,
+          status: schema.license.status,
+          overallScore: schema.customerHealthHistory.overallScore,
+          engagementScore: schema.customerHealthHistory.engagementScore,
+          activationScore: schema.customerHealthHistory.activationScore,
+          growthScore: schema.customerHealthHistory.growthScore,
+          riskScore: schema.customerHealthHistory.riskScore,
+          lifecycleStage: schema.customerHealthHistory.lifecycleStage,
+          churnProbability: schema.customerHealthHistory.churnProbability,
+          upgradeProbability: schema.customerHealthHistory.upgradeProbability,
+          commandVelocity7d: schema.customerHealthHistory.commandVelocity7d,
+          recordedAt: schema.customerHealthHistory.recordedAt,
+        })
+        .from(schema.customerHealthHistory)
+        .innerJoin(schema.user, eq(schema.customerHealthHistory.userId, schema.user.id))
+        .leftJoin(schema.license, eq(schema.user.id, schema.license.userId))
+        .where(
+          sql`${schema.customerHealthHistory.recordedAt} = (
           SELECT MAX(h2.recorded_at)
           FROM customer_health_history h2
           WHERE h2.user_id = ${schema.customerHealthHistory.userId}
         )`
-      )
-      .orderBy(desc(schema.customerHealthHistory.overallScore))
-      .all();
+        )
+        .orderBy(desc(schema.customerHealthHistory.overallScore))
+        .all()
+    );
+    if (healthDataLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
+    const healthData = healthDataLookup.value;
 
     // Calculate risk bucket
-    
 
     if (format === 'json') {
       const exportData = healthData.map(row => ({
@@ -78,7 +97,7 @@ export async function GET(event: APIEvent) {
         activity: {
           commandVelocity7d: row.commandVelocity7d,
         },
-        recordedAt: new Date(row.recordedAt).toISOString(),
+        recordedAt: row.recordedAt.toISOString(),
       }));
 
       return new Response(
@@ -143,7 +162,7 @@ export async function GET(event: APIEvent) {
         row.churnProbability,
         row.upgradeProbability,
         row.commandVelocity7d,
-        new Date(row.recordedAt).toISOString(),
+        row.recordedAt.toISOString(),
       ];
       csvRows.push(values.join(','));
     }

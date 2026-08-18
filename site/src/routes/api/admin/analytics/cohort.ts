@@ -2,6 +2,13 @@ import type { APIEvent } from '@solidjs/start/server';
 import { gte } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  CohortUsageRowSchema,
+  CohortUserRowSchema,
+  LicenseUserIdRowSchema,
+  readD1RowArray,
+} from '~/lib/contracts/d1-rows';
 
 export async function GET(event: APIEvent) {
   try {
@@ -21,41 +28,58 @@ export async function GET(event: APIEvent) {
     startDate.setDate(startDate.getDate() - weeks * 7);
 
     // Get all users with their signup week
-    const users = await db
-      .select({
-        id: schema.user.id,
-        createdAt: schema.user.createdAt,
-      })
-      .from(schema.user)
-      .where(gte(schema.user.createdAt, startDate))
-      .all();
-
-    // Get all licenses with their users
-    const licenses = await db
-      .select({
-        id: schema.license.id,
-        userId: schema.license.userId,
-      })
-      .from(schema.license)
-      .all();
+    const usersLookup = await readD1RowArray(
+      CohortUserRowSchema,
+      'Cohort user rows have an invalid shape',
+      await db
+        .select({
+          id: schema.user.id,
+          createdAt: schema.user.createdAt,
+        })
+        .from(schema.user)
+        .where(gte(schema.user.createdAt, startDate))
+        .all()
+    );
+    const licensesLookup = await readD1RowArray(
+      LicenseUserIdRowSchema,
+      'Cohort license rows have an invalid shape',
+      await db
+        .select({
+          id: schema.license.id,
+          userId: schema.license.userId,
+        })
+        .from(schema.license)
+        .all()
+    );
+    const usageDataLookup = await readD1RowArray(
+      CohortUsageRowSchema,
+      'Cohort usage rows have an invalid shape',
+      await db
+        .select({
+          licenseId: schema.usageDaily.licenseId,
+          date: schema.usageDaily.date,
+          commandsRun: schema.usageDaily.commandsRun,
+        })
+        .from(schema.usageDaily)
+        .where(gte(schema.usageDaily.date, startDate.toISOString().split('T')[0]))
+        .all()
+    );
+    if (
+      usersLookup._tag === 'invalid' ||
+      licensesLookup._tag === 'invalid' ||
+      usageDataLookup._tag === 'invalid'
+    ) {
+      return storedDataErrorResponse();
+    }
+    const users = usersLookup.value;
+    const licenses = licensesLookup.value;
+    const usageData = usageDataLookup.value;
 
     const userLicenseMap = new Map<string, string>();
     for (const license of licenses) {
       userLicenseMap.set(license.userId, license.id);
     }
 
-    // Get all usage data
-    const usageData = await db
-      .select({
-        licenseId: schema.usageDaily.licenseId,
-        date: schema.usageDaily.date,
-        commandsRun: schema.usageDaily.commandsRun,
-      })
-      .from(schema.usageDaily)
-      .where(gte(schema.usageDaily.date, startDate.toISOString().split('T')[0]))
-      .all();
-
-    // Build cohort data
     const cohorts: Array<{
       cohortWeek: string;
       signupCount: number;

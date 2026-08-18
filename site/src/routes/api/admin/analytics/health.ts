@@ -2,6 +2,19 @@ import type { APIEvent } from '@solidjs/start/server';
 import { sql, desc, eq, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  AtRiskCustomerRowSchema,
+  AvgHealthScoresRowSchema,
+  LatestHealthRowSchema,
+  LifecycleDistRowSchema,
+  ScoreBucketRowSchema,
+  UpgradeOpportunityRowSchema,
+  isInvalidD1Row,
+  optionalD1RowValue,
+  readD1RowArray,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 export async function GET(event: APIEvent) {
   try {
@@ -17,38 +30,42 @@ export async function GET(event: APIEvent) {
     const offset = parseInt(url.searchParams.get('offset') || '0');
     const riskThreshold = parseInt(url.searchParams.get('riskThreshold') || '30');
 
-    // Get the latest health scores for all users
-    const latestHealthScores = await db
-      .select({
-        userId: schema.customerHealthHistory.userId,
-        overallScore: schema.customerHealthHistory.overallScore,
-        engagementScore: schema.customerHealthHistory.engagementScore,
-        activationScore: schema.customerHealthHistory.activationScore,
-        growthScore: schema.customerHealthHistory.growthScore,
-        riskScore: schema.customerHealthHistory.riskScore,
-        lifecycleStage: schema.customerHealthHistory.lifecycleStage,
-        churnProbability: schema.customerHealthHistory.churnProbability,
-        upgradeProbability: schema.customerHealthHistory.upgradeProbability,
-        commandVelocity7d: schema.customerHealthHistory.commandVelocity7d,
-        recordedAt: schema.customerHealthHistory.recordedAt,
-      })
-      .from(schema.customerHealthHistory)
-      .where(
-        sql`${schema.customerHealthHistory.recordedAt} = (
+    const latestHealthLookup = await readD1RowArray(
+      LatestHealthRowSchema,
+      'Latest health rows have an invalid shape',
+      await db
+        .select({
+          userId: schema.customerHealthHistory.userId,
+          overallScore: schema.customerHealthHistory.overallScore,
+          engagementScore: schema.customerHealthHistory.engagementScore,
+          activationScore: schema.customerHealthHistory.activationScore,
+          growthScore: schema.customerHealthHistory.growthScore,
+          riskScore: schema.customerHealthHistory.riskScore,
+          lifecycleStage: schema.customerHealthHistory.lifecycleStage,
+          churnProbability: schema.customerHealthHistory.churnProbability,
+          upgradeProbability: schema.customerHealthHistory.upgradeProbability,
+          commandVelocity7d: schema.customerHealthHistory.commandVelocity7d,
+          recordedAt: schema.customerHealthHistory.recordedAt,
+        })
+        .from(schema.customerHealthHistory)
+        .where(
+          sql`${schema.customerHealthHistory.recordedAt} = (
           SELECT MAX(h2.recorded_at)
           FROM customer_health_history h2
           WHERE h2.user_id = ${schema.customerHealthHistory.userId}
         )`
-      )
-      .orderBy(desc(schema.customerHealthHistory.overallScore))
-      .limit(limit)
-      .offset(offset)
-      .all();
-
-    // Health score distribution buckets
-    const scoreDistribution = await db
-      .select({
-        bucket: sql<string>`
+        )
+        .orderBy(desc(schema.customerHealthHistory.overallScore))
+        .limit(limit)
+        .offset(offset)
+        .all()
+    );
+    const scoreDistributionLookup = await readD1RowArray(
+      ScoreBucketRowSchema,
+      'Score distribution rows have an invalid shape',
+      await db
+        .select({
+          bucket: sql<string>`
           CASE
             WHEN ${schema.customerHealthHistory.overallScore} >= 80 THEN 'excellent'
             WHEN ${schema.customerHealthHistory.overallScore} >= 60 THEN 'good'
@@ -57,18 +74,18 @@ export async function GET(event: APIEvent) {
             ELSE 'critical'
           END
         `,
-        count: sql<number>`COUNT(DISTINCT ${schema.customerHealthHistory.userId})`,
-      })
-      .from(schema.customerHealthHistory)
-      .where(
-        sql`${schema.customerHealthHistory.recordedAt} = (
+          count: sql<number>`COUNT(DISTINCT ${schema.customerHealthHistory.userId})`,
+        })
+        .from(schema.customerHealthHistory)
+        .where(
+          sql`${schema.customerHealthHistory.recordedAt} = (
           SELECT MAX(h2.recorded_at)
           FROM customer_health_history h2
           WHERE h2.user_id = ${schema.customerHealthHistory.userId}
         )`
-      )
-      .groupBy(
-        sql`
+        )
+        .groupBy(
+          sql`
         CASE
           WHEN ${schema.customerHealthHistory.overallScore} >= 80 THEN 'excellent'
           WHEN ${schema.customerHealthHistory.overallScore} >= 60 THEN 'good'
@@ -77,109 +94,132 @@ export async function GET(event: APIEvent) {
           ELSE 'critical'
         END
       `
-      )
-      .all();
-
-    // Lifecycle stage distribution
-    const lifecycleDistribution = await db
-      .select({
-        stage: schema.customerHealthHistory.lifecycleStage,
-        count: sql<number>`COUNT(DISTINCT ${schema.customerHealthHistory.userId})`,
-        avgScore: sql<number>`AVG(${schema.customerHealthHistory.overallScore})`,
-      })
-      .from(schema.customerHealthHistory)
-      .where(
-        sql`${schema.customerHealthHistory.recordedAt} = (
+        )
+        .all()
+    );
+    const lifecycleDistributionLookup = await readD1RowArray(
+      LifecycleDistRowSchema,
+      'Lifecycle distribution rows have an invalid shape',
+      await db
+        .select({
+          stage: schema.customerHealthHistory.lifecycleStage,
+          count: sql<number>`COUNT(DISTINCT ${schema.customerHealthHistory.userId})`,
+          avgScore: sql<number>`AVG(${schema.customerHealthHistory.overallScore})`,
+        })
+        .from(schema.customerHealthHistory)
+        .where(
+          sql`${schema.customerHealthHistory.recordedAt} = (
           SELECT MAX(h2.recorded_at)
           FROM customer_health_history h2
           WHERE h2.user_id = ${schema.customerHealthHistory.userId}
         )`
-      )
-      .groupBy(schema.customerHealthHistory.lifecycleStage)
-      .all();
-
-    // At-risk customers (score below threshold or high churn probability)
-    const atRiskCustomers = await db
-      .select({
-        userId: schema.customerHealthHistory.userId,
-        email: schema.user.email,
-        name: schema.user.name,
-        overallScore: schema.customerHealthHistory.overallScore,
-        churnProbability: schema.customerHealthHistory.churnProbability,
-        lifecycleStage: schema.customerHealthHistory.lifecycleStage,
-        commandVelocity7d: schema.customerHealthHistory.commandVelocity7d,
-        tier: schema.license.tier,
-      })
-      .from(schema.customerHealthHistory)
-      .innerJoin(schema.user, eq(schema.customerHealthHistory.userId, schema.user.id))
-      .leftJoin(schema.license, eq(schema.user.id, schema.license.userId))
-      .where(
-        and(
-          sql`${schema.customerHealthHistory.recordedAt} = (
+        )
+        .groupBy(schema.customerHealthHistory.lifecycleStage)
+        .all()
+    );
+    const atRiskLookup = await readD1RowArray(
+      AtRiskCustomerRowSchema,
+      'At-risk customer rows have an invalid shape',
+      await db
+        .select({
+          userId: schema.customerHealthHistory.userId,
+          email: schema.user.email,
+          name: schema.user.name,
+          overallScore: schema.customerHealthHistory.overallScore,
+          churnProbability: schema.customerHealthHistory.churnProbability,
+          lifecycleStage: schema.customerHealthHistory.lifecycleStage,
+          commandVelocity7d: schema.customerHealthHistory.commandVelocity7d,
+          tier: schema.license.tier,
+        })
+        .from(schema.customerHealthHistory)
+        .innerJoin(schema.user, eq(schema.customerHealthHistory.userId, schema.user.id))
+        .leftJoin(schema.license, eq(schema.user.id, schema.license.userId))
+        .where(
+          and(
+            sql`${schema.customerHealthHistory.recordedAt} = (
             SELECT MAX(h2.recorded_at)
             FROM customer_health_history h2
             WHERE h2.user_id = ${schema.customerHealthHistory.userId}
           )`,
-          sql`(${schema.customerHealthHistory.overallScore} < ${riskThreshold} OR ${schema.customerHealthHistory.churnProbability} > 70)`
+            sql`(${schema.customerHealthHistory.overallScore} < ${riskThreshold} OR ${schema.customerHealthHistory.churnProbability} > 70)`
+          )
         )
-      )
-      .orderBy(desc(schema.customerHealthHistory.churnProbability))
-      .limit(limit)
-      .all();
-
-    // Customers with upgrade potential
-    const upgradeOpportunities = await db
-      .select({
-        userId: schema.customerHealthHistory.userId,
-        email: schema.user.email,
-        name: schema.user.name,
-        overallScore: schema.customerHealthHistory.overallScore,
-        upgradeProbability: schema.customerHealthHistory.upgradeProbability,
-        lifecycleStage: schema.customerHealthHistory.lifecycleStage,
-        tier: schema.license.tier,
-      })
-      .from(schema.customerHealthHistory)
-      .innerJoin(schema.user, eq(schema.customerHealthHistory.userId, schema.user.id))
-      .leftJoin(schema.license, eq(schema.user.id, schema.license.userId))
-      .where(
-        and(
-          sql`${schema.customerHealthHistory.recordedAt} = (
+        .orderBy(desc(schema.customerHealthHistory.churnProbability))
+        .limit(limit)
+        .all()
+    );
+    const upgradeLookup = await readD1RowArray(
+      UpgradeOpportunityRowSchema,
+      'Upgrade opportunity rows have an invalid shape',
+      await db
+        .select({
+          userId: schema.customerHealthHistory.userId,
+          email: schema.user.email,
+          name: schema.user.name,
+          overallScore: schema.customerHealthHistory.overallScore,
+          upgradeProbability: schema.customerHealthHistory.upgradeProbability,
+          lifecycleStage: schema.customerHealthHistory.lifecycleStage,
+          tier: schema.license.tier,
+        })
+        .from(schema.customerHealthHistory)
+        .innerJoin(schema.user, eq(schema.customerHealthHistory.userId, schema.user.id))
+        .leftJoin(schema.license, eq(schema.user.id, schema.license.userId))
+        .where(
+          and(
+            sql`${schema.customerHealthHistory.recordedAt} = (
             SELECT MAX(h2.recorded_at)
             FROM customer_health_history h2
             WHERE h2.user_id = ${schema.customerHealthHistory.userId}
           )`,
-          sql`${schema.customerHealthHistory.upgradeProbability} > 60`,
-          sql`${schema.license.tier} != 'enterprise'`
+            sql`${schema.customerHealthHistory.upgradeProbability} > 60`,
+            sql`${schema.license.tier} != 'enterprise'`
+          )
         )
-      )
-      .orderBy(desc(schema.customerHealthHistory.upgradeProbability))
-      .limit(20)
-      .all();
-
-    // Average scores across all customers
-    const avgScores = await db
-      .select({
-        avgOverall: sql<number>`AVG(${schema.customerHealthHistory.overallScore})`,
-        avgEngagement: sql<number>`AVG(${schema.customerHealthHistory.engagementScore})`,
-        avgActivation: sql<number>`AVG(${schema.customerHealthHistory.activationScore})`,
-        avgGrowth: sql<number>`AVG(${schema.customerHealthHistory.growthScore})`,
-        avgRisk: sql<number>`AVG(${schema.customerHealthHistory.riskScore})`,
-        avgChurnProb: sql<number>`AVG(${schema.customerHealthHistory.churnProbability})`,
-        totalUsers: sql<number>`COUNT(DISTINCT ${schema.customerHealthHistory.userId})`,
-      })
-      .from(schema.customerHealthHistory)
-      .where(
-        sql`${schema.customerHealthHistory.recordedAt} = (
+        .orderBy(desc(schema.customerHealthHistory.upgradeProbability))
+        .limit(20)
+        .all()
+    );
+    const avgScoresLookup = await readOptionalD1Row(
+      AvgHealthScoresRowSchema,
+      'Average health scores have an invalid shape',
+      await db
+        .select({
+          avgOverall: sql<number>`AVG(${schema.customerHealthHistory.overallScore})`,
+          avgEngagement: sql<number>`AVG(${schema.customerHealthHistory.engagementScore})`,
+          avgActivation: sql<number>`AVG(${schema.customerHealthHistory.activationScore})`,
+          avgGrowth: sql<number>`AVG(${schema.customerHealthHistory.growthScore})`,
+          avgRisk: sql<number>`AVG(${schema.customerHealthHistory.riskScore})`,
+          avgChurnProb: sql<number>`AVG(${schema.customerHealthHistory.churnProbability})`,
+          totalUsers: sql<number>`COUNT(DISTINCT ${schema.customerHealthHistory.userId})`,
+        })
+        .from(schema.customerHealthHistory)
+        .where(
+          sql`${schema.customerHealthHistory.recordedAt} = (
           SELECT MAX(h2.recorded_at)
           FROM customer_health_history h2
           WHERE h2.user_id = ${schema.customerHealthHistory.userId}
         )`
-      )
-      .get();
+        )
+        .get()
+    );
+    if (
+      latestHealthLookup._tag === 'invalid' ||
+      scoreDistributionLookup._tag === 'invalid' ||
+      lifecycleDistributionLookup._tag === 'invalid' ||
+      atRiskLookup._tag === 'invalid' ||
+      upgradeLookup._tag === 'invalid' ||
+      isInvalidD1Row(avgScoresLookup)
+    ) {
+      return storedDataErrorResponse();
+    }
+
+    const avgScores = optionalD1RowValue(avgScoresLookup);
+    const atRiskCustomers = atRiskLookup.value;
+    const upgradeOpportunities = upgradeLookup.value;
 
     return new Response(
       JSON.stringify({
-        healthScores: latestHealthScores.map(h => ({
+        healthScores: latestHealthLookup.value.map(h => ({
           userId: h.userId,
           overallScore: h.overallScore,
           engagementScore: h.engagementScore,
@@ -190,23 +230,23 @@ export async function GET(event: APIEvent) {
           churnProbability: h.churnProbability,
           upgradeProbability: h.upgradeProbability,
           commandVelocity7d: h.commandVelocity7d,
-          recordedAt: new Date(h.recordedAt).toISOString(),
+          recordedAt: h.recordedAt.toISOString(),
         })),
         distribution: {
-          byScore: scoreDistribution.map(s => ({
+          byScore: scoreDistributionLookup.value.map(s => ({
             bucket: s.bucket,
-            count: Number(s.count),
+            count: s.count,
           })),
-          byLifecycle: lifecycleDistribution.map(l => ({
+          byLifecycle: lifecycleDistributionLookup.value.map(l => ({
             stage: l.stage,
-            count: Number(l.count),
-            avgScore: Math.round(Number(l.avgScore) || 0),
+            count: l.count,
+            avgScore: Math.round(l.avgScore),
           })),
         },
         atRisk: atRiskCustomers.map(c => ({
           userId: c.userId,
           email: c.email,
-          name: c.name,
+          name: c.name ?? null,
           overallScore: c.overallScore,
           churnProbability: c.churnProbability,
           lifecycleStage: c.lifecycleStage,
@@ -216,20 +256,20 @@ export async function GET(event: APIEvent) {
         upgradeOpportunities: upgradeOpportunities.map(c => ({
           userId: c.userId,
           email: c.email,
-          name: c.name,
+          name: c.name ?? null,
           overallScore: c.overallScore,
           upgradeProbability: c.upgradeProbability,
           lifecycleStage: c.lifecycleStage,
           tier: c.tier || 'free',
         })),
         summary: {
-          avgOverallScore: Math.round(Number(avgScores?.avgOverall) || 0),
-          avgEngagementScore: Math.round(Number(avgScores?.avgEngagement) || 0),
-          avgActivationScore: Math.round(Number(avgScores?.avgActivation) || 0),
-          avgGrowthScore: Math.round(Number(avgScores?.avgGrowth) || 0),
-          avgRiskScore: Math.round(Number(avgScores?.avgRisk) || 0),
-          avgChurnProbability: Math.round(Number(avgScores?.avgChurnProb) || 0),
-          totalTrackedUsers: Number(avgScores?.totalUsers || 0),
+          avgOverallScore: Math.round(avgScores?.avgOverall ?? 0),
+          avgEngagementScore: Math.round(avgScores?.avgEngagement ?? 0),
+          avgActivationScore: Math.round(avgScores?.avgActivation ?? 0),
+          avgGrowthScore: Math.round(avgScores?.avgGrowth ?? 0),
+          avgRiskScore: Math.round(avgScores?.avgRisk ?? 0),
+          avgChurnProbability: Math.round(avgScores?.avgChurnProb ?? 0),
+          totalTrackedUsers: avgScores?.totalUsers ?? 0,
           atRiskCount: atRiskCustomers.length,
           upgradeOpportunityCount: upgradeOpportunities.length,
         },

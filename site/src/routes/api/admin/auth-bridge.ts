@@ -17,6 +17,7 @@ import {
   type AuthBridgeError,
 } from '~/lib/admin-session-bridge';
 import type { AdminSessionClientResponse } from '~/lib/contracts/admin-session';
+import { isInvalidD1Row, readOptionalD1Row, UserRoleRowSchema } from '~/lib/contracts/d1-rows';
 
 function drizzleRoleLookup(db: ReturnType<typeof drizzle<typeof schema>>): AdminRoleLookup {
   return {
@@ -29,12 +30,23 @@ function drizzleRoleLookup(db: ReturnType<typeof drizzle<typeof schema>>): Admin
             .where(eq(schema.user.id, userId))
             .limit(1)
             .get();
-          if (userRecord === undefined) {
+          const userLookup = await readOptionalD1Row(
+            UserRoleRowSchema,
+            'Admin role row has an invalid shape',
+            userRecord
+          );
+          if (isInvalidD1Row(userLookup)) {
+            throw new AuthBridgeStoreUnavailable('invalid role row');
+          }
+          if (userLookup._tag === 'missing') {
             return null;
           }
-          return userRecord.role === 'admin' ? 'admin' : 'user';
+          return userLookup.value.role === 'admin' ? 'admin' : 'user';
         },
-        catch: cause => new AuthBridgeStoreUnavailable(cause),
+        catch: (cause: unknown) =>
+          cause instanceof AuthBridgeStoreUnavailable
+            ? cause
+            : new AuthBridgeStoreUnavailable(cause),
       });
     },
   };

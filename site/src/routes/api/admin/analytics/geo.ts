@@ -2,6 +2,19 @@ import type { APIEvent } from '@solidjs/start/server';
 import { sql, gte, desc } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  GeoCityRowSchema,
+  GeoCountryRowSchema,
+  GeoRegionRowSchema,
+  GeoTimezoneRowSchema,
+  GeoTotalsRowSchema,
+  OsCountRowSchema,
+  isInvalidD1Row,
+  optionalD1RowValue,
+  readD1RowArray,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 export async function GET(event: APIEvent) {
   try {
@@ -20,131 +33,155 @@ export async function GET(event: APIEvent) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    // Get geographic distribution from geoUsage table
-    const countryDistribution = await db
-      .select({
-        countryCode: schema.geoUsage.countryCode,
-        uniqueUsers: sql<number>`COUNT(DISTINCT ${schema.geoUsage.licenseId})`,
-        totalSessions: sql<number>`COUNT(*)`,
-      })
-      .from(schema.geoUsage)
-      .where(gte(schema.geoUsage.lastSeenAt, startDate))
-      .groupBy(schema.geoUsage.countryCode)
-      .orderBy(desc(sql`COUNT(DISTINCT ${schema.geoUsage.licenseId})`))
-      .limit(limit)
-      .offset(offset)
-      .all();
+    const countryLookup = await readD1RowArray(
+      GeoCountryRowSchema,
+      'Geo country rows have an invalid shape',
+      await db
+        .select({
+          countryCode: schema.geoUsage.countryCode,
+          uniqueUsers: sql<number>`COUNT(DISTINCT ${schema.geoUsage.licenseId})`,
+          totalSessions: sql<number>`COUNT(*)`,
+        })
+        .from(schema.geoUsage)
+        .where(gte(schema.geoUsage.lastSeenAt, startDate))
+        .groupBy(schema.geoUsage.countryCode)
+        .orderBy(desc(sql`COUNT(DISTINCT ${schema.geoUsage.licenseId})`))
+        .limit(limit)
+        .offset(offset)
+        .all()
+    );
+    const regionLookup = await readD1RowArray(
+      GeoRegionRowSchema,
+      'Geo region rows have an invalid shape',
+      await db
+        .select({
+          countryCode: schema.geoUsage.countryCode,
+          region: schema.geoUsage.region,
+          uniqueUsers: sql<number>`COUNT(DISTINCT ${schema.geoUsage.licenseId})`,
+        })
+        .from(schema.geoUsage)
+        .where(
+          sql`${schema.geoUsage.region} IS NOT NULL AND ${schema.geoUsage.lastSeenAt} >= ${startDate.getTime()}`
+        )
+        .groupBy(schema.geoUsage.countryCode, schema.geoUsage.region)
+        .orderBy(desc(sql`COUNT(DISTINCT ${schema.geoUsage.licenseId})`))
+        .limit(limit)
+        .all()
+    );
+    const timezoneLookup = await readD1RowArray(
+      GeoTimezoneRowSchema,
+      'Geo timezone rows have an invalid shape',
+      await db
+        .select({
+          timezone: schema.geoUsage.timezone,
+          uniqueUsers: sql<number>`COUNT(DISTINCT ${schema.geoUsage.licenseId})`,
+        })
+        .from(schema.geoUsage)
+        .where(
+          sql`${schema.geoUsage.timezone} IS NOT NULL AND ${schema.geoUsage.lastSeenAt} >= ${startDate.getTime()}`
+        )
+        .groupBy(schema.geoUsage.timezone)
+        .orderBy(desc(sql`COUNT(DISTINCT ${schema.geoUsage.licenseId})`))
+        .limit(limit)
+        .all()
+    );
+    const cityLookup = await readD1RowArray(
+      GeoCityRowSchema,
+      'Geo city rows have an invalid shape',
+      await db
+        .select({
+          countryCode: schema.geoUsage.countryCode,
+          city: schema.geoUsage.city,
+          uniqueUsers: sql<number>`COUNT(DISTINCT ${schema.geoUsage.licenseId})`,
+        })
+        .from(schema.geoUsage)
+        .where(
+          sql`${schema.geoUsage.city} IS NOT NULL AND ${schema.geoUsage.lastSeenAt} >= ${startDate.getTime()}`
+        )
+        .groupBy(schema.geoUsage.countryCode, schema.geoUsage.city)
+        .orderBy(desc(sql`COUNT(DISTINCT ${schema.geoUsage.licenseId})`))
+        .limit(20)
+        .all()
+    );
+    const totalStatsLookup = await readOptionalD1Row(
+      GeoTotalsRowSchema,
+      'Geo totals have an invalid shape',
+      await db
+        .select({
+          totalCountries: sql<number>`COUNT(DISTINCT ${schema.geoUsage.countryCode})`,
+          totalUsers: sql<number>`COUNT(DISTINCT ${schema.geoUsage.licenseId})`,
+          totalRegions: sql<number>`COUNT(DISTINCT ${schema.geoUsage.countryCode} || '-' || COALESCE(${schema.geoUsage.region}, ''))`,
+        })
+        .from(schema.geoUsage)
+        .where(gte(schema.geoUsage.lastSeenAt, startDate))
+        .get()
+    );
+    const osLookup = await readD1RowArray(
+      OsCountRowSchema,
+      'OS count rows have an invalid shape',
+      await db
+        .select({
+          os: schema.machine.os,
+          count: sql<number>`COUNT(*)`,
+        })
+        .from(schema.machine)
+        .where(gte(schema.machine.lastSeenAt, startDate))
+        .groupBy(schema.machine.os)
+        .orderBy(desc(sql`COUNT(*)`))
+        .all()
+    );
+    if (
+      countryLookup._tag === 'invalid' ||
+      regionLookup._tag === 'invalid' ||
+      timezoneLookup._tag === 'invalid' ||
+      cityLookup._tag === 'invalid' ||
+      isInvalidD1Row(totalStatsLookup) ||
+      osLookup._tag === 'invalid'
+    ) {
+      return storedDataErrorResponse();
+    }
 
-    // Get regional distribution (country + region)
-    const regionDistribution = await db
-      .select({
-        countryCode: schema.geoUsage.countryCode,
-        region: schema.geoUsage.region,
-        uniqueUsers: sql<number>`COUNT(DISTINCT ${schema.geoUsage.licenseId})`,
-      })
-      .from(schema.geoUsage)
-      .where(
-        sql`${schema.geoUsage.region} IS NOT NULL AND ${schema.geoUsage.lastSeenAt} >= ${startDate.getTime()}`
-      )
-      .groupBy(schema.geoUsage.countryCode, schema.geoUsage.region)
-      .orderBy(desc(sql`COUNT(DISTINCT ${schema.geoUsage.licenseId})`))
-      .limit(limit)
-      .all();
-
-    // Get timezone distribution
-    const timezoneDistribution = await db
-      .select({
-        timezone: schema.geoUsage.timezone,
-        uniqueUsers: sql<number>`COUNT(DISTINCT ${schema.geoUsage.licenseId})`,
-      })
-      .from(schema.geoUsage)
-      .where(
-        sql`${schema.geoUsage.timezone} IS NOT NULL AND ${schema.geoUsage.lastSeenAt} >= ${startDate.getTime()}`
-      )
-      .groupBy(schema.geoUsage.timezone)
-      .orderBy(desc(sql`COUNT(DISTINCT ${schema.geoUsage.licenseId})`))
-      .limit(limit)
-      .all();
-
-    // Get city-level data for top cities
-    const cityDistribution = await db
-      .select({
-        countryCode: schema.geoUsage.countryCode,
-        city: schema.geoUsage.city,
-        uniqueUsers: sql<number>`COUNT(DISTINCT ${schema.geoUsage.licenseId})`,
-      })
-      .from(schema.geoUsage)
-      .where(
-        sql`${schema.geoUsage.city} IS NOT NULL AND ${schema.geoUsage.lastSeenAt} >= ${startDate.getTime()}`
-      )
-      .groupBy(schema.geoUsage.countryCode, schema.geoUsage.city)
-      .orderBy(desc(sql`COUNT(DISTINCT ${schema.geoUsage.licenseId})`))
-      .limit(20)
-      .all();
-
-    // Calculate summary statistics
-    const totalStats = await db
-      .select({
-        totalCountries: sql<number>`COUNT(DISTINCT ${schema.geoUsage.countryCode})`,
-        totalUsers: sql<number>`COUNT(DISTINCT ${schema.geoUsage.licenseId})`,
-        totalRegions: sql<number>`COUNT(DISTINCT ${schema.geoUsage.countryCode} || '-' || COALESCE(${schema.geoUsage.region}, ''))`,
-      })
-      .from(schema.geoUsage)
-      .where(gte(schema.geoUsage.lastSeenAt, startDate))
-      .get();
-
-    // OS distribution from machine data (as a proxy for geo+platform)
-    const osDistribution = await db
-      .select({
-        os: schema.machine.os,
-        count: sql<number>`COUNT(*)`,
-      })
-      .from(schema.machine)
-      .where(gte(schema.machine.lastSeenAt, startDate))
-      .groupBy(schema.machine.os)
-      .orderBy(desc(sql`COUNT(*)`))
-      .all();
-
-    // Calculate percentages for countries
-    const totalUsers = Number(totalStats?.totalUsers || 1);
-    const countriesWithPercentage = countryDistribution.map(c => ({
+    const totalStats = optionalD1RowValue(totalStatsLookup);
+    const totalUsers =
+      totalStats?.totalUsers && totalStats.totalUsers > 0 ? totalStats.totalUsers : 1;
+    const countriesWithPercentage = countryLookup.value.map(c => ({
       countryCode: c.countryCode,
-      uniqueUsers: Number(c.uniqueUsers),
-      totalSessions: Number(c.totalSessions),
-      percentage: Math.round((Number(c.uniqueUsers) / totalUsers) * 100 * 10) / 10,
+      uniqueUsers: c.uniqueUsers,
+      totalSessions: c.totalSessions,
+      percentage: Math.round((c.uniqueUsers / totalUsers) * 100 * 10) / 10,
     }));
 
     return new Response(
       JSON.stringify({
         countries: countriesWithPercentage,
-        regions: regionDistribution.map(r => ({
+        regions: regionLookup.value.map(r => ({
           countryCode: r.countryCode,
-          region: r.region,
-          uniqueUsers: Number(r.uniqueUsers),
+          region: r.region ?? null,
+          uniqueUsers: r.uniqueUsers,
         })),
-        cities: cityDistribution.map(c => ({
+        cities: cityLookup.value.map(c => ({
           countryCode: c.countryCode,
-          city: c.city,
-          uniqueUsers: Number(c.uniqueUsers),
+          city: c.city ?? null,
+          uniqueUsers: c.uniqueUsers,
         })),
-        timezones: timezoneDistribution.map(t => ({
-          timezone: t.timezone,
-          uniqueUsers: Number(t.uniqueUsers),
+        timezones: timezoneLookup.value.map(t => ({
+          timezone: t.timezone ?? null,
+          uniqueUsers: t.uniqueUsers,
         })),
-        platforms: osDistribution.map(o => ({
+        platforms: osLookup.value.map(o => ({
           os: o.os || 'unknown',
-          count: Number(o.count),
+          count: o.count,
         })),
         summary: {
-          totalCountries: Number(totalStats?.totalCountries || 0),
-          totalUsers: Number(totalStats?.totalUsers || 0),
-          totalRegions: Number(totalStats?.totalRegions || 0),
+          totalCountries: totalStats?.totalCountries ?? 0,
+          totalUsers: totalStats?.totalUsers ?? 0,
+          totalRegions: totalStats?.totalRegions ?? 0,
           periodDays: days,
         },
         pagination: {
           limit,
           offset,
-          total: Number(totalStats?.totalCountries || 0),
+          total: totalStats?.totalCountries ?? 0,
         },
       }),
       {

@@ -2,11 +2,24 @@ import type { APIEvent } from '@solidjs/start/server';
 import { sql, eq, desc, gte, and } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { requireAdmin } from '~/lib/admin';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import {
+  CountRowSchema,
+  CustomerIdentityRowSchema,
+  HealthHistoryRowSchema,
+  HealthStatsRowSchema,
+  isInvalidD1Row,
+  optionalD1RowValue,
+  readD1RowArray,
+  readOptionalD1Row,
+} from '~/lib/contracts/d1-rows';
 
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) {return adminCheck;}
+    if (adminCheck instanceof Response) {
+      return adminCheck;
+    }
 
     const { db } = adminCheck;
 
@@ -24,53 +37,68 @@ export async function GET(event: APIEvent) {
     }
 
     // Verify customer exists
-    const customer = await db
-      .select({
-        id: schema.user.id,
-        name: schema.user.name,
-        email: schema.user.email,
-      })
-      .from(schema.user)
-      .where(eq(schema.user.id, customerId))
-      .limit(1)
-      .get();
-
-    if (!customer) {
+    const customerLookup = await readOptionalD1Row(
+      CustomerIdentityRowSchema,
+      'Customer identity row has an invalid shape',
+      await db
+        .select({
+          id: schema.user.id,
+          name: schema.user.name,
+          email: schema.user.email,
+        })
+        .from(schema.user)
+        .where(eq(schema.user.id, customerId))
+        .limit(1)
+        .get()
+    );
+    if (isInvalidD1Row(customerLookup)) {
+      return storedDataErrorResponse();
+    }
+    if (customerLookup._tag === 'missing') {
       return new Response(JSON.stringify({ error: 'Customer not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    const customer = customerLookup.value;
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
     // Get health history
-    const history = await db
-      .select({
-        id: schema.customerHealthHistory.id,
-        overallScore: schema.customerHealthHistory.overallScore,
-        engagementScore: schema.customerHealthHistory.engagementScore,
-        activationScore: schema.customerHealthHistory.activationScore,
-        growthScore: schema.customerHealthHistory.growthScore,
-        riskScore: schema.customerHealthHistory.riskScore,
-        lifecycleStage: schema.customerHealthHistory.lifecycleStage,
-        churnProbability: schema.customerHealthHistory.churnProbability,
-        upgradeProbability: schema.customerHealthHistory.upgradeProbability,
-        commandVelocity7d: schema.customerHealthHistory.commandVelocity7d,
-        recordedAt: schema.customerHealthHistory.recordedAt,
-      })
-      .from(schema.customerHealthHistory)
-      .where(
-        and(
-          eq(schema.customerHealthHistory.userId, customerId),
-          gte(schema.customerHealthHistory.recordedAt, startDate)
+    const historyLookup = await readD1RowArray(
+      HealthHistoryRowSchema,
+      'Health history rows have an invalid shape',
+      await db
+        .select({
+          id: schema.customerHealthHistory.id,
+          overallScore: schema.customerHealthHistory.overallScore,
+          engagementScore: schema.customerHealthHistory.engagementScore,
+          activationScore: schema.customerHealthHistory.activationScore,
+          growthScore: schema.customerHealthHistory.growthScore,
+          riskScore: schema.customerHealthHistory.riskScore,
+          lifecycleStage: schema.customerHealthHistory.lifecycleStage,
+          churnProbability: schema.customerHealthHistory.churnProbability,
+          upgradeProbability: schema.customerHealthHistory.upgradeProbability,
+          commandVelocity7d: schema.customerHealthHistory.commandVelocity7d,
+          recordedAt: schema.customerHealthHistory.recordedAt,
+        })
+        .from(schema.customerHealthHistory)
+        .where(
+          and(
+            eq(schema.customerHealthHistory.userId, customerId),
+            gte(schema.customerHealthHistory.recordedAt, startDate)
+          )
         )
-      )
-      .orderBy(desc(schema.customerHealthHistory.recordedAt))
-      .limit(limit)
-      .offset(offset)
-      .all();
+        .orderBy(desc(schema.customerHealthHistory.recordedAt))
+        .limit(limit)
+        .offset(offset)
+        .all()
+    );
+    if (historyLookup._tag === 'invalid') {
+      return storedDataErrorResponse();
+    }
+    const history = historyLookup.value;
 
     // Get latest score
     const latestScore = history.length > 0 ? history[0] : null;
@@ -89,38 +117,66 @@ export async function GET(event: APIEvent) {
         const olderAvg =
           olderScores.reduce((sum, h) => sum + h.overallScore, 0) / olderScores.length;
 
-        if (recentAvg > olderAvg + 5) {overallTrend = 'improving';}
-        else if (recentAvg < olderAvg - 5) {overallTrend = 'declining';}
+        if (recentAvg > olderAvg + 5) {
+          overallTrend = 'improving';
+        } else if (recentAvg < olderAvg - 5) {
+          overallTrend = 'declining';
+        }
 
         const recentChurnAvg =
           recentScores.reduce((sum, h) => sum + h.churnProbability, 0) / recentScores.length;
         const olderChurnAvg =
           olderScores.reduce((sum, h) => sum + h.churnProbability, 0) / olderScores.length;
 
-        if (recentChurnAvg > olderChurnAvg + 5) {churnTrend = 'increasing';}
-        else if (recentChurnAvg < olderChurnAvg - 5) {churnTrend = 'decreasing';}
+        if (recentChurnAvg > olderChurnAvg + 5) {
+          churnTrend = 'increasing';
+        } else if (recentChurnAvg < olderChurnAvg - 5) {
+          churnTrend = 'decreasing';
+        }
       }
     }
 
     // Get min/max/avg for the period
-    const stats = await db
-      .select({
-        minScore: sql<number>`MIN(${schema.customerHealthHistory.overallScore})`,
-        maxScore: sql<number>`MAX(${schema.customerHealthHistory.overallScore})`,
-        avgScore: sql<number>`AVG(${schema.customerHealthHistory.overallScore})`,
-        minChurn: sql<number>`MIN(${schema.customerHealthHistory.churnProbability})`,
-        maxChurn: sql<number>`MAX(${schema.customerHealthHistory.churnProbability})`,
-        avgChurn: sql<number>`AVG(${schema.customerHealthHistory.churnProbability})`,
-        recordCount: sql<number>`COUNT(*)`,
-      })
-      .from(schema.customerHealthHistory)
-      .where(
-        and(
-          eq(schema.customerHealthHistory.userId, customerId),
-          gte(schema.customerHealthHistory.recordedAt, startDate)
+    const statsLookup = await readOptionalD1Row(
+      HealthStatsRowSchema,
+      'Health history stats have an invalid shape',
+      await db
+        .select({
+          minScore: sql<number>`MIN(${schema.customerHealthHistory.overallScore})`,
+          maxScore: sql<number>`MAX(${schema.customerHealthHistory.overallScore})`,
+          avgScore: sql<number>`AVG(${schema.customerHealthHistory.overallScore})`,
+          minChurn: sql<number>`MIN(${schema.customerHealthHistory.churnProbability})`,
+          maxChurn: sql<number>`MAX(${schema.customerHealthHistory.churnProbability})`,
+          avgChurn: sql<number>`AVG(${schema.customerHealthHistory.churnProbability})`,
+          recordCount: sql<number>`COUNT(*)`,
+        })
+        .from(schema.customerHealthHistory)
+        .where(
+          and(
+            eq(schema.customerHealthHistory.userId, customerId),
+            gte(schema.customerHealthHistory.recordedAt, startDate)
+          )
         )
-      )
-      .get();
+        .get()
+    );
+    const totalCountLookup = await readOptionalD1Row(
+      CountRowSchema,
+      'Health history count has an invalid shape',
+      await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(schema.customerHealthHistory)
+        .where(
+          and(
+            eq(schema.customerHealthHistory.userId, customerId),
+            gte(schema.customerHealthHistory.recordedAt, startDate)
+          )
+        )
+        .get()
+    );
+    if (isInvalidD1Row(statsLookup) || isInvalidD1Row(totalCountLookup)) {
+      return storedDataErrorResponse();
+    }
+    const stats = optionalD1RowValue(statsLookup);
 
     // Get lifecycle stage changes
     const lifecycleChanges: Array<{
@@ -130,33 +186,26 @@ export async function GET(event: APIEvent) {
     }> = [];
 
     for (let i = 0; i < history.length - 1; i++) {
-      if (history[i].lifecycleStage !== history[i + 1].lifecycleStage) {
+      const current = history[i];
+      const next = history[i + 1];
+      if (current === undefined || next === undefined) {
+        continue;
+      }
+      if (current.lifecycleStage !== next.lifecycleStage) {
         lifecycleChanges.push({
-          from: history[i + 1].lifecycleStage,
-          to: history[i].lifecycleStage,
-          changedAt: new Date(history[i].recordedAt).toISOString(),
+          from: next.lifecycleStage,
+          to: current.lifecycleStage,
+          changedAt: current.recordedAt.toISOString(),
         });
       }
     }
-
-    // Get total count for pagination
-    const totalCount = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(schema.customerHealthHistory)
-      .where(
-        and(
-          eq(schema.customerHealthHistory.userId, customerId),
-          gte(schema.customerHealthHistory.recordedAt, startDate)
-        )
-      )
-      .get();
 
     return new Response(
       JSON.stringify({
         customer: {
           id: customer.id,
-          name: customer.name,
-          email: customer.email,
+          name: customer.name ?? null,
+          email: customer.email ?? null,
         },
         current: latestScore
           ? {
@@ -169,7 +218,7 @@ export async function GET(event: APIEvent) {
               churnProbability: latestScore.churnProbability,
               upgradeProbability: latestScore.upgradeProbability,
               commandVelocity7d: latestScore.commandVelocity7d,
-              recordedAt: new Date(latestScore.recordedAt).toISOString(),
+              recordedAt: latestScore.recordedAt.toISOString(),
             }
           : null,
         history: history.map(h => ({
@@ -183,7 +232,7 @@ export async function GET(event: APIEvent) {
           churnProbability: h.churnProbability,
           upgradeProbability: h.upgradeProbability,
           commandVelocity7d: h.commandVelocity7d,
-          recordedAt: new Date(h.recordedAt).toISOString(),
+          recordedAt: h.recordedAt.toISOString(),
         })),
         trends: {
           overallScore: overallTrend,
@@ -191,19 +240,19 @@ export async function GET(event: APIEvent) {
         },
         lifecycleChanges,
         stats: {
-          minScore: Number(stats?.minScore || 0),
-          maxScore: Number(stats?.maxScore || 0),
-          avgScore: Math.round(Number(stats?.avgScore || 0)),
-          minChurnProbability: Number(stats?.minChurn || 0),
-          maxChurnProbability: Number(stats?.maxChurn || 0),
-          avgChurnProbability: Math.round(Number(stats?.avgChurn || 0)),
-          recordCount: Number(stats?.recordCount || 0),
+          minScore: stats?.minScore ?? 0,
+          maxScore: stats?.maxScore ?? 0,
+          avgScore: Math.round(stats?.avgScore ?? 0),
+          minChurnProbability: stats?.minChurn ?? 0,
+          maxChurnProbability: stats?.maxChurn ?? 0,
+          avgChurnProbability: Math.round(stats?.avgChurn ?? 0),
+          recordCount: stats?.recordCount ?? 0,
           periodDays: days,
         },
         pagination: {
           limit,
           offset,
-          total: Number(totalCount?.count || 0),
+          total: optionalD1RowValue(totalCountLookup)?.count ?? 0,
         },
       }),
       {
