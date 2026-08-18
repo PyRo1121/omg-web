@@ -10,6 +10,7 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { FirehoseEvent, GeoDistribution, CommandHealth, AdvancedMetrics } from './types';
+import { valueForKey } from '../../../lib/lookup';
 import {
   Terminal,
   Globe,
@@ -49,13 +50,8 @@ const EVENT_TYPE_CONFIG = {
   error: { icon: AlertCircle, color: 'text-flare-400', bg: 'bg-flare-500/10', label: 'ERROR' },
 } as const;
 
-type EventTypeKey = keyof typeof EVENT_TYPE_CONFIG;
-
 const getEventTypeConfig = (eventType: string) =>
-  // SAFETY: The `in` guard confirms the event type is a configured key.
-  eventType in EVENT_TYPE_CONFIG
-    ? EVENT_TYPE_CONFIG[eventType as EventTypeKey]
-    : EVENT_TYPE_CONFIG.command;
+  valueForKey(Object.entries(EVENT_TYPE_CONFIG), eventType) ?? EVENT_TYPE_CONFIG.command;
 
 const formatTimestamp = (timestamp: string): string => {
   const date = new Date(timestamp);

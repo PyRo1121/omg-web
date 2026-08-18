@@ -6,6 +6,7 @@ import {
   useSiteGeoAnalytics,
   useSiteRealtimeAnalytics,
 } from '../api-hooks';
+import { valueForKey } from '../lookup';
 import {
   transformToExecutiveKPI,
   transformToAdvancedMetrics,
@@ -104,9 +105,5 @@ function getCountryName(code: string): string {
     IT: 'Italy',
     KR: 'South Korea',
   } as const;
-  if (code in countries) {
-    // SAFETY: The `in` guard above confirms the code is a lookup table key.
-    return countries[code as keyof typeof countries];
-  }
-  return code || 'Unknown';
+  return valueForKey(Object.entries(countries), code) ?? (code || 'Unknown');
 }

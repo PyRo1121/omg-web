@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from 'lucide-solid';
 import { useAdminAdvancedMetrics, useAdminCRMUsers } from '../../../lib/api-hooks';
+import { valueForKey } from '../../../lib/lookup';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ProgressRing } from '../../../design-system/components/Charts';
 
@@ -27,6 +28,12 @@ function cn(...inputs: ClassValue[]) {
 
 type PredictionType = 'churn' | 'expansion' | 'anomaly' | 'health';
 type TimeHorizon = '30d' | '60d' | '90d';
+
+const TIME_HORIZONS = {
+  '30d': '30d',
+  '60d': '60d',
+  '90d': '90d',
+} as const satisfies Record<TimeHorizon, TimeHorizon>;
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
 interface ChurnPrediction {
@@ -305,11 +312,8 @@ const AnomalyAlertCard: Component<{
     low: { color: 'text-nebula-400', bg: 'bg-nebula-500/10', icon: Activity },
   } as const;
 
-  type SeverityKey = keyof typeof severityConfig;
-
   const getSeverityConfig = (severity: string) =>
-    // SAFETY: The `in` guard confirms the severity is a configured key.
-    severity in severityConfig ? severityConfig[severity as SeverityKey] : severityConfig.medium;
+    valueForKey(Object.entries(severityConfig), severity) ?? severityConfig.medium;
 
   const config = () => getSeverityConfig(props.alert.severity);
   const IconComponent = config().icon;
@@ -608,8 +612,9 @@ export const PredictiveInsights: Component = () => {
           <select
             value={timeHorizon()}
             onChange={e =>
-              // SAFETY: The select only offers the TimeHorizon option values.
-              setTimeHorizon(e.currentTarget.value as TimeHorizon)
+              setTimeHorizon(
+                valueForKey(Object.entries(TIME_HORIZONS), e.currentTarget.value) ?? '30d'
+              )
             }
             class="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white transition-all focus:outline-none"
           >

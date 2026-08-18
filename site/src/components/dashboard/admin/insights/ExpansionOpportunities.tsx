@@ -14,6 +14,7 @@ import {
 } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { valueForKey } from '../../../../lib/lookup';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -33,7 +34,7 @@ interface ExpansionOpportunity {
 }
 
 interface ExpansionOpportunitiesProps {
-  data: ExpansionOpportunity[];
+  data: ReadonlyArray<ExpansionOpportunity>;
   onOpportunityClick?: (customerId: string) => void;
 }
 
@@ -150,8 +151,7 @@ function getPriorityLevel(priority: string): PriorityLevel {
 
 function getOpportunityTypeConfig(type: string): OpportunityConfig {
   return (
-    // SAFETY: The fallback object handles unrecognized type strings.
-    OPPORTUNITY_TYPE_CONFIG[type as OpportunityType] || {
+    valueForKey(Object.entries(OPPORTUNITY_TYPE_CONFIG), type) ?? {
       icon: TrendingUp,
       label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
       potentialMRR: 0,

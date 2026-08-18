@@ -16,6 +16,7 @@ import {
   Loader2,
   AlertCircle,
 } from '../../ui/Icons';
+import { valueForKey } from '../../../lib/lookup';
 
 interface CommandDistribution {
   command: string;
@@ -90,12 +91,13 @@ const getCommandColor = (command: string) => {
     audit: { bg: 'bg-orange-500/20', text: 'text-orange-400', bar: 'bg-orange-500' },
   } as const;
 
-  type CommandKey = keyof typeof colors;
-
-  // SAFETY: The `in` guard confirms the command is a configured key.
-  return command in colors
-    ? colors[command as CommandKey]
-    : { bg: 'bg-slate-500/20', text: 'text-slate-400', bar: 'bg-slate-500' };
+  return (
+    valueForKey(Object.entries(colors), command) ?? {
+      bg: 'bg-slate-500/20',
+      text: 'text-slate-400',
+      bar: 'bg-slate-500',
+    }
+  );
 };
 
 const getFeatureDisplayName = (feature: string) => {
@@ -108,10 +110,7 @@ const getFeatureDisplayName = (feature: string) => {
     audit: 'Security Audit',
   } as const;
 
-  type FeatureNameKey = keyof typeof names;
-
-  // SAFETY: The `in` guard confirms the feature is a configured key.
-  return feature in names ? names[feature as FeatureNameKey] : feature;
+  return valueForKey(Object.entries(names), feature) ?? feature;
 };
 
 const getFeatureIcon = (feature: string) => {
@@ -124,10 +123,7 @@ const getFeatureIcon = (feature: string) => {
     audit: Shield,
   } as const;
 
-  type FeatureKey = keyof typeof icons;
-
-  // SAFETY: The `in` guard confirms the feature is a configured key.
-  return feature in icons ? icons[feature as FeatureKey] : Terminal;
+  return valueForKey(Object.entries(icons), feature) ?? Terminal;
 };
 
 export const UsageOverview: Component = () => {

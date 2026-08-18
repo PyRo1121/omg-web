@@ -9,6 +9,7 @@ import {
 } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { valueForKey } from '../../../lib/lookup';
 import {
   DollarSign,
   TrendingDown,
@@ -535,11 +536,8 @@ const ChurnRiskOverview: Component<ChurnRiskOverviewProps> = props => {
     critical: { color: 'text-flare-500', bg: 'bg-flare-500' },
   } as const;
 
-  type RiskLevel = keyof typeof riskColors;
-
   const getRiskColor = (level: string) =>
-    // SAFETY: The `in` guard confirms the level is a configured risk level.
-    level in riskColors ? riskColors[level as RiskLevel] : riskColors.medium;
+    valueForKey(Object.entries(riskColors), level) ?? riskColors.medium;
 
   return (
     <div class="bg-void-850 shadow-card relative overflow-hidden rounded-3xl border border-white/5 p-6">

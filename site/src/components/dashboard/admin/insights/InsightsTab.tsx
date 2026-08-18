@@ -245,14 +245,14 @@ export const InsightsTab: Component = () => {
 
           <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
             <Show when={metricsQuery.data!.time_to_value}>
-              <TimeToValueMetrics data={metricsQuery.data!.time_to_value} />
+              {ttv => <TimeToValueMetrics data={ttv()} />}
             </Show>
           </Show>
 
           <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
             <div class="grid gap-6 lg:grid-cols-2">
               <Show when={metricsQuery.data!.feature_adoption}>
-                <FeatureAdoptionChart data={metricsQuery.data!.feature_adoption} />
+                {adoption => <FeatureAdoptionChart data={adoption()} />}
               </Show>
               <Show when={metricsQuery.data!.command_heatmap}>
                 <CommandHeatmap data={metricsQuery.data!.command_heatmap} />

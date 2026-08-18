@@ -15,7 +15,7 @@ interface RuntimeData {
 }
 
 interface RuntimeAdoptionChartProps {
-  data: RuntimeData[];
+  data: ReadonlyArray<RuntimeData>;
 }
 
 const runtimeColors = {

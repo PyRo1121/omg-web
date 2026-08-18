@@ -7,6 +7,7 @@ import {
   formatRelativeTime,
   updateAdminNote,
 } from '../../../lib/api';
+import { valueForKey } from '../../../lib/lookup';
 
 interface Note {
   id: string;
@@ -36,11 +37,18 @@ const NOTE_TYPE_ICONS = {
   success: CheckCircle,
 } as const;
 
-type NoteTypeKey = keyof typeof NOTE_TYPE_ICONS;
+const NOTE_TYPES = {
+  general: 'general',
+  call: 'call',
+  email: 'email',
+  meeting: 'meeting',
+  support: 'support',
+  sales: 'sales',
+  success: 'success',
+} as const satisfies Record<Note['note_type'], Note['note_type']>;
 
 const getNoteTypeIcon = (noteType: string) =>
-  // SAFETY: The `in` guard confirms the note type is a configured key.
-  noteType in NOTE_TYPE_ICONS ? NOTE_TYPE_ICONS[noteType as NoteTypeKey] : FileText;
+  valueForKey(Object.entries(NOTE_TYPE_ICONS), noteType) ?? FileText;
 
 const NOTE_TYPE_COLORS = {
   general: 'text-slate-400 bg-slate-500/10',
@@ -53,10 +61,7 @@ const NOTE_TYPE_COLORS = {
 } as const;
 
 const getNoteTypeColor = (noteType: string) =>
-  // SAFETY: The `in` guard confirms the note type is a configured key.
-  noteType in NOTE_TYPE_COLORS
-    ? NOTE_TYPE_COLORS[noteType as NoteTypeKey]
-    : NOTE_TYPE_COLORS.general;
+  valueForKey(Object.entries(NOTE_TYPE_COLORS), noteType) ?? NOTE_TYPE_COLORS.general;
 
 export const NotesPanel: Component<NotesPanelProps> = props => {
   const queryClient = useQueryClient();
@@ -160,8 +165,9 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
             <select
               value={newNoteType()}
               onChange={e =>
-                // SAFETY: The select only offers the Note note_type option values.
-                setNewNoteType(e.currentTarget.value as Note['note_type'])
+                setNewNoteType(
+                  valueForKey(Object.entries(NOTE_TYPES), e.currentTarget.value) ?? 'general'
+                )
               }
               class="appearance-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
             >

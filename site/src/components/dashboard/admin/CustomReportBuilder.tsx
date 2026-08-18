@@ -19,6 +19,7 @@ import {
   FileText,
 } from 'lucide-solid';
 import { useAdminAdvancedMetrics } from '../../../lib/api-hooks';
+import { valueForKey } from '../../../lib/lookup';
 import type { AdminAdvancedMetrics } from '../../../lib/api';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { BarChart, DonutChart, Sparkline } from '../../../design-system/components/Charts';
@@ -30,6 +31,20 @@ function cn(...inputs: ClassValue[]) {
 type VisualizationType = 'bar' | 'line' | 'pie' | 'table' | 'heatmap' | 'kpi';
 type MetricCategory = 'engagement' | 'revenue' | 'users' | 'features' | 'health';
 type ScheduleFrequency = 'daily' | 'weekly' | 'monthly' | 'none';
+
+const SCHEDULE_FREQUENCIES = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+  none: 'none',
+} as const satisfies Record<ScheduleFrequency, ScheduleFrequency>;
+
+const FILTER_OPERATORS = {
+  equals: 'equals',
+  contains: 'contains',
+  greater: 'greater',
+  less: 'less',
+} as const;
 
 interface Metric {
   id: string;
@@ -244,8 +259,8 @@ const FilterRow: Component<{
         onChange={e =>
           props.onUpdate({
             ...props.filter,
-            // SAFETY: The select options are exactly the ReportFilter operator literals.
-            operator: e.currentTarget.value as ReportFilter['operator'],
+            operator:
+              valueForKey(Object.entries(FILTER_OPERATORS), e.currentTarget.value) ?? 'equals',
           })
         }
         class="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white"
@@ -705,8 +720,9 @@ export const CustomReportBuilder: Component = () => {
                       <p
                         class="text-2xs mb-2 font-bold tracking-widest uppercase"
                         style={{
-                          // SAFETY: category comes from the MetricCategory-keyed grouped map.
-                          color: CATEGORY_COLORS[category as MetricCategory],
+                          color:
+                            valueForKey(Object.entries(CATEGORY_COLORS), category) ??
+                            CATEGORY_COLORS.engagement,
                         }}
                       >
                         {category}
@@ -792,8 +808,10 @@ export const CustomReportBuilder: Component = () => {
                 <select
                   value={schedule()}
                   onChange={e => {
-                    // SAFETY: The select options are exactly the ScheduleFrequency literals.
-                    setSchedule(e.currentTarget.value as ScheduleFrequency);
+                    setSchedule(
+                      valueForKey(Object.entries(SCHEDULE_FREQUENCIES), e.currentTarget.value) ??
+                        'none'
+                    );
                   }}
                   class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white focus:outline-none"
                 >

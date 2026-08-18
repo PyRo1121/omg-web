@@ -16,6 +16,7 @@ import {
   Brain,
 } from 'lucide-solid';
 import * as api from '../../lib/api';
+import { valueForKey } from '../../lib/lookup';
 import {
   useAdminDashboard,
   useAdminFirehose,
@@ -38,17 +39,6 @@ import { AnalyticsTab } from './admin/tabs/AnalyticsTab';
 import { TabErrorBoundary } from './admin/shared/TabErrorBoundary';
 import ErrorCard from './admin/shared/ErrorCard';
 import { createDashboardStore } from '../../lib/stores/dashboardStore';
-
-type DateRange = '7d' | '30d' | '90d' | 'custom';
-type SavedView = {
-  id: string;
-  name: string;
-  tab: AdminTab;
-  dateRange: DateRange;
-  segment: string;
-  compareEnabled: boolean;
-};
-
 import type {
   ExecutiveKPI,
   AdvancedMetrics,
@@ -59,8 +49,66 @@ import type {
   CustomerHealth,
 } from './premium/types';
 
+type DateRange = '7d' | '30d' | '90d' | 'custom';
 type AdminTab =
   'overview' | 'crm' | 'analytics' | 'insights' | 'revenue' | 'audit' | 'segments' | 'predictions';
+
+const DATE_RANGES = {
+  '7d': '7d',
+  '30d': '30d',
+  '90d': '90d',
+  custom: 'custom',
+} as const satisfies Record<DateRange, DateRange>;
+
+const LIFECYCLE_STAGES = {
+  new: 'new',
+  onboarding: 'onboarding',
+  activated: 'activated',
+  engaged: 'engaged',
+  power_user: 'power_user',
+  at_risk: 'at_risk',
+  churning: 'churning',
+  churned: 'churned',
+  reactivated: 'reactivated',
+  trial: 'trial',
+  active: 'active',
+} as const satisfies Record<CustomerHealth['lifecycle_stage'], CustomerHealth['lifecycle_stage']>;
+
+const CUSTOMER_STATUSES = {
+  active: 'active',
+  suspended: 'suspended',
+  cancelled: 'cancelled',
+} as const;
+
+const RISK_SEGMENTS = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+const OPPORTUNITY_TYPES = {
+  usage_based: 'usage_based',
+  feature_gate: 'feature_gate',
+  team_growth: 'team_growth',
+  enterprise: 'enterprise',
+} as const;
+
+const PRIORITIES = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  urgent: 'urgent',
+} as const;
+
+type SavedView = {
+  id: string;
+  name: string;
+  tab: AdminTab;
+  dateRange: DateRange;
+  segment: string;
+  compareEnabled: boolean;
+};
 
 const SEGMENTS = [
   { id: 'all', name: 'All Customers' },
@@ -113,7 +161,9 @@ function transformToExecutiveKPI(
 function transformToAdvancedMetrics(
   metrics: api.AdminAdvancedMetrics | undefined
 ): AdvancedMetrics | undefined {
-  if (!metrics) {return undefined;}
+  if (!metrics) {
+    return undefined;
+  }
   return {
     engagement: {
       dau: metrics.engagement?.dau || 0,
@@ -128,20 +178,19 @@ function transformToAdvancedMetrics(
       cohorts:
         metrics.retention?.cohorts?.map(c => ({
           cohort_date: c.cohort_date,
-          // SAFETY: The advanced metrics endpoint returns the week offset as an integer.
           week_number: Number(c.week_number),
           retained_users: c.retained_users,
           retention_rate: 0,
         })) || [],
     },
-    ltv_by_tier: metrics.ltv_by_tier || [],
+    ltv_by_tier: [...(metrics.ltv_by_tier ?? [])],
     feature_adoption: {
       install_adopters: metrics.feature_adoption?.install_adopters || 0,
       search_adopters: metrics.feature_adoption?.search_adopters || 0,
       runtime_adopters: metrics.feature_adoption?.runtime_adopters || 0,
       total_users: metrics.feature_adoption?.total_active_users || 0,
     },
-    command_heatmap: metrics.command_heatmap || [],
+    command_heatmap: [...(metrics.command_heatmap ?? [])],
     runtime_adoption:
       metrics.runtime_adoption?.map(r => ({
         runtime: r.runtime,
@@ -151,8 +200,7 @@ function transformToAdvancedMetrics(
       })) || [],
     churn_risk_segments:
       metrics.churn_risk_segments?.map(s => ({
-        // SAFETY: The advanced metrics endpoint constrains risk segment strings to these values.
-        risk_segment: s.risk_segment as 'low' | 'medium' | 'high' | 'critical',
+        risk_segment: valueForKey(Object.entries(RISK_SEGMENTS), s.risk_segment) ?? 'medium',
         user_count: s.user_count,
         tier: s.tier,
         avg_days_inactive: 0,
@@ -161,11 +209,9 @@ function transformToAdvancedMetrics(
       metrics.expansion_opportunities?.map(o => ({
         email: o.email,
         tier: o.tier,
-        // SAFETY: The advanced metrics endpoint constrains opportunity type strings to these values.
-        opportunity_type: o.opportunity_type as
-          'usage_based' | 'feature_gate' | 'team_growth' | 'enterprise',
-        // SAFETY: The advanced metrics endpoint constrains priority strings to these values.
-        priority: o.priority as 'low' | 'medium' | 'high' | 'urgent',
+        opportunity_type:
+          valueForKey(Object.entries(OPPORTUNITY_TYPES), o.opportunity_type) ?? 'usage_based',
+        priority: valueForKey(Object.entries(PRIORITIES), o.priority) ?? 'medium',
         potential_arr: 0,
       })) || [],
     time_to_value: {
@@ -199,7 +245,7 @@ interface RawFirehoseEvent {
   };
 }
 
-function transformFirehoseEvents(events: RawFirehoseEvent[]): FirehoseEvent[] {
+function transformFirehoseEvents(events: ReadonlyArray<RawFirehoseEvent>): FirehoseEvent[] {
   return events.map((e, i) => ({
     id: e.id || `evt-${i}`,
     event_type: mapEventType(e.event_name || e.action || ''),
@@ -215,14 +261,24 @@ function transformFirehoseEvents(events: RawFirehoseEvent[]): FirehoseEvent[] {
 
 function mapEventType(eventName: string): FirehoseEvent['event_type'] {
   const lower = eventName.toLowerCase();
-  if (lower.includes('install')) {return 'install';}
-  if (lower.includes('search')) {return 'search';}
-  if (lower.includes('runtime') || lower.includes('use ')) {return 'runtime_switch';}
-  if (lower.includes('error') || lower.includes('fail')) {return 'error';}
+  if (lower.includes('install')) {
+    return 'install';
+  }
+  if (lower.includes('search')) {
+    return 'search';
+  }
+  if (lower.includes('runtime') || lower.includes('use ')) {
+    return 'runtime_switch';
+  }
+  if (lower.includes('error') || lower.includes('fail')) {
+    return 'error';
+  }
   return 'command';
 }
 
-function transformGeoDistribution(data: { dimension: string; count: number }[]): GeoDistribution[] {
+function transformGeoDistribution(
+  data: ReadonlyArray<{ dimension: string; count: number }>
+): GeoDistribution[] {
   const total = data.reduce((sum, d) => sum + d.count, 0) || 1;
   return data.map(d => ({
     country: getCountryName(d.dimension),
@@ -249,25 +305,20 @@ function getCountryName(code: string): string {
     IT: 'Italy',
     KR: 'South Korea',
   } as const;
-  if (code in countries) {
-    // SAFETY: The `in` guard above confirms the code is a lookup table key.
-    return countries[code as keyof typeof countries];
-  }
-  return code || 'Unknown';
+  return valueForKey(Object.entries(countries), code) ?? (code || 'Unknown');
 }
 
 function transformToCRMCustomer(user: api.AdminUser): CRMCustomer {
   const score = user.engagement_score || 50;
-  // SAFETY: The customer API constrains lifecycle stage strings to the union below.
-  const stage = (user.lifecycle_stage || 'active') as CustomerHealth['lifecycle_stage'];
+  const stage =
+    valueForKey(Object.entries(LIFECYCLE_STAGES), user.lifecycle_stage || 'active') ?? 'active';
 
   return {
     id: user.id,
     email: user.email,
     company: user.company || undefined,
     tier: user.tier || 'free',
-    // SAFETY: The customer API constrains status strings to the union below.
-    status: (user.status as 'active' | 'suspended' | 'cancelled') || 'active',
+    status: valueForKey(Object.entries(CUSTOMER_STATUSES), user.status) ?? 'active',
     health: {
       overall_score: score,
       engagement_score: Math.min(100, score + 10),
@@ -330,7 +381,9 @@ export const AdminDashboard: Component = () => {
   const commandHealth = createMemo((): CommandHealth => {
     const health = dashboardQuery.data?.overview?.command_health;
     const total = (health?.success || 0) + (health?.failure || 0);
-    if (total === 0) {return { success: 95, failure: 5 };}
+    if (total === 0) {
+      return { success: 95, failure: 5 };
+    }
     return {
       success: ((health?.success || 0) / total) * 100,
       failure: ((health?.failure || 0) / total) * 100,
@@ -492,8 +545,9 @@ export const AdminDashboard: Component = () => {
             <select
               value={store.filters.dateRange}
               onChange={e =>
-                // SAFETY: The date range select only offers the DateRange option values.
-                actions.setDateRange(e.currentTarget.value as DateRange)
+                actions.setDateRange(
+                  valueForKey(Object.entries(DATE_RANGES), e.currentTarget.value) ?? '30d'
+                )
               }
               class="bg-transparent text-sm font-bold text-white focus:outline-none"
             >

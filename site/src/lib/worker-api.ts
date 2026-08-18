@@ -1,4 +1,5 @@
 import { Effect } from 'effect';
+import type { Schema } from '@effect/schema';
 import { parseApiError } from './dashboard-contract';
 import {
   AuthParseError,
@@ -14,6 +15,7 @@ import {
   WorkerDashboardParseError,
   type WorkerDashboardData,
 } from './contracts/worker-dashboard';
+import { decodeWorkerHttp, WorkerHttpParseError } from './contracts/worker-http';
 
 /** The Worker HTTP response was not 2xx. */
 export class WorkerApiHttpError extends Error {
@@ -35,7 +37,11 @@ export class WorkerApiNetworkError extends Error {
 }
 
 export type WorkerApiError =
-  WorkerApiHttpError | WorkerApiNetworkError | AuthParseError | WorkerDashboardParseError;
+  | WorkerApiHttpError
+  | WorkerApiNetworkError
+  | AuthParseError
+  | WorkerDashboardParseError
+  | WorkerHttpParseError;
 
 /** Posts or gets JSON from the Worker. */
 export interface WorkerFetcher {
@@ -77,6 +83,31 @@ function requestJson(
     }
     return payload;
   });
+}
+
+/**
+ * Fetch JSON from the Worker and Schema-decode the 2xx body.
+ *
+ * @param fetcher - Fetch seam.
+ * @param url - Absolute Worker URL.
+ * @param init - Fetch init.
+ * @param schema - Success body schema.
+ * @param reason - Parse error reason.
+ * @returns The typed payload, or a tagged Worker API error.
+ */
+export function requestDecodedJson<S extends Schema.Schema.AnyNoContext>(
+  fetcher: WorkerFetcher,
+  url: string,
+  init: RequestInit,
+  schema: S,
+  reason: string
+): Effect.Effect<
+  Schema.Schema.Type<S>,
+  WorkerApiHttpError | WorkerApiNetworkError | WorkerHttpParseError
+> {
+  return requestJson(fetcher, url, init).pipe(
+    Effect.flatMap(payload => decodeWorkerHttp(schema, reason, payload))
+  );
 }
 
 function jsonHeaders(token: string | null): Headers {

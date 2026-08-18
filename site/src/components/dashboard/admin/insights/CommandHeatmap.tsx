@@ -14,7 +14,7 @@ interface HeatmapData {
 }
 
 interface CommandHeatmapProps {
-  data: HeatmapData[];
+  data: ReadonlyArray<HeatmapData>;
 }
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;

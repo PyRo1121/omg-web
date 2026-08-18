@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { createSignal, For, Show } from 'solid-js';
 import { MessageSquare, Pin, Trash2, Plus, X } from 'lucide-solid';
 import { formatRelativeTime } from '../../../lib/api';
@@ -16,7 +16,7 @@ interface Note {
 
 interface NotesSectionProps {
   customerId: string;
-  notes: Note[];
+  notes: ReadonlyArray<Note>;
   onAddNote: (content: string, noteType: string) => void;
   onDeleteNote: (noteId: string) => void;
   onPinNote?: (noteId: string, isPinned: boolean) => void;
@@ -51,8 +51,12 @@ export const NotesSection: Component<NotesSectionProps> = props => {
   const sortedNotes = () =>
     [...props.notes].toSorted((a, b) => {
       // Pinned notes first
-      if (a.is_pinned && !b.is_pinned) {return -1;}
-      if (!a.is_pinned && b.is_pinned) {return 1;}
+      if (a.is_pinned && !b.is_pinned) {
+        return -1;
+      }
+      if (!a.is_pinned && b.is_pinned) {
+        return 1;
+      }
       // Then by date (newest first)
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });

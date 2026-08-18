@@ -2,17 +2,21 @@
 // All authenticated requests include Bearer token
 
 import { Cause, Effect, Exit, Option } from 'effect';
-import { parseApiError } from './dashboard-contract';
 import { casesHandled } from './prelude';
 import type { SendCodeResponse, VerifyCodeResponse } from './contracts/otp-auth';
 import type { WorkerDashboardData } from './contracts/worker-dashboard';
 import {
   browserWorkerFetcher,
   getWorkerDashboard,
+  requestDecodedJson,
   sendCodeToWorker,
   verifyCodeWithWorker,
   type WorkerApiError,
 } from './worker-api';
+import * as Http from './contracts/worker-http';
+import type { Schema } from '@effect/schema';
+
+type WorkerBody<S extends Schema.Schema.AnyNoContext> = Schema.Schema.Type<S>;
 
 const API_BASE = 'https://api.pyro1121.com';
 
@@ -31,8 +35,12 @@ export function clearSession(): void {
   localStorage.removeItem('omg_session_token');
 }
 
-// API request helper with auth
-export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+// Authenticated Worker JSON request with Schema decode at the boundary
+async function apiRequest<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<Schema.Schema.Type<S>> {
   const token = getSessionToken();
 
   const headers = new Headers(options.headers);
@@ -42,31 +50,32 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new ApiError(parseApiError(data, 'Request failed'), response.status);
-  }
-
-  // SAFETY: This legacy helper is being retired behind typed endpoint parsers. Existing callers provide the endpoint response type, and non-2xx responses are rejected above.
-  return data as T;
+  const exit = await Effect.runPromiseExit(
+    requestDecodedJson(
+      browserWorkerFetcher,
+      `${API_BASE}${endpoint}`,
+      { ...options, headers },
+      schema,
+      `Worker response for ${endpoint} has an invalid shape`
+    )
+  );
+  return unwrapWorkerApi(exit);
 }
 
 // Generic HTTP helpers
-export async function get<T>(endpoint: string): Promise<T> {
-  return apiRequest<T>(endpoint, { method: 'GET' });
+async function get<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  endpoint: string
+): Promise<Schema.Schema.Type<S>> {
+  return apiRequest(schema, endpoint, { method: 'GET' });
 }
 
-export async function post<T>(
+async function post<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
   endpoint: string,
   body?: { readonly [key: string]: string | number | boolean | null | undefined }
-): Promise<T> {
-  return apiRequest<T>(endpoint, {
+): Promise<Schema.Schema.Type<S>> {
+  return apiRequest(schema, endpoint, {
     method: 'POST',
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -99,6 +108,7 @@ function unwrapWorkerApi<A>(exit: Exit.Exit<A, WorkerApiError>): A {
           throw new ApiError('Request failed', 500);
         case 'AuthParseError':
         case 'WorkerDashboardParseError':
+        case 'WorkerHttpParseError':
           throw new ApiError(error.reason, 502);
         default:
           return casesHandled(error);
@@ -127,14 +137,10 @@ export async function verifyCode(email: string, code: string): Promise<VerifyCod
   return unwrapWorkerApi(exit);
 }
 
-export interface VerifySessionResponse {
-  valid: boolean;
-  user?: User;
-  expires_at?: string;
-}
+export type VerifySessionResponse = WorkerBody<typeof Http.VerifySessionSchema>;
 
 export async function verifySession(token: string): Promise<VerifySessionResponse> {
-  return apiRequest('/api/auth/verify-session', {
+  return apiRequest(Http.VerifySessionSchema, '/api/auth/verify-session', {
     method: 'POST',
     body: JSON.stringify({ token }),
   });
@@ -143,7 +149,7 @@ export async function verifySession(token: string): Promise<VerifySessionRespons
 export async function logout(): Promise<void> {
   const token = getSessionToken();
   if (token) {
-    await apiRequest('/api/auth/logout', {
+    await apiRequest(Http.SuccessSchema, '/api/auth/logout', {
       method: 'POST',
       body: JSON.stringify({ token }),
     });
@@ -229,23 +235,9 @@ export interface Invoice {
   created_at: string;
 }
 
-export interface Session {
-  id: string;
-  ip_address: string | null;
-  user_agent: string | null;
-  created_at: string;
-  expires_at: string;
-  is_current: boolean;
-}
+export type Session = WorkerBody<typeof Http.SessionsResponseSchema>['sessions'][number];
 
-export interface AuditLogEntry {
-  id: string;
-  action: string;
-  resource_type: string | null;
-  resource_id: string | null;
-  ip_address: string | null;
-  created_at: string;
-}
+export type AuditLogEntry = WorkerBody<typeof Http.AuditLogResponseSchema>['logs'][number];
 
 export interface DashboardData {
   user: User;
@@ -275,120 +267,69 @@ export async function getDashboard(): Promise<WorkerDashboardData> {
 }
 
 export async function updateProfile(name: string): Promise<{ success: boolean }> {
-  return apiRequest('/api/user/profile', {
+  return apiRequest(Http.SuccessSchema, '/api/user/profile', {
     method: 'PUT',
     body: JSON.stringify({ name }),
   });
 }
 
-export async function regenerateLicense(): Promise<{
-  success: boolean;
-  license_key: string;
-  message: string;
-}> {
-  return apiRequest('/api/license/regenerate', {
+export async function regenerateLicense(): Promise<
+  WorkerBody<typeof Http.RegeneratedLicenseSchema>
+> {
+  return apiRequest(Http.RegeneratedLicenseSchema, '/api/license/regenerate', {
     method: 'POST',
   });
 }
 
 export async function revokeMachine(machineId: string): Promise<{ success: boolean }> {
-  return apiRequest('/api/machines/revoke', {
+  return apiRequest(Http.SuccessSchema, '/api/machines/revoke', {
     method: 'POST',
     body: JSON.stringify({ machine_id: machineId }),
   });
 }
 
-export async function getSessions(): Promise<{ sessions: Session[] }> {
-  return apiRequest('/api/sessions');
+export async function getSessions(): Promise<WorkerBody<typeof Http.SessionsResponseSchema>> {
+  return apiRequest(Http.SessionsResponseSchema, '/api/sessions');
 }
 
 export async function revokeSession(sessionId: string): Promise<{ success: boolean }> {
-  return apiRequest('/api/sessions/revoke', {
+  return apiRequest(Http.SuccessSchema, '/api/sessions/revoke', {
     method: 'POST',
     body: JSON.stringify({ session_id: sessionId }),
   });
 }
 
-export async function getAuditLog(): Promise<{ logs: AuditLogEntry[] }> {
-  return apiRequest('/api/audit-log');
+export async function getAuditLog(): Promise<WorkerBody<typeof Http.AuditLogResponseSchema>> {
+  return apiRequest(Http.AuditLogResponseSchema, '/api/audit-log');
 }
 
 // ============================================
 // Team Management API (Team+ tiers only)
 // ============================================
 
-export interface TeamMember {
-  id: string;
-  machine_id: string;
-  hostname: string | null;
-  os: string | null;
-  arch: string | null;
-  omg_version: string | null;
-  user_name: string | null;
-  user_email: string | null;
-  is_active: boolean;
-  first_seen_at: string;
-  last_seen_at: string;
-  total_commands: number;
-  total_packages: number;
-  total_time_saved_ms: number;
-  commands_last_7d: number;
-  last_active: string | null;
-}
-
-export interface TeamData {
-  license: {
-    tier: string;
-    max_seats: number;
-    status: string;
-  };
-  members: TeamMember[];
-  daily_usage: Array<{
-    date: string;
-    machine_id: string;
-    commands_run: number;
-    time_saved_ms: number;
-  }>;
-  totals: {
-    total_machines: number;
-    active_machines: number;
-    total_commands: number;
-    total_time_saved_ms: number;
-    total_time_saved_hours: number;
-    total_value_usd: number;
-  };
-  fleet_health: {
-    compliance_rate: number;
-    latest_version: string;
-    version_drift: boolean;
-  };
-  productivity_score: number;
-  insights: {
-    engagement_rate: number;
-    roi_multiplier: string;
-  };
-}
+export type TeamData = WorkerBody<typeof Http.TeamDataSchema>;
+export type TeamMember = TeamData['members'][number];
 
 export async function getTeamMembers(): Promise<TeamData> {
-  return apiRequest('/api/team/members');
+  return apiRequest(Http.TeamDataSchema, '/api/team/members');
 }
 
 export async function revokeTeamMember(machineId: string): Promise<{ success: boolean }> {
-  return apiRequest('/api/team/revoke', {
+  return apiRequest(Http.SuccessSchema, '/api/team/revoke', {
     method: 'POST',
     body: JSON.stringify({ machine_id: machineId }),
   });
 }
 
 export async function createCheckout(email: string, priceId: string): Promise<{ url: string }> {
-  return apiRequest('/api/billing/checkout', {
+  return apiRequest(Http.CheckoutUrlSchema, '/api/billing/checkout', {
     method: 'POST',
     body: JSON.stringify({ email, priceId }),
   });
 }
 
 export async function openBillingPortal(email: string): Promise<{ success: boolean; url: string }> {
-  return apiRequest('/api/billing/portal', {
+  return apiRequest(Http.PortalUrlSchema, '/api/billing/portal', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
@@ -398,35 +339,15 @@ export async function openBillingPortal(email: string): Promise<{ success: boole
 // Team Controls API (Team/Enterprise tiers)
 // ============================================
 
-export interface Policy {
-  id: string;
-  scope: 'runtime' | 'package' | 'security' | 'network';
-  rule: string;
-  value: string;
-  enforced: boolean;
-  created_at: string;
-}
+export type PoliciesResponse = WorkerBody<typeof Http.PoliciesResponseSchema>;
+export type Policy = PoliciesResponse['policies'][number];
+export type NotificationsResponse = WorkerBody<typeof Http.NotificationsResponseSchema>;
+export type NotificationSetting = NotificationsResponse['settings'][number];
+export type TeamAuditLogsResponse = WorkerBody<typeof Http.TeamAuditLogsResponseSchema>;
+export type TeamAuditLogEntry = TeamAuditLogsResponse['logs'][number];
 
-export interface NotificationSetting {
-  type: string;
-  enabled: boolean;
-  threshold?: number;
-  channels: string[];
-}
-
-export interface TeamAuditLogEntry {
-  id: string;
-  action: string;
-  resource_type: string | null;
-  resource_id: string | null;
-  ip_address: string | null;
-  user_agent: string | null;
-  metadata: string | null;
-  created_at: string;
-}
-
-export async function getTeamPolicies(): Promise<{ policies: Policy[] }> {
-  return apiRequest('/api/team/policies');
+export async function getTeamPolicies(): Promise<PoliciesResponse> {
+  return apiRequest(Http.PoliciesResponseSchema, '/api/team/policies');
 }
 
 export async function createTeamPolicy(policy: {
@@ -434,8 +355,8 @@ export async function createTeamPolicy(policy: {
   rule: string;
   value: string;
   enforced?: boolean;
-}): Promise<{ success: boolean; policy: Policy }> {
-  return apiRequest('/api/team/policies', {
+}): Promise<WorkerBody<typeof Http.CreatedPolicySchema>> {
+  return apiRequest(Http.CreatedPolicySchema, '/api/team/policies', {
     method: 'POST',
     body: JSON.stringify(policy),
   });
@@ -445,34 +366,34 @@ export async function updateTeamPolicy(
   id: string,
   updates: { value?: string; enforced?: boolean }
 ): Promise<{ success: boolean }> {
-  return apiRequest('/api/team/policies', {
+  return apiRequest(Http.SuccessSchema, '/api/team/policies', {
     method: 'PUT',
     body: JSON.stringify({ id, ...updates }),
   });
 }
 
 export async function deleteTeamPolicy(id: string): Promise<{ success: boolean }> {
-  return apiRequest('/api/team/policies', {
+  return apiRequest(Http.SuccessSchema, '/api/team/policies', {
     method: 'DELETE',
     body: JSON.stringify({ id }),
   });
 }
 
-export async function getNotificationSettings(): Promise<{ settings: NotificationSetting[] }> {
-  return apiRequest('/api/team/notifications');
+export async function getNotificationSettings(): Promise<NotificationsResponse> {
+  return apiRequest(Http.NotificationsResponseSchema, '/api/team/notifications');
 }
 
 export async function updateNotificationSettings(
   settings: NotificationSetting[]
 ): Promise<{ success: boolean }> {
-  return apiRequest('/api/team/notifications', {
+  return apiRequest(Http.SuccessSchema, '/api/team/notifications', {
     method: 'POST',
     body: JSON.stringify({ settings }),
   });
 }
 
 export async function revokeTeamMemberAccess(machineId: string): Promise<{ success: boolean }> {
-  return apiRequest('/api/team/members/revoke', {
+  return apiRequest(Http.SuccessSchema, '/api/team/members/revoke', {
     method: 'POST',
     body: JSON.stringify({ machine_id: machineId }),
   });
@@ -483,12 +404,7 @@ export async function getTeamAuditLogs(params?: {
   offset?: number;
   action?: string;
   resource_type?: string;
-}): Promise<{
-  logs: TeamAuditLogEntry[];
-  total: number;
-  limit: number;
-  offset: number;
-}> {
+}): Promise<TeamAuditLogsResponse> {
   const searchParams = new URLSearchParams();
   if (params?.limit) {
     searchParams.set('limit', params.limit.toString());
@@ -502,14 +418,14 @@ export async function getTeamAuditLogs(params?: {
   if (params?.resource_type) {
     searchParams.set('resource_type', params.resource_type);
   }
-  return apiRequest(`/api/team/audit-logs?${searchParams}`);
+  return apiRequest(Http.TeamAuditLogsResponseSchema, `/api/team/audit-logs?${searchParams}`);
 }
 
 export async function updateAlertThreshold(
   thresholdType: string,
   value: number
 ): Promise<{ success: boolean }> {
-  return apiRequest('/api/team/thresholds', {
+  return apiRequest(Http.SuccessSchema, '/api/team/thresholds', {
     method: 'POST',
     body: JSON.stringify({ threshold_type: thresholdType, value }),
   });
@@ -519,139 +435,37 @@ export async function updateAlertThreshold(
 // Admin API (only accessible to admin user)
 // ============================================
 
-export interface AdminOverview {
-  overview: {
-    total_users: number;
-    active_licenses: number;
-    active_machines: number;
-    total_installs: number;
-    total_commands: number;
-    mrr: number;
-    global_value_usd: number;
-    command_health: {
-      success: number;
-      failure: number;
-    };
-  };
-  fleet: {
-    versions: Array<{ omg_version: string; count: number }>;
-  };
-  tiers: Array<{ tier: string; count: number }>;
-  usage: {
-    total_commands: number;
-    total_packages_installed: number;
-    total_searches: number;
-    total_time_saved_ms: number;
-  };
-  daily_active_users: Array<{ date: string; active_users: number; commands: number }>;
-  recent_signups: Array<{ date: string; count: number }>;
-  installs_by_platform: Array<{ platform: string; count: number }>;
-  installs_by_version: Array<{ version: string; count: number }>;
-  subscriptions: Array<{ status: string; count: number }>;
-  geo_distribution: Array<{ dimension: string; count: number }>;
-}
-
-export interface AdminUser {
-  id: string;
-  email: string;
-  company: string | null;
-  customer_tier: string;
-  created_at: string;
-  license_key: string;
-  tier: string;
-  status: string;
-  max_seats: number;
-  machine_count: number;
-  total_commands: number;
-  last_active: string | null;
-  engagement_score?: number;
-  lifecycle_stage?: string;
-}
-
-export interface AdminUsersResponse {
-  users: AdminUser[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
-}
-
-export interface AdminActivity {
-  id: string;
-  type: 'signup' | 'activation' | 'install' | 'upgrade' | 'command' | 'login';
-  description: string;
-  user_id: string;
-  user_email?: string;
-  email?: string;
-  hostname?: string;
-  platform?: string;
-  version?: string;
-  timestamp: string;
-  created_at: string;
-}
-
-export interface AdminHealth {
-  active_users_today: number;
-  active_users_week: number;
-  commands_today: number;
-  new_users_today: number;
-  installs_today: number;
-  timestamp: string;
-}
+export type AdminOverview = WorkerBody<typeof Http.AdminOverviewSchema>;
+export type AdminUsersResponse = WorkerBody<typeof Http.AdminUsersResponseSchema>;
+export type AdminUser = AdminUsersResponse['users'][number];
+export type AdminActivityResponse = WorkerBody<typeof Http.AdminActivityResponseSchema>;
+export type AdminActivity = AdminActivityResponse['activity'][number];
+export type AdminHealth = WorkerBody<typeof Http.AdminHealthSchema>;
+export type AdminAnalytics = WorkerBody<typeof Http.AdminAnalyticsSchema>;
+export type FirehoseResponse = WorkerBody<typeof Http.FirehoseResponseSchema>;
+export type AdminFirehoseEvent = FirehoseResponse['events'][number];
+export type AdminUserDetail = WorkerBody<typeof Http.AdminUserDetailSchema>;
+export type AdminCohorts = WorkerBody<typeof Http.AdminCohortsSchema>;
+export type AdminRevenue = WorkerBody<typeof Http.AdminRevenueSchema>;
+export type AdminAuditLogResponse = WorkerBody<typeof Http.AdminAuditLogResponseSchema>;
+export type NotesResponse = WorkerBody<typeof Http.NotesResponseSchema>;
+export type CustomerNote = NotesResponse['notes'][number];
+export type TagsResponse = WorkerBody<typeof Http.TagsResponseSchema>;
+export type CustomerTag = TagsResponse['tags'][number];
+export type CustomerHealthResponse = WorkerBody<typeof Http.CustomerHealthResponseSchema>;
+export type CustomerHealth = CustomerHealthResponse['health'];
+export type AdminAdvancedMetrics = WorkerBody<typeof Http.AdminAdvancedMetricsSchema>;
 
 export async function getAdminDashboard(): Promise<AdminOverview> {
-  return apiRequest('/api/admin/dashboard');
-}
-
-export interface AdminAnalytics {
-  request_id: string;
-  dau: number;
-  wau: number;
-  mau: number;
-  events_today: number;
-  retention_rate: number;
-  commands_by_type: Array<{ command: string; count: number }>;
-  errors_by_type: Array<{ error_type: string; count: number }>;
-  growth: {
-    new_users_7d: number;
-    new_paid_7d: number;
-    growth_rate: number;
-  };
-  time_saved: {
-    total_hours: number;
-  };
-  funnel: {
-    installs: number;
-    activated: number;
-    power_users: number;
-  };
-  churn_risk: {
-    at_risk_users: number;
-  };
+  return apiRequest(Http.AdminOverviewSchema, '/api/admin/dashboard');
 }
 
 export async function getAdminAnalytics(): Promise<AdminAnalytics> {
-  return apiRequest('/api/admin/analytics');
+  return apiRequest(Http.AdminAnalyticsSchema, '/api/admin/analytics');
 }
 
-export interface AdminFirehoseEvent {
-  readonly id: string;
-  readonly event_type: string;
-  readonly event_name: string;
-  readonly properties: Readonly<Record<string, string | number | boolean | null>>;
-  readonly timestamp: string;
-  readonly session_id: string;
-  readonly machine_id: string;
-  readonly version: string;
-  readonly platform: string;
-  readonly duration_ms?: number;
-  readonly created_at: string;
-}
-
-export async function getAdminFirehose(limit = 50): Promise<{ events: AdminFirehoseEvent[] }> {
-  return apiRequest(`/api/admin/firehose?limit=${limit}`);
+export async function getAdminFirehose(limit = 50): Promise<FirehoseResponse> {
+  return apiRequest(Http.FirehoseResponseSchema, `/api/admin/firehose?limit=${limit}`);
 }
 
 export async function getAdminUsers(
@@ -663,133 +477,41 @@ export async function getAdminUsers(
   if (search) {
     params.set('search', search);
   }
-  return apiRequest(`/api/admin/users?${params}`);
-}
-
-// Rich user detail response with Stripe integration
-export interface AdminUserDetail {
-  request_id: string;
-  user: {
-    id: string;
-    email: string;
-    company: string | null;
-    stripe_customer_id: string | null;
-    tier: string;
-    created_at: string;
-    created_at_relative: string;
-  };
-  license: {
-    id: string;
-    license_key: string;
-    tier: string;
-    status: string;
-    max_seats: number;
-    expires_at: string | null;
-  } | null;
-  machines: Array<{
-    id: string;
-    machine_id: string;
-    hostname: string;
-    os: string;
-    arch: string;
-    omg_version: string;
-    is_active: boolean;
-    first_seen_at: string;
-    last_seen_at: string;
-  }>;
-  usage: {
-    daily: Array<{
-      date: string;
-      commands_run: number;
-      packages_installed: number;
-      time_saved_ms: number;
-    }>;
-    summary: {
-      total_commands: number;
-      total_packages: number;
-      total_searches: number;
-      total_time_saved_ms: number;
-      active_days: number;
-      first_active: string | null;
-      last_active: string | null;
-    } | null;
-  };
-  engagement: {
-    commands_last_7d: number;
-    commands_last_30d: number;
-    active_days_last_30d: number;
-    avg_daily_commands: number;
-    is_power_user: boolean;
-    is_at_risk: boolean;
-  };
-  ltv: {
-    total_paid: number;
-    invoice_count: number;
-    months_subscribed: number;
-  };
+  return apiRequest(Http.AdminUsersResponseSchema, `/api/admin/users?${params}`);
 }
 
 export async function getAdminUserDetail(userId: string): Promise<AdminUserDetail> {
-  return apiRequest(`/api/admin/user?id=${userId}`);
+  return apiRequest(Http.AdminUserDetailSchema, `/api/admin/user?id=${userId}`);
 }
 
 export async function updateAdminUser(
   userId: string,
   updates: { tier?: string; max_seats?: number; status?: string }
 ): Promise<{ success: boolean }> {
-  return apiRequest('/api/admin/user', {
+  return apiRequest(Http.SuccessSchema, '/api/admin/user', {
     method: 'PUT',
-    body: JSON.stringify({ user_id: userId, ...updates }),
+    body: JSON.stringify({
+      userId,
+      tier: updates.tier,
+      status: updates.status,
+    }),
   });
 }
 
-export async function getAdminActivity(): Promise<{ activity: AdminActivity[] }> {
-  return apiRequest('/api/admin/activity');
+export async function getAdminActivity(): Promise<AdminActivityResponse> {
+  return apiRequest(Http.AdminActivityResponseSchema, '/api/admin/activity');
 }
 
 export async function getAdminHealth(): Promise<AdminHealth> {
-  return apiRequest('/api/admin/health');
-}
-
-// Advanced Analytics
-export interface AdminCohorts {
-  request_id: string;
-  cohorts: Array<{
-    cohort_week: string;
-    weeks_since_signup: number;
-    active_users: number;
-  }>;
-}
-
-export interface AdminRevenue {
-  request_id: string;
-  mrr: number;
-  arr: number;
-  monthly_revenue: Array<{ month: string; revenue: number; transactions: number }>;
-}
-
-export interface AdminAuditLogResponse {
-  request_id: string;
-  logs: Array<{
-    id: string;
-    user_id: string;
-    user_email: string;
-    action: string;
-    resource_type: string | null;
-    resource_id: string | null;
-    ip_address: string | null;
-    metadata: string | null;
-    created_at: string;
-  }>;
-  pagination: { page: number; limit: number; total: number; pages: number };
+  return apiRequest(Http.AdminHealthSchema, '/api/admin/health');
 }
 
 export async function getAdminCohorts(): Promise<AdminCohorts> {
-  return apiRequest('/api/admin/cohorts');
+  return apiRequest(Http.AdminCohortsSchema, '/api/admin/cohorts');
 }
 
 export async function getAdminRevenue(): Promise<AdminRevenue> {
-  return apiRequest('/api/admin/revenue');
+  return apiRequest(Http.AdminRevenueSchema, '/api/admin/revenue');
 }
 
 export async function getAdminAuditLog(
@@ -801,32 +523,19 @@ export async function getAdminAuditLog(
   if (action) {
     params.set('action', action);
   }
-  return apiRequest(`/api/admin/audit-log?${params}`);
+  return apiRequest(Http.AdminAuditLogResponseSchema, `/api/admin/audit-log?${params}`);
 }
 
-// Customer Notes API
-export interface CustomerNote {
-  id: string;
-  customer_id: string;
-  content: string;
-  note_type: 'general' | 'call' | 'email' | 'meeting' | 'support' | 'sales' | 'success';
-  is_pinned: number;
-  author_id: string;
-  author_email?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export async function getAdminNotes(customerId: string): Promise<{ notes: CustomerNote[] }> {
-  return apiRequest(`/api/admin/notes?customerId=${customerId}`);
+export async function getAdminNotes(customerId: string): Promise<NotesResponse> {
+  return apiRequest(Http.NotesResponseSchema, `/api/admin/notes?customerId=${customerId}`);
 }
 
 export async function createAdminNote(
   customerId: string,
   content: string,
   noteType = 'general'
-): Promise<{ success: boolean; note_id: string }> {
-  return apiRequest('/api/admin/notes', {
+): Promise<WorkerBody<typeof Http.CreatedNoteSchema>> {
+  return apiRequest(Http.CreatedNoteSchema, '/api/admin/notes', {
     method: 'POST',
     body: JSON.stringify({ customerId, content, noteType }),
   });
@@ -836,50 +545,40 @@ export async function updateAdminNote(
   noteId: string,
   updates: { content?: string; isPinned?: boolean }
 ): Promise<{ success: boolean }> {
-  return apiRequest('/api/admin/notes', {
+  return apiRequest(Http.SuccessSchema, '/api/admin/notes', {
     method: 'PUT',
     body: JSON.stringify({ noteId, ...updates }),
   });
 }
 
 export async function deleteAdminNote(noteId: string): Promise<{ success: boolean }> {
-  return apiRequest(`/api/admin/notes?noteId=${noteId}`, { method: 'DELETE' });
+  return apiRequest(Http.SuccessSchema, `/api/admin/notes?noteId=${noteId}`, { method: 'DELETE' });
 }
 
-// Customer Tags API
-export interface CustomerTag {
-  id: string;
-  name: string;
-  color: string;
-  description: string | null;
-  usage_count?: number;
-  created_at: string;
-}
-
-export async function getAdminTags(): Promise<{ tags: CustomerTag[] }> {
-  return apiRequest('/api/admin/tags');
+export async function getAdminTags(): Promise<TagsResponse> {
+  return apiRequest(Http.TagsResponseSchema, '/api/admin/tags');
 }
 
 export async function createAdminTag(
   name: string,
   color?: string,
   description?: string
-): Promise<{ success: boolean; tag_id: string }> {
-  return apiRequest('/api/admin/tags', {
+): Promise<WorkerBody<typeof Http.CreatedTagSchema>> {
+  return apiRequest(Http.CreatedTagSchema, '/api/admin/tags', {
     method: 'POST',
     body: JSON.stringify({ name, color, description }),
   });
 }
 
-export async function getAdminCustomerTags(customerId: string): Promise<{ tags: CustomerTag[] }> {
-  return apiRequest(`/api/admin/customer-tags?customerId=${customerId}`);
+export async function getAdminCustomerTags(customerId: string): Promise<TagsResponse> {
+  return apiRequest(Http.TagsResponseSchema, `/api/admin/customer-tags?customerId=${customerId}`);
 }
 
 export async function assignAdminTag(
   customerId: string,
   tagId: string
 ): Promise<{ success: boolean }> {
-  return apiRequest('/api/admin/customer-tags', {
+  return apiRequest(Http.SuccessSchema, '/api/admin/customer-tags', {
     method: 'POST',
     body: JSON.stringify({ customerId, tagId }),
   });
@@ -889,125 +588,25 @@ export async function removeAdminTag(
   customerId: string,
   tagId: string
 ): Promise<{ success: boolean }> {
-  return apiRequest(`/api/admin/customer-tags?customerId=${customerId}&tagId=${tagId}`, {
-    method: 'DELETE',
-  });
+  return apiRequest(
+    Http.SuccessSchema,
+    `/api/admin/customer-tags?customerId=${customerId}&tagId=${tagId}`,
+    {
+      method: 'DELETE',
+    }
+  );
 }
 
-// Customer Health API
-export interface CustomerHealth {
-  customer_id: string;
-  overall_score: number;
-  engagement_score: number;
-  activation_score: number;
-  growth_score: number;
-  risk_score: number;
-  lifecycle_stage:
-    | 'new'
-    | 'onboarding'
-    | 'activated'
-    | 'engaged'
-    | 'power_user'
-    | 'at_risk'
-    | 'churning'
-    | 'churned'
-    | 'reactivated';
-  updated_at: string | null;
-}
-
-export async function getAdminCustomerHealth(
-  customerId: string
-): Promise<{ health: CustomerHealth }> {
-  return apiRequest(`/api/admin/customer-health?customerId=${customerId}`);
+export async function getAdminCustomerHealth(customerId: string): Promise<CustomerHealthResponse> {
+  return apiRequest(
+    Http.CustomerHealthResponseSchema,
+    `/api/admin/customer-health?customerId=${customerId}`
+  );
 }
 
 // Advanced Metrics API
-export interface AdminAdvancedMetrics {
-  request_id: string;
-  engagement: {
-    dau: number;
-    wau: number;
-    mau: number;
-    stickiness: {
-      daily_to_monthly: string;
-      weekly_to_monthly: string;
-    };
-  };
-  retention: {
-    cohorts: Array<{
-      cohort_date: string;
-      week_number: string;
-      retained_users: number;
-    }>;
-    product_stickiness: {
-      daily_active_pct: number;
-      weekly_active_pct: number;
-      avg_days_between_sessions: number;
-    };
-  };
-  ltv_by_tier: Array<{
-    avg_ltv: number;
-    tier: string;
-    customer_count: number;
-  }>;
-  feature_adoption: {
-    total_installs: number;
-    total_searches: number;
-    total_runtime_switches: number;
-    total_sbom: number;
-    total_vulns: number;
-    install_adopters: number;
-    search_adopters: number;
-    runtime_adopters: number;
-    sbom_adopters: number;
-    total_active_users: number;
-  };
-  command_heatmap: Array<{
-    hour: string;
-    day_of_week: string;
-    event_count: number;
-  }>;
-  runtime_adoption: Array<{
-    runtime: string;
-    unique_users: number;
-    total_uses: number;
-    avg_duration_ms: number;
-  }>;
-  churn_risk_segments: Array<{
-    risk_segment: string;
-    user_count: number;
-    avg_monthly_commands: number;
-    tier: string;
-  }>;
-  expansion_opportunities: Array<{
-    customer_id: string;
-    email: string;
-    company: string | null;
-    tier: string;
-    active_machines: number;
-    max_seats: number;
-    total_commands_30d: number;
-    hours_saved_30d: number;
-    opportunity_type: string;
-    priority: string;
-  }>;
-  time_to_value: {
-    avg_days_to_activation: number;
-    avg_days_to_power_user: number;
-    pct_activated_day1: number;
-    pct_activated_week1: number;
-    pct_became_power_users: number;
-  };
-  revenue_metrics: {
-    current_mrr: number;
-    projected_arr: number;
-    expansion_mrr_12m: number;
-    months_tracked: number;
-  };
-}
-
 export async function getAdminAdvancedMetrics(): Promise<AdminAdvancedMetrics> {
-  return apiRequest('/api/admin/advanced-metrics');
+  return apiRequest(Http.AdminAdvancedMetricsSchema, '/api/admin/advanced-metrics');
 }
 
 // Data Export - Fetch CSV data directly
@@ -1093,83 +692,25 @@ export function getAdminExportAuditUrl(days = 30): string {
 // Docs Analytics API
 // ============================================
 
-export interface DocsAnalyticsSummary {
-  total_pageviews: number;
-  total_sessions: number;
-  avg_pages_per_session: string;
-  period_days: number;
-}
-
-export interface DocsPageview {
-  date: string;
-  views: number;
-  sessions: number;
-}
-
-export interface DocsTopPage {
-  path: string;
-  views: number;
-  sessions: number;
-  avg_time: number;
-}
-
-export interface DocsReferrer {
-  referrer: string;
-  sessions: number;
-  pageviews: number;
-}
-
-export interface DocsUTMCampaign {
-  utm_source: string | null;
-  utm_medium: string | null;
-  utm_campaign: string | null;
-  sessions: number;
-  pageviews: number;
-}
-
-export interface DocsGeo {
-  country_code: string;
-  sessions: number;
-  pageviews: number;
-}
-
-export interface DocsInteraction {
-  interaction_type: string;
-  target: string;
-  count: number;
-}
-
-export interface DocsPerformance {
-  path: string;
-  avg_load: number;
-  p95_load: number;
-  samples: number;
-}
-
-export interface DocsAnalyticsDashboard {
-  summary: DocsAnalyticsSummary;
-  pageviews_over_time: DocsPageview[];
-  top_pages: DocsTopPage[];
-  top_referrers: DocsReferrer[];
-  utm_campaigns: DocsUTMCampaign[];
-  geographic: DocsGeo[];
-  top_interactions: DocsInteraction[];
-  performance: DocsPerformance[];
-}
+export type DocsAnalyticsDashboard = WorkerBody<typeof Http.DocsAnalyticsDashboardSchema>;
+export type DocsAnalyticsSummary = DocsAnalyticsDashboard['summary'];
+export type DocsPageview = DocsAnalyticsDashboard['pageviews_over_time'][number];
+export type DocsTopPage = DocsAnalyticsDashboard['top_pages'][number];
+export type DocsReferrer = DocsAnalyticsDashboard['top_referrers'][number];
+export type DocsUTMCampaign = DocsAnalyticsDashboard['utm_campaigns'][number];
+export type DocsGeo = DocsAnalyticsDashboard['geographic'][number];
+export type DocsInteraction = DocsAnalyticsDashboard['top_interactions'][number];
+export type DocsPerformance = DocsAnalyticsDashboard['performance'][number];
 
 export async function getDocsAnalytics(days = 30): Promise<DocsAnalyticsDashboard> {
-  return get<DocsAnalyticsDashboard>(`/api/docs/analytics/dashboard?days=${days}`);
+  return get(Http.DocsAnalyticsDashboardSchema, `/api/docs/analytics/dashboard?days=${days}`);
 }
 
 // ============================================
 // AI Insights API
 // ============================================
 
-export interface SmartInsight {
-  insight: string;
-  timestamp: string;
-  generated_by: string;
-}
+export type SmartInsight = WorkerBody<typeof Http.SmartInsightSchema>;
 
 export async function getSmartInsights(
   target: 'user' | 'team' | 'admin' = 'user'
@@ -1179,77 +720,40 @@ export async function getSmartInsights(
     return null;
   }
 
-  try {
-    const res = await fetch(`${API_BASE}/api/insights?target=${target}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      return null;
-    }
-    return await res.json();
-  } catch (e) {
-    console.error('Failed to fetch insights:', e);
-    return null;
-  }
+  const exit = await Effect.runPromiseExit(
+    requestDecodedJson(
+      browserWorkerFetcher,
+      `${API_BASE}/api/insights?target=${target}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+      Http.SmartInsightSchema,
+      'Smart insights response has an invalid shape'
+    )
+  );
+  return Exit.match(exit, {
+    onSuccess: value => value,
+    onFailure: () => null,
+  });
 }
 
 // ============================================
 // Site Analytics API
 // ============================================
 
-export interface SiteGeoData {
-  country_code: string;
-  user_count: number;
-  percentage: number;
-  breakdown: {
-    site_visitors: number;
-    docs_sessions: number;
-    cli_installs: number;
-  };
-}
-
-export interface SiteGeoAnalytics {
-  period_days: number;
-  total_countries: number;
-  total_engagement: number;
-  geo_distribution: SiteGeoData[];
-  by_source: {
-    site: number;
-    docs: number;
-    cli: number;
-  };
-}
-
-export interface SiteRealtimeAnalytics {
-  active_visitors: number;
-  by_country: Array<{ country_code: string; count: number }>;
-  top_pages: Array<{ page_path: string; count: number }>;
-  timestamp: number;
-}
-
-export interface SiteAnalyticsOverview {
-  period_days: number;
-  summary: {
-    total_pageviews: number;
-    total_visitors: number;
-    total_sessions: number;
-  };
-  daily_trend: Array<{ date: string; pageviews: number; visitors: number }>;
-  top_pages: Array<{ path: string; views: number; visitors: number }>;
-  top_referrers: Array<{ referrer_domain: string; visitors: number; pageviews: number }>;
-  device_breakdown: Array<{ device_type: string; visitors: number }>;
-}
+export type SiteGeoAnalytics = WorkerBody<typeof Http.SiteGeoAnalyticsSchema>;
+export type SiteGeoData = SiteGeoAnalytics['geo_distribution'][number];
+export type SiteRealtimeAnalytics = WorkerBody<typeof Http.SiteRealtimeAnalyticsSchema>;
+export type SiteAnalyticsOverview = WorkerBody<typeof Http.SiteAnalyticsOverviewSchema>;
 
 export async function getSiteGeoAnalytics(days = 30): Promise<SiteGeoAnalytics> {
-  return apiRequest(`/api/site/analytics/geo?days=${days}`);
+  return apiRequest(Http.SiteGeoAnalyticsSchema, `/api/site/analytics/geo?days=${days}`);
 }
 
 export async function getSiteRealtimeAnalytics(): Promise<SiteRealtimeAnalytics> {
-  return apiRequest('/api/site/analytics/realtime');
+  return apiRequest(Http.SiteRealtimeAnalyticsSchema, '/api/site/analytics/realtime');
 }
 
 export async function getSiteAnalyticsOverview(days = 30): Promise<SiteAnalyticsOverview> {
-  return apiRequest(`/api/site/analytics/overview?days=${days}`);
+  return apiRequest(Http.SiteAnalyticsOverviewSchema, `/api/site/analytics/overview?days=${days}`);
 }
 
 export async function trackSiteEvent(
@@ -1260,8 +764,8 @@ export async function trackSiteEvent(
     session_id: string;
     duration_ms?: number;
   }>
-): Promise<{ success: boolean; processed: number }> {
-  return apiRequest('/api/site/analytics/track', {
+): Promise<WorkerBody<typeof Http.TrackedEventsSchema>> {
+  return apiRequest(Http.TrackedEventsSchema, '/api/site/analytics/track', {
     method: 'POST',
     body: JSON.stringify({ events }),
   });
@@ -1347,33 +851,21 @@ export function getTierBadgeColor(tier: string): string {
   }
 }
 
-export interface AdminStripeMetrics {
-  mrr: number;
-  arr: number;
-  active_subscriptions: number;
-  tier_breakdown: { pro: number; team: number; enterprise: number };
-  balance: { available: number; pending: number; currency: string };
-}
-
-export interface AdminStripeSyncResult {
-  customers_synced: number;
-  subscriptions_synced: number;
-  invoices_synced: number;
-  errors: string[];
-}
+export type AdminStripeMetrics = WorkerBody<typeof Http.AdminStripeMetricsSchema>;
+export type AdminStripeSyncResult = WorkerBody<typeof Http.AdminStripeSyncResultSchema>;
 
 export async function getAdminStripeMetrics(): Promise<AdminStripeMetrics> {
-  return get('/api/admin/stripe/metrics');
+  return get(Http.AdminStripeMetricsSchema, '/api/admin/stripe/metrics');
 }
 
 export async function syncAdminStripeData(): Promise<AdminStripeSyncResult> {
-  return post('/api/admin/stripe/sync');
+  return post(Http.AdminStripeSyncResultSchema, '/api/admin/stripe/sync');
 }
 
 export async function openAdminBillingPortal(
   email: string
-): Promise<{ success: boolean; url: string }> {
-  return post('/api/billing/portal', { email });
+): Promise<WorkerBody<typeof Http.PortalUrlSchema>> {
+  return post(Http.PortalUrlSchema, '/api/billing/portal', { email });
 }
 
 export function getStripeCustomerUrl(stripeCustomerId: string): string {

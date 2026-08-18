@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { createSignal, For, Show } from 'solid-js';
 import { Tag, X, Plus, Check } from 'lucide-solid';
 
@@ -12,8 +12,8 @@ interface CustomerTag {
 
 interface TagsSectionProps {
   customerId: string;
-  customerTags: CustomerTag[];
-  allTags: CustomerTag[];
+  customerTags: ReadonlyArray<CustomerTag>;
+  allTags: ReadonlyArray<CustomerTag>;
   onAssignTag: (tagId: string) => void;
   onRemoveTag: (tagId: string) => void;
   onCreateTag?: (name: string, color: string) => void;

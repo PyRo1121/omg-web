@@ -24,7 +24,7 @@ interface ChurnRiskSegment {
 }
 
 interface ChurnRiskSegmentsProps {
-  data: ChurnRiskSegment[];
+  data: ReadonlyArray<ChurnRiskSegment>;
   onSegmentClick?: (segment: string) => void;
 }
 
@@ -96,10 +96,18 @@ const RISK_CONFIG = {
 
 function getRiskLevel(segment: string): RiskLevel {
   const lower = segment.toLowerCase();
-  if (lower.includes('critical')) {return 'critical';}
-  if (lower.includes('high')) {return 'high';}
-  if (lower.includes('medium')) {return 'medium';}
-  if (lower.includes('low')) {return 'low';}
+  if (lower.includes('critical')) {
+    return 'critical';
+  }
+  if (lower.includes('high')) {
+    return 'high';
+  }
+  if (lower.includes('medium')) {
+    return 'medium';
+  }
+  if (lower.includes('low')) {
+    return 'low';
+  }
   return 'healthy';
 }
 
@@ -156,7 +164,9 @@ export const ChurnRiskSegments: Component<ChurnRiskSegmentsProps> = props => {
 
   const riskDistribution = createMemo(() => {
     const total = props.data.reduce((sum, s) => sum + s.user_count, 0);
-    if (total === 0) {return { critical: 0, high: 0, medium: 0, low: 0, healthy: 0 };}
+    if (total === 0) {
+      return { critical: 0, high: 0, medium: 0, low: 0, healthy: 0 };
+    }
 
     return {
       critical: (criticalCount() / total) * 100,

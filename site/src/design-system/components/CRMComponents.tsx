@@ -2,6 +2,7 @@ import { type Component, For, Show, createMemo, createSignal } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { parseTier } from '~/lib/contracts/tier';
+import { valueForKey } from '~/lib/lookup';
 import {
   MessageSquare,
   Phone,
@@ -23,6 +24,16 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export type NoteType = 'general' | 'call' | 'email' | 'meeting' | 'support' | 'sales' | 'success';
+
+const NOTE_TYPES = {
+  general: 'general',
+  call: 'call',
+  email: 'email',
+  meeting: 'meeting',
+  support: 'support',
+  sales: 'sales',
+  success: 'success',
+} as const satisfies Record<NoteType, NoteType>;
 export type TaskType = 'followup' | 'onboarding' | 'renewal' | 'upsell' | 'support';
 export type CommunicationType = 'email' | 'chat' | 'phone' | 'meeting' | 'support_ticket';
 
@@ -206,8 +217,7 @@ export const NotesList: Component<NotesListProps> = props => {
                   <button
                     type="button"
                     onClick={() =>
-                      // SAFETY: The entry key comes from noteTypeConfig's own NoteType keys.
-                      setNewNoteType(type as NoteType)
+                      setNewNoteType(valueForKey(Object.entries(NOTE_TYPES), type) ?? 'general')
                     }
                     class={cn(
                       'rounded-lg p-2 transition-colors',

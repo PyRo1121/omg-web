@@ -1,7 +1,9 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
+import { SuccessSchema, WorkerHttpParseError } from './contracts/worker-http';
 import {
   getWorkerDashboard,
+  requestDecodedJson,
   sendCodeToWorker,
   verifyCodeWithWorker,
   WorkerApiHttpError,
@@ -96,6 +98,55 @@ describe('verifyCodeWithWorker', () => {
       )
     );
     expect(decoded.token).toBe('tok_abc');
+  });
+});
+
+describe('requestDecodedJson', () => {
+  it('decodes a 200 JSON body', async () => {
+    const decoded = await Effect.runPromise(
+      requestDecodedJson(
+        fetcherOf(jsonResponse(200, JSON.stringify({ success: true }))),
+        `${API_BASE}/api/user/profile`,
+        { method: 'PUT' },
+        SuccessSchema,
+        'invalid profile response'
+      )
+    );
+    expect(decoded.success).toBe(true);
+  });
+
+  it('maps a 401 without decoding the schema', async () => {
+    const exit = await Effect.runPromiseExit(
+      requestDecodedJson(
+        fetcherOf(jsonResponse(401, JSON.stringify({ error: 'Authorization required' }))),
+        `${API_BASE}/api/user/profile`,
+        { method: 'PUT' },
+        SuccessSchema,
+        'invalid profile response'
+      )
+    );
+    const error = failedValue(exit);
+    expect(error).toBeInstanceOf(WorkerApiHttpError);
+    if (error instanceof WorkerApiHttpError) {
+      expect(error.status).toBe(401);
+    }
+  });
+
+  it('maps an invalid 200 body to WorkerHttpParseError', async () => {
+    const exit = await Effect.runPromiseExit(
+      requestDecodedJson(
+        fetcherOf(jsonResponse(200, JSON.stringify({ ok: true }))),
+        `${API_BASE}/api/user/profile`,
+        { method: 'PUT' },
+        SuccessSchema,
+        'invalid profile response'
+      )
+    );
+    const error = failedValue(exit);
+    expect(error).toBeInstanceOf(WorkerHttpParseError);
+    if (error instanceof WorkerHttpParseError) {
+      expect(error.reason).toBe('invalid profile response');
+    }
   });
 });
 

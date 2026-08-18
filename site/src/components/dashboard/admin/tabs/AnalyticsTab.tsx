@@ -261,7 +261,7 @@ const StatCard: Component<{
 };
 
 const TopPagesCard: Component<{
-  pages: Array<{ path: string; views: number }> | undefined;
+  pages: ReadonlyArray<{ path: string; views: number }> | undefined;
 }> = props => (
   <div class="bg-void-850 shadow-card relative overflow-hidden rounded-3xl border border-white/5">
     <div class="pointer-events-none absolute -top-16 -left-16 h-32 w-32 rounded-full bg-indigo-500/10 blur-[60px]" />
@@ -314,7 +314,7 @@ const TopPagesCard: Component<{
 );
 
 const TrafficSourcesCard: Component<{
-  referrers: Array<{ referrer_domain: string | null; visitors: number }> | undefined;
+  referrers: ReadonlyArray<{ referrer_domain: string | null; visitors: number }> | undefined;
 }> = props => (
   <div class="bg-void-850 shadow-card relative overflow-hidden rounded-3xl border border-white/5">
     <div class="bg-photon-500/10 pointer-events-none absolute -top-16 -right-16 h-32 w-32 rounded-full blur-[60px]" />
@@ -367,7 +367,7 @@ const TrafficSourcesCard: Component<{
 );
 
 const DeviceBreakdownCard: Component<{
-  devices: Array<{ device_type: string; visitors: number }> | undefined;
+  devices: ReadonlyArray<{ device_type: string; visitors: number }> | undefined;
 }> = props => (
   <div class="bg-void-850 shadow-card relative overflow-hidden rounded-3xl border border-white/5 p-6">
     <div class="bg-electric-500/10 pointer-events-none absolute -top-16 -left-16 h-32 w-32 rounded-full blur-[60px]" />
@@ -436,7 +436,8 @@ const DeviceBreakdownCard: Component<{
 );
 
 const GeoDistributionCard: Component<{
-  geoData: Array<{ country_code: string; user_count: number; percentage: number }> | undefined;
+  geoData:
+    ReadonlyArray<{ country_code: string; user_count: number; percentage: number }> | undefined;
   totalCountries: number | undefined;
   totalEngagement: number | undefined;
 }> = props => (
