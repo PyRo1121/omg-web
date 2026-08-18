@@ -53,6 +53,7 @@ import {
   customerIsAdmin,
   decodeExtraRowArray,
   decodeOptionalExtraRow,
+  decodeStoredProperties,
   DocsGeoRowSchema,
   DocsInteractionRowSchema,
   DocsPageviewsRowSchema,
@@ -251,6 +252,17 @@ describe('firehose rows', () => {
       decodeExtraRowArray(FirehoseEventRowSchema, 'firehose', { nope: true })
     );
     expect(Exit.isFailure(exit)).toBe(true);
+  });
+
+  it('decodes stored firehose properties and rejects corrupt JSON', async () => {
+    const empty = await Effect.runPromise(decodeStoredProperties(undefined));
+    expect(empty).toEqual({});
+
+    const parsed = await Effect.runPromise(decodeStoredProperties('{"ok":true}'));
+    expect(parsed.ok).toBe(true);
+
+    const corrupt = await Effect.runPromiseExit(decodeStoredProperties('{'));
+    expect(Exit.isFailure(corrupt)).toBe(true);
   });
 });
 

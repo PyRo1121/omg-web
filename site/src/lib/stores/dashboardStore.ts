@@ -58,16 +58,19 @@ function getInitialState(): DashboardState {
 
   try {
     const stored = browserWindow.localStorage.getItem(STORAGE_KEY);
-    if (!stored) {return createDefaultState();}
+    if (!stored) {
+      return createDefaultState();
+    }
 
-    const persisted = decodePersistedDashboardState(JSON.parse(stored));
+    const parsed: unknown = JSON.parse(stored);
+    const persisted = decodePersistedDashboardState(parsed);
     if (!persisted) {
       console.warn('[DashboardStore] Invalid or unsupported state, using defaults');
       return createDefaultState();
     }
 
     return mergePersisted(createDefaultState(), persisted.state);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[DashboardStore] Failed to restore state:', error);
     return createDefaultState();
   }
@@ -146,7 +149,9 @@ export function createDashboardStore() {
 
     goToPreviousTab() {
       const history = state.navigation.tabHistory;
-      if (history.length === 0) {return;}
+      if (history.length === 0) {
+        return;
+      }
       const previousTab = history[history.length - 1];
       setState('navigation', {
         activeTab: previousTab,
@@ -172,7 +177,9 @@ export function createDashboardStore() {
 
     saveView() {
       const viewName = state.views.newViewName.trim();
-      if (!viewName) {return;}
+      if (!viewName) {
+        return;
+      }
 
       const newView: SavedView = {
         id: `view-${Date.now()}`,

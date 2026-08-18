@@ -973,23 +973,31 @@ export type InsightsProductRow = Schema.Schema.Type<typeof InsightsProductRowSch
 /**
  * Decode stored firehose properties JSON.
  *
+ * Missing or empty values become `{}`. Corrupt JSON fails.
+ *
  * @param value - Persisted JSON text.
- * @returns A primitive record, or an empty object.
+ * @returns A primitive record, or `ExtraRowParseError`.
  */
 export function decodeStoredProperties(
   value: string | null | undefined
-): Readonly<Record<string, string | number | boolean | null>> {
+): Effect.Effect<Readonly<Record<string, string | number | boolean | null>>, ExtraRowParseError> {
   if (value === null || value === undefined || value.length === 0) {
-    return {};
+    return Effect.succeed({});
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(value);
-  } catch {
-    return {};
+  } catch (cause: unknown) {
+    return Effect.fail(
+      new ExtraRowParseError('Stored properties JSON has an invalid shape', cause)
+    );
   }
-  const decoded = Schema.decodeUnknownEither(JsonObject)(parsed);
-  return decoded._tag === 'Right' ? decoded.right : {};
+  return Schema.decodeUnknown(JsonObject)(parsed).pipe(
+    Effect.mapError(
+      (cause: unknown): ExtraRowParseError =>
+        new ExtraRowParseError('Stored properties JSON has an invalid shape', cause)
+    )
+  );
 }
 
 /**

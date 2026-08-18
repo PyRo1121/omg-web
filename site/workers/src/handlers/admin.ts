@@ -174,8 +174,8 @@ async function logAdminAudit<TMetadata extends object>(
         })
       )
       .run();
-  } catch {
-    console.error('Admin audit log error');
+  } catch (error: unknown) {
+    console.error('Admin audit log error', error);
   }
 }
 

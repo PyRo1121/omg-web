@@ -73,18 +73,27 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
       return errorResponse('Failed to fetch firehose data', 500);
     }
 
-    const events = decoded.value.map(event => ({
-      ...event,
-      properties: decodeStoredProperties(event.properties),
-    }));
+    const decodedEvents = await Effect.runPromiseExit(
+      Effect.forEach(decoded.value, event =>
+        decodeStoredProperties(event.properties).pipe(
+          Effect.map(properties => ({
+            ...event,
+            properties,
+          }))
+        )
+      )
+    );
+    if (Exit.isFailure(decodedEvents)) {
+      return errorResponse('Failed to fetch firehose data', 500);
+    }
 
     return jsonResponse({
-      events,
-      count: events.length,
+      events: decodedEvents.value,
+      count: decodedEvents.value.length,
       timestamp: new Date().toISOString(),
     });
-  } catch (e) {
-    console.error('Firehose error:', e);
+  } catch (error: unknown) {
+    console.error('Firehose error:', error);
     return errorResponse('Failed to fetch firehose data', 500);
   }
 }

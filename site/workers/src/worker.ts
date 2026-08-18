@@ -541,8 +541,8 @@ export default Sentry.withSentry(
                 },
               }
             );
-          } catch {
-            // If table doesn't exist or query fails, return 0
+          } catch (error: unknown) {
+            console.error('Installs badge query failed:', error);
             return new Response(
               JSON.stringify({
                 schemaVersion: 1,
