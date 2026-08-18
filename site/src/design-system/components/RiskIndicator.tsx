@@ -328,10 +328,16 @@ export const RiskSegments: Component<RiskSegmentsProps> = props => {
                 </div>
                 <div class="text-right">
                   <p class="text-2xl font-black text-white tabular-nums">{segment.count}</p>
-                  <Show when={segment.avgCommands !== undefined}>
-                    <p class="text-nebula-500 text-xs">
-                      {Math.round(segment.avgCommands!)} avg cmds/mo
-                    </p>
+                  <Show
+                    when={
+                      segment.avgCommands === undefined ? undefined : { value: segment.avgCommands }
+                    }
+                  >
+                    {avgCommands => (
+                      <p class="text-nebula-500 text-xs">
+                        {Math.round(avgCommands().value)} avg cmds/mo
+                      </p>
+                    )}
                   </Show>
                 </div>
               </div>

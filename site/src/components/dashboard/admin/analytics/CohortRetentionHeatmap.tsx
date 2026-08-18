@@ -59,10 +59,12 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
     const groupedByMonth = new Map<string, Map<number, CohortData>>();
 
     for (const item of props.data) {
-      if (!groupedByMonth.has(item.cohort_month)) {
-        groupedByMonth.set(item.cohort_month, new Map());
+      const existing = groupedByMonth.get(item.cohort_month);
+      if (existing === undefined) {
+        groupedByMonth.set(item.cohort_month, new Map([[item.month_index, item]]));
+      } else {
+        existing.set(item.month_index, item);
       }
-      groupedByMonth.get(item.cohort_month)!.set(item.month_index, item);
     }
 
     return Array.from(groupedByMonth.entries())
@@ -445,11 +447,16 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
               <div>
                 <p class="text-nebula-100 text-sm font-semibold">Retention Insight</p>
                 <p class="text-nebula-400 mt-0.5 text-xs leading-relaxed">
-                  {avgRetentionByMonth()[3]! >= 50
-                    ? 'Strong retention! Your product has good stickiness. Focus on converting more trial users.'
-                    : avgRetentionByMonth()[3]! >= 30
-                      ? 'Moderate retention. Consider improving onboarding and feature discovery to boost engagement.'
-                      : 'Retention needs attention. Prioritize understanding why users churn and improving first-week experience.'}
+                  {(() => {
+                    const month3 = avgRetentionByMonth()[3] ?? 0;
+                    if (month3 >= 50) {
+                      return 'Strong retention! Your product has good stickiness. Focus on converting more trial users.';
+                    }
+                    if (month3 >= 30) {
+                      return 'Moderate retention. Consider improving onboarding and feature discovery to boost engagement.';
+                    }
+                    return 'Retention needs attention. Prioritize understanding why users churn and improving first-week experience.';
+                  })()}
                 </p>
               </div>
             </div>

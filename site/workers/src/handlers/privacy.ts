@@ -7,9 +7,11 @@ import { type Env, jsonResponse, errorResponse, corsHeaders, generateId } from '
 import {
   decodeExtraRow,
   decodeExtraRowArray,
+  decodeOptionalExtraRow,
   IdRowSchema,
   LicenseCustomerIdRowSchema,
   PrivacyLicenseRowSchema,
+  PrivacyProfileRowSchema,
   PrivacyStatusRowSchema,
 } from '../contracts/d1-extras';
 
@@ -333,12 +335,19 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
     };
 
     // Customer profile
-    const customer = await env.DB.prepare(
+    const customerRow = await env.DB.prepare(
       'SELECT id, email, company, tier, stripe_customer_id, created_at FROM customers WHERE id = ?'
     )
       .bind(customerId)
       .first();
-    if (customer) {
+    const customer = await Effect.runPromise(
+      decodeOptionalExtraRow(
+        PrivacyProfileRowSchema,
+        'Privacy profile row has an invalid shape',
+        customerRow
+      )
+    );
+    if (customer !== undefined) {
       exportData.profile = {
         email: customer.email,
         company: customer.company,
@@ -469,13 +478,20 @@ export async function handleOptOut(request: Request, env: Env): Promise<Response
       return errorResponse('License key required', 400);
     }
 
-    const license = await env.DB.prepare(
+    const licenseRow = await env.DB.prepare(
       'SELECT id, customer_id FROM licenses WHERE license_key = ?'
     )
       .bind(body.license_key)
       .first();
+    const license = await Effect.runPromise(
+      decodeOptionalExtraRow(
+        LicenseCustomerIdRowSchema,
+        'Privacy license row has an invalid shape',
+        licenseRow
+      )
+    );
 
-    if (!license) {
+    if (license === undefined) {
       return errorResponse('Invalid license key', 404);
     }
 

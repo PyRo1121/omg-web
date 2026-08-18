@@ -30,9 +30,11 @@ export function Card(props: CardProps) {
 
   return (
     <Show when={props.href} fallback={content}>
-      <A href={props.href!} class="block no-underline">
-        {content}
-      </A>
+      {href => (
+        <A href={href()} class="block no-underline">
+          {content}
+        </A>
+      )}
     </Show>
   );
 }

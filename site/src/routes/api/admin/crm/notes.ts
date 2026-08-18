@@ -22,7 +22,9 @@ function parseNoteType(value: string | undefined): NoteType | undefined {
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) {return adminCheck;}
+    if (adminCheck instanceof Response) {
+      return adminCheck;
+    }
 
     const { db } = adminCheck;
 
@@ -136,7 +138,9 @@ export async function GET(event: APIEvent) {
 export async function POST(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) {return adminCheck;}
+    if (adminCheck instanceof Response) {
+      return adminCheck;
+    }
 
     const { db, userId: adminId } = adminCheck;
 
@@ -211,20 +215,27 @@ export async function POST(event: APIEvent) {
       .limit(1)
       .get();
 
+    if (createdNote === undefined) {
+      return new Response(JSON.stringify({ error: 'Failed to load created note' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         note: {
-          id: createdNote!.id,
-          content: createdNote!.content,
-          noteType: createdNote!.noteType,
-          isPinned: createdNote!.isPinned,
-          createdAt: new Date(createdNote!.createdAt).toISOString(),
-          updatedAt: new Date(createdNote!.updatedAt).toISOString(),
+          id: createdNote.id,
+          content: createdNote.content,
+          noteType: createdNote.noteType,
+          isPinned: createdNote.isPinned,
+          createdAt: new Date(createdNote.createdAt).toISOString(),
+          updatedAt: new Date(createdNote.updatedAt).toISOString(),
           author: {
-            id: createdNote!.authorId,
-            name: createdNote!.authorName,
-            email: createdNote!.authorEmail,
+            id: createdNote.authorId,
+            name: createdNote.authorName,
+            email: createdNote.authorEmail,
           },
         },
       }),
@@ -251,7 +262,9 @@ export async function POST(event: APIEvent) {
 export async function PUT(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) {return adminCheck;}
+    if (adminCheck instanceof Response) {
+      return adminCheck;
+    }
 
     const { db } = adminCheck;
 
@@ -333,7 +346,9 @@ export async function PUT(event: APIEvent) {
 export async function DELETE(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) {return adminCheck;}
+    if (adminCheck instanceof Response) {
+      return adminCheck;
+    }
 
     const { db } = adminCheck;
 

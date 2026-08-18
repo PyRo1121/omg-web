@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { mergeProps, createSignal, onMount, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import GlassCard from '../../ui/GlassCard';
@@ -139,13 +139,15 @@ export const RoiChart: Component<RoiChartProps> = rawProps => {
             </div>
           }
         >
-          <Dynamic
-            component={ChartComponent()!}
-            type="area"
-            options={options}
-            series={series}
-            height={props.height}
-          />
+          {chart => (
+            <Dynamic
+              component={chart()}
+              type="area"
+              options={options}
+              series={series}
+              height={props.height}
+            />
+          )}
         </Show>
       </div>
     </GlassCard>

@@ -99,12 +99,14 @@ export function DocsLayout(props: DocsLayoutProps) {
 
           <article class="prose prose-invert prose-indigo max-w-none">
             <Show when={props.frontmatter?.title}>
-              <h1 class="mb-2 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-4xl font-black text-transparent">
-                {props.frontmatter!.title}
-              </h1>
+              {title => (
+                <h1 class="mb-2 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-4xl font-black text-transparent">
+                  {title()}
+                </h1>
+              )}
             </Show>
             <Show when={props.frontmatter?.description}>
-              <p class="mt-2 text-lg text-slate-400">{props.frontmatter!.description}</p>
+              {description => <p class="mt-2 text-lg text-slate-400">{description()}</p>}
             </Show>
 
             <div class="markdown-content">{props.children}</div>
@@ -113,38 +115,50 @@ export function DocsLayout(props: DocsLayoutProps) {
           <Show when={props.nav?.prev || props.nav?.next}>
             <nav class="mt-16 flex items-center justify-between border-t border-slate-800 pt-8">
               <Show when={props.nav?.prev}>
-                <A
-                  href={props.nav!.prev!.link}
-                  class="group flex items-center gap-2 text-slate-400 transition-colors hover:text-white"
-                >
-                  <ChevronLeft size={20} class="transition-transform group-hover:-translate-x-1" />
-                  <div>
-                    <div class="text-xs tracking-wide uppercase">Previous</div>
-                    <div class="font-medium">{props.nav!.prev!.title}</div>
-                  </div>
-                </A>
+                {prev => (
+                  <A
+                    href={prev().link}
+                    class="group flex items-center gap-2 text-slate-400 transition-colors hover:text-white"
+                  >
+                    <ChevronLeft
+                      size={20}
+                      class="transition-transform group-hover:-translate-x-1"
+                    />
+                    <div>
+                      <div class="text-xs tracking-wide uppercase">Previous</div>
+                      <div class="font-medium">{prev().title}</div>
+                    </div>
+                  </A>
+                )}
               </Show>
               <div class="flex-1" />
               <Show when={props.nav?.next}>
-                <A
-                  href={props.nav!.next!.link}
-                  class="group flex items-center gap-2 text-right text-slate-400 transition-colors hover:text-white"
-                >
-                  <div>
-                    <div class="text-xs tracking-wide uppercase">Next</div>
-                    <div class="font-medium">{props.nav!.next!.title}</div>
-                  </div>
-                  <ChevronRight size={20} class="transition-transform group-hover:translate-x-1" />
-                </A>
+                {next => (
+                  <A
+                    href={next().link}
+                    class="group flex items-center gap-2 text-right text-slate-400 transition-colors hover:text-white"
+                  >
+                    <div>
+                      <div class="text-xs tracking-wide uppercase">Next</div>
+                      <div class="font-medium">{next().title}</div>
+                    </div>
+                    <ChevronRight
+                      size={20}
+                      class="transition-transform group-hover:translate-x-1"
+                    />
+                  </A>
+                )}
               </Show>
             </nav>
           </Show>
         </main>
 
-        <Show when={props.toc && props.toc.length > 0}>
-          <aside class="sticky top-20 hidden h-[calc(100vh-5rem)] w-64 flex-shrink-0 overflow-y-auto px-6 py-8 xl:block">
-            <TableOfContents items={props.toc!} />
-          </aside>
+        <Show when={props.toc && props.toc.length > 0 ? props.toc : undefined}>
+          {toc => (
+            <aside class="sticky top-20 hidden h-[calc(100vh-5rem)] w-64 flex-shrink-0 overflow-y-auto px-6 py-8 xl:block">
+              <TableOfContents items={toc()} />
+            </aside>
+          )}
         </Show>
       </div>
     </div>

@@ -191,157 +191,167 @@ export const InsightsTab: Component = () => {
         </div>
       </Show>
 
-      <Show when={metricsQuery.isSuccess && metricsQuery.data}>
-        <div class="space-y-8">
-          <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
-            <Show when={metricsQuery.data!.engagement}>
-              <div class="group relative">
-                <div class="absolute top-4 right-4 z-10 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+      <Show when={metricsQuery.isSuccess ? metricsQuery.data : undefined}>
+        {metrics => (
+          <div class="space-y-8">
+            <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
+              <Show when={metrics().engagement}>
+                {engagement => (
+                  <div class="group relative">
+                    <div class="absolute top-4 right-4 z-10 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        onClick={() => toggleBookmark('engagement')}
+                        class={`rounded-lg p-2 transition-all ${
+                          bookmarkedInsights().includes('engagement')
+                            ? 'bg-solar-500/20 text-solar-400'
+                            : 'bg-void-800 text-nebula-400 hover:text-white'
+                        }`}
+                      >
+                        <Bookmark size={14} />
+                      </button>
+                      <button class="bg-void-800 text-nebula-400 rounded-lg p-2 transition-all hover:text-white">
+                        <MessageSquare size={14} />
+                      </button>
+                    </div>
+                    <EngagementMetrics data={engagement()} />
+                  </div>
+                )}
+              </Show>
+            </Show>
+
+            <Show
+              when={
+                activeCategory() === 'all' ||
+                activeCategory() === 'risk' ||
+                activeCategory() === 'growth'
+              }
+            >
+              <div class="grid gap-6 lg:grid-cols-2">
+                <Show
+                  when={
+                    activeCategory() === 'all' || activeCategory() === 'risk'
+                      ? metrics().churn_risk_segments
+                      : undefined
+                  }
+                >
+                  {segments => <ChurnRiskSegments data={segments()} />}
+                </Show>
+                <Show
+                  when={
+                    activeCategory() === 'all' || activeCategory() === 'growth'
+                      ? metrics().expansion_opportunities
+                      : undefined
+                  }
+                >
+                  {opportunities => <ExpansionOpportunities data={opportunities()} />}
+                </Show>
+              </div>
+            </Show>
+
+            <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
+              <Show when={metrics().time_to_value}>
+                {ttv => <TimeToValueMetrics data={ttv()} />}
+              </Show>
+            </Show>
+
+            <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
+              <div class="grid gap-6 lg:grid-cols-2">
+                <Show when={metrics().feature_adoption}>
+                  {adoption => <FeatureAdoptionChart data={adoption()} />}
+                </Show>
+                <Show when={metrics().command_heatmap}>
+                  {heatmap => <CommandHeatmap data={heatmap()} />}
+                </Show>
+              </div>
+            </Show>
+
+            <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
+              <Show when={metrics().runtime_adoption}>
+                {adoption => <RuntimeAdoptionChart data={adoption()} />}
+              </Show>
+            </Show>
+
+            <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
+              <Show when={cohortsQuery.isSuccess ? cohortsQuery.data?.cohorts : undefined}>
+                {cohorts => (
+                  <CohortRetentionHeatmap
+                    data={cohorts().map(c => ({
+                      cohort_month: c.cohort_week,
+                      month_index: c.weeks_since_signup,
+                      active_users: c.active_users,
+                    }))}
+                    maxMonths={12}
+                  />
+                )}
+              </Show>
+            </Show>
+
+            <Show when={activeCategory() === 'all' || activeCategory() === 'growth'}>
+              <Show
+                when={dashboardQuery.isSuccess ? dashboardQuery.data?.geo_distribution : undefined}
+              >
+                {geo => (
+                  <GeoDistribution
+                    data={geo().map(g => ({
+                      country_code: g.dimension,
+                      user_count: g.count,
+                    }))}
+                    maxItems={10}
+                  />
+                )}
+              </Show>
+            </Show>
+
+            <div class="rounded-3xl border border-white/5 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 p-8">
+              <div class="mb-4 flex items-center justify-between">
+                <h3 class="text-xl font-bold text-white">Key Insights Summary</h3>
+                <div class="flex gap-2">
                   <button
-                    onClick={() => toggleBookmark('engagement')}
-                    class={`rounded-lg p-2 transition-all ${
-                      bookmarkedInsights().includes('engagement')
-                        ? 'bg-solar-500/20 text-solar-400'
-                        : 'bg-void-800 text-nebula-400 hover:text-white'
-                    }`}
+                    onClick={() => exportInsight('pdf')}
+                    class="flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10"
                   >
-                    <Bookmark size={14} />
+                    <Download size={12} />
+                    PDF
                   </button>
-                  <button class="bg-void-800 text-nebula-400 rounded-lg p-2 transition-all hover:text-white">
-                    <MessageSquare size={14} />
+                  <button
+                    onClick={() => exportInsight('png')}
+                    class="flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10"
+                  >
+                    <Download size={12} />
+                    PNG
                   </button>
                 </div>
-                <EngagementMetrics data={metricsQuery.data!.engagement} />
               </div>
-            </Show>
-          </Show>
+              <div class="grid gap-4 md:grid-cols-3">
+                <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-xs text-slate-400">Current MRR</p>
+                  <p class="mt-1 text-2xl font-black text-emerald-400">
+                    ${(metrics().revenue_metrics?.current_mrr || 0).toLocaleString()}
+                  </p>
+                  <p class="mt-1 text-xs text-slate-500">
+                    ${(metrics().revenue_metrics?.projected_arr || 0).toLocaleString()} ARR
+                  </p>
+                </div>
 
-          <Show
-            when={
-              activeCategory() === 'all' ||
-              activeCategory() === 'risk' ||
-              activeCategory() === 'growth'
-            }
-          >
-            <div class="grid gap-6 lg:grid-cols-2">
-              <Show
-                when={
-                  (activeCategory() === 'all' || activeCategory() === 'risk') &&
-                  metricsQuery.data!.churn_risk_segments
-                }
-              >
-                <ChurnRiskSegments data={metricsQuery.data!.churn_risk_segments} />
-              </Show>
-              <Show
-                when={
-                  (activeCategory() === 'all' || activeCategory() === 'growth') &&
-                  metricsQuery.data!.expansion_opportunities
-                }
-              >
-                <ExpansionOpportunities data={metricsQuery.data!.expansion_opportunities} />
-              </Show>
-            </div>
-          </Show>
+                <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-xs text-slate-400">Expansion MRR (12m)</p>
+                  <p class="mt-1 text-2xl font-black text-indigo-400">
+                    ${(metrics().revenue_metrics?.expansion_mrr_12m || 0).toLocaleString()}
+                  </p>
+                  <p class="mt-1 text-xs text-slate-500">New revenue from upgrades</p>
+                </div>
 
-          <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
-            <Show when={metricsQuery.data!.time_to_value}>
-              {ttv => <TimeToValueMetrics data={ttv()} />}
-            </Show>
-          </Show>
-
-          <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
-            <div class="grid gap-6 lg:grid-cols-2">
-              <Show when={metricsQuery.data!.feature_adoption}>
-                {adoption => <FeatureAdoptionChart data={adoption()} />}
-              </Show>
-              <Show when={metricsQuery.data!.command_heatmap}>
-                <CommandHeatmap data={metricsQuery.data!.command_heatmap} />
-              </Show>
-            </div>
-          </Show>
-
-          <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
-            <Show when={metricsQuery.data!.runtime_adoption}>
-              <RuntimeAdoptionChart data={metricsQuery.data!.runtime_adoption} />
-            </Show>
-          </Show>
-
-          <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
-            <Show when={cohortsQuery.isSuccess && cohortsQuery.data?.cohorts}>
-              <CohortRetentionHeatmap
-                data={cohortsQuery.data!.cohorts.map(c => ({
-                  cohort_month: c.cohort_week,
-                  month_index: c.weeks_since_signup,
-                  active_users: c.active_users,
-                }))}
-                maxMonths={12}
-              />
-            </Show>
-          </Show>
-
-          <Show when={activeCategory() === 'all' || activeCategory() === 'growth'}>
-            <Show when={dashboardQuery.isSuccess && dashboardQuery.data?.geo_distribution}>
-              <GeoDistribution
-                data={dashboardQuery.data!.geo_distribution.map(g => ({
-                  country_code: g.dimension,
-                  user_count: g.count,
-                }))}
-                maxItems={10}
-              />
-            </Show>
-          </Show>
-
-          <div class="rounded-3xl border border-white/5 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 p-8">
-            <div class="mb-4 flex items-center justify-between">
-              <h3 class="text-xl font-bold text-white">Key Insights Summary</h3>
-              <div class="flex gap-2">
-                <button
-                  onClick={() => exportInsight('pdf')}
-                  class="flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10"
-                >
-                  <Download size={12} />
-                  PDF
-                </button>
-                <button
-                  onClick={() => exportInsight('png')}
-                  class="flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10"
-                >
-                  <Download size={12} />
-                  PNG
-                </button>
-              </div>
-            </div>
-            <div class="grid gap-4 md:grid-cols-3">
-              <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                <p class="text-xs text-slate-400">Current MRR</p>
-                <p class="mt-1 text-2xl font-black text-emerald-400">
-                  ${(metricsQuery.data!.revenue_metrics?.current_mrr || 0).toLocaleString()}
-                </p>
-                <p class="mt-1 text-xs text-slate-500">
-                  ${(metricsQuery.data!.revenue_metrics?.projected_arr || 0).toLocaleString()} ARR
-                </p>
-              </div>
-
-              <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                <p class="text-xs text-slate-400">Expansion MRR (12m)</p>
-                <p class="mt-1 text-2xl font-black text-indigo-400">
-                  ${(metricsQuery.data!.revenue_metrics?.expansion_mrr_12m || 0).toLocaleString()}
-                </p>
-                <p class="mt-1 text-xs text-slate-500">New revenue from upgrades</p>
-              </div>
-
-              <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                <p class="text-xs text-slate-400">Product Stickiness</p>
-                <p class="mt-1 text-2xl font-black text-purple-400">
-                  {metricsQuery.data!.retention?.product_stickiness?.daily_active_pct?.toFixed(1) ||
-                    0}
-                  %
-                </p>
-                <p class="mt-1 text-xs text-slate-500">Daily active users</p>
+                <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-xs text-slate-400">Product Stickiness</p>
+                  <p class="mt-1 text-2xl font-black text-purple-400">
+                    {metrics().retention?.product_stickiness?.daily_active_pct?.toFixed(1) || 0}%
+                  </p>
+                  <p class="mt-1 text-xs text-slate-500">Daily active users</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </Show>
     </div>
   );

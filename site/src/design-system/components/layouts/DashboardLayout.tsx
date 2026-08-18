@@ -167,7 +167,7 @@ export const PageHeader: Component<PageHeaderProps> = props => {
                     {crumb.label}
                   </a>
                 </Show>
-                <Show when={index() < props.breadcrumbs!.length - 1}>
+                <Show when={index() < (props.breadcrumbs?.length ?? 0) - 1}>
                   <span class="text-nebula-700">/</span>
                 </Show>
               </>

@@ -127,6 +127,7 @@ const MetricCard: Component<MetricCardProps> = props => {
     const isPositive = props.trend > 0;
     const isNeutral = Math.abs(props.trend) < 0.5;
     return {
+      value: props.trend,
       isPositive,
       isNeutral,
       Icon: isNeutral ? Minus : isPositive ? ArrowUpRight : ArrowDownRight,
@@ -191,7 +192,7 @@ const MetricCard: Component<MetricCardProps> = props => {
                     }}
                   >
                     <TrendIcon size={10} />
-                    <span class="tabular-nums">{Math.abs(props.trend!).toFixed(1)}%</span>
+                    <span class="tabular-nums">{Math.abs(info().value).toFixed(1)}%</span>
                   </div>
                 );
               }}

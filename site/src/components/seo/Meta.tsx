@@ -151,7 +151,9 @@ const SeoMeta: Component<SeoMetaProps> = props => {
 
   // Build BreadcrumbList schema from props
   const breadcrumbSchema = createMemo((): BreadcrumbListSchema | null => {
-    if (!props.breadcrumbs || props.breadcrumbs.length === 0) {return null;}
+    if (!props.breadcrumbs || props.breadcrumbs.length === 0) {
+      return null;
+    }
 
     return {
       '@type': 'BreadcrumbList',
@@ -196,8 +198,8 @@ const SeoMeta: Component<SeoMetaProps> = props => {
       {/* Primary Meta Tags */}
       <Title>{fullTitle()}</Title>
       <SolidMeta name="description" content={props.description} />
-      <Show when={props.keywords && props.keywords.length > 0}>
-        <SolidMeta name="keywords" content={props.keywords!.join(', ')} />
+      <Show when={props.keywords && props.keywords.length > 0 ? props.keywords : undefined}>
+        {keywords => <SolidMeta name="keywords" content={keywords().join(', ')} />}
       </Show>
       <Show when={props.author}>
         <SolidMeta name="author" content={props.author} />

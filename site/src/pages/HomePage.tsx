@@ -54,7 +54,9 @@ const HomePage: Component = () => {
 
   const fetchLicense = async () => {
     const userEmail = email();
-    if (!userEmail) {return;}
+    if (!userEmail) {
+      return;
+    }
 
     setLoading(true);
     setNotFound(false);
@@ -199,75 +201,77 @@ const HomePage: Component = () => {
             </Show>
 
             <Show when={licenseKey()}>
-              <div class="text-center">
-                <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500">
-                  <svg
-                    class="h-10 w-10 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+              {key => (
+                <div class="text-center">
+                  <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500">
+                    <svg
+                      class="h-10 w-10 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                      />
+                    </svg>
+                  </div>
+                  <h2 class="mb-2 text-3xl font-bold text-white">Your License Key</h2>
+                  <p class="mb-2 text-slate-400">
+                    <span class="font-semibold text-indigo-400 capitalize">{tier()}</span> Plan
+                    Activated
+                  </p>
+
+                  <div class="mb-6 rounded-xl bg-slate-800 p-4">
+                    <code class="font-mono text-sm break-all text-green-400">{key()}</code>
+                  </div>
+
+                  <button
+                    onClick={() => copyToClipboard(key())}
+                    class="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 py-3 font-semibold text-white transition-all hover:bg-slate-600"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                    />
-                  </svg>
-                </div>
-                <h2 class="mb-2 text-3xl font-bold text-white">Your License Key</h2>
-                <p class="mb-2 text-slate-400">
-                  <span class="font-semibold text-indigo-400 capitalize">{tier()}</span> Plan
-                  Activated
-                </p>
+                    {copied() ? (
+                      <>
+                        <svg
+                          class="h-5 w-5 text-green-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                        Copy to Clipboard
+                      </>
+                    )}
+                  </button>
 
-                <div class="mb-6 rounded-xl bg-slate-800 p-4">
-                  <code class="font-mono text-sm break-all text-green-400">{licenseKey()}</code>
+                  <div class="rounded-xl bg-slate-800/50 p-4 text-left">
+                    <p class="mb-2 text-sm text-slate-300">Activate your license:</p>
+                    <code class="font-mono text-xs text-cyan-400">
+                      omg license activate {key()}
+                    </code>
+                  </div>
                 </div>
-
-                <button
-                  onClick={() => copyToClipboard(licenseKey()!)}
-                  class="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 py-3 font-semibold text-white transition-all hover:bg-slate-600"
-                >
-                  {copied() ? (
-                    <>
-                      <svg
-                        class="h-5 w-5 text-green-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
-                      Copy to Clipboard
-                    </>
-                  )}
-                </button>
-
-                <div class="rounded-xl bg-slate-800/50 p-4 text-left">
-                  <p class="mb-2 text-sm text-slate-300">Activate your license:</p>
-                  <code class="font-mono text-xs text-cyan-400">
-                    omg license activate {licenseKey()}
-                  </code>
-                </div>
-              </div>
+              )}
             </Show>
           </div>
         </div>

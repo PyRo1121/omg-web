@@ -5,7 +5,11 @@ import { Effect, Exit } from 'effect';
 import {
   decodeExtraRow,
   decodeExtraRowArray,
+  decodeOptionalExtraRow,
   InsightsErrorRowSchema,
+  InsightsProductRowSchema,
+  InsightsStatsRowSchema,
+  InsightsUsageRowSchema,
   MetaChatCompletionSchema,
   WorkersAiTextSchema,
 } from '../contracts/d1-extras';
@@ -59,7 +63,7 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
     let additionalContext = '';
 
     if (target === 'admin' && isAdmin) {
-      const stats = await env.DB.prepare(
+      const statsRow = await env.DB.prepare(
         `
         SELECT
           (SELECT COUNT(*) FROM customers) as users,
@@ -69,6 +73,13 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
           (SELECT COUNT(DISTINCT omg_version) FROM machines WHERE is_active = 1) as version_drift_count
       `
       ).first();
+      const stats = await Effect.runPromise(
+        decodeOptionalExtraRow(
+          InsightsStatsRowSchema,
+          'Insights stats row has an invalid shape',
+          statsRow
+        )
+      );
 
       const errorStats = await env.DB.prepare(
         `
@@ -95,7 +106,7 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
 
       additionalContext = `OMG provides unified package management across Arch Linux, Debian, Ubuntu, and 8 language runtimes. We are currently targeting sub-10ms search performance and 100% fleet compliance.`;
     } else if (target === 'team') {
-      const usage = await env.DB.prepare(
+      const usageRow = await env.DB.prepare(
         `
         SELECT SUM(commands_run) as cmds, SUM(time_saved_ms) as time
           FROM usage_daily 
@@ -104,9 +115,16 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
       )
         .bind(auth.user.id)
         .first();
+      const usage = await Effect.runPromise(
+        decodeOptionalExtraRow(
+          InsightsUsageRowSchema,
+          'Insights usage row has an invalid shape',
+          usageRow
+        )
+      );
 
       // Get command breakdown for user/team
-      const commandBreakdown = await env.DB.prepare(
+      const commandBreakdownRow = await env.DB.prepare(
         `
         SELECT 
           SUM(packages_searched) as searches,
@@ -118,6 +136,13 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
       )
         .bind(auth.user.id)
         .first();
+      const commandBreakdown = await Effect.runPromise(
+        decodeOptionalExtraRow(
+          InsightsProductRowSchema,
+          'Insights product row has an invalid shape',
+          commandBreakdownRow
+        )
+      );
 
       const timeHours = Math.round((Number(usage?.time) || 0) / 3600000);
       const cmdsNum = Number(usage?.cmds) || 0;

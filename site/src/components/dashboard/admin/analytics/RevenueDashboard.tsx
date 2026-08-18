@@ -67,14 +67,20 @@ const TIER_COLORS = {
 } satisfies Record<string, { gradient: string; glow: string; accent: string }>;
 
 function formatCurrency(value: number): string {
-  if (value >= 1000000) {return `$${(value / 1000000).toFixed(1)}M`;}
-  if (value >= 1000) {return `$${(value / 1000).toFixed(1)}K`;}
+  if (value >= 1000000) {
+    return `$${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `$${(value / 1000).toFixed(1)}K`;
+  }
   return `$${value.toLocaleString()}`;
 }
 
 function formatMonth(monthStr: string): string {
   const parts = monthStr.split('-');
-  if (parts.length < 2) {return monthStr;}
+  if (parts.length < 2) {
+    return monthStr;
+  }
   const months = [
     'Jan',
     'Feb',
@@ -112,13 +118,17 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = props => {
   const maxRevenue = createMemo(() => Math.max(...monthlyData().map(m => m.revenue), 1));
 
   const mrrChange = createMemo(() => {
-    if (!props.previousMRR || props.previousMRR === 0) {return null;}
+    if (!props.previousMRR || props.previousMRR === 0) {
+      return null;
+    }
     return ((props.data.mrr - props.previousMRR) / props.previousMRR) * 100;
   });
 
   const avgTransactionValue = createMemo(() => {
     const recent = props.data.monthly_revenue?.[0];
-    if (!recent || recent.transactions === 0) {return 0;}
+    if (!recent || recent.transactions === 0) {
+      return 0;
+    }
     return Math.round(recent.revenue / recent.transactions);
   });
 
@@ -127,7 +137,9 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = props => {
   );
 
   const defaultTiers = createMemo<RevenueByTier[]>(() => {
-    if (props.revenueByTier) {return props.revenueByTier;}
+    if (props.revenueByTier) {
+      return props.revenueByTier;
+    }
     const mrr = props.data.mrr || 0;
     return [
       {
@@ -151,18 +163,30 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = props => {
               <div class="bg-aurora-500/20 rounded-xl p-3">
                 <DollarSign size={20} class="text-aurora-400" />
               </div>
-              <Show when={mrrChange() !== null}>
-                <div
-                  class="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black"
-                  style={{
-                    color: mrrChange()! >= 0 ? 'var(--color-aurora-400)' : 'var(--color-flare-400)',
-                    background:
-                      mrrChange()! >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                  }}
-                >
-                  {mrrChange()! >= 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                  <span class="tabular-nums">{Math.abs(mrrChange()!).toFixed(1)}%</span>
-                </div>
+              <Show
+                when={(() => {
+                  const change = mrrChange();
+                  return change === null ? undefined : { value: change };
+                })()}
+              >
+                {change => (
+                  <div
+                    class="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black"
+                    style={{
+                      color:
+                        change().value >= 0 ? 'var(--color-aurora-400)' : 'var(--color-flare-400)',
+                      background:
+                        change().value >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    }}
+                  >
+                    {change().value >= 0 ? (
+                      <ArrowUpRight size={10} />
+                    ) : (
+                      <ArrowDownRight size={10} />
+                    )}
+                    <span class="tabular-nums">{Math.abs(change().value).toFixed(1)}%</span>
+                  </div>
+                )}
               </Show>
             </div>
             <p class="text-aurora-400/60 text-[10px] font-black tracking-widest uppercase">
@@ -372,49 +396,49 @@ export const RevenueDashboard: Component<RevenueDashboardProps> = props => {
             </For>
           </div>
 
-          <Show when={props.growthRate !== undefined}>
-            <div class="mt-8 border-t border-white/5 pt-6">
-              <div
-                class="flex items-center gap-3 rounded-xl p-4"
-                style={{
-                  background:
-                    props.growthRate! >= 0
-                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), transparent)'
-                      : 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent)',
-                }}
-              >
+          <Show when={props.growthRate === undefined ? undefined : { rate: props.growthRate }}>
+            {growth => (
+              <div class="mt-8 border-t border-white/5 pt-6">
                 <div
-                  class="rounded-xl p-2"
+                  class="flex items-center gap-3 rounded-xl p-4"
                   style={{
                     background:
-                      props.growthRate! >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                      growth().rate >= 0
+                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), transparent)'
+                        : 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent)',
                   }}
                 >
-                  {props.growthRate! >= 0 ? (
-                    <Sparkles size={16} class="text-aurora-400" />
-                  ) : (
-                    <TrendingDown size={16} class="text-flare-400" />
-                  )}
-                </div>
-                <div>
-                  <p class="text-nebula-500 text-[10px] font-black tracking-widest uppercase">
-                    Growth Rate
-                  </p>
-                  <p
-                    class="text-lg font-black"
+                  <div
+                    class="rounded-xl p-2"
                     style={{
-                      color:
-                        props.growthRate! >= 0
-                          ? 'var(--color-aurora-400)'
-                          : 'var(--color-flare-400)',
+                      background:
+                        growth().rate >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
                     }}
                   >
-                    {props.growthRate! >= 0 ? '+' : ''}
-                    {props.growthRate!.toFixed(1)}%
-                  </p>
+                    {growth().rate >= 0 ? (
+                      <Sparkles size={16} class="text-aurora-400" />
+                    ) : (
+                      <TrendingDown size={16} class="text-flare-400" />
+                    )}
+                  </div>
+                  <div>
+                    <p class="text-nebula-500 text-[10px] font-black tracking-widest uppercase">
+                      Growth Rate
+                    </p>
+                    <p
+                      class="text-lg font-black"
+                      style={{
+                        color:
+                          growth().rate >= 0 ? 'var(--color-aurora-400)' : 'var(--color-flare-400)',
+                      }}
+                    >
+                      {growth().rate >= 0 ? '+' : ''}
+                      {growth().rate.toFixed(1)}%
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </Show>
         </div>
       </div>

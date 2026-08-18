@@ -353,7 +353,7 @@ export const ComparisonChart: Component<ComparisonChartProps> = props => {
             </div>
           </div>
           <Show when={props.onPeriodChange}>
-            <PeriodSelector value={props.period} onChange={props.onPeriodChange!} />
+            {onPeriodChange => <PeriodSelector value={props.period} onChange={onPeriodChange()} />}
           </Show>
         </div>
 
@@ -433,7 +433,7 @@ export const ComparisonChart: Component<ComparisonChartProps> = props => {
         </div>
 
         <Show
-          when={props.dualAxis && props.secondaryData}
+          when={props.dualAxis ? props.secondaryData : undefined}
           fallback={
             <ComparisonBars
               data={props.data}
@@ -443,15 +443,17 @@ export const ComparisonChart: Component<ComparisonChartProps> = props => {
             />
           }
         >
-          <DualAxisChart
-            primaryData={props.data}
-            secondaryData={props.secondaryData!}
-            height={height()}
-            primaryPrefix={props.prefix}
-            primaryUnit={props.unit}
-            secondaryPrefix={props.secondaryPrefix}
-            secondaryUnit={props.secondaryUnit}
-          />
+          {secondaryData => (
+            <DualAxisChart
+              primaryData={props.data}
+              secondaryData={secondaryData()}
+              height={height()}
+              primaryPrefix={props.prefix}
+              primaryUnit={props.unit}
+              secondaryPrefix={props.secondaryPrefix}
+              secondaryUnit={props.secondaryUnit}
+            />
+          )}
         </Show>
       </div>
 

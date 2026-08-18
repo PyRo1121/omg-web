@@ -312,6 +312,179 @@ export function isTeamOrEnterpriseTier(tier: string): boolean {
   return tier === 'team' || tier === 'enterprise';
 }
 
+/** Admin flag selected from customers.admin. */
+export const AdminFlagRowSchema = Schema.Struct({
+  admin: Schema.Number,
+});
+export type AdminFlagRow = Schema.Schema.Type<typeof AdminFlagRowSchema>;
+
+/** Admin user-detail customer row. */
+export const AdminCustomerDetailRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  email: Schema.String,
+  company: Schema.optional(NullableString),
+  tier: Schema.optional(NullableString),
+  admin: Schema.optional(Schema.Number),
+  stripe_customer_id: Schema.optional(NullableString),
+  telemetry_opt_out: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
+  created_at: Schema.optional(NullableString),
+  updated_at: Schema.optional(NullableString),
+});
+export type AdminCustomerDetailRow = Schema.Schema.Type<typeof AdminCustomerDetailRowSchema>;
+
+/** Admin user-detail license row. */
+export const AdminLicenseDetailRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  customer_id: Schema.String.pipe(Schema.minLength(1)),
+  license_key: Schema.String,
+  tier: Schema.String,
+  status: Schema.String,
+  max_seats: Schema.optional(NullableNumber),
+  max_machines: Schema.optional(NullableNumber),
+  expires_at: Schema.optional(NullableString),
+  created_at: Schema.optional(NullableString),
+});
+export type AdminLicenseDetailRow = Schema.Schema.Type<typeof AdminLicenseDetailRowSchema>;
+
+/** 7-day growth counts. */
+export const GrowthRowSchema = Schema.Struct({
+  new_users_7d: D1Number,
+  new_paid_7d: D1Number,
+});
+export type GrowthRow = Schema.Schema.Type<typeof GrowthRowSchema>;
+
+/** Hours-saved aggregate. */
+export const HoursSavedRowSchema = Schema.Struct({
+  total_hours: D1Number,
+});
+export type HoursSavedRow = Schema.Schema.Type<typeof HoursSavedRowSchema>;
+
+/** Install-to-power-user funnel. */
+export const FunnelRowSchema = Schema.Struct({
+  installs: D1Number,
+  activated: D1Number,
+  power_users: D1Number,
+});
+export type FunnelRow = Schema.Schema.Type<typeof FunnelRowSchema>;
+
+/** Churn-risk COUNT. */
+export const AtRiskRowSchema = Schema.Struct({
+  at_risk_users: D1Number,
+});
+export type AtRiskRow = Schema.Schema.Type<typeof AtRiskRowSchema>;
+
+/** Retention rate percent. */
+export const RateRowSchema = Schema.Struct({
+  rate: D1Number,
+});
+export type RateRow = Schema.Schema.Type<typeof RateRowSchema>;
+
+/** Performance latency aggregates. */
+export const PerformanceStatsRowSchema = Schema.Struct({
+  avg_ms: D1Number,
+  min_ms: D1Number,
+  max_ms: D1Number,
+  count: D1Number,
+});
+export type PerformanceStatsRow = Schema.Schema.Type<typeof PerformanceStatsRowSchema>;
+
+/** Session telemetry aggregates. */
+export const SessionStatsRowSchema = Schema.Struct({
+  total_sessions: D1Number,
+  sessions_started: D1Number,
+  heartbeats_sent: D1Number,
+  avg_duration_seconds: D1Number,
+  max_duration_seconds: D1Number,
+});
+export type SessionStatsRow = Schema.Schema.Type<typeof SessionStatsRowSchema>;
+
+/** Lifecycle-stage funnel counts. */
+export const JourneyRowSchema = Schema.Struct({
+  installed: D1Number,
+  activated: D1Number,
+  first_command: D1Number,
+  exploring: D1Number,
+  engaged: D1Number,
+  power_user: D1Number,
+});
+export type JourneyRow = Schema.Schema.Type<typeof JourneyRowSchema>;
+
+/** 30-day feature adoption SUMs/COUNTs. */
+export const FeatureAdoptionRowSchema = Schema.Struct({
+  total_installs: D1Number,
+  total_searches: D1Number,
+  total_runtime_switches: D1Number,
+  install_adopters: D1Number,
+  search_adopters: D1Number,
+  runtime_adopters: D1Number,
+  total_active_users: D1Number,
+});
+export type FeatureAdoptionRow = Schema.Schema.Type<typeof FeatureAdoptionRowSchema>;
+
+/** Time-to-first-command averages. */
+export const TimeToValueRowSchema = Schema.Struct({
+  avg_days_to_activation: D1Number,
+  pct_activated_week1: D1Number,
+});
+export type TimeToValueRow = Schema.Schema.Type<typeof TimeToValueRowSchema>;
+
+/** Persisted customer health score row. */
+export const CustomerHealthRowSchema = Schema.Struct({
+  customer_id: Schema.String,
+  overall_score: D1Number,
+  engagement_score: D1Number,
+  activation_score: D1Number,
+  growth_score: D1Number,
+  risk_score: D1Number,
+  lifecycle_stage: Schema.String,
+  updated_at: Schema.optional(NullableString),
+});
+export type CustomerHealthRow = Schema.Schema.Type<typeof CustomerHealthRowSchema>;
+
+/** Privacy export customer profile. */
+export const PrivacyProfileRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  email: Schema.optional(NullableString),
+  company: Schema.optional(NullableString),
+  tier: Schema.optional(NullableString),
+  stripe_customer_id: Schema.optional(NullableString),
+  created_at: Schema.optional(NullableString),
+});
+export type PrivacyProfileRow = Schema.Schema.Type<typeof PrivacyProfileRowSchema>;
+
+/** Stripe webhook customer lookup. */
+export const BillingCustomerRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  email: Schema.optional(NullableString),
+  stripe_customer_id: Schema.optional(NullableString),
+});
+export type BillingCustomerRow = Schema.Schema.Type<typeof BillingCustomerRowSchema>;
+
+/** Admin-insights platform totals. */
+export const InsightsStatsRowSchema = Schema.Struct({
+  users: D1Number,
+  cmds: D1Number,
+  time_ms: D1Number,
+  top_error: Schema.optional(NullableString),
+  version_drift_count: D1Number,
+});
+export type InsightsStatsRow = Schema.Schema.Type<typeof InsightsStatsRowSchema>;
+
+/** Team-insights usage SUMs. */
+export const InsightsUsageRowSchema = Schema.Struct({
+  cmds: D1Number,
+  time: D1Number,
+});
+export type InsightsUsageRow = Schema.Schema.Type<typeof InsightsUsageRowSchema>;
+
+/** Team-insights product SUMs. */
+export const InsightsProductRowSchema = Schema.Struct({
+  searches: D1Number,
+  installs: D1Number,
+  runtime_switches: D1Number,
+});
+export type InsightsProductRow = Schema.Schema.Type<typeof InsightsProductRowSchema>;
+
 /**
  * Decode stored firehose properties JSON.
  *
@@ -388,4 +561,17 @@ export function decodeOptionalExtraRow<S extends Schema.Schema.AnyNoContext>(
   value: unknown
 ): Effect.Effect<Schema.Schema.Type<S> | undefined> {
   return decodeExtraRow(schema, reason, value).pipe(Effect.orElseSucceed(() => undefined));
+}
+
+/**
+ * Whether a customers.admin flag row authorizes admin APIs.
+ *
+ * @param row - The `.first()` result from `SELECT admin`.
+ * @returns True only when admin is exactly 1.
+ */
+export async function customerIsAdmin(row: unknown): Promise<boolean> {
+  const decoded = await Effect.runPromise(
+    decodeOptionalExtraRow(AdminFlagRowSchema, 'Admin flag row has an invalid shape', row)
+  );
+  return decoded?.admin === 1;
 }

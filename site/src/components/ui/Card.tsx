@@ -43,7 +43,9 @@ export const Card: Component<CardProps> = props => {
       } ${props.onClick ? 'cursor-pointer' : ''} ${props.class || ''}`}
       onClick={props.onClick}
       onKeyDown={e => {
-        if (props.onClick && (e.key === 'Enter' || e.key === ' ')) {props.onClick();}
+        if (props.onClick && (e.key === 'Enter' || e.key === ' ')) {
+          props.onClick();
+        }
       }}
       tabIndex={props.onClick ? 0 : undefined}
     >
@@ -85,11 +87,13 @@ export const StatCard: Component<StatCardProps> = props => {
           <div class="mb-1 flex items-center gap-2">
             <span class="text-sm font-medium text-slate-400">{props.label}</span>
             <Show when={props.trend}>
-              <TrendIndicator
-                value={props.trend!.positive ? 100 + props.trend!.value : 100 - props.trend!.value}
-                previousValue={100}
-                size="sm"
-              />
+              {trend => (
+                <TrendIndicator
+                  value={trend().positive ? 100 + trend().value : 100 - trend().value}
+                  previousValue={100}
+                  size="sm"
+                />
+              )}
             </Show>
           </div>
           <div
@@ -103,14 +107,22 @@ export const StatCard: Component<StatCardProps> = props => {
           <div class="rounded-xl bg-white/5 p-3 text-2xl backdrop-blur-sm transition-transform hover:scale-110">
             {props.icon}
           </div>
-          <Show when={props.sparklineData && props.sparklineData.length > 0}>
-            <Sparkline
-              data={props.sparklineData!}
-              width={80}
-              height={24}
-              color={sparklineColor()}
-              showDots
-            />
+          <Show
+            when={
+              props.sparklineData && props.sparklineData.length > 0
+                ? props.sparklineData
+                : undefined
+            }
+          >
+            {sparklineData => (
+              <Sparkline
+                data={sparklineData()}
+                width={80}
+                height={24}
+                color={sparklineColor()}
+                showDots
+              />
+            )}
           </Show>
         </div>
       </div>
@@ -147,7 +159,9 @@ export const MetricCard: Component<MetricCardProps> = props => {
       }`}
       onClick={props.onClick}
       onKeyDown={e => {
-        if (props.onClick && (e.key === 'Enter' || e.key === ' ')) {props.onClick();}
+        if (props.onClick && (e.key === 'Enter' || e.key === ' ')) {
+          props.onClick();
+        }
       }}
       tabIndex={props.onClick ? 0 : undefined}
     >
@@ -160,22 +174,32 @@ export const MetricCard: Component<MetricCardProps> = props => {
               {props.title}
             </span>
             <Show when={props.badge}>
-              <span
-                class={`rounded-full border px-2 py-0.5 text-[9px] font-black tracking-tighter uppercase ${badgeColors[props.badge!.color]}`}
-              >
-                {props.badge!.text}
-              </span>
+              {badge => (
+                <span
+                  class={`rounded-full border px-2 py-0.5 text-[9px] font-black tracking-tighter uppercase ${badgeColors[badge().color]}`}
+                >
+                  {badge().text}
+                </span>
+              )}
             </Show>
           </div>
 
           <div class="mt-4 flex items-baseline gap-3">
             <span class="text-4xl font-black tracking-tight text-white">{props.value}</span>
-            <Show when={props.previousValue !== undefined && props.currentValue !== undefined}>
-              <TrendIndicator
-                value={props.currentValue!}
-                previousValue={props.previousValue!}
-                size="sm"
-              />
+            <Show
+              when={
+                props.previousValue !== undefined && props.currentValue !== undefined
+                  ? { current: props.currentValue, previous: props.previousValue }
+                  : undefined
+              }
+            >
+              {values => (
+                <TrendIndicator
+                  value={values().current}
+                  previousValue={values().previous}
+                  size="sm"
+                />
+              )}
             </Show>
           </div>
 
@@ -195,17 +219,25 @@ export const MetricCard: Component<MetricCardProps> = props => {
             </div>
           </Show>
 
-          <Show when={props.sparklineData && props.sparklineData.length > 0}>
-            <div class="opacity-50 transition-opacity duration-500 group-hover:opacity-100">
-              <Sparkline
-                data={props.sparklineData!}
-                width={80}
-                height={32}
-                color={props.sparklineColor || '#6366f1'}
-                showDots
-                strokeWidth={2.5}
-              />
-            </div>
+          <Show
+            when={
+              props.sparklineData && props.sparklineData.length > 0
+                ? props.sparklineData
+                : undefined
+            }
+          >
+            {sparklineData => (
+              <div class="opacity-50 transition-opacity duration-500 group-hover:opacity-100">
+                <Sparkline
+                  data={sparklineData()}
+                  width={80}
+                  height={32}
+                  color={props.sparklineColor || '#6366f1'}
+                  showDots
+                  strokeWidth={2.5}
+                />
+              </div>
+            )}
           </Show>
         </div>
       </div>

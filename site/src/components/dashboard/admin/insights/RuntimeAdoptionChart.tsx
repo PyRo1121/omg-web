@@ -119,10 +119,13 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props 
       <div
         class="absolute -top-20 -right-20 h-40 w-40 rounded-full opacity-15 blur-3xl transition-all duration-500"
         style={{
-          background:
-            hoveredIndex() !== null
-              ? getColorForRuntime(displayedRuntimes()[hoveredIndex()!]?.runtime ?? '').glow
-              : 'var(--color-photon-500)',
+          background: (() => {
+            const hovered = hoveredIndex();
+            if (hovered === null) {
+              return 'var(--color-photon-500)';
+            }
+            return getColorForRuntime(displayedRuntimes()[hovered]?.runtime ?? '').glow;
+          })(),
         }}
       />
 

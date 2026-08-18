@@ -235,14 +235,24 @@ const ThresholdVisualizer: Component<{
 
   const getZoneClass = () => {
     const value = props.currentValue;
-    if (value === undefined) {return 'normal';}
+    if (value === undefined) {
+      return 'normal';
+    }
 
     const { criticalMin, criticalMax, warningMin, warningMax } = props.threshold;
 
-    if (criticalMin !== undefined && value <= criticalMin) {return 'critical';}
-    if (criticalMax !== undefined && value >= criticalMax) {return 'critical';}
-    if (warningMin !== undefined && value <= warningMin) {return 'warning';}
-    if (warningMax !== undefined && value >= warningMax) {return 'warning';}
+    if (criticalMin !== undefined && value <= criticalMin) {
+      return 'critical';
+    }
+    if (criticalMax !== undefined && value >= criticalMax) {
+      return 'critical';
+    }
+    if (warningMin !== undefined && value <= warningMin) {
+      return 'warning';
+    }
+    if (warningMax !== undefined && value >= warningMax) {
+      return 'warning';
+    }
 
     return 'normal';
   };
@@ -252,26 +262,42 @@ const ThresholdVisualizer: Component<{
   return (
     <div class="space-y-3">
       <div class="bg-void-800 relative h-8 overflow-hidden rounded-xl">
-        <Show when={props.threshold.criticalMin !== undefined}>
-          <div
-            class="bg-alert-threshold-critical-zone absolute top-0 bottom-0"
-            style={{
-              left: '0%',
-              width: `${getPosition(props.threshold.criticalMin!)}%`,
-            }}
-          />
+        <Show
+          when={
+            props.threshold.criticalMin === undefined
+              ? undefined
+              : { value: props.threshold.criticalMin }
+          }
+        >
+          {criticalMin => (
+            <div
+              class="bg-alert-threshold-critical-zone absolute top-0 bottom-0"
+              style={{
+                left: '0%',
+                width: `${getPosition(criticalMin().value)}%`,
+              }}
+            />
+          )}
         </Show>
-        <Show when={props.threshold.warningMin !== undefined}>
-          <div
-            class="bg-alert-threshold-warning-zone absolute top-0 bottom-0"
-            style={{
-              left:
-                props.threshold.criticalMin !== undefined
-                  ? `${getPosition(props.threshold.criticalMin)}%`
-                  : '0%',
-              width: `${getPosition(props.threshold.warningMin!) - (props.threshold.criticalMin !== undefined ? getPosition(props.threshold.criticalMin) : 0)}%`,
-            }}
-          />
+        <Show
+          when={
+            props.threshold.warningMin === undefined
+              ? undefined
+              : { value: props.threshold.warningMin }
+          }
+        >
+          {warningMin => (
+            <div
+              class="bg-alert-threshold-warning-zone absolute top-0 bottom-0"
+              style={{
+                left:
+                  props.threshold.criticalMin !== undefined
+                    ? `${getPosition(props.threshold.criticalMin)}%`
+                    : '0%',
+                width: `${getPosition(warningMin().value) - (props.threshold.criticalMin !== undefined ? getPosition(props.threshold.criticalMin) : 0)}%`,
+              }}
+            />
+          )}
         </Show>
         <div
           class="bg-alert-threshold-normal-zone absolute top-0 bottom-0"
@@ -280,46 +306,66 @@ const ThresholdVisualizer: Component<{
             right: `${100 - getPosition(props.threshold.warningMax ?? props.threshold.criticalMax ?? props.max)}%`,
           }}
         />
-        <Show when={props.threshold.warningMax !== undefined}>
-          <div
-            class="bg-alert-threshold-warning-zone absolute top-0 bottom-0"
-            style={{
-              left: `${getPosition(props.threshold.warningMax!)}%`,
-              width:
-                props.threshold.criticalMax !== undefined
-                  ? `${getPosition(props.threshold.criticalMax) - getPosition(props.threshold.warningMax!)}%`
-                  : `${100 - getPosition(props.threshold.warningMax!)}%`,
-            }}
-          />
+        <Show
+          when={
+            props.threshold.warningMax === undefined
+              ? undefined
+              : { value: props.threshold.warningMax }
+          }
+        >
+          {warningMax => (
+            <div
+              class="bg-alert-threshold-warning-zone absolute top-0 bottom-0"
+              style={{
+                left: `${getPosition(warningMax().value)}%`,
+                width:
+                  props.threshold.criticalMax !== undefined
+                    ? `${getPosition(props.threshold.criticalMax) - getPosition(warningMax().value)}%`
+                    : `${100 - getPosition(warningMax().value)}%`,
+              }}
+            />
+          )}
         </Show>
-        <Show when={props.threshold.criticalMax !== undefined}>
-          <div
-            class="bg-alert-threshold-critical-zone absolute top-0 bottom-0"
-            style={{
-              left: `${getPosition(props.threshold.criticalMax!)}%`,
-              right: '0%',
-            }}
-          />
+        <Show
+          when={
+            props.threshold.criticalMax === undefined
+              ? undefined
+              : { value: props.threshold.criticalMax }
+          }
+        >
+          {criticalMax => (
+            <div
+              class="bg-alert-threshold-critical-zone absolute top-0 bottom-0"
+              style={{
+                left: `${getPosition(criticalMax().value)}%`,
+                right: '0%',
+              }}
+            />
+          )}
         </Show>
-        <Show when={props.currentValue !== undefined}>
-          <div
-            class={cn(
-              'absolute top-0 bottom-0 w-0.5 transition-all duration-500',
-              zone() === 'critical' && 'bg-flare-500 shadow-[0_0_10px_var(--color-flare-500)]',
-              zone() === 'warning' && 'bg-solar-500 shadow-[0_0_10px_var(--color-solar-500)]',
-              zone() === 'normal' && 'bg-aurora-500 shadow-[0_0_10px_var(--color-aurora-500)]'
-            )}
-            style={{ left: `${getPosition(props.currentValue!)}%` }}
-          />
-          <div
-            class={cn(
-              'absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 transition-all duration-500',
-              zone() === 'critical' && 'bg-flare-500 border-flare-400',
-              zone() === 'warning' && 'bg-solar-500 border-solar-400',
-              zone() === 'normal' && 'bg-aurora-500 border-aurora-400'
-            )}
-            style={{ left: `calc(${getPosition(props.currentValue!)}% - 6px)` }}
-          />
+        <Show when={props.currentValue === undefined ? undefined : { value: props.currentValue }}>
+          {current => (
+            <>
+              <div
+                class={cn(
+                  'absolute top-0 bottom-0 w-0.5 transition-all duration-500',
+                  zone() === 'critical' && 'bg-flare-500 shadow-[0_0_10px_var(--color-flare-500)]',
+                  zone() === 'warning' && 'bg-solar-500 shadow-[0_0_10px_var(--color-solar-500)]',
+                  zone() === 'normal' && 'bg-aurora-500 shadow-[0_0_10px_var(--color-aurora-500)]'
+                )}
+                style={{ left: `${getPosition(current().value)}%` }}
+              />
+              <div
+                class={cn(
+                  'absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 transition-all duration-500',
+                  zone() === 'critical' && 'bg-flare-500 border-flare-400',
+                  zone() === 'warning' && 'bg-solar-500 border-solar-400',
+                  zone() === 'normal' && 'bg-aurora-500 border-aurora-400'
+                )}
+                style={{ left: `calc(${getPosition(current().value)}% - 6px)` }}
+              />
+            </>
+          )}
         </Show>
       </div>
       <div class="text-2xs text-nebula-600 flex items-center justify-between font-mono">
@@ -351,14 +397,24 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = props => {
 
   const getZoneClass = () => {
     const value = props.currentValue;
-    if (value === undefined || !props.config.enabled) {return 'normal';}
+    if (value === undefined || !props.config.enabled) {
+      return 'normal';
+    }
 
     const { criticalMin, criticalMax, warningMin, warningMax } = props.config.threshold;
 
-    if (criticalMin !== undefined && value <= criticalMin) {return 'critical';}
-    if (criticalMax !== undefined && value >= criticalMax) {return 'critical';}
-    if (warningMin !== undefined && value <= warningMin) {return 'warning';}
-    if (warningMax !== undefined && value >= warningMax) {return 'warning';}
+    if (criticalMin !== undefined && value <= criticalMin) {
+      return 'critical';
+    }
+    if (criticalMax !== undefined && value >= criticalMax) {
+      return 'critical';
+    }
+    if (warningMin !== undefined && value <= warningMin) {
+      return 'warning';
+    }
+    if (warningMax !== undefined && value >= warningMax) {
+      return 'warning';
+    }
 
     return 'normal';
   };

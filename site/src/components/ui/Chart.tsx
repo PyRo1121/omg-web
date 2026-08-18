@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { For, Show, createSignal } from 'solid-js';
 
 interface BarChartProps {
@@ -86,15 +86,21 @@ export const BarChart: Component<BarChartProps> = props => {
                       </span>
                     </div>
                   </div>
-                  <Show when={item.secondaryValue !== undefined}>
-                    <div class="mt-2 flex items-center gap-2 border-t border-white/5 pt-2 text-[10px] font-bold tracking-wider text-slate-500 uppercase">
-                      <span>Volume:</span>
-                      <span class="text-slate-300 tabular-nums">
-                        {props.secondaryTooltipFormatter
-                          ? props.secondaryTooltipFormatter(item.secondaryValue!, item.label)
-                          : item.secondaryValue}
-                      </span>
-                    </div>
+                  <Show
+                    when={
+                      item.secondaryValue === undefined ? undefined : { value: item.secondaryValue }
+                    }
+                  >
+                    {secondary => (
+                      <div class="mt-2 flex items-center gap-2 border-t border-white/5 pt-2 text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                        <span>Volume:</span>
+                        <span class="text-slate-300 tabular-nums">
+                          {props.secondaryTooltipFormatter
+                            ? props.secondaryTooltipFormatter(secondary().value, item.label)
+                            : secondary().value}
+                        </span>
+                      </div>
+                    )}
                   </Show>
                 </div>
               </Show>
@@ -122,11 +128,19 @@ export const ActivityHeatmap: Component<HeatmapProps> = props => {
   };
 
   const getColor = (value: number) => {
-    if (value === 0) {return 'bg-slate-800/50';}
+    if (value === 0) {
+      return 'bg-slate-800/50';
+    }
     const intensity = value / max();
-    if (intensity < 0.25) {return 'bg-indigo-900/50';}
-    if (intensity < 0.5) {return 'bg-indigo-700/60';}
-    if (intensity < 0.75) {return 'bg-indigo-500/70';}
+    if (intensity < 0.25) {
+      return 'bg-indigo-900/50';
+    }
+    if (intensity < 0.5) {
+      return 'bg-indigo-700/60';
+    }
+    if (intensity < 0.75) {
+      return 'bg-indigo-500/70';
+    }
     return 'bg-indigo-400';
   };
 
@@ -294,13 +308,17 @@ export const AreaChart: Component<AreaChartProps> = props => {
 
   const linePath = () => {
     const pts = points();
-    if (pts.length === 0) {return '';}
+    if (pts.length === 0) {
+      return '';
+    }
     return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ');
   };
 
   const areaPath = () => {
     const pts = points();
-    if (pts.length === 0) {return '';}
+    if (pts.length === 0) {
+      return '';
+    }
     let path = `M ${padding.left},${padding.top + chartHeight}`;
     pts.forEach(p => {
       path += ` L ${p.x},${p.y}`;

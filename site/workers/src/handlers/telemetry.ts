@@ -7,6 +7,7 @@ import {
   SingleTelemetryRequestSchema,
   type TelemetryEvent,
 } from '../contracts/cli-telemetry';
+import { decodeOptionalExtraRow, LicenseCustomerIdRowSchema } from '../contracts/d1-extras';
 
 // ========== Payload Size Limits ==========
 const MAX_EVENT_PAYLOAD_BYTES = 100 * 1024; // 100 KB
@@ -149,13 +150,20 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
     }
 
     // Validate license key
-    const license = await env.DB.prepare(
+    const licenseRow = await env.DB.prepare(
       'SELECT id, customer_id FROM licenses WHERE license_key = ? AND status = "active"'
     )
       .bind(body.license_key)
       .first();
+    const license = await Effect.runPromise(
+      decodeOptionalExtraRow(
+        LicenseCustomerIdRowSchema,
+        'Telemetry license row has an invalid shape',
+        licenseRow
+      )
+    );
 
-    if (!license) {
+    if (license === undefined) {
       return errorResponse('Invalid license key', 401);
     }
 
@@ -320,13 +328,20 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
     }
 
     // Validate license key
-    const license = await env.DB.prepare(
+    const licenseRow = await env.DB.prepare(
       'SELECT id, customer_id FROM licenses WHERE license_key = ? AND status = "active"'
     )
       .bind(licenseKey)
       .first();
+    const license = await Effect.runPromise(
+      decodeOptionalExtraRow(
+        LicenseCustomerIdRowSchema,
+        'Telemetry license row has an invalid shape',
+        licenseRow
+      )
+    );
 
-    if (!license) {
+    if (license === undefined) {
       return errorResponse('Invalid license key', 401);
     }
 

@@ -22,14 +22,28 @@ import {
 } from '../contracts/http-bodies';
 import {
   AdminCountsRowSchema,
+  AdminCustomerDetailRowSchema,
+  AdminLicenseDetailRowSchema,
   AdminUsageTotalsRowSchema,
+  AtRiskRowSchema,
   AuditCsvRowSchema,
   CommandStatsRowSchema,
   CountRowSchema,
   CurrentMrrRowSchema,
+  CustomerHealthRowSchema,
+  customerIsAdmin,
   decodeExtraRowArray,
   decodeOptionalExtraRow,
+  FeatureAdoptionRowSchema,
+  FunnelRowSchema,
   GlobalUsageRowSchema,
+  GrowthRowSchema,
+  HoursSavedRowSchema,
+  JourneyRowSchema,
+  PerformanceStatsRowSchema,
+  RateRowSchema,
+  SessionStatsRowSchema,
+  TimeToValueRowSchema,
   TierCountRowSchema,
   UsageCsvRowSchema,
 } from '../contracts/d1-extras';
@@ -102,7 +116,7 @@ async function validateAdmin(
     .bind(auth.user.id)
     .first();
 
-  if (adminCheck?.admin !== 1) {
+  if (!(await customerIsAdmin(adminCheck))) {
     await logAdminAudit(env.DB, {
       action: 'admin.unauthorized_access',
       userId: auth.user.id,
@@ -379,22 +393,35 @@ export async function handleAdminUserDetail(request: Request, env: Env): Promise
     return errorResponse('User ID required');
   }
 
-  const user = await env.DB.prepare(
+  const userRow = await env.DB.prepare(
     `SELECT id, email, company, tier, admin, stripe_customer_id, telemetry_opt_out, created_at, updated_at FROM customers WHERE id = ?`
   )
     .bind(userId)
     .first();
-  if (!user) {
+  const user = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      AdminCustomerDetailRowSchema,
+      'Admin customer detail has an invalid shape',
+      userRow
+    )
+  );
+  if (user === undefined) {
     return errorResponse('User not found', 404);
   }
 
-  const license = await env.DB.prepare(
+  const licenseRow = await env.DB.prepare(
     `SELECT id, customer_id, license_key, tier, status, max_seats, max_machines, expires_at, created_at FROM licenses WHERE customer_id = ?`
   )
     .bind(userId)
     .first();
-
-  if (!license) {
+  const license = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      AdminLicenseDetailRowSchema,
+      'Admin license detail has an invalid shape',
+      licenseRow
+    )
+  );
+  if (license === undefined) {
     return errorResponse('License not found for user', 404);
   }
 
@@ -558,33 +585,85 @@ export async function handleAdminAnalytics(request: Request, env: Env): Promise<
   const topErrors = await env.DB.prepare(
     `SELECT json_extract(properties, '$.error_type') as error_type, COUNT(*) as count FROM analytics_events WHERE event_type = 'error' GROUP BY 1 ORDER BY 2 DESC LIMIT 10`
   ).all();
-  const growth = await env.DB.prepare(
+  const growthRow = await env.DB.prepare(
     `SELECT (SELECT COUNT(*) FROM customers WHERE created_at >= datetime('now', '-7 days')) as new_users_7d, (SELECT COUNT(*) FROM subscriptions WHERE status = 'active' AND created_at >= datetime('now', '-7 days')) as new_paid_7d`
   ).first();
-  const timeSaved = await env.DB.prepare(
+  const timeSavedRow = await env.DB.prepare(
     `SELECT SUM(time_saved_ms) / 3600000.0 as total_hours FROM usage_daily`
   ).first();
-  const funnel = await env.DB.prepare(
+  const funnelRow = await env.DB.prepare(
     `SELECT (SELECT COUNT(*) FROM install_stats WHERE created_at >= datetime('now', '-30 days')) as installs, (SELECT COUNT(DISTINCT u.license_id) FROM usage_daily u WHERE u.date >= datetime('now', '-30 days') AND u.commands_run > 0) as activated, (SELECT COUNT(DISTINCT u.license_id) FROM usage_daily u WHERE u.date >= datetime('now', '-30 days') GROUP BY u.license_id HAVING SUM(u.commands_run) > 1000) as power_users`
   ).first();
-  const churnRisk = await env.DB.prepare(
+  const churnRiskRow = await env.DB.prepare(
     `SELECT COUNT(*) as at_risk_users FROM (SELECT l.customer_id, (SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-3 days')) as cmds_3d, (SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-10 days') AND date < date('now', '-3 days')) as cmds_prev_7d FROM licenses l WHERE l.status = 'active' HAVING (COALESCE(cmds_prev_7d, 0) > 10 AND (COALESCE(cmds_3d, 0) / 3.0) / (COALESCE(cmds_prev_7d, 0) / 7.0 + 0.001) < 0.2) OR (SELECT MAX(date) FROM usage_daily WHERE license_id = l.id) < date('now', '-7 days'))`
   ).first();
-  const retentionRate = await env.DB.prepare(
+  const retentionRateRow = await env.DB.prepare(
     `SELECT CASE WHEN (SELECT COUNT(*) FROM customers WHERE created_at >= datetime('now', '-90 days')) = 0 THEN 0 ELSE CAST((SELECT COUNT(DISTINCT u.license_id) FROM usage_daily u WHERE u.date >= datetime('now', '-7 days')) * 100.0 / (SELECT COUNT(*) FROM customers WHERE created_at >= datetime('now', '-90 days')) AS INTEGER) END as rate`
   ).first();
-  const performance = await env.DB.prepare(
+  const performanceRow = await env.DB.prepare(
     `SELECT AVG(duration_ms) as avg_ms, MIN(duration_ms) as min_ms, MAX(duration_ms) as max_ms, COUNT(*) as count FROM analytics_events WHERE event_type = 'performance' AND created_at >= datetime('now', '-7 days')`
   ).first();
-  const sessions = await env.DB.prepare(
+  const sessionsRow = await env.DB.prepare(
     `SELECT COUNT(DISTINCT session_id) as total_sessions, COUNT(CASE WHEN event_type = 'session_start' THEN 1 END) as sessions_started, COUNT(CASE WHEN event_type = 'heartbeat' THEN 1 END) as heartbeats_sent, AVG(CASE WHEN event_type = 'session_end' THEN json_extract(properties, '$.duration_seconds') END) as avg_duration_seconds, MAX(CASE WHEN event_type = 'session_end' THEN json_extract(properties, '$.duration_seconds') END) as max_duration_seconds FROM analytics_events WHERE event_type IN ('session_start', 'heartbeat', 'session_end') AND created_at >= datetime('now', '-30 days')`
   ).first();
-  const userJourney = await env.DB.prepare(
+  const userJourneyRow = await env.DB.prepare(
     `WITH latest_stages AS (SELECT customer_id, MAX(CASE json_extract(properties, '$.to_stage') WHEN 'installed' THEN 1 WHEN 'activated' THEN 2 WHEN 'first_command' THEN 3 WHEN 'exploring' THEN 4 WHEN 'engaged' THEN 5 WHEN 'power_user' THEN 6 WHEN 'at_risk' THEN 7 WHEN 'churned' THEN 8 ELSE 0 END) as stage_order FROM analytics_events WHERE event_type = 'feature' AND event_name = 'stage_transition' AND created_at >= datetime('now', '-30 days') GROUP BY customer_id) SELECT SUM(CASE WHEN stage_order = 1 THEN 1 END) as installed, SUM(CASE WHEN stage_order = 2 THEN 1 END) as activated, SUM(CASE WHEN stage_order = 3 THEN 1 END) as first_command, SUM(CASE WHEN stage_order = 4 THEN 1 END) as exploring, SUM(CASE WHEN stage_order = 5 THEN 1 END) as engaged, SUM(CASE WHEN stage_order = 6 THEN 1 END) as power_user FROM latest_stages`
   ).first();
   const runtimeUsage = await env.DB.prepare(
     `SELECT json_extract(properties, '$.runtime') as runtime, COUNT(*) as count, COUNT(DISTINCT machine_id) as machines FROM analytics_events WHERE (event_name = 'runtime_switch' OR event_name = 'runtime_use') AND created_at >= datetime('now', '-30 days') GROUP BY 1 ORDER BY 2 DESC`
   ).all();
+
+  const [growth, timeSaved, funnel, churnRisk, retentionRate, performance, sessions, userJourney] =
+    await Promise.all([
+      Effect.runPromise(
+        decodeOptionalExtraRow(GrowthRowSchema, 'Admin growth row has an invalid shape', growthRow)
+      ),
+      Effect.runPromise(
+        decodeOptionalExtraRow(
+          HoursSavedRowSchema,
+          'Admin hours-saved row has an invalid shape',
+          timeSavedRow
+        )
+      ),
+      Effect.runPromise(
+        decodeOptionalExtraRow(FunnelRowSchema, 'Admin funnel row has an invalid shape', funnelRow)
+      ),
+      Effect.runPromise(
+        decodeOptionalExtraRow(
+          AtRiskRowSchema,
+          'Admin at-risk row has an invalid shape',
+          churnRiskRow
+        )
+      ),
+      Effect.runPromise(
+        decodeOptionalExtraRow(
+          RateRowSchema,
+          'Admin retention rate row has an invalid shape',
+          retentionRateRow
+        )
+      ),
+      Effect.runPromise(
+        decodeOptionalExtraRow(
+          PerformanceStatsRowSchema,
+          'Admin performance row has an invalid shape',
+          performanceRow
+        )
+      ),
+      Effect.runPromise(
+        decodeOptionalExtraRow(
+          SessionStatsRowSchema,
+          'Admin session stats row has an invalid shape',
+          sessionsRow
+        )
+      ),
+      Effect.runPromise(
+        decodeOptionalExtraRow(
+          JourneyRowSchema,
+          'Admin journey row has an invalid shape',
+          userJourneyRow
+        )
+      ),
+    ]);
 
   return secureJsonResponse({
     request_id: context.requestId,
@@ -948,6 +1027,20 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
     )
   );
   const currentMrr = revenueRow?.current_mrr || 0;
+  const featureAdoptionRow = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      FeatureAdoptionRowSchema,
+      'Admin feature adoption row has an invalid shape',
+      featureAdoption
+    )
+  );
+  const timeToValueRow = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      TimeToValueRowSchema,
+      'Admin time-to-value row has an invalid shape',
+      timeToValue
+    )
+  );
 
   return secureJsonResponse({
     request_id: context.requestId,
@@ -959,12 +1052,12 @@ export async function handleAdminAdvancedMetrics(request: Request, env: Env): Pr
     },
     retention: { cohorts: retentionCohorts.results || [] },
     ltv_by_tier: ltv.results || [],
-    feature_adoption: featureAdoption,
+    feature_adoption: featureAdoptionRow,
     command_heatmap: commandHeatmap.results || [],
     runtime_adoption: runtimeAdoption.results || [],
     churn_risk_segments: churnRiskSegments.results || [],
     expansion_opportunities: expansionOpportunities.results || [],
-    time_to_value: timeToValue,
+    time_to_value: timeToValueRow,
     revenue_metrics: {
       current_mrr: currentMrr,
       projected_arr: currentMrr * 12,
@@ -1310,13 +1403,20 @@ export async function handleAdminGetCustomerHealth(request: Request, env: Env): 
     return errorResponse('Customer ID required', 400);
   }
 
-  const health = await env.DB.prepare(
+  const healthRow = await env.DB.prepare(
     `SELECT customer_id, overall_score, engagement_score, activation_score, growth_score, risk_score, lifecycle_stage, updated_at FROM customer_health WHERE customer_id = ?`
   )
     .bind(customerId)
     .first();
+  const health = await Effect.runPromise(
+    decodeOptionalExtraRow(
+      CustomerHealthRowSchema,
+      'Customer health row has an invalid shape',
+      healthRow
+    )
+  );
 
-  if (!health) {
+  if (health === undefined) {
     return secureJsonResponse({
       request_id: context.requestId,
       health: {

@@ -19,7 +19,9 @@ export const Sparkline: Component<SparklineProps> = props => {
 
   const points = () => {
     const data = props.data || [];
-    if (data.length === 0) {return '';}
+    if (data.length === 0) {
+      return '';
+    }
 
     const max = Math.max(...data, 1);
     const min = Math.min(...data, 0);
@@ -39,7 +41,9 @@ export const Sparkline: Component<SparklineProps> = props => {
 
   const areaPath = () => {
     const data = props.data || [];
-    if (data.length === 0) {return '';}
+    if (data.length === 0) {
+      return '';
+    }
 
     const max = Math.max(...data, 1);
     const min = Math.min(...data, 0);
@@ -54,7 +58,9 @@ export const Sparkline: Component<SparklineProps> = props => {
       return { x, y };
     });
 
-    if (pts.length === 0) {return '';}
+    if (pts.length === 0) {
+      return '';
+    }
 
     let path = `M ${pts[0].x},${height - padding}`;
     pts.forEach(pt => {
@@ -67,7 +73,9 @@ export const Sparkline: Component<SparklineProps> = props => {
 
   const lastPoint = () => {
     const data = props.data || [];
-    if (data.length === 0) {return null;}
+    if (data.length === 0) {
+      return null;
+    }
 
     const max = Math.max(...data, 1);
     const min = Math.min(...data, 0);
@@ -111,25 +119,25 @@ export const Sparkline: Component<SparklineProps> = props => {
         stroke-linejoin="round"
         class="transition-all duration-500"
       />
-      {props.showDots && lastPoint() && (
-        <g>
-          <circle
-            cx={lastPoint()!.x}
-            cy={lastPoint()!.y}
-            r="4"
-            fill={color}
-            class="animate-pulse"
-          />
-          <circle
-            cx={lastPoint()!.x}
-            cy={lastPoint()!.y}
-            r="6"
-            fill={color}
-            opacity="0.3"
-            class="animate-ping"
-          />
-        </g>
-      )}
+      {(() => {
+        const point = lastPoint();
+        if (!props.showDots || point === null) {
+          return null;
+        }
+        return (
+          <g>
+            <circle cx={point.x} cy={point.y} r="4" fill={color} class="animate-pulse" />
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r="6"
+              fill={color}
+              opacity="0.3"
+              class="animate-ping"
+            />
+          </g>
+        );
+      })()}
     </svg>
   );
 };
@@ -200,7 +208,9 @@ interface TrendIndicatorProps {
 
 export const TrendIndicator: Component<TrendIndicatorProps> = props => {
   const change = () => {
-    if (props.previousValue === 0) {return props.value > 0 ? 100 : 0;}
+    if (props.previousValue === 0) {
+      return props.value > 0 ? 100 : 0;
+    }
     return ((props.value - props.previousValue) / props.previousValue) * 100;
   };
 

@@ -492,11 +492,16 @@ export const TaskCard: Component<TaskCardProps> = props => {
               {props.task.dueDate}
             </span>
             <Show when={props.task.priority}>
-              <span
-                class={cn('text-2xs font-bold uppercase', priorityColors[props.task.priority!])}
-              >
-                {props.task.priority}
-              </span>
+              {priority => (
+                <span
+                  class={cn(
+                    'text-2xs font-bold uppercase',
+                    valueForKey(Object.entries(priorityColors), priority())
+                  )}
+                >
+                  {priority()}
+                </span>
+              )}
             </Show>
           </div>
         </div>
@@ -641,27 +646,27 @@ export const CustomerCard: Component<CustomerCardProps> = props => {
         <span class={cn('text-sm font-bold tabular-nums', healthColor())}>{props.healthScore}</span>
       </div>
 
-      <Show when={props.tags && props.tags.length > 0}>
-        <div class="mb-3 flex flex-wrap gap-1.5">
-          <For each={props.tags!.slice(0, 3)}>
-            {tag => (
-              <span
-                class="text-2xs rounded-full px-2 py-0.5 font-medium"
-                style={{
-                  'background-color': `${tag.color}15`,
-                  color: tag.color,
-                }}
-              >
-                {tag.name}
-              </span>
-            )}
-          </For>
-          <Show when={props.tags!.length > 3}>
-            <span class="text-2xs bg-void-700 text-nebula-500 rounded-full px-2 py-0.5 font-medium">
-              +{props.tags!.length - 3}
-            </span>
-          </Show>
-        </div>
+      <Show when={props.tags && props.tags.length > 0 ? props.tags : undefined}>
+        {tags => (
+          <div class="mb-3 flex flex-wrap gap-1.5">
+            <For each={tags().slice(0, 3)}>
+              {tag => (
+                <span
+                  class="text-2xs rounded-full px-2 py-0.5 font-medium"
+                  style={{
+                    'background-color': `${tag.color}15`,
+                    color: tag.color,
+                  }}
+                >
+                  {tag.name}
+                </span>
+              )}
+            </For>
+            <Show when={tags().length > 3}>
+              <span class="text-nebula-500 text-2xs">+{tags().length - 3}</span>
+            </Show>
+          </div>
+        )}
       </Show>
 
       <Show when={props.lastActive}>

@@ -11,7 +11,13 @@ import { Schema } from '@effect/schema';
 import { decodeJsonBody } from '../body';
 import { EmailAddress } from '../contracts/admin-session';
 import { forbiddenUnlessAdminSession } from '../admin-auth';
-import { decodeOptionalExtraRow, StripeCustomerIdRowSchema } from '../contracts/d1-extras';
+import {
+  decodeOptionalExtraRow,
+  StripeCustomerIdRowSchema,
+  BillingCustomerRowSchema,
+  customerIsAdmin,
+  IdRowSchema,
+} from '../contracts/d1-extras';
 import {
   decodeStripeJson,
   decodeStripeWebhookText,
@@ -267,13 +273,20 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const customerId = subscription.customer;
       const status = subscription.status;
 
-      let customer = await env.DB.prepare(
+      const customerRow = await env.DB.prepare(
         'SELECT id, email, stripe_customer_id FROM customers WHERE stripe_customer_id = ?'
       )
         .bind(customerId)
         .first();
+      let customer = await Effect.runPromise(
+        decodeOptionalExtraRow(
+          BillingCustomerRowSchema,
+          'Billing customer row has an invalid shape',
+          customerRow
+        )
+      );
 
-      if (!customer) {
+      if (customer === undefined) {
         const stripeCustomerResponse = await fetch(
           `https://api.stripe.com/v1/customers/${customerId}`,
           {
@@ -315,13 +328,20 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
         .run();
 
       if (status === 'active') {
-        const existingLicense = await env.DB.prepare(
+        const existingLicenseRow = await env.DB.prepare(
           'SELECT id FROM licenses WHERE customer_id = ?'
         )
           .bind(customer.id)
           .first();
+        const existingLicense = await Effect.runPromise(
+          decodeOptionalExtraRow(
+            IdRowSchema,
+            'Billing license id row has an invalid shape',
+            existingLicenseRow
+          )
+        );
 
-        if (existingLicense) {
+        if (existingLicense !== undefined) {
           await env.DB.prepare(
             `
             UPDATE licenses SET expires_at = datetime(?, 'unixepoch'), status = 'active' WHERE customer_id = ?
@@ -348,11 +368,20 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const subscription = event.data.object;
       const customerId = subscription.customer;
 
-      const customer = await env.DB.prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
+      const customerRow = await env.DB.prepare(
+        'SELECT id FROM customers WHERE stripe_customer_id = ?'
+      )
         .bind(customerId)
         .first();
+      const customer = await Effect.runPromise(
+        decodeOptionalExtraRow(
+          IdRowSchema,
+          'Billing customer id row has an invalid shape',
+          customerRow
+        )
+      );
 
-      if (customer) {
+      if (customer !== undefined) {
         await env.DB.prepare(`UPDATE licenses SET status = 'cancelled' WHERE customer_id = ?`)
           .bind(customer.id)
           .run();
@@ -368,11 +397,20 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const invoice = event.data.object;
       const customerId = invoice.customer;
 
-      const customer = await env.DB.prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
+      const customerRow = await env.DB.prepare(
+        'SELECT id FROM customers WHERE stripe_customer_id = ?'
+      )
         .bind(customerId)
         .first();
+      const customer = await Effect.runPromise(
+        decodeOptionalExtraRow(
+          IdRowSchema,
+          'Billing customer id row has an invalid shape',
+          customerRow
+        )
+      );
 
-      if (customer) {
+      if (customer !== undefined) {
         // Store invoice in database for revenue tracking
         await env.DB.prepare(
           `INSERT OR REPLACE INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
@@ -399,11 +437,20 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const invoice = event.data.object;
       const customerId = invoice.customer;
 
-      const customer = await env.DB.prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
+      const customerRow = await env.DB.prepare(
+        'SELECT id FROM customers WHERE stripe_customer_id = ?'
+      )
         .bind(customerId)
         .first();
+      const customer = await Effect.runPromise(
+        decodeOptionalExtraRow(
+          IdRowSchema,
+          'Billing customer id row has an invalid shape',
+          customerRow
+        )
+      );
 
-      if (customer) {
+      if (customer !== undefined) {
         // Mark subscription as past_due
         await env.DB.prepare(`UPDATE subscriptions SET status = 'past_due' WHERE customer_id = ?`)
           .bind(customer.id)
@@ -428,13 +475,20 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const stripeCustomer = event.data.object;
 
       // Check if customer already exists
-      const existing = await env.DB.prepare(
+      const existingRow = await env.DB.prepare(
         'SELECT id, stripe_customer_id FROM customers WHERE stripe_customer_id = ? OR email = ?'
       )
         .bind(stripeCustomer.id, stripeCustomer.email)
         .first();
+      const existing = await Effect.runPromise(
+        decodeOptionalExtraRow(
+          BillingCustomerRowSchema,
+          'Billing customer link row has an invalid shape',
+          existingRow
+        )
+      );
 
-      if (!existing) {
+      if (existing === undefined) {
         await env.DB.prepare(
           `INSERT INTO customers (id, stripe_customer_id, email, name, company, created_at)
            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
@@ -476,7 +530,7 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
     .bind(auth.user.id)
     .first();
 
-  if (adminCheck?.admin !== 1) {
+  if (!(await customerIsAdmin(adminCheck))) {
     return errorResponse('Unauthorized', 403);
   }
 
@@ -564,13 +618,20 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
 
       for (const sub of data.data) {
         try {
-          const customer = await env.DB.prepare(
+          const customerRow = await env.DB.prepare(
             'SELECT id FROM customers WHERE stripe_customer_id = ?'
           )
             .bind(sub.customer)
             .first();
+          const customer = await Effect.runPromise(
+            decodeOptionalExtraRow(
+              IdRowSchema,
+              'Billing customer id row has an invalid shape',
+              customerRow
+            )
+          );
 
-          if (customer) {
+          if (customer !== undefined) {
             await env.DB.prepare(
               `INSERT OR REPLACE INTO subscriptions (id, customer_id, stripe_subscription_id, status, current_period_end, created_at)
                VALUES (COALESCE((SELECT id FROM subscriptions WHERE stripe_subscription_id = ?), ?), ?, ?, ?, datetime(?, 'unixepoch'), CURRENT_TIMESTAMP)`
@@ -625,13 +686,20 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
         if (invoice.status !== 'paid') continue;
 
         try {
-          const customer = await env.DB.prepare(
+          const customerRow = await env.DB.prepare(
             'SELECT id FROM customers WHERE stripe_customer_id = ?'
           )
             .bind(invoice.customer)
             .first();
+          const customer = await Effect.runPromise(
+            decodeOptionalExtraRow(
+              IdRowSchema,
+              'Billing customer id row has an invalid shape',
+              customerRow
+            )
+          );
 
-          if (customer) {
+          if (customer !== undefined) {
             await env.DB.prepare(
               `INSERT OR REPLACE INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
                VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), datetime(?, 'unixepoch'))`
@@ -687,7 +755,7 @@ export async function handleAdminStripeMetrics(request: Request, env: Env): Prom
     .bind(auth.user.id)
     .first();
 
-  if (adminCheck?.admin !== 1) {
+  if (!(await customerIsAdmin(adminCheck))) {
     return errorResponse('Unauthorized', 403);
   }
 

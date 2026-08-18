@@ -46,10 +46,12 @@ export const CohortAnalysis: Component = () => {
     const map = new Map<string, CohortData[]>();
 
     data.forEach(item => {
-      if (!map.has(item.cohort_week)) {
-        map.set(item.cohort_week, []);
+      const existing = map.get(item.cohort_week);
+      if (existing === undefined) {
+        map.set(item.cohort_week, [item]);
+      } else {
+        existing.push(item);
       }
-      map.get(item.cohort_week)!.push(item);
     });
 
     // Sort cohorts by date (newest first) and limit to 12
@@ -110,15 +112,17 @@ export const CohortAnalysis: Component = () => {
                           return (
                             <td class="px-2 py-3 text-center">
                               <Show
-                                when={rate !== null}
+                                when={rate === null ? undefined : { value: rate }}
                                 fallback={<span class="text-slate-700">-</span>}
                               >
-                                <div
-                                  class={`inline-block rounded px-2 py-1 text-xs font-bold text-white ${getRetentionColor(rate!)}`}
-                                  title={`${rate}% retention (${data.find(d => d.weeks_since_signup === weekIndex)?.active_users || 0} users)`}
-                                >
-                                  {rate}%
-                                </div>
+                                {cell => (
+                                  <div
+                                    class={`inline-block rounded px-2 py-1 text-xs font-bold text-white ${getRetentionColor(cell().value)}`}
+                                    title={`${cell().value}% retention (${data.find(d => d.weeks_since_signup === weekIndex)?.active_users || 0} users)`}
+                                  >
+                                    {cell().value}%
+                                  </div>
+                                )}
                               </Show>
                             </td>
                           );

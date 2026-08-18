@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { createResource, Suspense, Show } from 'solid-js';
 
 const GITHUB_REPO_URL = 'https://github.com/PyRo1121/omg';
@@ -62,12 +62,14 @@ interface StarCountDisplayProps {
 
 const StarCountDisplay: Component<StarCountDisplayProps> = props => (
   <Show
-    when={props.count !== null && props.count !== undefined}
+    when={props.count === null || props.count === undefined ? undefined : { value: props.count }}
     fallback={<span class="text-xs text-slate-400">Star</span>}
   >
-    <span class="text-xs font-medium text-slate-300 tabular-nums">
-      {formatStarCount(props.count!)}
-    </span>
+    {count => (
+      <span class="text-xs font-medium text-slate-300 tabular-nums">
+        {formatStarCount(count().value)}
+      </span>
+    )}
   </Show>
 );
 

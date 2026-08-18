@@ -52,10 +52,18 @@ interface Filters {
 async function fetchCommandHistory(filters: Filters): Promise<CommandHistoryResponse> {
   const params = new URLSearchParams();
   params.set('limit', '50');
-  if (filters.command) {params.set('command', filters.command);}
-  if (filters.startDate) {params.set('startDate', filters.startDate);}
-  if (filters.endDate) {params.set('endDate', filters.endDate);}
-  if (filters.success) {params.set('success', filters.success);}
+  if (filters.command) {
+    params.set('command', filters.command);
+  }
+  if (filters.startDate) {
+    params.set('startDate', filters.startDate);
+  }
+  if (filters.endDate) {
+    params.set('endDate', filters.endDate);
+  }
+  if (filters.success) {
+    params.set('success', filters.success);
+  }
 
   const response = await fetch(`/api/dashboard/commands?${params}`, {
     credentials: 'include',
@@ -102,9 +110,15 @@ const getCommandColor = (command: string) => {
 };
 
 const formatDuration = (ms: number | null): string => {
-  if (ms === null) {return '-';}
-  if (ms < 1000) {return `${ms}ms`;}
-  if (ms < 60000) {return `${(ms / 1000).toFixed(1)}s`;}
+  if (ms === null) {
+    return '-';
+  }
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  if (ms < 60000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
   return `${(ms / 60000).toFixed(1)}m`;
 };
 
@@ -116,10 +130,18 @@ const formatRelativeTime = (dateStr: string): string => {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) {return 'Just now';}
-  if (diffMins < 60) {return `${diffMins}m ago`;}
-  if (diffHours < 24) {return `${diffHours}h ago`;}
-  if (diffDays < 7) {return `${diffDays}d ago`;}
+  if (diffMins < 1) {
+    return 'Just now';
+  }
+  if (diffMins < 60) {
+    return `${diffMins}m ago`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
+  if (diffDays < 7) {
+    return `${diffDays}d ago`;
+  }
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
@@ -162,8 +184,7 @@ export const CommandHistory: Component = () => {
             <p class="text-sm text-slate-400">
               Your recent CLI activity
               <Show when={history()?.pagination}>
-                {' '}
-                - {history()!.pagination.total.toLocaleString()} total commands
+                {pagination => <> - {pagination().total.toLocaleString()} total commands</>}
               </Show>
             </p>
           </div>
@@ -278,111 +299,114 @@ export const CommandHistory: Component = () => {
         </Show>
 
         {/* Command List */}
-        <Show when={history() && !history.loading}>
-          <Show when={history()!.commands.length === 0}>
-            <div class="py-12 text-center">
-              <Terminal size={48} class="mx-auto mb-4 text-slate-600" />
-              <p class="text-slate-400">No commands found</p>
-              <Show when={hasActiveFilters()}>
-                <button
-                  onClick={clearFilters}
-                  class="mt-2 text-sm text-indigo-400 hover:text-indigo-300"
-                >
-                  Clear filters to see all commands
-                </button>
+        <Show when={!history.loading ? history() : undefined}>
+          {data => (
+            <>
+              <Show when={data().commands.length === 0}>
+                <div class="py-12 text-center">
+                  <Terminal size={48} class="mx-auto mb-4 text-slate-600" />
+                  <p class="text-slate-400">No commands found</p>
+                  <Show when={hasActiveFilters()}>
+                    <button
+                      onClick={clearFilters}
+                      class="mt-2 text-sm text-indigo-400 hover:text-indigo-300"
+                    >
+                      Clear filters to see all commands
+                    </button>
+                  </Show>
+                </div>
               </Show>
-            </div>
-          </Show>
 
-          <Show when={history()!.commands.length > 0}>
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead>
-                  <tr class="border-b border-white/10">
-                    <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
-                      Command
-                    </th>
-                    <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
-                      Target
-                    </th>
-                    <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
-                      Status
-                    </th>
-                    <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
-                      Duration
-                    </th>
-                    <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
-                      Time
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-white/5">
-                  <For each={history()!.commands}>
-                    {cmd => {
-                      const Icon = getCommandIcon(cmd.command);
-                      const colorClass = getCommandColor(cmd.command);
-                      return (
-                        <tr class="transition-colors hover:bg-white/5">
-                          <td class="px-4 py-3">
-                            <div class="flex items-center gap-2">
-                              <Icon size={16} class={colorClass} />
-                              <span class={`font-medium capitalize ${colorClass}`}>
-                                {cmd.command}
-                              </span>
-                            </div>
-                          </td>
-                          <td class="px-4 py-3">
-                            <span class="font-mono text-sm text-slate-300">
-                              {cmd.packageName || cmd.runtimeName || '-'}
-                            </span>
-                          </td>
-                          <td class="px-4 py-3">
-                            <Show
-                              when={cmd.success}
-                              fallback={
-                                <div class="flex items-center gap-1.5 text-rose-400">
-                                  <XCircle size={14} />
-                                  <span class="text-xs font-medium">Failed</span>
+              <Show when={data().commands.length > 0}>
+                <div class="overflow-x-auto">
+                  <table class="w-full">
+                    <thead>
+                      <tr class="border-b border-white/10">
+                        <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
+                          Command
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
+                          Target
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
+                          Status
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
+                          Duration
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
+                          Time
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5">
+                      <For each={data().commands}>
+                        {cmd => {
+                          const Icon = getCommandIcon(cmd.command);
+                          const colorClass = getCommandColor(cmd.command);
+                          return (
+                            <tr class="transition-colors hover:bg-white/5">
+                              <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                  <Icon size={16} class={colorClass} />
+                                  <span class={`font-medium capitalize ${colorClass}`}>
+                                    {cmd.command}
+                                  </span>
                                 </div>
-                              }
-                            >
-                              <div class="flex items-center gap-1.5 text-emerald-400">
-                                <CheckCircle size={14} />
-                                <span class="text-xs font-medium">Success</span>
-                              </div>
-                            </Show>
-                          </td>
-                          <td class="px-4 py-3">
-                            <div class="flex items-center gap-1.5 text-slate-400">
-                              <Clock size={12} />
-                              <span class="font-mono text-sm">
-                                {formatDuration(cmd.durationMs)}
-                              </span>
-                            </div>
-                          </td>
-                          <td class="px-4 py-3">
-                            <span class="text-sm text-slate-500" title={cmd.createdAt}>
-                              {formatRelativeTime(cmd.createdAt)}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    }}
-                  </For>
-                </tbody>
-              </table>
-            </div>
+                              </td>
+                              <td class="px-4 py-3">
+                                <span class="font-mono text-sm text-slate-300">
+                                  {cmd.packageName || cmd.runtimeName || '-'}
+                                </span>
+                              </td>
+                              <td class="px-4 py-3">
+                                <Show
+                                  when={cmd.success}
+                                  fallback={
+                                    <div class="flex items-center gap-1.5 text-rose-400">
+                                      <XCircle size={14} />
+                                      <span class="text-xs font-medium">Failed</span>
+                                    </div>
+                                  }
+                                >
+                                  <div class="flex items-center gap-1.5 text-emerald-400">
+                                    <CheckCircle size={14} />
+                                    <span class="text-xs font-medium">Success</span>
+                                  </div>
+                                </Show>
+                              </td>
+                              <td class="px-4 py-3">
+                                <div class="flex items-center gap-1.5 text-slate-400">
+                                  <Clock size={12} />
+                                  <span class="font-mono text-sm">
+                                    {formatDuration(cmd.durationMs)}
+                                  </span>
+                                </div>
+                              </td>
+                              <td class="px-4 py-3">
+                                <span class="text-sm text-slate-500" title={cmd.createdAt}>
+                                  {formatRelativeTime(cmd.createdAt)}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        }}
+                      </For>
+                    </tbody>
+                  </table>
+                </div>
 
-            {/* Pagination Info */}
-            <Show when={history()!.pagination.hasMore}>
-              <div class="mt-4 text-center">
-                <p class="text-sm text-slate-500">
-                  Showing {history()!.commands.length} of{' '}
-                  {history()!.pagination.total.toLocaleString()} commands
-                </p>
-              </div>
-            </Show>
-          </Show>
+                <Show when={data().pagination.hasMore}>
+                  <div class="mt-4 text-center">
+                    <p class="text-sm text-slate-500">
+                      Showing {data().commands.length} of {data().pagination.total.toLocaleString()}{' '}
+                      commands
+                    </p>
+                  </div>
+                </Show>
+              </Show>
+            </>
+          )}
         </Show>
       </GlassCard>
     </div>

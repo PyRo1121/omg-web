@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { createSignal, createMemo, onMount, Show } from 'solid-js';
 import { Rocket, Clock, Award, TrendingUp, Target, Zap, CheckCircle } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
@@ -104,18 +104,20 @@ const MetricCard: Component<MetricCardProps> = props => {
       </div>
 
       <Show when={props.benchmark}>
-        <div class="text-2xs text-nebula-500 mt-2 flex items-center gap-1.5">
-          <div class="bg-void-700 h-1 w-12 overflow-hidden rounded-full">
-            <div
-              class="h-full rounded-full transition-all duration-700"
-              style={{
-                width: `${Math.min((Number(props.value) / props.benchmark!.value) * 100, 100)}%`,
-                background: props.color,
-              }}
-            />
+        {benchmark => (
+          <div class="text-2xs text-nebula-500 mt-2 flex items-center gap-1.5">
+            <div class="bg-void-700 h-1 w-12 overflow-hidden rounded-full">
+              <div
+                class="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${Math.min((Number(props.value) / benchmark().value) * 100, 100)}%`,
+                  background: props.color,
+                }}
+              />
+            </div>
+            <span>{benchmark().label}</span>
           </div>
-          <span>{props.benchmark!.label}</span>
-        </div>
+        )}
       </Show>
     </div>
   );
@@ -136,10 +138,15 @@ export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = props => {
 
   const activationHealth = createMemo(() => {
     const days = activationDays();
-    if (days <= 1)
-      {return { status: 'excellent', color: 'var(--color-aurora-400)', label: 'Excellent' };}
-    if (days <= 3) {return { status: 'good', color: 'var(--color-electric-400)', label: 'Good' };}
-    if (days <= 7) {return { status: 'fair', color: 'var(--color-solar-400)', label: 'Fair' };}
+    if (days <= 1) {
+      return { status: 'excellent', color: 'var(--color-aurora-400)', label: 'Excellent' };
+    }
+    if (days <= 3) {
+      return { status: 'good', color: 'var(--color-electric-400)', label: 'Good' };
+    }
+    if (days <= 7) {
+      return { status: 'fair', color: 'var(--color-solar-400)', label: 'Fair' };
+    }
     return { status: 'slow', color: 'var(--color-flare-400)', label: 'Needs Work' };
   });
 

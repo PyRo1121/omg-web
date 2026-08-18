@@ -6,7 +6,9 @@ import { requireAdmin } from '~/lib/admin';
 export async function GET(event: APIEvent) {
   try {
     const adminCheck = await requireAdmin(event);
-    if (adminCheck instanceof Response) {return adminCheck;}
+    if (adminCheck instanceof Response) {
+      return adminCheck;
+    }
 
     const { db } = adminCheck;
 
@@ -75,7 +77,11 @@ export async function GET(event: APIEvent) {
       if (!usersByCohort.has(cohortKey)) {
         usersByCohort.set(cohortKey, []);
       }
-      usersByCohort.get(cohortKey)!.push({
+      const cohortUsers = usersByCohort.get(cohortKey);
+      if (cohortUsers === undefined) {
+        continue;
+      }
+      cohortUsers.push({
         id: user.id,
         createdAt: new Date(user.createdAt),
       });
@@ -92,7 +98,11 @@ export async function GET(event: APIEvent) {
         if (!usageByLicenseWeek.has(key)) {
           usageByLicenseWeek.set(key, new Set());
         }
-        usageByLicenseWeek.get(key)!.add(usage.date);
+        const weekSet = usageByLicenseWeek.get(key);
+        if (weekSet === undefined) {
+          continue;
+        }
+        weekSet.add(usage.date);
       }
     }
 
@@ -100,7 +110,10 @@ export async function GET(event: APIEvent) {
     const sortedCohorts = Array.from(usersByCohort.keys()).toSorted();
 
     for (const cohortWeek of sortedCohorts) {
-      const cohortUsers = usersByCohort.get(cohortWeek)!;
+      const cohortUsers = usersByCohort.get(cohortWeek);
+      if (cohortUsers === undefined) {
+        continue;
+      }
       const retentionByWeek: Array<{
         weekNumber: number;
         activeUsers: number;

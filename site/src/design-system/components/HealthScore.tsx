@@ -20,10 +20,18 @@ interface HealthScoreProps {
 }
 
 const getHealthLevel = (score: number): HealthLevel => {
-  if (score <= 20) {return 'critical';}
-  if (score <= 40) {return 'poor';}
-  if (score <= 60) {return 'fair';}
-  if (score <= 80) {return 'good';}
+  if (score <= 20) {
+    return 'critical';
+  }
+  if (score <= 40) {
+    return 'poor';
+  }
+  if (score <= 60) {
+    return 'fair';
+  }
+  if (score <= 80) {
+    return 'good';
+  }
   return 'excellent';
 };
 
@@ -179,20 +187,30 @@ export const HealthScoreBadge: Component<HealthScoreProps> = props => {
       <Show when={props.showLabel}>
         <span class="text-nebula-400 font-medium">/100</span>
       </Show>
-      <Show when={props.showTrend && props.trend !== undefined}>
-        <span
-          class={cn(
-            'flex items-center text-xs',
-            props.trend! > 0
-              ? 'text-aurora-400'
-              : props.trend! < 0
-                ? 'text-flare-400'
-                : 'text-nebula-500'
-          )}
-        >
-          {props.trend! > 0 ? '+' : ''}
-          {props.trend}
-        </span>
+      <Show
+        when={
+          props.showTrend
+            ? props.trend === undefined
+              ? undefined
+              : { value: props.trend }
+            : undefined
+        }
+      >
+        {trend => (
+          <span
+            class={cn(
+              'flex items-center text-xs',
+              trend().value > 0
+                ? 'text-aurora-400'
+                : trend().value < 0
+                  ? 'text-flare-400'
+                  : 'text-nebula-500'
+            )}
+          >
+            {trend().value > 0 ? '+' : ''}
+            {trend().value}
+          </span>
+        )}
       </Show>
     </div>
   );

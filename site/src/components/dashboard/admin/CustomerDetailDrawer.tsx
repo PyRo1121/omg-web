@@ -458,15 +458,19 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
                           <CreditCard size={14} />
                           Open Billing Portal
                         </button>
-                        <a
-                          href={getStripeCustomerUrl(detail()!.user.stripe_customer_id!)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-white/10"
-                        >
-                          <ExternalLink size={14} />
-                          View in Stripe
-                        </a>
+                        <Show when={detail()?.user.stripe_customer_id}>
+                          {customerId => (
+                            <a
+                              href={getStripeCustomerUrl(customerId())}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-white/10"
+                            >
+                              <ExternalLink size={14} />
+                              View in Stripe
+                            </a>
+                          )}
+                        </Show>
                       </div>
                       <p class="mt-3 text-xs text-slate-500">
                         Customer ID: {detail()?.user.stripe_customer_id}
@@ -518,9 +522,10 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
                     <div class="flex items-center justify-between">
                       <span class="text-slate-500">Last Active</span>
                       <span class="text-white">
-                        {detail()?.usage.summary?.last_active
-                          ? formatRelativeTime(detail()!.usage.summary!.last_active!)
-                          : 'N/A'}
+                        {(() => {
+                          const lastActive = detail()?.usage.summary?.last_active;
+                          return lastActive ? formatRelativeTime(lastActive) : 'N/A';
+                        })()}
                       </span>
                     </div>
                   </div>

@@ -61,9 +61,11 @@ export default function Dashboard() {
       <Meta name="robots" content="noindex, nofollow" />
 
       <Show when={session()} fallback={<PageLoader />}>
-        <Suspense fallback={<PageLoader />}>
-          <DashboardPage session={session()!} />
-        </Suspense>
+        {sess => (
+          <Suspense fallback={<PageLoader />}>
+            <DashboardPage session={sess()} />
+          </Suspense>
+        )}
       </Show>
     </>
   );

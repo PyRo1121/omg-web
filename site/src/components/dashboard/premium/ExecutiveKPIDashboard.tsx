@@ -246,8 +246,8 @@ const KPICard: Component<KPICardProps> = props => {
                   />
                 </Tooltip>
               </Show>
-              <Show when={props.change !== undefined}>
-                <TrendBadge value={props.change!} inverted={props.changeInverted} />
+              <Show when={props.change === undefined ? undefined : { value: props.change }}>
+                {change => <TrendBadge value={change().value} inverted={props.changeInverted} />}
               </Show>
             </div>
 
@@ -290,36 +290,51 @@ const KPICard: Component<KPICardProps> = props => {
               <IconComponent size={22} class={accent().iconColor} />
             </div>
 
-            <Show when={props.sparklineData && props.sparklineData.length > 1}>
-              <div class="opacity-50 transition-opacity duration-300 group-hover:opacity-100">
-                <Sparkline
-                  data={props.sparklineData!}
-                  color={accent().sparkline}
-                  width={70}
-                  height={28}
-                  showArea
-                />
-              </div>
+            <Show
+              when={
+                props.sparklineData && props.sparklineData.length > 1
+                  ? props.sparklineData
+                  : undefined
+              }
+            >
+              {sparklineData => (
+                <div class="opacity-50 transition-opacity duration-300 group-hover:opacity-100">
+                  <Sparkline
+                    data={sparklineData()}
+                    color={accent().sparkline}
+                    width={70}
+                    height={28}
+                    showArea
+                  />
+                </div>
+              )}
             </Show>
           </div>
         </div>
 
-        <Show when={targetProgress() !== null}>
-          <div class="mt-4 space-y-1">
-            <div class="text-2xs flex items-center justify-between">
-              <span class="text-nebula-500">Goal Progress</span>
-              <span class="font-bold text-white">{targetProgress()!.toFixed(0)}%</span>
+        <Show
+          when={(() => {
+            const progress = targetProgress();
+            return progress === null ? undefined : { value: progress };
+          })()}
+        >
+          {progress => (
+            <div class="mt-4 space-y-1">
+              <div class="text-2xs flex items-center justify-between">
+                <span class="text-nebula-500">Goal Progress</span>
+                <span class="font-bold text-white">{progress().value.toFixed(0)}%</span>
+              </div>
+              <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
+                <div
+                  class="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${progress().value}%`,
+                    'background-color': accent().sparkline,
+                  }}
+                />
+              </div>
             </div>
-            <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
-              <div
-                class="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${targetProgress()}%`,
-                  'background-color': accent().sparkline,
-                }}
-              />
-            </div>
-          </div>
+          )}
         </Show>
 
         <Show when={props.forecast !== undefined}>

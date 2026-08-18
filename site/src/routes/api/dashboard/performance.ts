@@ -6,7 +6,9 @@ import { createAuth, type CloudflareEnv } from '~/lib/auth';
 
 function getEnv(event: APIEvent): CloudflareEnv {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) {throw new Error('Cloudflare environment not available');}
+  if (!env) {
+    throw new Error('Cloudflare environment not available');
+  }
 
   return {
     DB: env.DB,
@@ -188,7 +190,10 @@ export async function GET(event: APIEvent) {
           avgUpdateMs: 0,
         });
       }
-      const trend = trendsMap.get(p.date)!;
+      const trend = trendsMap.get(p.date);
+      if (trend === undefined) {
+        return;
+      }
       const avgMs = Math.round(Number(p.avgDuration) || 0);
       switch (p.command) {
         case 'search':

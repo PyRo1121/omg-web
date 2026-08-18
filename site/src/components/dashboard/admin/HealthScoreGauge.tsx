@@ -1,4 +1,12 @@
-import { type Component, Show, createSignal, createMemo, createEffect, onMount, For } from 'solid-js';
+import {
+  type Component,
+  Show,
+  createSignal,
+  createMemo,
+  createEffect,
+  onMount,
+  For,
+} from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -98,15 +106,25 @@ const HEALTH_ZONES = {
 // ============================================================================
 
 const getHealthZone = (score: number): HealthZone => {
-  if (score <= 20) {return 'critical';}
-  if (score <= 33) {return 'poor';}
-  if (score <= 66) {return 'fair';}
-  if (score <= 85) {return 'good';}
+  if (score <= 20) {
+    return 'critical';
+  }
+  if (score <= 33) {
+    return 'poor';
+  }
+  if (score <= 66) {
+    return 'fair';
+  }
+  if (score <= 85) {
+    return 'good';
+  }
   return 'excellent';
 };
 
 const getTrendDiff = (current: number, previous?: number): number | null => {
-  if (previous === undefined) {return null;}
+  if (previous === undefined) {
+    return null;
+  }
   return current - previous;
 };
 
@@ -149,11 +167,15 @@ const TrendArrow: Component<TrendArrowProps> = props => {
         const IconComponent = Icon();
         return <IconComponent size={props.size} />;
       })()}
-      <Show when={props.diff !== null}>
-        <span class="font-mono text-xs font-bold tabular-nums">
-          {props.diff! > 0 ? '+' : ''}
-          {props.diff!.toFixed(0)}
-        </span>
+      <Show
+        when={props.diff === null || props.diff === undefined ? undefined : { value: props.diff }}
+      >
+        {diff => (
+          <span class="font-mono text-xs font-bold tabular-nums">
+            {diff().value > 0 ? '+' : ''}
+            {diff().value.toFixed(0)}
+          </span>
+        )}
       </Show>
     </div>
   );
@@ -191,28 +213,30 @@ const BreakdownTooltip: Component<BreakdownTooltipProps> = props => {
           </span>
         </div>
         <div class="space-y-3">
-          <For each={subScores}>{sub => (
-            <div>
-              <div class="mb-1 flex items-center justify-between">
-                <div class="flex items-center gap-1.5">
-                  <sub.icon size={12} class={sub.color} />
-                  <span class="text-nebula-300 text-xs font-medium">{sub.label}</span>
+          <For each={subScores}>
+            {sub => (
+              <div>
+                <div class="mb-1 flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <sub.icon size={12} class={sub.color} />
+                    <span class="text-nebula-300 text-xs font-medium">{sub.label}</span>
+                  </div>
+                  <span class={cn('font-mono text-xs font-bold tabular-nums', sub.color)}>
+                    {sub.value}
+                  </span>
                 </div>
-                <span class={cn('font-mono text-xs font-bold tabular-nums', sub.color)}>
-                  {sub.value}
-                </span>
+                <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
+                  <div
+                    class="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${sub.value}%`,
+                      background: `linear-gradient(90deg, ${HEALTH_ZONES[getHealthZone(sub.value)].color}, ${HEALTH_ZONES[getHealthZone(sub.value)].color}88)`,
+                    }}
+                  />
+                </div>
               </div>
-              <div class="bg-void-700 h-1.5 overflow-hidden rounded-full">
-                <div
-                  class="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${sub.value}%`,
-                    background: `linear-gradient(90deg, ${HEALTH_ZONES[getHealthZone(sub.value)].color}, ${HEALTH_ZONES[getHealthZone(sub.value)].color}88)`,
-                  }}
-                />
-              </div>
-            </div>
-          )}</For>
+            )}
+          </For>
         </div>
       </div>
     </Show>
@@ -279,8 +303,12 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = props => {
   });
 
   const handleMouseEnter = (e: MouseEvent) => {
-    if (!props.showBreakdown || !props.health) {return;}
-    if (!(e.currentTarget instanceof HTMLElement)) {return;}
+    if (!props.showBreakdown || !props.health) {
+      return;
+    }
+    if (!(e.currentTarget instanceof HTMLElement)) {
+      return;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltipPos({
       x: rect.left + rect.width / 2,
@@ -360,25 +388,27 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = props => {
         />
 
         {/* Tick marks */}
-        <For each={[0, 25, 50, 75, 100]}>{tick => {
-          const angle = Math.PI * (1 - tick / 100);
-          const innerR = radius() - config().strokeWidth - 4;
-          const outerR = radius() - config().strokeWidth + 2;
-          const cx = config().diameter / 2;
-          const cy = config().diameter / 2;
+        <For each={[0, 25, 50, 75, 100]}>
+          {tick => {
+            const angle = Math.PI * (1 - tick / 100);
+            const innerR = radius() - config().strokeWidth - 4;
+            const outerR = radius() - config().strokeWidth + 2;
+            const cx = config().diameter / 2;
+            const cy = config().diameter / 2;
 
-          return (
-            <line
-              x1={cx + innerR * Math.cos(angle)}
-              y1={cy - innerR * Math.sin(angle)}
-              x2={cx + outerR * Math.cos(angle)}
-              y2={cy - outerR * Math.sin(angle)}
-              stroke="var(--color-nebula-600)"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          );
-        }}</For>
+            return (
+              <line
+                x1={cx + innerR * Math.cos(angle)}
+                y1={cy - innerR * Math.sin(angle)}
+                x2={cx + outerR * Math.cos(angle)}
+                y2={cy - outerR * Math.sin(angle)}
+                stroke="var(--color-nebula-600)"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            );
+          }}
+        </For>
 
         {/* Needle/indicator */}
         {(() => {
@@ -454,13 +484,15 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = props => {
 
       {/* Breakdown Tooltip */}
       <Show when={props.health}>
-        <BreakdownTooltip
-          engagement={props.health!.engagement_score}
-          adoption={props.health!.adoption_score}
-          satisfaction={props.health!.satisfaction_score}
-          visible={showTooltip()}
-          position={tooltipPos()}
-        />
+        {health => (
+          <BreakdownTooltip
+            engagement={health().engagement_score}
+            adoption={health().adoption_score}
+            satisfaction={health().satisfaction_score}
+            visible={showTooltip()}
+            position={tooltipPos()}
+          />
+        )}
       </Show>
 
       {/* Empty State */}

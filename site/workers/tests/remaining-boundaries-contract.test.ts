@@ -11,16 +11,23 @@ import { SingleTelemetryRequestSchema } from '../src/contracts/cli-telemetry';
 import { decodeJsonBody } from '../src/body';
 import { MachineIdBodySchema, TrackingBatchSchema } from '../src/contracts/http-bodies';
 import {
+  AdminCustomerDetailRowSchema,
+  AdminFlagRowSchema,
   AnalyticsSaltRowSchema,
+  BillingCustomerRowSchema,
   CountRowSchema,
+  customerIsAdmin,
   decodeExtraRowArray,
   decodeOptionalExtraRow,
   FirehoseEventRowSchema,
+  GrowthRowSchema,
+  InsightsStatsRowSchema,
   isTeamOrEnterpriseTier,
   LicenseIdTierRowSchema,
   LicenseSeatsRowSchema,
   LicenseTeamAuthRowSchema,
   MemberUsageRowSchema,
+  PrivacyProfileRowSchema,
   SessionJoinRowSchema,
   SiteAnalyticsTotalsRowSchema,
   TeamMemberMachineRowSchema,
@@ -302,5 +309,77 @@ describe('optional extra rows', () => {
       decodeOptionalExtraRow(TierRowSchema, 'tier', { tier: 'enterprise' })
     );
     expect(isTeamOrEnterpriseTier(row?.tier ?? '')).toBe(true);
+  });
+
+  it('treats admin = 1 as authorized', async () => {
+    await expect(customerIsAdmin({ admin: 1 })).resolves.toBe(true);
+    await expect(customerIsAdmin({ admin: 0 })).resolves.toBe(false);
+    await expect(customerIsAdmin(null)).resolves.toBe(false);
+  });
+
+  it('decodes an admin customer detail row', async () => {
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(AdminCustomerDetailRowSchema, 'customer', {
+        id: 'c1',
+        email: 'a@b.com',
+        company: null,
+        tier: 'pro',
+        admin: 0,
+        stripe_customer_id: null,
+        telemetry_opt_out: 0,
+        created_at: '2026-01-01',
+        updated_at: '2026-01-02',
+      })
+    );
+    expect(row?.email).toBe('a@b.com');
+  });
+
+  it('decodes growth and insights aggregate rows', async () => {
+    const growth = await Effect.runPromise(
+      decodeOptionalExtraRow(GrowthRowSchema, 'growth', { new_users_7d: 3, new_paid_7d: null })
+    );
+    expect(growth?.new_users_7d).toBe(3);
+    expect(growth?.new_paid_7d).toBe(0);
+
+    const stats = await Effect.runPromise(
+      decodeOptionalExtraRow(InsightsStatsRowSchema, 'stats', {
+        users: 10,
+        cmds: 20,
+        time_ms: 3600000,
+        top_error: null,
+        version_drift_count: 2,
+      })
+    );
+    expect(stats?.cmds).toBe(20);
+  });
+
+  it('decodes billing and privacy profile lookups', async () => {
+    const billing = await Effect.runPromise(
+      decodeOptionalExtraRow(BillingCustomerRowSchema, 'billing', {
+        id: 'c1',
+        email: 'a@b.com',
+        stripe_customer_id: 'cus_1',
+      })
+    );
+    expect(billing?.id).toBe('c1');
+
+    const profile = await Effect.runPromise(
+      decodeOptionalExtraRow(PrivacyProfileRowSchema, 'profile', {
+        id: 'c1',
+        email: 'a@b.com',
+        company: 'Acme',
+        tier: 'pro',
+        stripe_customer_id: null,
+        created_at: '2026-01-01',
+      })
+    );
+    expect(profile?.company).toBe('Acme');
+  });
+
+  it('rejects an admin flag row without admin', async () => {
+    const row = await Effect.runPromise(
+      decodeOptionalExtraRow(AdminFlagRowSchema, 'admin', { nope: true })
+    );
+    expect(row).toBeUndefined();
   });
 });

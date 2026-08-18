@@ -5,6 +5,7 @@ import {
   decodeExtraRowArray,
   decodeStoredProperties,
   FirehoseEventRowSchema,
+  customerIsAdmin,
 } from '../contracts/d1-extras';
 
 export async function handleGetFirehose(request: Request, env: Env): Promise<Response> {
@@ -22,7 +23,7 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
   const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
     .bind(auth.user.id)
     .first();
-  if (adminCheck?.admin !== 1) {
+  if (!(await customerIsAdmin(adminCheck))) {
     return errorResponse('Forbidden', 403);
   }
 

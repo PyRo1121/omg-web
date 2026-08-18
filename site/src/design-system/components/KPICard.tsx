@@ -167,8 +167,12 @@ const AnimatedCounter: Component<{
 
   const formattedValue = createMemo(() => {
     const val = displayValue();
-    if (val >= 1000000) {return `${(val / 1000000).toFixed(decimals())}M`;}
-    if (val >= 1000) {return `${(val / 1000).toFixed(decimals())}k`;}
+    if (val >= 1000000) {
+      return `${(val / 1000000).toFixed(decimals())}M`;
+    }
+    if (val >= 1000) {
+      return `${(val / 1000).toFixed(decimals())}k`;
+    }
     return val.toFixed(decimals());
   });
 
@@ -230,7 +234,9 @@ const MiniSparkline: Component<{
 
   const pathData = createMemo(() => {
     const data = props.data;
-    if (data.length < 2) {return '';}
+    if (data.length < 2) {
+      return '';
+    }
 
     const max = Math.max(...data);
     const min = Math.min(...data);
@@ -248,7 +254,9 @@ const MiniSparkline: Component<{
 
   const areaPath = createMemo(() => {
     const data = props.data;
-    if (data.length < 2) {return '';}
+    if (data.length < 2) {
+      return '';
+    }
 
     const max = Math.max(...data);
     const min = Math.min(...data);
@@ -272,7 +280,9 @@ const MiniSparkline: Component<{
 
   const lastPointY = createMemo(() => {
     const data = props.data;
-    if (data.length === 0) {return props.height / 2;}
+    if (data.length === 0) {
+      return props.height / 2;
+    }
     const max = Math.max(...data);
     const min = Math.min(...data);
     const range = max - min || 1;
@@ -356,12 +366,14 @@ export const KPICard: Component<KPICardProps> = props => {
             >
               {local.label}
             </span>
-            <Show when={local.change !== undefined}>
-              <TrendIndicator
-                value={local.change!}
-                inverted={local.invertTrend}
-                size={local.size}
-              />
+            <Show when={local.change === undefined ? undefined : { value: local.change }}>
+              {change => (
+                <TrendIndicator
+                  value={change().value}
+                  inverted={local.invertTrend}
+                  size={local.size}
+                />
+              )}
             </Show>
           </div>
 
@@ -417,14 +429,22 @@ export const KPICard: Component<KPICardProps> = props => {
             </Show>
           </div>
 
-          <Show when={local.sparklineData && local.sparklineData.length > 1}>
-            <div class="opacity-50 transition-opacity duration-500 group-hover:opacity-100">
-              <MiniSparkline
-                data={local.sparklineData!}
-                color={variant().sparklineColor}
-                height={size().sparklineHeight}
-              />
-            </div>
+          <Show
+            when={
+              local.sparklineData && local.sparklineData.length > 1
+                ? local.sparklineData
+                : undefined
+            }
+          >
+            {sparklineData => (
+              <div class="opacity-50 transition-opacity duration-500 group-hover:opacity-100">
+                <MiniSparkline
+                  data={sparklineData()}
+                  color={variant().sparklineColor}
+                  height={size().sparklineHeight}
+                />
+              </div>
+            )}
           </Show>
         </div>
       </div>

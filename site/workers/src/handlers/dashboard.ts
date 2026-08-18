@@ -149,7 +149,7 @@ export async function handleRevokeMachine(request: Request, env: Env): Promise<R
   const { user } = auth;
 
   // Get license
-  const license = await env.DB.prepare(
+  const licenseRow = await env.DB.prepare(
     `
     SELECT id FROM licenses WHERE customer_id = ?
   `
@@ -157,7 +157,10 @@ export async function handleRevokeMachine(request: Request, env: Env): Promise<R
     .bind(user.id)
     .first();
 
-  if (!license) {
+  const license = await Effect.runPromise(
+    decodeOptionalExtraRow(IdRowSchema, 'License id row has an invalid shape', licenseRow)
+  );
+  if (license === undefined) {
     return errorResponse('License not found', 404);
   }
 
@@ -503,7 +506,7 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
   const body = decoded.value;
 
   // Get license
-  const license = await env.DB.prepare(
+  const licenseRow = await env.DB.prepare(
     `
     SELECT id FROM licenses WHERE customer_id = ?
   `
@@ -511,7 +514,10 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
     .bind(auth.user.id)
     .first();
 
-  if (!license) {
+  const license = await Effect.runPromise(
+    decodeOptionalExtraRow(IdRowSchema, 'License id row has an invalid shape', licenseRow)
+  );
+  if (license === undefined) {
     return errorResponse('License not found', 404);
   }
 

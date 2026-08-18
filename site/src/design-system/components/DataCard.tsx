@@ -173,20 +173,18 @@ export const DataCard: Component<DataCardProps> = props => {
           </Show>
 
           <Show when={local.trend}>
-            <div class={cn('mt-2 flex items-center gap-1', trendColor)}>
-              <TrendIcon size={14} />
-              <span class="text-xs font-bold">
-                {local.trend!.direction === 'up'
-                  ? '+'
-                  : local.trend!.direction === 'down'
-                    ? ''
-                    : ''}
-                {local.trend!.value}%
-              </span>
-              <Show when={local.trend!.period}>
-                <span class="text-nebula-500 font-medium">{local.trend!.period}</span>
-              </Show>
-            </div>
+            {trend => (
+              <div class={cn('mt-2 flex items-center gap-1', trendColor)}>
+                <TrendIcon size={14} />
+                <span class="text-xs font-bold">
+                  {trend().direction === 'up' ? '+' : ''}
+                  {trend().value}%
+                </span>
+                <Show when={trend().period}>
+                  {period => <span class="text-nebula-500 font-medium">{period()}</span>}
+                </Show>
+              </div>
+            )}
           </Show>
 
           <Show when={local.subtitle}>

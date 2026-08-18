@@ -92,16 +92,20 @@ function SidebarSection(props: { item: SidebarItem }) {
       <Show
         when={props.item.items}
         fallback={
-          <A
-            href={props.item.link!}
-            class="block rounded-lg px-3 py-2 text-sm transition-all duration-200"
-            classList={{
-              'bg-indigo-500/20 text-indigo-300 font-medium': isActive(props.item.link!),
-              'text-slate-400 hover:text-white hover:bg-white/5': !isActive(props.item.link!),
-            }}
-          >
-            {props.item.text}
-          </A>
+          <Show when={props.item.link}>
+            {link => (
+              <A
+                href={link()}
+                class="block rounded-lg px-3 py-2 text-sm transition-all duration-200"
+                classList={{
+                  'bg-indigo-500/20 text-indigo-300 font-medium': isActive(link()),
+                  'text-slate-400 hover:text-white hover:bg-white/5': !isActive(link()),
+                }}
+              >
+                {props.item.text}
+              </A>
+            )}
+          </Show>
         }
       >
         <button
@@ -122,17 +126,21 @@ function SidebarSection(props: { item: SidebarItem }) {
           <div class="mt-1 ml-3 space-y-1 border-l border-slate-700 pl-3">
             <For each={props.item.items}>
               {child => (
-                <A
-                  href={child.link!}
-                  class="block rounded-lg px-3 py-1.5 text-sm transition-all duration-200"
-                  classList={{
-                    'bg-indigo-500/20 text-indigo-300 font-medium border-l-2 border-indigo-400 -ml-[13px] pl-[22px]':
-                      isActive(child.link!),
-                    'text-slate-400 hover:text-white hover:bg-white/5': !isActive(child.link!),
-                  }}
-                >
-                  {child.text}
-                </A>
+                <Show when={child.link}>
+                  {link => (
+                    <A
+                      href={link()}
+                      class="block rounded-lg px-3 py-1.5 text-sm transition-all duration-200"
+                      classList={{
+                        'bg-indigo-500/20 text-indigo-300 font-medium border-l-2 border-indigo-400 -ml-[13px] pl-[22px]':
+                          isActive(link()),
+                        'text-slate-400 hover:text-white hover:bg-white/5': !isActive(link()),
+                      }}
+                    >
+                      {child.text}
+                    </A>
+                  )}
+                </Show>
               )}
             </For>
           </div>
