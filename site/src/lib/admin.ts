@@ -3,10 +3,14 @@ import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import * as schema from '~/db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
+import { storedDataErrorResponse } from '~/lib/api-error';
+import { isInvalidD1Row, readOptionalD1Row, UserRoleRowSchema } from '~/lib/contracts/d1-rows';
 
 function getEnv(event: APIEvent): CloudflareEnv {
   const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) {throw new Error('Cloudflare environment not available');}
+  if (!env) {
+    throw new Error('Cloudflare environment not available');
+  }
 
   return {
     DB: env.DB,
@@ -45,7 +49,15 @@ export async function requireAdmin(event: APIEvent) {
     .limit(1)
     .get();
 
-  if (!user || user.role !== 'admin') {
+  const userLookup = await readOptionalD1Row(
+    UserRoleRowSchema,
+    'Admin role row has an invalid shape',
+    user
+  );
+  if (isInvalidD1Row(userLookup)) {
+    return storedDataErrorResponse();
+  }
+  if (userLookup._tag === 'missing' || userLookup.value.role !== 'admin') {
     return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
