@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import type { Schema } from '@effect/schema';
 import { parseApiError } from './dashboard-contract';
 import {
@@ -15,7 +15,7 @@ import {
   WorkerDashboardParseError,
   type WorkerDashboardData,
 } from './contracts/worker-dashboard';
-import { decodeWorkerHttp, WorkerHttpParseError } from './contracts/worker-http';
+import { decodeWorkerHttp, SuccessSchema, WorkerHttpParseError } from './contracts/worker-http';
 
 /** The Worker HTTP response was not 2xx. */
 export class WorkerApiHttpError extends Error {
@@ -39,6 +39,7 @@ export class WorkerApiNetworkError extends Error {
 export type WorkerApiError =
   | WorkerApiHttpError
   | WorkerApiNetworkError
+  | WorkerSessionStorageUnavailable
   | AuthParseError
   | WorkerDashboardParseError
   | WorkerHttpParseError;
@@ -173,6 +174,104 @@ export function verifyCodeWithWorker(
       body: JSON.stringify(request),
     });
     return yield* decodeVerifyCodeResponse(payload);
+  });
+}
+
+/** Browser storage failed while reading or clearing the Worker credential. */
+export class WorkerSessionStorageUnavailable extends Error {
+  readonly _tag = 'WorkerSessionStorageUnavailable';
+
+  constructor(
+    readonly operation: 'read' | 'clear',
+    readonly cause: unknown
+  ) {
+    super(`Worker session storage failed during ${operation}`);
+  }
+}
+
+/** Minimal browser storage capability needed to terminate a Worker session. */
+export interface WorkerSessionStorage {
+  getItem(key: string): string | null;
+  removeItem(key: string): void;
+}
+
+const WORKER_SESSION_TOKEN_KEY = 'omg_session_token';
+
+/**
+ * Revoke a browser's Worker session and decode the success response.
+ *
+ * @param apiBase - Worker origin, with no trailing slash.
+ * @param token - Opaque Worker session credential to revoke.
+ * @param fetcher - Fetch seam.
+ * @returns Void, or a tagged Worker API error.
+ */
+export function logoutWorkerSession(
+  apiBase: string,
+  token: string,
+  fetcher: WorkerFetcher
+): Effect.Effect<void, WorkerApiHttpError | WorkerApiNetworkError | WorkerHttpParseError> {
+  return requestDecodedJson(
+    fetcher,
+    `${apiBase}/api/auth/logout`,
+    {
+      method: 'POST',
+      headers: jsonHeaders(token),
+      body: JSON.stringify({ token }),
+    },
+    SuccessSchema,
+    'Worker logout response has an invalid shape'
+  ).pipe(Effect.asVoid);
+}
+
+/**
+ * Revoke the stored Worker session and always clear its browser credential.
+ *
+ * @param apiBase - Worker origin, with no trailing slash.
+ * @param storage - Browser storage holding the Worker credential.
+ * @param fetcher - Fetch seam.
+ * @returns Void, or a tagged Worker/storage failure after local clearing is attempted.
+ */
+export function logoutBrowserWorkerSession(
+  apiBase: string,
+  storage: WorkerSessionStorage,
+  fetcher: WorkerFetcher
+): Effect.Effect<
+  void,
+  | WorkerApiHttpError
+  | WorkerApiNetworkError
+  | WorkerHttpParseError
+  | WorkerSessionStorageUnavailable
+> {
+  const readToken = Effect.try({
+    try: () => storage.getItem(WORKER_SESSION_TOKEN_KEY),
+    catch: cause => new WorkerSessionStorageUnavailable('read', cause),
+  });
+  const clearToken = Effect.try({
+    try: () => storage.removeItem(WORKER_SESSION_TOKEN_KEY),
+    catch: cause => new WorkerSessionStorageUnavailable('clear', cause),
+  });
+
+  return Effect.gen(function* () {
+    const tokenResult = yield* Effect.either(readToken);
+    if (Either.isLeft(tokenResult)) {
+      const clearResult = yield* Effect.either(clearToken);
+      if (Either.isLeft(clearResult)) {
+        return yield* Effect.fail(clearResult.left);
+      }
+      return yield* Effect.fail(tokenResult.left);
+    }
+
+    const token = tokenResult.right;
+    if (token === null || token.length === 0) {
+      yield* clearToken;
+      return;
+    }
+
+    const revokeResult = yield* Effect.either(logoutWorkerSession(apiBase, token, fetcher));
+    yield* clearToken;
+    if (Either.isLeft(revokeResult)) {
+      return yield* Effect.fail(revokeResult.left);
+    }
   });
 }
 

@@ -8,6 +8,7 @@ import type { WorkerDashboardData } from './contracts/worker-dashboard';
 import {
   browserWorkerFetcher,
   getWorkerDashboard,
+  logoutBrowserWorkerSession,
   requestDecodedJson,
   sendCodeToWorker,
   verifyCodeWithWorker,
@@ -106,6 +107,8 @@ function unwrapWorkerApi<A>(exit: Exit.Exit<A, WorkerApiError>): A {
           throw new ApiError(error.message, error.status);
         case 'WorkerApiNetworkError':
           throw new ApiError('Request failed', 500);
+        case 'WorkerSessionStorageUnavailable':
+          throw new ApiError(error.message, 500);
         case 'AuthParseError':
         case 'WorkerDashboardParseError':
         case 'WorkerHttpParseError':
@@ -147,14 +150,10 @@ export async function verifySession(token: string): Promise<VerifySessionRespons
 }
 
 export async function logout(): Promise<void> {
-  const token = getSessionToken();
-  if (token) {
-    await apiRequest(Http.SuccessSchema, '/api/auth/logout', {
-      method: 'POST',
-      body: JSON.stringify({ token }),
-    });
-  }
-  clearSession();
+  const exit = await Effect.runPromiseExit(
+    logoutBrowserWorkerSession(API_BASE, localStorage, browserWorkerFetcher)
+  );
+  unwrapWorkerApi(exit);
 }
 
 // ============================================

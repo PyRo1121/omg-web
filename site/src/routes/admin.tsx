@@ -3,7 +3,7 @@ import { Title, Meta } from '@solidjs/meta';
 import { A, createAsync, redirect } from '@solidjs/router';
 import { getRequestEvent } from 'solid-js/web';
 import { LayoutDashboard, LogOut, Shield } from 'lucide-solid';
-import { signOut, useSession } from '~/lib/auth-client';
+import { signOutBrowserSessions, useSession } from '~/lib/auth-client';
 import { requireAdmin } from '~/lib/admin';
 
 const AdminDashboard = lazy(() => import('~/components/dashboard/AdminDashboard'));
@@ -42,12 +42,12 @@ function LoadingScreen() {
 }
 
 async function handleSignOut(): Promise<void> {
-  try {
-    await signOut();
-    window.location.href = '/';
-  } catch (cause: unknown) {
-    console.error('Sign out error:', cause);
+  const result = await signOutBrowserSessions();
+  if (result.failures.length > 0) {
+    console.error('Sign out incomplete:', result.failures.map(failure => failure._tag).join(', '));
+    return;
   }
+  window.location.href = '/';
 }
 
 function AuthorizedAdminPage() {

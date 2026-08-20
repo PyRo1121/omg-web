@@ -43,7 +43,7 @@ import {
   Settings,
   Users,
 } from 'lucide-solid';
-import { signOut } from '~/lib/auth-client';
+import { signOutBrowserSessions } from '~/lib/auth-client';
 import { createDashboardView } from '~/lib/state/dashboard-view';
 import AdminDashboard from '~/components/dashboard/AdminDashboard';
 import BackgroundMesh from '~/components/3d/BackgroundMesh';
@@ -174,14 +174,17 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
   onMount(() => loadAll());
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      window.location.href = '/';
-    } catch (err) {
-      console.error('Sign out error:', err);
-      setError('Failed to sign out');
+  const handleSignOut = async (): Promise<void> => {
+    const result = await signOutBrowserSessions();
+    if (result.failures.length > 0) {
+      console.error(
+        'Sign out incomplete:',
+        result.failures.map(failure => failure._tag).join(', ')
+      );
+      setError('Failed to revoke all active browser sessions');
+      return;
     }
+    window.location.href = '/';
   };
 
   const copyLicenseKey = async () => {

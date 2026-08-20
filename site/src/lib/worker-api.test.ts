@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { SuccessSchema, WorkerHttpParseError } from './contracts/worker-http';
 import {
   getWorkerDashboard,
+  logoutBrowserWorkerSession,
+  logoutWorkerSession,
   requestDecodedJson,
   sendCodeToWorker,
   verifyCodeWithWorker,
@@ -18,6 +20,24 @@ function fetcherOf(response: Response): WorkerFetcher {
       return Effect.succeed(response);
     },
   };
+}
+
+class RecordingFetcher implements WorkerFetcher {
+  private recorded: { readonly input: string; readonly init: RequestInit } | null = null;
+
+  constructor(private readonly response: Response) {}
+
+  fetch(input: string, init: RequestInit): Effect.Effect<Response> {
+    this.recorded = { input, init };
+    return Effect.succeed(this.response);
+  }
+
+  request(): { readonly input: string; readonly init: RequestInit } {
+    if (this.recorded === null) {
+      throw new Error('Expected a Worker request');
+    }
+    return this.recorded;
+  }
 }
 
 function jsonResponse(status: number, serializedBody: string): Response {
@@ -147,6 +167,72 @@ describe('requestDecodedJson', () => {
     if (error instanceof WorkerHttpParseError) {
       expect(error.reason).toBe('invalid profile response');
     }
+  });
+});
+
+class MemorySessionStorage {
+  private readonly values = new Map<string, string>();
+
+  constructor(token?: string) {
+    if (token !== undefined) {
+      this.values.set('omg_session_token', token);
+    }
+  }
+
+  getItem(key: string): string | null {
+    return this.values.get(key) ?? null;
+  }
+
+  removeItem(key: string): void {
+    this.values.delete(key);
+  }
+}
+
+describe('logoutBrowserWorkerSession', () => {
+  it('always clears the local credential when remote revocation fails', async () => {
+    const storage = new MemorySessionStorage('tok_abc');
+    const exit = await Effect.runPromiseExit(
+      logoutBrowserWorkerSession(
+        API_BASE,
+        storage,
+        fetcherOf(jsonResponse(500, JSON.stringify({ error: 'Unavailable' })))
+      )
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    expect(storage.getItem('omg_session_token')).toBeNull();
+  });
+
+  it('does not call the Worker when no local credential exists', async () => {
+    const storage = new MemorySessionStorage();
+    const fetcher = new RecordingFetcher(jsonResponse(200, JSON.stringify({ success: true })));
+    await Effect.runPromise(logoutBrowserWorkerSession(API_BASE, storage, fetcher));
+    expect(() => fetcher.request()).toThrow('Expected a Worker request');
+  });
+});
+
+describe('logoutWorkerSession', () => {
+  it('posts the session token and decodes success', async () => {
+    const fetcher = new RecordingFetcher(jsonResponse(200, JSON.stringify({ success: true })));
+    await Effect.runPromise(logoutWorkerSession(API_BASE, 'tok_abc', fetcher));
+
+    const request = fetcher.request();
+    expect(request.input).toBe(`${API_BASE}/api/auth/logout`);
+    expect(request.init.method).toBe('POST');
+    expect(new Headers(request.init.headers).get('Authorization')).toBe('Bearer tok_abc');
+    expect(request.init.body).toBe(JSON.stringify({ token: 'tok_abc' }));
+  });
+
+  it('maps a rejected logout to WorkerApiHttpError', async () => {
+    const exit = await Effect.runPromiseExit(
+      logoutWorkerSession(
+        API_BASE,
+        'tok_abc',
+        fetcherOf(jsonResponse(401, JSON.stringify({ error: 'Invalid session' })))
+      )
+    );
+    const error = failedValue(exit);
+    expect(error).toBeInstanceOf(WorkerApiHttpError);
   });
 });
 
