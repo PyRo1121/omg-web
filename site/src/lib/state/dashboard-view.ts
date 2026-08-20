@@ -12,7 +12,7 @@ export class DashboardLoadError extends Error {
   readonly _tag = 'DashboardLoadError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }
@@ -23,7 +23,7 @@ export class TelemetryLoadError extends Error {
   readonly _tag = 'TelemetryLoadError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

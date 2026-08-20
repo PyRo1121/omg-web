@@ -13,7 +13,7 @@ export class LicenseOpsParseError extends Error {
   readonly _tag = 'LicenseOpsParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

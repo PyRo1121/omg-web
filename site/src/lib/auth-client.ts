@@ -4,7 +4,7 @@ import { revokeBetterAuthSession, type BrowserSignOutResult } from './better-aut
 
 const getBaseURL = () => {
   if (import.meta.env.SSR) {
-    return import.meta.env.VITE_BETTER_AUTH_URL || 'https://pyro1121.com';
+    return import.meta.env['VITE_BETTER_AUTH_URL'] || 'https://pyro1121.com';
   }
   return window.location.origin;
 };

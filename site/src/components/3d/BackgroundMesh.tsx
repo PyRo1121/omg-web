@@ -46,7 +46,7 @@ const BackgroundMesh: Component = () => {
       animationFrameId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      const positions = geometry.attributes.position.array;
+      const positions = geometry.attributes['position'].array;
       if (!(positions instanceof Float32Array)) {
         renderer.render(scene, camera);
         return;
@@ -62,7 +62,7 @@ const BackgroundMesh: Component = () => {
 
         positions[i + 2] = wave1 + wave2 + wave3;
       }
-      geometry.attributes.position.needsUpdate = true;
+      geometry.attributes['position'].needsUpdate = true;
 
       renderer.render(scene, camera);
     };

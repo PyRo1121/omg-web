@@ -11,7 +11,7 @@ const TelemetryPolicyRowSchema = Schema.Struct({
 export class TelemetryPolicyStoreUnavailable extends Error {
   readonly _tag = 'TelemetryPolicyStoreUnavailable';
 
-  constructor(readonly cause: unknown) {
+  constructor(override readonly cause: unknown) {
     super('Telemetry policy store is unavailable');
   }
 }
@@ -20,7 +20,7 @@ export class TelemetryPolicyStoreUnavailable extends Error {
 export class InvalidTelemetryPolicyRow extends Error {
   readonly _tag = 'InvalidTelemetryPolicyRow';
 
-  constructor(readonly cause: unknown) {
+  constructor(override readonly cause: unknown) {
     super('Telemetry policy row has an invalid shape');
   }
 }

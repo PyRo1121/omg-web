@@ -6,6 +6,7 @@ import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:
 import worker from '../src/worker';
 import { sendVerificationCode } from '../src/handlers/auth';
 import secureOtpMigration from '../migrations/012_secure_otp.sql?raw';
+import { LicensingRoutes } from '../../shared/licensing-routes';
 
 const TEST_EMAIL = 'otp@example.com';
 const VICTIM_EMAIL = 'victim@example.com';
@@ -58,6 +59,17 @@ function getPath(path: string, token: string | null = null): Request {
     headers.set('Authorization', `Bearer ${token}`);
   }
   return new Request(`http://localhost${path}`, { method: 'GET', headers });
+}
+
+async function dispatch(path: string, method = 'GET'): Promise<Response> {
+  const context = createExecutionContext();
+  const response = await worker.fetch(
+    new Request(`http://localhost${path}`, { method }),
+    env,
+    context
+  );
+  await waitOnExecutionContext(context);
+  return response;
 }
 
 async function sendCodeWithTestMailer(generatedCode = '123456'): Promise<string> {
@@ -335,4 +347,28 @@ describe('POST /api/billing/portal email override', () => {
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(404);
   });
+});
+
+describe('Worker route registry dispatch', () => {
+  it('dispatches a canonical registered route', async () => {
+    const response = await dispatch(LicensingRoutes.health.path, LicensingRoutes.health.method);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ status: 'ok' });
+  });
+
+  it('rejects a method not registered for a canonical path', async () => {
+    const response = await dispatch(LicensingRoutes.dashboard.path, 'DELETE');
+
+    expect(response.status).toBe(404);
+  });
+
+  it.each(['/api/fleet/status', '/api/team/analytics', '/api/admin/events'])(
+    'rejects removed compatibility alias %s',
+    async path => {
+      const response = await dispatch(path);
+
+      expect(response.status).toBe(404);
+    }
+  );
 });

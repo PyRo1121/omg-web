@@ -31,7 +31,7 @@ export class CustomerStoreUnavailable extends Error {
       | 'findSession'
       | 'insertSession'
       | 'audit',
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(`Customer store unavailable during ${operation}`);
   }

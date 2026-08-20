@@ -223,62 +223,72 @@ export function initAnalytics(): void {
   if (!('window' in globalThis)) {
     return;
   }
-
   trackPageview();
+  installNavigationTracking();
+  installUnloadFlush();
+  installPerformanceTracking();
+}
 
+function installNavigationTracking(): void {
   const originalPushState = history.pushState;
   const originalReplaceState = history.replaceState;
-
   history.pushState = function (...args) {
     originalPushState.apply(this, args);
     trackPageview();
   };
-
   history.replaceState = function (...args) {
     originalReplaceState.apply(this, args);
     trackPageview();
   };
-
   window.addEventListener('popstate', () => trackPageview());
+}
 
+function installUnloadFlush(): void {
   window.addEventListener('beforeunload', () => {
-    if (eventQueue.length > 0 && navigator.sendBeacon) {
+    if (eventQueue.length > 0) {
       navigator.sendBeacon(API_URL, JSON.stringify({ events: eventQueue }));
     }
   });
+}
 
-  if ('PerformanceObserver' in window) {
-    try {
-      const observer = new PerformanceObserver(list => {
-        const entries = list.getEntries();
-        const metrics: Record<string, number> = {};
+function installPerformanceTracking(): void {
+  if (!('PerformanceObserver' in window)) {
+    return;
+  }
+  try {
+    const observer = new PerformanceObserver(list => {
+      const metrics: Record<string, number> = {};
+      for (const entry of list.getEntries()) {
+        recordPerformanceEntry(entry, metrics);
+      }
+      if (Object.keys(metrics).length > 0) {
+        trackPerformance(metrics);
+      }
+    });
+    observer.observe({ type: 'largest-contentful-paint', buffered: true });
+    observer.observe({ type: 'first-input', buffered: true });
+    observer.observe({ type: 'layout-shift', buffered: true });
+  } catch {
+    // PerformanceObserver is an optional browser capability.
+  }
+}
 
-        for (const entry of entries) {
-          if (entry.entryType === 'largest-contentful-paint') {
-            metrics.lcp = entry.startTime;
-          } else if (entry.entryType === 'first-input') {
-            const delay = inputDelayMs(entry);
-            if (delay !== undefined) {
-              metrics.fid = delay;
-            }
-          } else if (entry.entryType === 'layout-shift') {
-            const delta = layoutShiftDelta(entry);
-            if (delta !== undefined) {
-              metrics.cls = (metrics.cls || 0) + delta;
-            }
-          }
-        }
-
-        if (Object.keys(metrics).length > 0) {
-          trackPerformance(metrics);
-        }
-      });
-
-      observer.observe({ type: 'largest-contentful-paint', buffered: true });
-      observer.observe({ type: 'first-input', buffered: true });
-      observer.observe({ type: 'layout-shift', buffered: true });
-    } catch {
-      // PerformanceObserver not supported
+function recordPerformanceEntry(entry: PerformanceEntry, metrics: Record<string, number>): void {
+  if (entry.entryType === 'largest-contentful-paint') {
+    metrics['lcp'] = entry.startTime;
+    return;
+  }
+  if (entry.entryType === 'first-input') {
+    const delay = inputDelayMs(entry);
+    if (delay !== undefined) {
+      metrics['fid'] = delay;
+    }
+    return;
+  }
+  if (entry.entryType === 'layout-shift') {
+    const delta = layoutShiftDelta(entry);
+    if (delta !== undefined) {
+      metrics['cls'] = (metrics['cls'] || 0) + delta;
     }
   }
 }

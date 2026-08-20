@@ -9,7 +9,7 @@ export class WorkerHttpParseError extends Error {
   readonly _tag = 'WorkerHttpParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

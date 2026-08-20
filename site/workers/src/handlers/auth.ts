@@ -64,7 +64,7 @@ export class EmailServiceUnconfigured extends Error {
 /** The OTP email could not be delivered. */
 export class EmailDeliveryFailed extends Error {
   readonly _tag = 'EmailDeliveryFailed';
-  constructor(readonly cause?: unknown) {
+  constructor(override readonly cause?: unknown) {
     super('Failed to send email');
   }
 }
@@ -80,7 +80,7 @@ export class InvalidOtpError extends Error {
 /** Web Crypto could not create or verify an OTP digest. */
 export class AuthCryptoUnavailable extends Error {
   readonly _tag = 'AuthCryptoUnavailable';
-  constructor(readonly cause?: unknown) {
+  constructor(override readonly cause?: unknown) {
     super('Authentication cryptography unavailable');
   }
 }
@@ -90,7 +90,7 @@ export class AuthStoreUnavailable extends Error {
   readonly _tag = 'AuthStoreUnavailable';
   constructor(
     readonly operation: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(`Auth store unavailable during ${operation}`);
   }

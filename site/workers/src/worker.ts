@@ -87,6 +87,58 @@ import {
   handleOptOut,
   handlePrivacyStatus,
 } from './handlers/privacy';
+import { normalizeLicensingPath, resolveLicensingRoute } from '../../shared/licensing-routes';
+
+async function handleInstallsBadge(env: Env): Promise<Response> {
+  try {
+    const result = await env.DB.prepare(
+      `SELECT COUNT(DISTINCT install_id) as total FROM install_stats`
+    ).first();
+    const badgeLookup = await readOptionalExtraRow(
+      InstallsBadgeRowSchema,
+      'Installs badge row has an invalid shape',
+      result
+    );
+    if (badgeLookup._tag === 'invalid') {
+      Sentry.captureMessage('Installs badge row has an invalid shape');
+    }
+    const total = badgeLookup._tag === 'present' ? badgeLookup.value.total : 0;
+    return new Response(
+      JSON.stringify({
+        schemaVersion: 1,
+        label: 'installs',
+        message: total.toLocaleString(),
+        color: 'blue',
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=60, must-revalidate',
+          ...corsHeaders,
+        },
+      }
+    );
+  } catch (error: unknown) {
+    Sentry.captureException(error);
+    return new Response(
+      JSON.stringify({
+        schemaVersion: 1,
+        label: 'installs',
+        message: '0',
+        color: 'blue',
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=60, must-revalidate',
+          ...corsHeaders,
+        },
+      }
+    );
+  }
+}
 
 export default Sentry.withSentry(
   (env: Env) => ({
@@ -106,460 +158,183 @@ export default Sentry.withSentry(
       }
 
       const url = new URL(request.url);
-      const rawPath = url.pathname;
-      const path = rawPath.endsWith('/') && rawPath !== '/' ? rawPath.slice(0, -1) : rawPath;
+      const path = normalizeLicensingPath(url.pathname);
 
       try {
-        // ============================================
-        // Public endpoints (no auth required)
-        // ============================================
-
-        // Health check
-        if (path === '/health') {
-          return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
-        }
-
-        // Auth: Send OTP code
-        if (path === '/api/auth/send-code' && request.method === 'POST') {
-          return handleSendCode(request, env);
-        }
-
-        // Auth: Verify OTP code
-        if (path === '/api/auth/verify-code' && request.method === 'POST') {
-          return handleVerifyCode(request, env);
-        }
-
-        // Auth: Verify session token
-        if (path === '/api/auth/verify-session' && request.method === 'POST') {
-          return handleVerifySession(request, env);
-        }
-
-        // Auth: Logout
-        if (path === '/api/auth/logout' && request.method === 'POST') {
-          return handleLogout(request, env);
-        }
-
-        // License: Validate (for CLI activation) - supports both GET and POST
-        if (
-          path === '/api/validate-license' &&
-          (request.method === 'GET' || request.method === 'POST')
-        ) {
-          return handleValidateLicense(request, env);
-        }
-
-        // License: Get by email (for pre-auth lookup)
-        if (path === '/api/get-license' && request.method === 'GET') {
-          return handleGetLicense(request, env);
-        }
-
-        // License: Report usage (from CLI)
-        if (path === '/api/report-usage' && request.method === 'POST') {
-          return handleReportUsage(request, env);
-        }
-
-        // Install ping (anonymous telemetry)
-        if (path === '/api/install-ping' && request.method === 'POST') {
-          return handleInstallPing(request, env);
-        }
-
-        // Analytics events (batch from CLI)
-        if (path === '/api/analytics' && request.method === 'POST') {
-          return handleAnalytics(request, env);
-        }
-
-        // CLI telemetry: Single event
-        if (path === '/api/cli/event' && request.method === 'POST') {
-          return handleCliEvent(request, env);
-        }
-
-        // CLI telemetry: Batched events
-        if (path === '/api/cli/batch' && request.method === 'POST') {
-          return handleCliBatch(request, env);
-        }
-
-        // ============================================
-        // Privacy endpoints (GDPR/CCPA - available globally)
-        // ============================================
-
-        // Privacy: Get status and policy summary
-        if (path === '/api/privacy/status' && request.method === 'GET') {
-          return handlePrivacyStatus(request, env);
-        }
-
-        // Privacy: Export all user data (Right to Portability)
-        if (path === '/api/privacy/export' && request.method === 'POST') {
-          return handleExportMyData(request, env);
-        }
-
-        // Privacy: Delete all user data (Right to Erasure)
-        if (path === '/api/privacy/delete' && request.method === 'POST') {
-          return handleDeleteMyData(request, env);
-        }
-
-        // Privacy: Opt-out of telemetry
-        if (path === '/api/privacy/opt-out' && request.method === 'POST') {
-          return handleOptOut(request, env);
-        }
-
-        // Docs analytics (batch from docs site)
-        if (path === '/api/docs/analytics' && request.method === 'POST') {
-          return handleDocsAnalytics(request, env, ctx);
-        }
-
-        // Docs analytics dashboard (admin view)
-        if (path === '/api/docs/analytics/dashboard' && request.method === 'GET') {
-          const denied = await forbiddenUnlessAdminSession(request, env);
-          if (denied !== null) {
-            return denied;
-          }
-          return handleDocsAnalyticsDashboard(request, env);
-        }
-
-        // Site analytics tracking (from main site)
-        if (path === '/api/site/analytics/track' && request.method === 'POST') {
-          return handleTrackEvent(request, env);
-        }
-
-        // Site analytics geo distribution
-        if (path === '/api/site/analytics/geo' && request.method === 'GET') {
-          const denied = await forbiddenUnlessAdminSession(request, env);
-          if (denied !== null) {
-            return denied;
-          }
-          return handleGetGeoAnalytics(request, env);
-        }
-
-        // Site analytics realtime visitors
-        if (path === '/api/site/analytics/realtime' && request.method === 'GET') {
-          const denied = await forbiddenUnlessAdminSession(request, env);
-          if (denied !== null) {
-            return denied;
-          }
-          return handleGetRealtimeAnalytics(request, env);
-        }
-
-        // Site analytics overview
-        if (path === '/api/site/analytics/overview' && request.method === 'GET') {
-          const denied = await forbiddenUnlessAdminSession(request, env);
-          if (denied !== null) {
-            return denied;
-          }
-          return handleGetAnalyticsOverview(request, env);
-        }
-
-        // GitHub commit activity proxy (caching layer)
-        if (path === '/api/github-stats' && request.method === 'GET') {
-          return handleGitHubProxy(request, env, ctx);
-        }
-
-        // Binary downloads from R2 (with Range support)
         if (path.startsWith('/download/') && request.method === 'GET') {
           return handleBinaryDownload(request, env);
         }
-
-        // Optimized image delivery (auto WebP/AVIF, resizing)
         if (path.startsWith('/img/') && request.method === 'GET') {
           return handleImageOptimization(request, env);
         }
 
-        // Mint a server-only Worker session for the same-origin site BFF.
-        if (path === '/api/internal/site-session' && request.method === 'POST') {
-          return handleCreateSiteSession(request, env);
+        const route = resolveLicensingRoute(request.method, path);
+        if (route === undefined) {
+          return errorResponse('Not found', 404);
         }
 
-        // ============================================
-        // Authenticated endpoints (require Bearer token)
-        // ============================================
-
-        // Dashboard: Get all dashboard data
-        if (path === '/api/dashboard' && request.method === 'GET') {
-          return handleGetDashboard(request, env);
-        }
-
-        // User: Update profile
-        if (path === '/api/user/profile' && request.method === 'PUT') {
-          return handleUpdateProfile(request, env);
-        }
-
-        // License: Regenerate key
-        if (path === '/api/license/regenerate' && request.method === 'POST') {
-          return handleRegenerateLicense(request, env);
-        }
-
-        // Machine: Revoke
-        if (path === '/api/machines/revoke' && request.method === 'POST') {
-          return handleRevokeMachine(request, env);
-        }
-
-        // Sessions: List
-        if (path === '/api/sessions' && request.method === 'GET') {
-          return handleGetSessions(request, env);
-        }
-
-        // Sessions: Revoke
-        if (path === '/api/sessions/revoke' && request.method === 'POST') {
-          return handleRevokeSession(request, env);
-        }
-
-        // Audit: Get log (Team+ only)
-        if (path === '/api/audit-log' && request.method === 'GET') {
-          return handleGetAuditLog(request, env);
-        }
-
-        // Team: Get members and usage (Team+ only)
-        if (path === '/api/team/members' && request.method === 'GET') {
-          return handleGetTeamMembers(request, env);
-        }
-
-        // Fleet: Status (Alias for team members, used by dashboard)
-        if (path === '/api/fleet/status' && request.method === 'GET') {
-          return handleGetTeamMembers(request, env);
-        }
-
-        // Team: Analytics (Alias for dashboard data for now)
-        if (path === '/api/team/analytics' && request.method === 'GET') {
-          return handleGetDashboard(request, env);
-        }
-
-        // Team: Policies (Placeholder)
-        if (path === '/api/team/policies' && request.method === 'GET') {
-          return handleGetTeamPolicies(request, env);
-        }
-
-        // Team: Notifications (Placeholder)
-        if (path === '/api/team/notifications' && request.method === 'GET') {
-          return handleGetNotifications(request, env);
-        }
-
-        // Team: Audit Logs (Alias)
-        if (path === '/api/team/audit-logs' && request.method === 'GET') {
-          return handleGetAuditLog(request, env);
-        }
-
-        // Team: Revoke member access (Team+ only)
-        if (path === '/api/team/revoke' && request.method === 'POST') {
-          return handleRevokeTeamMember(request, env);
-        }
-
-        // ============================================
-        // Admin endpoints (require admin validation)
-        // ============================================
-
-        // Admin: Dashboard overview
-        if (path === '/api/admin/dashboard' && request.method === 'GET') {
-          return handleAdminDashboard(request, env);
-        }
-
-        // Admin: List users
-        if (path === '/api/admin/users' && request.method === 'GET') {
-          return handleAdminCRMUsers(request, env);
-        }
-
-        // Admin: User detail
-        if (path === '/api/admin/user' && request.method === 'GET') {
-          return handleAdminUserDetail(request, env);
-        }
-
-        // Admin: Update user
-        if (path === '/api/admin/user' && request.method === 'PUT') {
-          return handleAdminUpdateUser(request, env);
-        }
-
-        // Admin: Activity feed
-        if (
-          (path === '/api/admin/activity' || path === '/api/admin/events') &&
-          request.method === 'GET'
-        ) {
-          return handleAdminActivity(request, env);
-        }
-
-        // Admin: Health metrics
-        if (path === '/api/admin/health' && request.method === 'GET') {
-          return handleAdminHealth(request, env);
-        }
-
-        // Admin: Cohort analysis
-        if (path === '/api/admin/cohorts' && request.method === 'GET') {
-          return handleAdminCohorts(request, env);
-        }
-
-        // Admin: Revenue analytics
-        if (path === '/api/admin/revenue' && request.method === 'GET') {
-          return handleAdminRevenue(request, env);
-        }
-
-        // Admin: Analytics (comprehensive telemetry)
-        if (path === '/api/admin/analytics' && request.method === 'GET') {
-          return handleAdminAnalytics(request, env);
-        }
-
-        // Admin: Export users (CSV)
-        if (path === '/api/admin/export/users' && request.method === 'GET') {
-          return handleAdminExportUsers(request, env);
-        }
-
-        // Admin: Export usage (JSON)
-        if (path === '/api/admin/export/usage' && request.method === 'GET') {
-          return handleAdminExportUsage(request, env);
-        }
-
-        // Admin: Export audit log (JSON)
-        if (path === '/api/admin/export/audit' && request.method === 'GET') {
-          return handleAdminExportAudit(request, env);
-        }
-
-        // Admin: View audit log
-        if (path === '/api/admin/audit-log' && request.method === 'GET') {
-          return handleAdminAuditLog(request, env);
-        }
-
-        // Admin: Customer Notes
-        if (path === '/api/admin/notes' && request.method === 'GET') {
-          return handleAdminGetNotes(request, env);
-        }
-        if (path === '/api/admin/notes' && request.method === 'POST') {
-          return handleAdminCreateNote(request, env);
-        }
-        if (path === '/api/admin/notes' && request.method === 'PUT') {
-          return handleAdminUpdateNote(request, env);
-        }
-        if (path === '/api/admin/notes' && request.method === 'DELETE') {
-          return handleAdminDeleteNote(request, env);
-        }
-
-        // Admin: Customer Tags
-        if (path === '/api/admin/tags' && request.method === 'GET') {
-          return handleAdminGetTags(request, env);
-        }
-        if (path === '/api/admin/tags' && request.method === 'POST') {
-          return handleAdminCreateTag(request, env);
-        }
-        if (path === '/api/admin/customer-tags' && request.method === 'GET') {
-          return handleAdminGetCustomerTags(request, env);
-        }
-        if (path === '/api/admin/customer-tags' && request.method === 'POST') {
-          return handleAdminAssignTag(request, env);
-        }
-        if (path === '/api/admin/customer-tags' && request.method === 'DELETE') {
-          return handleAdminRemoveTag(request, env);
-        }
-
-        // Admin: Customer Health
-        if (path === '/api/admin/customer-health' && request.method === 'GET') {
-          return handleAdminGetCustomerHealth(request, env);
-        }
-
-        // Admin: Advanced Metrics (engagement, retention, LTV, churn risk)
-        if (path === '/api/admin/advanced-metrics' && request.method === 'GET') {
-          return handleAdminAdvancedMetrics(request, env);
-        }
-
-        // Admin: Real-time event firehose
-        if (path === '/api/admin/firehose' && request.method === 'GET') {
-          return handleGetFirehose(request, env);
-        }
-
-        // Insights: AI-powered recommendations
-        if (path === '/api/insights' && request.method === 'GET') {
-          return handleGetSmartInsights(request, env);
-        }
-
-        // ============================================
-        // Stripe webhooks
-        // ============================================
-        if (path === '/api/stripe/webhook' && request.method === 'POST') {
-          return handleStripeWebhook(request, env);
-        }
-
-        // Billing portal
-        if (path === '/api/billing/portal' && request.method === 'POST') {
-          return handleBillingPortal(request, env);
-        }
-
-        // Create checkout
-        if (path === '/api/billing/checkout' && request.method === 'POST') {
-          return handleCreateCheckout(request, env);
-        }
-
-        // Admin: Sync all Stripe data
-        if (path === '/api/admin/stripe/sync' && request.method === 'POST') {
-          return handleAdminStripeSync(request, env);
-        }
-
-        // Admin: Get real-time Stripe metrics
-        if (path === '/api/admin/stripe/metrics' && request.method === 'GET') {
-          return handleAdminStripeMetrics(request, env);
-        }
-
-        // ============================================
-        // Database init (one-time setup)
-        // ============================================
-        if (path === '/api/init-db' && request.method === 'POST') {
-          const unauthorized = unauthorizedUnlessAdminSecret(request, env);
-          if (unauthorized !== null) {
-            return unauthorized;
+        switch (route.path) {
+          case '/health':
+            return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
+          case '/api/auth/send-code':
+            return handleSendCode(request, env);
+          case '/api/auth/verify-code':
+            return handleVerifyCode(request, env);
+          case '/api/auth/verify-session':
+            return handleVerifySession(request, env);
+          case '/api/auth/logout':
+            return handleLogout(request, env);
+          case '/api/validate-license':
+            return handleValidateLicense(request, env);
+          case '/api/get-license':
+            return handleGetLicense(request, env);
+          case '/api/report-usage':
+            return handleReportUsage(request, env);
+          case '/api/install-ping':
+            return handleInstallPing(request, env);
+          case '/api/analytics':
+            return handleAnalytics(request, env);
+          case '/api/cli/event':
+            return handleCliEvent(request, env);
+          case '/api/cli/batch':
+            return handleCliBatch(request, env);
+          case '/api/privacy/status':
+            return handlePrivacyStatus(request, env);
+          case '/api/privacy/export':
+            return handleExportMyData(request, env);
+          case '/api/privacy/delete':
+            return handleDeleteMyData(request, env);
+          case '/api/privacy/opt-out':
+            return handleOptOut(request, env);
+          case '/api/docs/analytics':
+            return handleDocsAnalytics(request, env, ctx);
+          case '/api/docs/analytics/dashboard': {
+            const denied = await forbiddenUnlessAdminSession(request, env);
+            return denied ?? handleDocsAnalyticsDashboard(request, env);
           }
-          return handleInitDb(env);
-        }
-
-        // ============================================
-        // Badge Endpoint (public, for shields.io)
-        // ============================================
-        if (path === '/api/badge/installs' && request.method === 'GET') {
-          try {
-            const result = await env.DB.prepare(
-              `SELECT COUNT(DISTINCT install_id) as total FROM install_stats`
-            ).first();
-            const badgeLookup = await readOptionalExtraRow(
-              InstallsBadgeRowSchema,
-              'Installs badge row has an invalid shape',
-              result
-            );
-            if (badgeLookup._tag === 'invalid') {
-              console.error('Installs badge row has an invalid shape');
+          case '/api/site/analytics/track':
+            return handleTrackEvent(request, env);
+          case '/api/site/analytics/geo': {
+            const denied = await forbiddenUnlessAdminSession(request, env);
+            return denied ?? handleGetGeoAnalytics(request, env);
+          }
+          case '/api/site/analytics/realtime': {
+            const denied = await forbiddenUnlessAdminSession(request, env);
+            return denied ?? handleGetRealtimeAnalytics(request, env);
+          }
+          case '/api/site/analytics/overview': {
+            const denied = await forbiddenUnlessAdminSession(request, env);
+            return denied ?? handleGetAnalyticsOverview(request, env);
+          }
+          case '/api/github-stats':
+            return handleGitHubProxy(request, env, ctx);
+          case '/api/internal/site-session':
+            return handleCreateSiteSession(request, env);
+          case '/api/dashboard':
+            return handleGetDashboard(request, env);
+          case '/api/user/profile':
+            return handleUpdateProfile(request, env);
+          case '/api/license/regenerate':
+            return handleRegenerateLicense(request, env);
+          case '/api/machines/revoke':
+            return handleRevokeMachine(request, env);
+          case '/api/sessions':
+            return handleGetSessions(request, env);
+          case '/api/sessions/revoke':
+            return handleRevokeSession(request, env);
+          case '/api/audit-log':
+            return handleGetAuditLog(request, env);
+          case '/api/team/members':
+            return handleGetTeamMembers(request, env);
+          case '/api/team/policies':
+            return handleGetTeamPolicies(request, env);
+          case '/api/team/notifications':
+            return handleGetNotifications(request, env);
+          case '/api/team/audit-logs':
+            return handleGetAuditLog(request, env);
+          case '/api/team/revoke':
+            return handleRevokeTeamMember(request, env);
+          case '/api/admin/dashboard':
+            return handleAdminDashboard(request, env);
+          case '/api/admin/users':
+            return handleAdminCRMUsers(request, env);
+          case '/api/admin/user':
+            return route.method === 'GET'
+              ? handleAdminUserDetail(request, env)
+              : handleAdminUpdateUser(request, env);
+          case '/api/admin/activity':
+            return handleAdminActivity(request, env);
+          case '/api/admin/health':
+            return handleAdminHealth(request, env);
+          case '/api/admin/cohorts':
+            return handleAdminCohorts(request, env);
+          case '/api/admin/revenue':
+            return handleAdminRevenue(request, env);
+          case '/api/admin/analytics':
+            return handleAdminAnalytics(request, env);
+          case '/api/admin/export/users':
+            return handleAdminExportUsers(request, env);
+          case '/api/admin/export/usage':
+            return handleAdminExportUsage(request, env);
+          case '/api/admin/export/audit':
+            return handleAdminExportAudit(request, env);
+          case '/api/admin/audit-log':
+            return handleAdminAuditLog(request, env);
+          case '/api/admin/notes':
+            switch (route.method) {
+              case 'GET':
+                return handleAdminGetNotes(request, env);
+              case 'POST':
+                return handleAdminCreateNote(request, env);
+              case 'PUT':
+                return handleAdminUpdateNote(request, env);
+              case 'DELETE':
+                return handleAdminDeleteNote(request, env);
+              default:
+                return errorResponse('Not found', 404);
             }
-            const total = badgeLookup._tag === 'present' ? badgeLookup.value.total : 0;
-            return new Response(
-              JSON.stringify({
-                schemaVersion: 1,
-                label: 'installs',
-                message: total.toLocaleString(),
-                color: 'blue',
-              }),
-              {
-                status: 200,
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Cache-Control': 'public, max-age=60, must-revalidate',
-                  ...corsHeaders,
-                },
-              }
-            );
-          } catch (error: unknown) {
-            console.error('Installs badge query failed:', error);
-            return new Response(
-              JSON.stringify({
-                schemaVersion: 1,
-                label: 'installs',
-                message: '0',
-                color: 'blue',
-              }),
-              {
-                status: 200,
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Cache-Control': 'public, max-age=60, must-revalidate',
-                  ...corsHeaders,
-                },
-              }
-            );
+          case '/api/admin/tags':
+            return route.method === 'GET'
+              ? handleAdminGetTags(request, env)
+              : handleAdminCreateTag(request, env);
+          case '/api/admin/customer-tags':
+            switch (route.method) {
+              case 'GET':
+                return handleAdminGetCustomerTags(request, env);
+              case 'POST':
+                return handleAdminAssignTag(request, env);
+              case 'DELETE':
+                return handleAdminRemoveTag(request, env);
+              default:
+                return errorResponse('Not found', 404);
+            }
+          case '/api/admin/customer-health':
+            return handleAdminGetCustomerHealth(request, env);
+          case '/api/admin/advanced-metrics':
+            return handleAdminAdvancedMetrics(request, env);
+          case '/api/admin/firehose':
+            return handleGetFirehose(request, env);
+          case '/api/insights':
+            return handleGetSmartInsights(request, env);
+          case '/api/stripe/webhook':
+            return handleStripeWebhook(request, env);
+          case '/api/billing/portal':
+            return handleBillingPortal(request, env);
+          case '/api/billing/checkout':
+            return handleCreateCheckout(request, env);
+          case '/api/admin/stripe/sync':
+            return handleAdminStripeSync(request, env);
+          case '/api/admin/stripe/metrics':
+            return handleAdminStripeMetrics(request, env);
+          case '/api/init-db': {
+            const unauthorized = unauthorizedUnlessAdminSecret(request, env);
+            return unauthorized ?? handleInitDb(env);
           }
+          case '/api/badge/installs':
+            return handleInstallsBadge(env);
         }
-
-        return errorResponse('Not found', 404);
       } catch (error: unknown) {
         Sentry.captureException(error);
-        console.error('Worker error:', error);
         return errorResponse('Internal server error', 500);
       }
     },
@@ -569,10 +344,9 @@ export default Sentry.withSentry(
       env: Env,
       ctx: ExecutionContext
     ): Promise<void> {
-      console.log('Running scheduled cleanup tasks');
       ctx.waitUntil(
         cleanupDocsAnalytics(env.DB).catch(error => {
-          console.error('Scheduled docs analytics cleanup failed:', error);
+          Sentry.captureException(error);
         })
       );
     },

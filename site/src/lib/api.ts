@@ -5,6 +5,7 @@ import { casesHandled } from './prelude';
 import { browserWorkerFetcher, requestDecodedJson, type WorkerApiError } from './worker-api';
 import * as Http from './contracts/worker-http';
 import type { Schema } from '@effect/schema';
+import { LicensingRoutes } from '../../shared/licensing-routes';
 
 type WorkerBody<S extends Schema.Schema.AnyNoContext> = Schema.Schema.Type<S>;
 
@@ -188,7 +189,7 @@ export interface DashboardData {
 }
 
 export async function updateProfile(name: string): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/user/profile', {
+  return apiRequest(Http.SuccessSchema, LicensingRoutes.updateProfile.path, {
     method: 'PUT',
     body: JSON.stringify({ name }),
   });
@@ -197,31 +198,31 @@ export async function updateProfile(name: string): Promise<{ success: boolean }>
 export async function regenerateLicense(): Promise<
   WorkerBody<typeof Http.RegeneratedLicenseSchema>
 > {
-  return apiRequest(Http.RegeneratedLicenseSchema, '/api/license/regenerate', {
+  return apiRequest(Http.RegeneratedLicenseSchema, LicensingRoutes.regenerateLicense.path, {
     method: 'POST',
   });
 }
 
 export async function revokeMachine(machineId: string): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/machines/revoke', {
+  return apiRequest(Http.SuccessSchema, LicensingRoutes.revokeMachine.path, {
     method: 'POST',
     body: JSON.stringify({ machine_id: machineId }),
   });
 }
 
 export async function getSessions(): Promise<WorkerBody<typeof Http.SessionsResponseSchema>> {
-  return apiRequest(Http.SessionsResponseSchema, '/api/sessions');
+  return apiRequest(Http.SessionsResponseSchema, LicensingRoutes.sessions.path);
 }
 
 export async function revokeSession(sessionId: string): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/sessions/revoke', {
+  return apiRequest(Http.SuccessSchema, LicensingRoutes.revokeSession.path, {
     method: 'POST',
     body: JSON.stringify({ session_id: sessionId }),
   });
 }
 
 export async function getAuditLog(): Promise<WorkerBody<typeof Http.AuditLogResponseSchema>> {
-  return apiRequest(Http.AuditLogResponseSchema, '/api/audit-log');
+  return apiRequest(Http.AuditLogResponseSchema, LicensingRoutes.auditLog.path);
 }
 
 // ============================================
@@ -232,11 +233,11 @@ export type TeamData = WorkerBody<typeof Http.TeamDataSchema>;
 export type TeamMember = TeamData['members'][number];
 
 export async function getTeamMembers(): Promise<TeamData> {
-  return apiRequest(Http.TeamDataSchema, '/api/team/members');
+  return apiRequest(Http.TeamDataSchema, LicensingRoutes.teamMembers.path);
 }
 
 export async function revokeTeamMember(machineId: string): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/team/revoke', {
+  return apiRequest(Http.SuccessSchema, LicensingRoutes.revokeTeamMember.path, {
     method: 'POST',
     body: JSON.stringify({ machine_id: machineId }),
   });
@@ -246,14 +247,14 @@ export async function revokeTeamMember(machineId: string): Promise<{ success: bo
 export type BillingOffer = 'pro' | 'team';
 
 export async function createCheckout(offer: BillingOffer): Promise<{ url: string }> {
-  return apiRequest(Http.CheckoutUrlSchema, '/api/billing/checkout', {
+  return apiRequest(Http.CheckoutUrlSchema, LicensingRoutes.billingCheckout.path, {
     method: 'POST',
     body: JSON.stringify({ offer }),
   });
 }
 
 export async function openBillingPortal(email: string): Promise<{ success: boolean; url: string }> {
-  return apiRequest(Http.PortalUrlSchema, '/api/billing/portal', {
+  return apiRequest(Http.PortalUrlSchema, LicensingRoutes.billingPortal.path, {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
@@ -269,11 +270,11 @@ export type TeamAuditLogsResponse = WorkerBody<typeof Http.TeamAuditLogsResponse
 export type TeamAuditLogEntry = TeamAuditLogsResponse['logs'][number];
 
 export async function getTeamPolicies(): Promise<PoliciesResponse> {
-  return apiRequest(Http.PoliciesResponseSchema, '/api/team/policies');
+  return apiRequest(Http.PoliciesResponseSchema, LicensingRoutes.teamPolicies.path);
 }
 
 export async function getNotificationSettings(): Promise<NotificationsResponse> {
-  return apiRequest(Http.NotificationsResponseSchema, '/api/team/notifications');
+  return apiRequest(Http.NotificationsResponseSchema, LicensingRoutes.teamNotifications.path);
 }
 
 export async function getTeamAuditLogs(params?: {
@@ -295,7 +296,10 @@ export async function getTeamAuditLogs(params?: {
   if (params?.resource_type) {
     searchParams.set('resource_type', params.resource_type);
   }
-  return apiRequest(Http.TeamAuditLogsResponseSchema, `/api/team/audit-logs?${searchParams}`);
+  return apiRequest(
+    Http.TeamAuditLogsResponseSchema,
+    `${LicensingRoutes.teamAuditLogs.path}?${searchParams}`
+  );
 }
 
 // ============================================
@@ -324,15 +328,18 @@ export type CustomerHealth = CustomerHealthResponse['health'];
 export type AdminAdvancedMetrics = WorkerBody<typeof Http.AdminAdvancedMetricsSchema>;
 
 export async function getAdminDashboard(): Promise<AdminOverview> {
-  return apiRequest(Http.AdminOverviewSchema, '/api/admin/dashboard');
+  return apiRequest(Http.AdminOverviewSchema, LicensingRoutes.adminDashboard.path);
 }
 
 export async function getAdminAnalytics(): Promise<AdminAnalytics> {
-  return apiRequest(Http.AdminAnalyticsSchema, '/api/admin/analytics');
+  return apiRequest(Http.AdminAnalyticsSchema, LicensingRoutes.adminAnalytics.path);
 }
 
 export async function getAdminFirehose(limit = 50): Promise<FirehoseResponse> {
-  return apiRequest(Http.FirehoseResponseSchema, `/api/admin/firehose?limit=${limit}`);
+  return apiRequest(
+    Http.FirehoseResponseSchema,
+    `${LicensingRoutes.adminFirehose.path}?limit=${limit}`
+  );
 }
 
 export async function getAdminUsers(
@@ -344,18 +351,21 @@ export async function getAdminUsers(
   if (search) {
     params.set('search', search);
   }
-  return apiRequest(Http.AdminUsersResponseSchema, `/api/admin/users?${params}`);
+  return apiRequest(Http.AdminUsersResponseSchema, `${LicensingRoutes.adminUsers.path}?${params}`);
 }
 
 export async function getAdminUserDetail(userId: string): Promise<AdminUserDetail> {
-  return apiRequest(Http.AdminUserDetailSchema, `/api/admin/user?id=${userId}`);
+  return apiRequest(
+    Http.AdminUserDetailSchema,
+    `${LicensingRoutes.adminUserGet.path}?id=${userId}`
+  );
 }
 
 export async function updateAdminUser(
   userId: string,
   updates: { tier?: string; max_seats?: number; status?: string }
 ): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/admin/user', {
+  return apiRequest(Http.SuccessSchema, LicensingRoutes.adminUserUpdate.path, {
     method: 'PUT',
     body: JSON.stringify({
       userId,
@@ -366,19 +376,19 @@ export async function updateAdminUser(
 }
 
 export async function getAdminActivity(): Promise<AdminActivityResponse> {
-  return apiRequest(Http.AdminActivityResponseSchema, '/api/admin/activity');
+  return apiRequest(Http.AdminActivityResponseSchema, LicensingRoutes.adminActivity.path);
 }
 
 export async function getAdminHealth(): Promise<AdminHealth> {
-  return apiRequest(Http.AdminHealthSchema, '/api/admin/health');
+  return apiRequest(Http.AdminHealthSchema, LicensingRoutes.adminHealth.path);
 }
 
 export async function getAdminCohorts(): Promise<AdminCohorts> {
-  return apiRequest(Http.AdminCohortsSchema, '/api/admin/cohorts');
+  return apiRequest(Http.AdminCohortsSchema, LicensingRoutes.adminCohorts.path);
 }
 
 export async function getAdminRevenue(): Promise<AdminRevenue> {
-  return apiRequest(Http.AdminRevenueSchema, '/api/admin/revenue');
+  return apiRequest(Http.AdminRevenueSchema, LicensingRoutes.adminRevenue.path);
 }
 
 export async function getAdminAuditLog(
@@ -390,11 +400,17 @@ export async function getAdminAuditLog(
   if (action) {
     params.set('action', action);
   }
-  return apiRequest(Http.AdminAuditLogResponseSchema, `/api/admin/audit-log?${params}`);
+  return apiRequest(
+    Http.AdminAuditLogResponseSchema,
+    `${LicensingRoutes.adminAuditLog.path}?${params}`
+  );
 }
 
 export async function getAdminNotes(customerId: string): Promise<NotesResponse> {
-  return apiRequest(Http.NotesResponseSchema, `/api/admin/notes?customerId=${customerId}`);
+  return apiRequest(
+    Http.NotesResponseSchema,
+    `${LicensingRoutes.adminNotesGet.path}?customerId=${customerId}`
+  );
 }
 
 export async function createAdminNote(
@@ -402,7 +418,7 @@ export async function createAdminNote(
   content: string,
   noteType = 'general'
 ): Promise<WorkerBody<typeof Http.CreatedNoteSchema>> {
-  return apiRequest(Http.CreatedNoteSchema, '/api/admin/notes', {
+  return apiRequest(Http.CreatedNoteSchema, LicensingRoutes.adminNotesCreate.path, {
     method: 'POST',
     body: JSON.stringify({ customerId, content, noteType }),
   });
@@ -412,18 +428,22 @@ export async function updateAdminNote(
   noteId: string,
   updates: { content?: string; isPinned?: boolean }
 ): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/admin/notes', {
+  return apiRequest(Http.SuccessSchema, LicensingRoutes.adminNotesCreate.path, {
     method: 'PUT',
     body: JSON.stringify({ noteId, ...updates }),
   });
 }
 
 export async function deleteAdminNote(noteId: string): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, `/api/admin/notes?noteId=${noteId}`, { method: 'DELETE' });
+  return apiRequest(
+    Http.SuccessSchema,
+    `${LicensingRoutes.adminNotesDelete.path}?noteId=${noteId}`,
+    { method: 'DELETE' }
+  );
 }
 
 export async function getAdminTags(): Promise<TagsResponse> {
-  return apiRequest(Http.TagsResponseSchema, '/api/admin/tags');
+  return apiRequest(Http.TagsResponseSchema, LicensingRoutes.adminTagsGet.path);
 }
 
 export async function createAdminTag(
@@ -431,21 +451,24 @@ export async function createAdminTag(
   color?: string,
   description?: string
 ): Promise<WorkerBody<typeof Http.CreatedTagSchema>> {
-  return apiRequest(Http.CreatedTagSchema, '/api/admin/tags', {
+  return apiRequest(Http.CreatedTagSchema, LicensingRoutes.adminTagsGet.path, {
     method: 'POST',
     body: JSON.stringify({ name, color, description }),
   });
 }
 
 export async function getAdminCustomerTags(customerId: string): Promise<TagsResponse> {
-  return apiRequest(Http.TagsResponseSchema, `/api/admin/customer-tags?customerId=${customerId}`);
+  return apiRequest(
+    Http.TagsResponseSchema,
+    `${LicensingRoutes.adminCustomerTagsGet.path}?customerId=${customerId}`
+  );
 }
 
 export async function assignAdminTag(
   customerId: string,
   tagId: string
 ): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/admin/customer-tags', {
+  return apiRequest(Http.SuccessSchema, LicensingRoutes.adminCustomerTagsAssign.path, {
     method: 'POST',
     body: JSON.stringify({ customerId, tagId }),
   });
@@ -457,7 +480,7 @@ export async function removeAdminTag(
 ): Promise<{ success: boolean }> {
   return apiRequest(
     Http.SuccessSchema,
-    `/api/admin/customer-tags?customerId=${customerId}&tagId=${tagId}`,
+    `${LicensingRoutes.adminCustomerTagsRemove.path}?customerId=${customerId}&tagId=${tagId}`,
     {
       method: 'DELETE',
     }
@@ -467,18 +490,20 @@ export async function removeAdminTag(
 export async function getAdminCustomerHealth(customerId: string): Promise<CustomerHealthResponse> {
   return apiRequest(
     Http.CustomerHealthResponseSchema,
-    `/api/admin/customer-health?customerId=${customerId}`
+    `${LicensingRoutes.adminCustomerHealth.path}?customerId=${customerId}`
   );
 }
 
 // Advanced Metrics API
 export async function getAdminAdvancedMetrics(): Promise<AdminAdvancedMetrics> {
-  return apiRequest(Http.AdminAdvancedMetricsSchema, '/api/admin/advanced-metrics');
+  return apiRequest(Http.AdminAdvancedMetricsSchema, LicensingRoutes.adminAdvancedMetrics.path);
 }
 
 // Data Export - Fetch CSV data directly
 export async function exportAdminUsers(): Promise<string> {
-  const response = await window.fetch('/api/licensing/api/admin/export/users');
+  const response = await window.fetch(
+    `${LICENSING_BFF_BASE}${LicensingRoutes.adminExportUsers.path}`
+  );
 
   if (!response.ok) {
     throw new Error('Failed to export users');
@@ -489,7 +514,7 @@ export async function exportAdminUsers(): Promise<string> {
 
 export async function exportAdminUsage(days = 30): Promise<string> {
   const response = await window.fetch(
-    `/api/licensing/api/admin/export/usage?days=${encodeURIComponent(days)}`
+    `${LICENSING_BFF_BASE}${LicensingRoutes.adminExportUsage.path}?days=${encodeURIComponent(days)}`
   );
 
   if (!response.ok) {
@@ -501,7 +526,7 @@ export async function exportAdminUsage(days = 30): Promise<string> {
 
 export async function exportAdminAudit(days = 30): Promise<string> {
   const response = await window.fetch(
-    `/api/licensing/api/admin/export/audit?days=${encodeURIComponent(days)}`
+    `${LICENSING_BFF_BASE}${LicensingRoutes.adminExportAudit.path}?days=${encodeURIComponent(days)}`
   );
 
   if (!response.ok) {
@@ -540,7 +565,10 @@ export type DocsInteraction = DocsAnalyticsDashboard['top_interactions'][number]
 export type DocsPerformance = DocsAnalyticsDashboard['performance'][number];
 
 export async function getDocsAnalytics(days = 30): Promise<DocsAnalyticsDashboard> {
-  return get(Http.DocsAnalyticsDashboardSchema, `/api/docs/analytics/dashboard?days=${days}`);
+  return get(
+    Http.DocsAnalyticsDashboardSchema,
+    `${LicensingRoutes.docsAnalyticsDashboard.path}?days=${days}`
+  );
 }
 
 // ============================================
@@ -553,7 +581,10 @@ export async function getSmartInsights(
   target: 'user' | 'team' | 'admin' = 'user'
 ): Promise<SmartInsight | null> {
   try {
-    return await apiRequest(Http.SmartInsightSchema, `/api/insights?target=${target}`);
+    return await apiRequest(
+      Http.SmartInsightSchema,
+      `${LicensingRoutes.insights.path}?target=${target}`
+    );
   } catch {
     return null;
   }
@@ -569,15 +600,21 @@ export type SiteRealtimeAnalytics = WorkerBody<typeof Http.SiteRealtimeAnalytics
 export type SiteAnalyticsOverview = WorkerBody<typeof Http.SiteAnalyticsOverviewSchema>;
 
 export async function getSiteGeoAnalytics(days = 30): Promise<SiteGeoAnalytics> {
-  return apiRequest(Http.SiteGeoAnalyticsSchema, `/api/site/analytics/geo?days=${days}`);
+  return apiRequest(
+    Http.SiteGeoAnalyticsSchema,
+    `${LicensingRoutes.siteAnalyticsGeo.path}?days=${days}`
+  );
 }
 
 export async function getSiteRealtimeAnalytics(): Promise<SiteRealtimeAnalytics> {
-  return apiRequest(Http.SiteRealtimeAnalyticsSchema, '/api/site/analytics/realtime');
+  return apiRequest(Http.SiteRealtimeAnalyticsSchema, LicensingRoutes.siteAnalyticsRealtime.path);
 }
 
 export async function getSiteAnalyticsOverview(days = 30): Promise<SiteAnalyticsOverview> {
-  return apiRequest(Http.SiteAnalyticsOverviewSchema, `/api/site/analytics/overview?days=${days}`);
+  return apiRequest(
+    Http.SiteAnalyticsOverviewSchema,
+    `${LicensingRoutes.siteAnalyticsOverview.path}?days=${days}`
+  );
 }
 
 export async function trackSiteEvent(
@@ -592,7 +629,7 @@ export async function trackSiteEvent(
   const exit = await Effect.runPromiseExit(
     requestDecodedJson(
       browserWorkerFetcher,
-      `${PUBLIC_WORKER_BASE}/api/site/analytics/track`,
+      `${PUBLIC_WORKER_BASE}${LicensingRoutes.siteAnalyticsTrack.path}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -689,17 +726,17 @@ export type AdminStripeMetrics = WorkerBody<typeof Http.AdminStripeMetricsSchema
 export type AdminStripeSyncResult = WorkerBody<typeof Http.AdminStripeSyncResultSchema>;
 
 export async function getAdminStripeMetrics(): Promise<AdminStripeMetrics> {
-  return get(Http.AdminStripeMetricsSchema, '/api/admin/stripe/metrics');
+  return get(Http.AdminStripeMetricsSchema, LicensingRoutes.adminStripeMetrics.path);
 }
 
 export async function syncAdminStripeData(): Promise<AdminStripeSyncResult> {
-  return post(Http.AdminStripeSyncResultSchema, '/api/admin/stripe/sync');
+  return post(Http.AdminStripeSyncResultSchema, LicensingRoutes.adminStripeSync.path);
 }
 
 export async function openAdminBillingPortal(
   email: string
 ): Promise<WorkerBody<typeof Http.PortalUrlSchema>> {
-  return post(Http.PortalUrlSchema, '/api/billing/portal', { email });
+  return post(Http.PortalUrlSchema, LicensingRoutes.billingPortal.path, { email });
 }
 
 export function getStripeCustomerUrl(stripeCustomerId: string): string {

@@ -6,10 +6,14 @@
     "lib": ["ES2023"],
     "types": ["@cloudflare/workers-types"],
     "strict": true,
+    "exactOptionalPropertyTypes": true,
     "noImplicitReturns": true,
+    "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "useUnknownInCatchVariables": true,
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../shared/**/*.ts"]
 }

@@ -9,7 +9,7 @@ export class ExtraRowParseError extends Error {
   readonly _tag = 'ExtraRowParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

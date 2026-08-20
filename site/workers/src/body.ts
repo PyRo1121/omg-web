@@ -8,7 +8,7 @@ export class InvalidJsonBodyError extends Error {
   readonly _tag = 'InvalidJsonBodyError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super('Invalid JSON body');
   }

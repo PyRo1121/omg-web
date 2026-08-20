@@ -10,7 +10,7 @@ export class TelemetryDashboardParseError extends Error {
   readonly _tag = 'TelemetryDashboardParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

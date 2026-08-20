@@ -17,7 +17,7 @@ export class WorkerApiHttpError extends Error {
 /** The Worker request failed before a JSON body could be parsed. */
 export class WorkerApiNetworkError extends Error {
   readonly _tag = 'WorkerApiNetworkError';
-  constructor(readonly cause?: unknown) {
+  constructor(override readonly cause?: unknown) {
     super('Request failed');
   }
 }

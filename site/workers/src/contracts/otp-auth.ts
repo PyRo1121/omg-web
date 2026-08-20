@@ -13,7 +13,7 @@ export class AuthParseError extends Error {
   readonly _tag = 'AuthParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

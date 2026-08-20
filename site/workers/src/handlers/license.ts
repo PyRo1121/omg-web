@@ -75,7 +75,7 @@ export class ValidateLicenseStoreUnavailable extends Error {
   readonly _tag = 'ValidateLicenseStoreUnavailable';
   constructor(
     readonly operation: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(`License store unavailable during ${operation}`);
   }
@@ -84,7 +84,7 @@ export class ValidateLicenseStoreUnavailable extends Error {
 /** JWT signing is not configured or failed. */
 export class LicenseJwtError extends Error {
   readonly _tag = 'LicenseJwtError';
-  constructor(readonly cause?: unknown) {
+  constructor(override readonly cause?: unknown) {
     super('Internal server error');
   }
 }
@@ -745,7 +745,7 @@ export async function handleReportUsage(request: Request, env: Env): Promise<Res
 
 class InstallPingStoreUnavailable extends Error {
   readonly _tag = 'InstallPingStoreUnavailable';
-  constructor(readonly cause?: unknown) {
+  constructor(override readonly cause?: unknown) {
     super('Internal server error');
   }
 }

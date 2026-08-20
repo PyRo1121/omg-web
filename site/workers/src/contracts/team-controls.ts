@@ -9,7 +9,7 @@ export class TeamControlsParseError extends Error {
   readonly _tag = 'TeamControlsParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

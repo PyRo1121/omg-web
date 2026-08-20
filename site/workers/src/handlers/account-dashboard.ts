@@ -45,7 +45,7 @@ export class DashboardStoreUnavailable extends Error {
   readonly _tag = 'DashboardStoreUnavailable';
   constructor(
     readonly operation: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(`Dashboard store unavailable during ${operation}`);
   }

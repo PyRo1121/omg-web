@@ -42,7 +42,7 @@ export class BillingOfferUnavailable extends Error {
 
   constructor(
     readonly offer: BillingOffer,
-    readonly cause: unknown
+    override readonly cause: unknown
   ) {
     super(`Billing offer ${offer} is unavailable`);
   }
@@ -54,7 +54,7 @@ export class BillingEntitlementUnavailable extends Error {
 
   constructor(
     readonly priceId: string,
-    readonly cause: unknown
+    override readonly cause: unknown
   ) {
     super(`Stripe Price ${priceId} has no unambiguous billing entitlement`);
   }

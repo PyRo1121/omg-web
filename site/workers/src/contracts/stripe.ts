@@ -9,7 +9,7 @@ export class StripeParseError extends Error {
   readonly _tag = 'StripeParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

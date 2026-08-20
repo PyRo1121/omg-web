@@ -1,5 +1,6 @@
 import { Effect } from 'effect';
 import { Schema } from '@effect/schema';
+import { isSiteBffRoute, LicensingRoutes } from '../../shared/licensing-routes';
 import {
   decodeSiteSessionWorkerResponse,
   EmailAddress,
@@ -9,60 +10,6 @@ import {
 const INTERNAL_WORKER_ORIGIN = 'https://omg-saas.internal';
 const BFF_PATH_PREFIX = '/api/licensing';
 const MAX_PROXY_BODY_BYTES = 1024 * 1024;
-
-interface LicensingRoute {
-  readonly method: string;
-  readonly path: string;
-}
-
-const LICENSING_ROUTES: readonly LicensingRoute[] = [
-  { method: 'GET', path: '/api/dashboard' },
-  { method: 'PUT', path: '/api/user/profile' },
-  { method: 'POST', path: '/api/license/regenerate' },
-  { method: 'POST', path: '/api/machines/revoke' },
-  { method: 'GET', path: '/api/sessions' },
-  { method: 'POST', path: '/api/sessions/revoke' },
-  { method: 'GET', path: '/api/audit-log' },
-  { method: 'GET', path: '/api/team/members' },
-  { method: 'GET', path: '/api/team/policies' },
-  { method: 'GET', path: '/api/team/notifications' },
-  { method: 'GET', path: '/api/team/audit-logs' },
-  { method: 'POST', path: '/api/team/revoke' },
-  { method: 'GET', path: '/api/admin/dashboard' },
-  { method: 'GET', path: '/api/admin/users' },
-  { method: 'GET', path: '/api/admin/user' },
-  { method: 'PUT', path: '/api/admin/user' },
-  { method: 'GET', path: '/api/admin/activity' },
-  { method: 'GET', path: '/api/admin/health' },
-  { method: 'GET', path: '/api/admin/cohorts' },
-  { method: 'GET', path: '/api/admin/revenue' },
-  { method: 'GET', path: '/api/admin/analytics' },
-  { method: 'GET', path: '/api/admin/export/users' },
-  { method: 'GET', path: '/api/admin/export/usage' },
-  { method: 'GET', path: '/api/admin/export/audit' },
-  { method: 'GET', path: '/api/admin/audit-log' },
-  { method: 'GET', path: '/api/admin/notes' },
-  { method: 'POST', path: '/api/admin/notes' },
-  { method: 'PUT', path: '/api/admin/notes' },
-  { method: 'DELETE', path: '/api/admin/notes' },
-  { method: 'GET', path: '/api/admin/tags' },
-  { method: 'POST', path: '/api/admin/tags' },
-  { method: 'GET', path: '/api/admin/customer-tags' },
-  { method: 'POST', path: '/api/admin/customer-tags' },
-  { method: 'DELETE', path: '/api/admin/customer-tags' },
-  { method: 'GET', path: '/api/admin/customer-health' },
-  { method: 'GET', path: '/api/admin/advanced-metrics' },
-  { method: 'GET', path: '/api/admin/firehose' },
-  { method: 'GET', path: '/api/insights' },
-  { method: 'GET', path: '/api/docs/analytics/dashboard' },
-  { method: 'GET', path: '/api/site/analytics/geo' },
-  { method: 'GET', path: '/api/site/analytics/realtime' },
-  { method: 'GET', path: '/api/site/analytics/overview' },
-  { method: 'POST', path: '/api/billing/portal' },
-  { method: 'POST', path: '/api/billing/checkout' },
-  { method: 'POST', path: '/api/admin/stripe/sync' },
-  { method: 'GET', path: '/api/admin/stripe/metrics' },
-];
 
 const LicensingIdentitySchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),
@@ -111,7 +58,7 @@ export class LicensingBffParseError extends Error {
   readonly _tag = 'LicensingBffParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }
@@ -120,7 +67,7 @@ export class LicensingBffParseError extends Error {
 /** The service binding failed before returning a response. */
 export class LicensingServiceUnavailable extends Error {
   readonly _tag = 'LicensingServiceUnavailable';
-  constructor(readonly cause?: unknown) {
+  constructor(override readonly cause?: unknown) {
     super('Licensing service unavailable');
   }
 }
@@ -136,7 +83,7 @@ export class LicensingBodyTooLarge extends Error {
 /** The browser request body could not be read for forwarding. */
 export class LicensingBodyReadError extends Error {
   readonly _tag = 'LicensingBodyReadError';
-  constructor(readonly cause?: unknown) {
+  constructor(override readonly cause?: unknown) {
     super('Licensing request body could not be read');
   }
 }
@@ -161,10 +108,6 @@ export type LicensingBffError =
   | LicensingBodyReadError
   | LicensingWorkerRejected;
 
-function routeAllowed(method: string, path: string): boolean {
-  return LICENSING_ROUTES.some(route => route.method === method && route.path === path);
-}
-
 function requireSameOrigin(inbound: Request): Effect.Effect<void, LicensingSameOriginRequired> {
   if (inbound.method === 'GET' || inbound.method === 'HEAD') {
     return Effect.void;
@@ -181,7 +124,7 @@ function downstreamUrl(inbound: Request): Effect.Effect<URL, LicensingRouteRejec
     return Effect.fail(new LicensingRouteRejected(source.pathname, inbound.method));
   }
   const path = source.pathname.slice(BFF_PATH_PREFIX.length);
-  if (!routeAllowed(inbound.method, path)) {
+  if (!isSiteBffRoute(inbound.method, path)) {
     return Effect.fail(new LicensingRouteRejected(path, inbound.method));
   }
   const target = new URL(path, INTERNAL_WORKER_ORIGIN);
@@ -215,7 +158,7 @@ function mintWorkerSession(
     );
     const response = yield* serviceFetch(
       service,
-      new Request(`${INTERNAL_WORKER_ORIGIN}/api/internal/site-session`, {
+      new Request(`${INTERNAL_WORKER_ORIGIN}${LicensingRoutes.internalSiteSession.path}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

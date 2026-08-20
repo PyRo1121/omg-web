@@ -356,24 +356,24 @@ export function reportWebVitals(metrics: WebVitalsMetrics): void {
 
   // Add values and ratings for each metric
   if (metrics.lcp !== undefined) {
-    vitalsWithRating.lcp = metrics.lcp;
-    vitalsWithRating.lcp_rating = getMetricRating(metrics.lcp, 2500, 4000);
+    vitalsWithRating['lcp'] = metrics.lcp;
+    vitalsWithRating['lcp_rating'] = getMetricRating(metrics.lcp, 2500, 4000);
   }
   if (metrics.inp !== undefined) {
-    vitalsWithRating.inp = metrics.inp;
-    vitalsWithRating.inp_rating = getMetricRating(metrics.inp, 200, 500);
+    vitalsWithRating['inp'] = metrics.inp;
+    vitalsWithRating['inp_rating'] = getMetricRating(metrics.inp, 200, 500);
   }
   if (metrics.cls !== undefined) {
-    vitalsWithRating.cls = metrics.cls;
-    vitalsWithRating.cls_rating = getMetricRating(metrics.cls, 0.1, 0.25);
+    vitalsWithRating['cls'] = metrics.cls;
+    vitalsWithRating['cls_rating'] = getMetricRating(metrics.cls, 0.1, 0.25);
   }
   if (metrics.ttfb !== undefined) {
-    vitalsWithRating.ttfb = metrics.ttfb;
-    vitalsWithRating.ttfb_rating = getMetricRating(metrics.ttfb, 800, 1800);
+    vitalsWithRating['ttfb'] = metrics.ttfb;
+    vitalsWithRating['ttfb_rating'] = getMetricRating(metrics.ttfb, 800, 1800);
   }
   if (metrics.fcp !== undefined) {
-    vitalsWithRating.fcp = metrics.fcp;
-    vitalsWithRating.fcp_rating = getMetricRating(metrics.fcp, 1800, 3000);
+    vitalsWithRating['fcp'] = metrics.fcp;
+    vitalsWithRating['fcp_rating'] = getMetricRating(metrics.fcp, 1800, 3000);
   }
 
   queueEvent('web_vitals', 'core_web_vitals', vitalsWithRating);
@@ -404,123 +404,124 @@ function initScrollTracking(): void {
   window.addEventListener('scroll', handleScroll, { passive: true });
 }
 
-/**
- * Initialize Web Vitals collection using PerformanceObserver
- */
+/** Initialize each independently supported Web Vitals observer. */
 function initWebVitalsCollection(): void {
   if (!('PerformanceObserver' in window)) {
     return;
   }
-
   const metrics: WebVitalsMetrics = {};
-  let lcpReported = false;
+  observeLargestContentfulPaint(metrics);
+  observeInteractionLatency(metrics);
+  observeLayoutShift(metrics);
+  observePaintAndNavigation(metrics);
+  reportVitalsOnPageExit(metrics);
+}
 
-  // LCP Observer
+function observeLargestContentfulPaint(metrics: WebVitalsMetrics): void {
   try {
-    const lcpObserver = new PerformanceObserver(list => {
+    const observer = new PerformanceObserver(list => {
       const entries = list.getEntries();
       const lastEntry = entries[entries.length - 1];
-      if (lastEntry) {
+      if (lastEntry !== undefined) {
         metrics.lcp = lastEntry.startTime;
       }
     });
-    lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
-
-    // Report LCP on first interaction or visibility change
-    const reportLcp = () => {
-      if (!lcpReported && metrics.lcp) {
-        lcpReported = true;
-        lcpObserver.disconnect();
+    observer.observe({ type: 'largest-contentful-paint', buffered: true });
+    let reported = false;
+    const stopObserving = () => {
+      if (!reported && metrics.lcp !== undefined) {
+        reported = true;
+        observer.disconnect();
       }
     };
-    ['keydown', 'click', 'visibilitychange'].forEach(event => {
-      window.addEventListener(event, reportLcp, { once: true, capture: true });
-    });
+    for (const event of ['keydown', 'click', 'visibilitychange']) {
+      window.addEventListener(event, stopObserving, { once: true, capture: true });
+    }
   } catch {
-    // LCP observer not supported
+    // Unsupported observer types are optional browser capabilities.
   }
+}
 
-  // INP Observer (replaces FID)
+function observeInteractionLatency(metrics: WebVitalsMetrics): void {
   try {
-    const inpObserver = new PerformanceObserver(list => {
+    const observer = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
         const duration = interactionMs(entry);
-        if (duration === undefined) {
-          continue;
-        }
-        if (!metrics.inp || duration > metrics.inp) {
+        if (duration !== undefined && (metrics.inp === undefined || duration > metrics.inp)) {
           metrics.inp = duration;
         }
       }
     });
-    inpObserver.observe({ type: 'event', buffered: true });
+    observer.observe({ type: 'event', buffered: true });
   } catch {
-    // INP observer not supported, try FID as fallback
-    try {
-      const fidObserver = new PerformanceObserver(list => {
-        for (const entry of list.getEntries()) {
-          const delay = inputDelayMs(entry);
-          if (delay !== undefined) {
-            metrics.inp = delay;
-          }
-        }
-      });
-      fidObserver.observe({ type: 'first-input', buffered: true });
-    } catch {
-      // Neither supported
-    }
+    observeFirstInputDelay(metrics);
   }
+}
 
-  // CLS Observer
+function observeFirstInputDelay(metrics: WebVitalsMetrics): void {
   try {
-    const clsObserver = new PerformanceObserver(list => {
+    const observer = new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) {
+        const delay = inputDelayMs(entry);
+        if (delay !== undefined) {
+          metrics.inp = delay;
+        }
+      }
+    });
+    observer.observe({ type: 'first-input', buffered: true });
+  } catch {
+    // Unsupported observer types are optional browser capabilities.
+  }
+}
+
+function observeLayoutShift(metrics: WebVitalsMetrics): void {
+  try {
+    const observer = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
         const delta = layoutShiftDelta(entry);
-        if (delta === undefined) {
-          continue;
+        if (delta !== undefined) {
+          clsValue += delta;
+          clsEntries.push(entry);
         }
-        clsValue += delta;
-        clsEntries.push(entry);
       }
       metrics.cls = clsValue;
     });
-    clsObserver.observe({ type: 'layout-shift', buffered: true });
+    observer.observe({ type: 'layout-shift', buffered: true });
   } catch {
-    // CLS observer not supported
+    // Unsupported observer types are optional browser capabilities.
   }
+}
 
-  // TTFB and FCP from navigation timing
+function observePaintAndNavigation(metrics: WebVitalsMetrics): void {
   try {
-    const paintObserver = new PerformanceObserver(list => {
+    const observer = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
         if (entry.name === 'first-contentful-paint') {
           metrics.fcp = entry.startTime;
         }
       }
     });
-    paintObserver.observe({ type: 'paint', buffered: true });
-
+    observer.observe({ type: 'paint', buffered: true });
     const ttfb = navigationTtfbMs(performance.getEntriesByType('navigation'));
     if (ttfb !== undefined) {
       metrics.ttfb = ttfb;
     }
   } catch {
-    // Navigation timing not available
+    // Navigation timing is an optional browser capability.
   }
+}
 
-  // Report vitals before page unload
+function reportVitalsOnPageExit(metrics: WebVitalsMetrics): void {
   const reportVitals = () => {
     if (Object.keys(metrics).length > 0) {
       reportWebVitals(metrics);
     }
   };
-
   window.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       reportVitals();
     }
   });
-
   window.addEventListener('pagehide', reportVitals);
 }
 
@@ -538,46 +539,41 @@ function parseCtaType(value: string): CtaType | undefined {
   }
 }
 
-/**
- * Initialize CTA click tracking
- */
+/** Initialize delegated CTA click tracking. */
 function initCtaTracking(): void {
   document.addEventListener(
     'click',
-    e => {
-      if (!(e.target instanceof HTMLElement)) {
+    event => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
         return;
       }
-      const link = e.target.closest('a, button');
-      if (!link) {
+      const link = target.closest('a, button');
+      if (link === null) {
         return;
       }
-
-      const href = link.getAttribute('href') || '';
-      const dataTrack = link.getAttribute('data-track-cta');
-
-      // Auto-detect CTA type from href or data attribute
-      if (dataTrack) {
-        const parsedCtaType = parseCtaType(dataTrack);
-        if (parsedCtaType) {
-          trackCtaClick(parsedCtaType, link.textContent?.trim());
-        }
-      } else if (href.includes('install') || href.includes('#install')) {
-        trackCtaClick('install', link.textContent?.trim());
-      } else if (href.includes('signup') || href.includes('login')) {
-        trackCtaClick('signup', link.textContent?.trim());
-      } else if (href.includes('pricing') || href.includes('#pricing')) {
-        trackCtaClick('pricing', link.textContent?.trim());
-      } else if (href.includes('/docs')) {
-        trackCtaClick('docs', link.textContent?.trim());
-      } else if (href.includes('github.com')) {
-        trackCtaClick('github', link.textContent?.trim());
-      } else if (href.includes('download') || link.classList.contains('download-btn')) {
-        trackCtaClick('download', link.textContent?.trim());
+      const ctaType = ctaTypeForLink(link);
+      if (ctaType !== undefined) {
+        trackCtaClick(ctaType, link.textContent?.trim());
       }
     },
     { capture: true }
   );
+}
+
+function ctaTypeForLink(link: Element): CtaType | undefined {
+  const explicitType = link.getAttribute('data-track-cta');
+  if (explicitType !== null) {
+    return parseCtaType(explicitType);
+  }
+  const href = link.getAttribute('href') || '';
+  if (href.includes('install')) return 'install';
+  if (href.includes('signup') || href.includes('login')) return 'signup';
+  if (href.includes('pricing')) return 'pricing';
+  if (href.includes('/docs')) return 'docs';
+  if (href.includes('github.com')) return 'github';
+  if (href.includes('download') || link.classList.contains('download-btn')) return 'download';
+  return undefined;
 }
 
 /**

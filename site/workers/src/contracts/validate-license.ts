@@ -12,7 +12,7 @@ export class ValidateLicenseParseError extends Error {
   readonly _tag = 'ValidateLicenseParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

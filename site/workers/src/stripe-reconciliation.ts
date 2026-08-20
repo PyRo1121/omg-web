@@ -27,7 +27,7 @@ export class StripeReconciliationError extends Error {
 
   constructor(
     readonly detail: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(detail);
   }

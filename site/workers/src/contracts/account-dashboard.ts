@@ -9,7 +9,7 @@ export class AccountDashboardParseError extends Error {
   readonly _tag = 'AccountDashboardParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

@@ -1,0 +1,464 @@
+/** Version of the licensing HTTP route contract shared by the site BFF and Worker. */
+export const LICENSING_HTTP_API_VERSION = 1;
+
+export type LicensingHttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export type LicensingRouteAuthentication =
+  'none' | 'session' | 'admin-session' | 'admin-secret' | 'stripe-signature';
+export type LicensingRouteTransport = 'direct' | 'site-bff' | 'internal';
+
+interface LicensingRouteDefinition {
+  readonly method: LicensingHttpMethod;
+  readonly path: `/${string}`;
+  readonly authentication: LicensingRouteAuthentication;
+  readonly transport: LicensingRouteTransport;
+}
+
+export const LicensingRoutes = {
+  health: {
+    method: 'GET',
+    path: '/health',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  authSendCode: {
+    method: 'POST',
+    path: '/api/auth/send-code',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  authVerifyCode: {
+    method: 'POST',
+    path: '/api/auth/verify-code',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  authVerifySession: {
+    method: 'POST',
+    path: '/api/auth/verify-session',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  authLogout: {
+    method: 'POST',
+    path: '/api/auth/logout',
+    authentication: 'session',
+    transport: 'direct',
+  },
+  validateLicenseGet: {
+    method: 'GET',
+    path: '/api/validate-license',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  validateLicensePost: {
+    method: 'POST',
+    path: '/api/validate-license',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  getLicense: {
+    method: 'GET',
+    path: '/api/get-license',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  reportUsage: {
+    method: 'POST',
+    path: '/api/report-usage',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  installPing: {
+    method: 'POST',
+    path: '/api/install-ping',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  analytics: {
+    method: 'POST',
+    path: '/api/analytics',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  cliEvent: {
+    method: 'POST',
+    path: '/api/cli/event',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  cliBatch: {
+    method: 'POST',
+    path: '/api/cli/batch',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  privacyStatus: {
+    method: 'GET',
+    path: '/api/privacy/status',
+    authentication: 'session',
+    transport: 'direct',
+  },
+  privacyExport: {
+    method: 'POST',
+    path: '/api/privacy/export',
+    authentication: 'session',
+    transport: 'direct',
+  },
+  privacyDelete: {
+    method: 'POST',
+    path: '/api/privacy/delete',
+    authentication: 'session',
+    transport: 'direct',
+  },
+  privacyOptOut: {
+    method: 'POST',
+    path: '/api/privacy/opt-out',
+    authentication: 'session',
+    transport: 'direct',
+  },
+  docsAnalytics: {
+    method: 'POST',
+    path: '/api/docs/analytics',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  docsAnalyticsDashboard: {
+    method: 'GET',
+    path: '/api/docs/analytics/dashboard',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  siteAnalyticsTrack: {
+    method: 'POST',
+    path: '/api/site/analytics/track',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  siteAnalyticsGeo: {
+    method: 'GET',
+    path: '/api/site/analytics/geo',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  siteAnalyticsRealtime: {
+    method: 'GET',
+    path: '/api/site/analytics/realtime',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  siteAnalyticsOverview: {
+    method: 'GET',
+    path: '/api/site/analytics/overview',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  githubStats: {
+    method: 'GET',
+    path: '/api/github-stats',
+    authentication: 'none',
+    transport: 'direct',
+  },
+  internalSiteSession: {
+    method: 'POST',
+    path: '/api/internal/site-session',
+    authentication: 'admin-secret',
+    transport: 'internal',
+  },
+  dashboard: {
+    method: 'GET',
+    path: '/api/dashboard',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  updateProfile: {
+    method: 'PUT',
+    path: '/api/user/profile',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  regenerateLicense: {
+    method: 'POST',
+    path: '/api/license/regenerate',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  revokeMachine: {
+    method: 'POST',
+    path: '/api/machines/revoke',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  sessions: {
+    method: 'GET',
+    path: '/api/sessions',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  revokeSession: {
+    method: 'POST',
+    path: '/api/sessions/revoke',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  auditLog: {
+    method: 'GET',
+    path: '/api/audit-log',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  teamMembers: {
+    method: 'GET',
+    path: '/api/team/members',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  teamPolicies: {
+    method: 'GET',
+    path: '/api/team/policies',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  teamNotifications: {
+    method: 'GET',
+    path: '/api/team/notifications',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  teamAuditLogs: {
+    method: 'GET',
+    path: '/api/team/audit-logs',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  revokeTeamMember: {
+    method: 'POST',
+    path: '/api/team/revoke',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  adminDashboard: {
+    method: 'GET',
+    path: '/api/admin/dashboard',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminUsers: {
+    method: 'GET',
+    path: '/api/admin/users',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminUserGet: {
+    method: 'GET',
+    path: '/api/admin/user',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminUserUpdate: {
+    method: 'PUT',
+    path: '/api/admin/user',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminActivity: {
+    method: 'GET',
+    path: '/api/admin/activity',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminHealth: {
+    method: 'GET',
+    path: '/api/admin/health',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminCohorts: {
+    method: 'GET',
+    path: '/api/admin/cohorts',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminRevenue: {
+    method: 'GET',
+    path: '/api/admin/revenue',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminAnalytics: {
+    method: 'GET',
+    path: '/api/admin/analytics',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminExportUsers: {
+    method: 'GET',
+    path: '/api/admin/export/users',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminExportUsage: {
+    method: 'GET',
+    path: '/api/admin/export/usage',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminExportAudit: {
+    method: 'GET',
+    path: '/api/admin/export/audit',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminAuditLog: {
+    method: 'GET',
+    path: '/api/admin/audit-log',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminNotesGet: {
+    method: 'GET',
+    path: '/api/admin/notes',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminNotesCreate: {
+    method: 'POST',
+    path: '/api/admin/notes',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminNotesUpdate: {
+    method: 'PUT',
+    path: '/api/admin/notes',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminNotesDelete: {
+    method: 'DELETE',
+    path: '/api/admin/notes',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminTagsGet: {
+    method: 'GET',
+    path: '/api/admin/tags',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminTagsCreate: {
+    method: 'POST',
+    path: '/api/admin/tags',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminCustomerTagsGet: {
+    method: 'GET',
+    path: '/api/admin/customer-tags',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminCustomerTagsAssign: {
+    method: 'POST',
+    path: '/api/admin/customer-tags',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminCustomerTagsRemove: {
+    method: 'DELETE',
+    path: '/api/admin/customer-tags',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminCustomerHealth: {
+    method: 'GET',
+    path: '/api/admin/customer-health',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminAdvancedMetrics: {
+    method: 'GET',
+    path: '/api/admin/advanced-metrics',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminFirehose: {
+    method: 'GET',
+    path: '/api/admin/firehose',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  insights: {
+    method: 'GET',
+    path: '/api/insights',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  stripeWebhook: {
+    method: 'POST',
+    path: '/api/stripe/webhook',
+    authentication: 'stripe-signature',
+    transport: 'direct',
+  },
+  billingPortal: {
+    method: 'POST',
+    path: '/api/billing/portal',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  billingCheckout: {
+    method: 'POST',
+    path: '/api/billing/checkout',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  adminStripeSync: {
+    method: 'POST',
+    path: '/api/admin/stripe/sync',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  adminStripeMetrics: {
+    method: 'GET',
+    path: '/api/admin/stripe/metrics',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
+  initDatabase: {
+    method: 'POST',
+    path: '/api/init-db',
+    authentication: 'admin-secret',
+    transport: 'internal',
+  },
+  installsBadge: {
+    method: 'GET',
+    path: '/api/badge/installs',
+    authentication: 'none',
+    transport: 'direct',
+  },
+} as const satisfies Readonly<Record<string, LicensingRouteDefinition>>;
+
+export type LicensingRouteId = keyof typeof LicensingRoutes;
+export type ResolvedLicensingRoute = (typeof LicensingRoutes)[LicensingRouteId];
+
+const routeEntries = Object.values(LicensingRoutes);
+
+/** Remove a non-root trailing slash before route resolution. */
+export function normalizeLicensingPath(path: string): string {
+  return path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path;
+}
+
+/** Resolve one exact method/path pair from the versioned licensing contract. */
+export function resolveLicensingRoute(
+  method: string,
+  path: string
+): ResolvedLicensingRoute | undefined {
+  const normalizedPath = normalizeLicensingPath(path);
+  const match = routeEntries.find(
+    route => route.method === method && route.path === normalizedPath
+  );
+  return match;
+}
+
+/** Whether a route is permitted through the authenticated same-origin site BFF. */
+export function isSiteBffRoute(method: string, path: string): boolean {
+  return resolveLicensingRoute(method, path)?.transport === 'site-bff';
+}

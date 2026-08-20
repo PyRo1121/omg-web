@@ -9,7 +9,7 @@ export class D1RowParseError extends Error {
   readonly _tag = 'D1RowParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

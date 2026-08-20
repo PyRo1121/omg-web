@@ -13,7 +13,7 @@ export class FleetForbiddenError extends Error {
 /** D1 was unavailable while processing a fleet push. */
 export class FleetStoreUnavailable extends Error {
   readonly _tag = 'FleetStoreUnavailable';
-  constructor(readonly cause?: unknown) {
+  constructor(override readonly cause?: unknown) {
     super('Failed to process fleet push');
   }
 }

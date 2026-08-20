@@ -17,19 +17,20 @@ export default {
 
     // All other requests go to main site
     const mainUrl = new URL(path + url.search, env.MAIN_SITE);
-    return fetch(mainUrl.toString(), {
+    const mainRequestInit: RequestInit = {
       method: request.method,
       headers: prepareOriginHeaders(request.headers, env.MAIN_SITE),
-      body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
       redirect: 'follow',
-    });
+    };
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      mainRequestInit.body = request.body;
+    }
+    const mainRequest = new Request(mainUrl, mainRequestInit);
+    return fetch(mainRequest);
   },
 } satisfies ExportedHandler<Env>;
 
-/**
- * Production-ready docs proxy handler
- * Handles caching, content rewriting, and performance optimization
- */
+/** Route a docs request through cache lookup, origin fetch, rewriting, and cache storage. */
 async function handleDocsProxy(
   request: Request,
   env: Env,
@@ -37,137 +38,211 @@ async function handleDocsProxy(
 ): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const hostname = url.hostname;
-
-    // Strip /docs prefix and preserve the rest of the path
     const docsPath = url.pathname.replace(/^\/docs/, '') || '/';
     const targetUrl = `${env.DOCS_SITE}${docsPath}${url.search}`;
-
-    // Check cache first (for GET requests only)
-    if (request.method === 'GET') {
-      const cache = caches.default;
-      const cacheKey = new Request(targetUrl, request);
-      const cachedResponse = await cache.match(cacheKey);
-
-      if (cachedResponse) {
-        // Self-healing: if a stale error response was cached (from before our fix),
-        // delete it from cache and re-fetch from origin instead of serving the error
-        if (cachedResponse.status >= 200 && cachedResponse.status < 300) {
-          const response = new Response(cachedResponse.body, cachedResponse);
-          response.headers.set('X-Cache', 'HIT');
-          response.headers.set('X-Proxy', 'Cloudflare-Worker-Router');
-          return response;
-        } else {
-          // Stale error in cache — evict it and fall through to origin fetch
-          ctx.waitUntil(cache.delete(cacheKey));
-          console.log(`Evicted stale ${cachedResponse.status} from cache: ${targetUrl}`);
-        }
-      }
+    const cachedResponse = await readDocsCache(request, targetUrl, ctx);
+    if (cachedResponse !== null) {
+      return cachedResponse;
     }
 
-    // Fetch from origin
-    const originRequest = new Request(targetUrl, {
-      method: request.method,
-      headers: prepareOriginHeaders(request.headers, env.DOCS_SITE),
-      body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
-      redirect: 'manual', // Handle redirects ourselves
-    });
-
-    let response = await fetch(originRequest);
-
-    // Handle redirects
-    if (response.status >= 301 && response.status <= 308) {
-      const location = response.headers.get('Location');
-      if (location) {
-        const redirectUrl = rewriteUrl(location, hostname, env.DOCS_SITE);
-        return Response.redirect(redirectUrl, response.status);
-      }
+    const originResponse = await fetchDocsOrigin(request, targetUrl, env.DOCS_SITE);
+    const redirectResponse = docsRedirect(originResponse, url.hostname, env.DOCS_SITE);
+    if (redirectResponse !== null) {
+      return redirectResponse;
     }
 
-    // Handle errors - serve stale content if available
-    if (!response.ok && response.status !== 304) {
-      console.error(`Docs proxy error: ${response.status} for ${targetUrl}`);
-
-      if (request.method === 'GET') {
-        const cache = caches.default;
-        const cacheKey = new Request(targetUrl, request);
-        const staleResponse = await cache.match(cacheKey);
-        if (staleResponse) {
-          const fallback = new Response(staleResponse.body, staleResponse);
-          fallback.headers.set('X-Cache', 'STALE-ON-ERROR');
-          fallback.headers.set('X-Proxy', 'Cloudflare-Worker-Router');
-          return fallback;
-        }
-      }
+    const staleResponse = await readStaleDocsResponse(request, targetUrl, originResponse);
+    if (staleResponse !== null) {
+      return staleResponse;
     }
 
-    // Clone response for processing
-    const contentType = response.headers.get('Content-Type') || '';
-    const isHTML = contentType.includes('text/html');
-    const isCSS = contentType.includes('text/css');
-    const isJS = contentType.includes('javascript') || contentType.includes('ecmascript');
-
-    // Rewrite HTML/CSS/JS to fix asset paths
-    let body = response.body;
-    if ((isHTML || isCSS || isJS) && response.body) {
-      const text = await response.text();
-      const rewritten = rewriteContent(text, isHTML, isCSS, isJS, hostname, env.DOCS_SITE);
-      body = new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode(rewritten));
-          controller.close();
-        },
-      });
-
-      // Update response
-      response = new Response(body, response);
-    }
-
-    // Build custom headers
-    const headers = new Headers(response.headers);
-    headers.set('X-Cache', 'MISS');
-    headers.set('X-Proxy', 'Cloudflare-Worker-Router');
-    headers.set('X-Docs-Origin', env.DOCS_SITE);
-    headers.set('X-Content-Type-Options', 'nosniff');
-    headers.set('X-Frame-Options', 'SAMEORIGIN');
-    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-    // Cache static assets aggressively — only for successful responses
-    const isSuccess = response.status >= 200 && response.status < 300;
-    if (isSuccess && request.method === 'GET' && shouldCache(url.pathname, contentType)) {
-      const cacheTtl = getCacheTtl(url.pathname, contentType);
-      headers.set('Cache-Control', `public, max-age=${cacheTtl}, s-maxage=${cacheTtl}, immutable`);
-    } else if (!isSuccess) {
-      // Never cache error responses — prevent stale 503s from persisting
-      headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    }
-
-    // Create final response with custom headers
-    const finalResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers,
-    });
-
-    // Store in cache only for successful responses
-    if (isSuccess && request.method === 'GET' && shouldCache(url.pathname, contentType)) {
-      const cache = caches.default;
-      const cacheKey = new Request(targetUrl, request);
-      ctx.waitUntil(cache.put(cacheKey, finalResponse.clone()));
-    }
-
-    return finalResponse;
-  } catch (error) {
-    console.error('Docs proxy handler error:', error);
-    return new Response('Docs temporarily unavailable', {
-      status: 503,
-      headers: {
-        'Content-Type': 'text/plain',
-        'X-Proxy-Error': 'true',
-        'Retry-After': '60',
-      },
-    });
+    const contentType = originResponse.headers.get('Content-Type') || '';
+    const rewrittenResponse = await rewriteDocsResponse(
+      originResponse,
+      contentType,
+      url.hostname,
+      env.DOCS_SITE
+    );
+    return finalizeDocsResponse(
+      rewrittenResponse,
+      contentType,
+      request,
+      url.pathname,
+      targetUrl,
+      env.DOCS_SITE,
+      ctx
+    );
+  } catch {
+    return docsUnavailableResponse();
   }
+}
+
+async function readDocsCache(
+  request: Request,
+  targetUrl: string,
+  ctx: ExecutionContext
+): Promise<Response | null> {
+  if (request.method !== 'GET') {
+    return null;
+  }
+  const cache = caches.default;
+  const cacheKey = new Request(targetUrl, request);
+  const cachedResponse = await cache.match(cacheKey);
+  if (cachedResponse === undefined) {
+    return null;
+  }
+  if (cachedResponse.status < 200 || cachedResponse.status >= 300) {
+    ctx.waitUntil(cache.delete(cacheKey));
+    return null;
+  }
+  const response = new Response(cachedResponse.body, cachedResponse);
+  response.headers.set('X-Cache', 'HIT');
+  response.headers.set('X-Proxy', 'Cloudflare-Worker-Router');
+  return response;
+}
+
+async function fetchDocsOrigin(
+  request: Request,
+  targetUrl: string,
+  docsOrigin: string
+): Promise<Response> {
+  const requestInit: RequestInit = {
+    method: request.method,
+    headers: prepareOriginHeaders(request.headers, docsOrigin),
+    redirect: 'manual',
+  };
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    requestInit.body = request.body;
+  }
+  return fetch(new Request(targetUrl, requestInit));
+}
+
+function docsRedirect(response: Response, hostname: string, docsOrigin: string): Response | null {
+  if (response.status < 301 || response.status > 308) {
+    return null;
+  }
+  const location = response.headers.get('Location');
+  return location === null
+    ? null
+    : Response.redirect(rewriteUrl(location, hostname, docsOrigin), response.status);
+}
+
+async function readStaleDocsResponse(
+  request: Request,
+  targetUrl: string,
+  originResponse: Response
+): Promise<Response | null> {
+  if (originResponse.ok || originResponse.status === 304 || request.method !== 'GET') {
+    return null;
+  }
+  const staleResponse = await caches.default.match(new Request(targetUrl, request));
+  if (staleResponse === undefined) {
+    return null;
+  }
+  const fallback = new Response(staleResponse.body, staleResponse);
+  fallback.headers.set('X-Cache', 'STALE-ON-ERROR');
+  fallback.headers.set('X-Proxy', 'Cloudflare-Worker-Router');
+  return fallback;
+}
+
+async function rewriteDocsResponse(
+  response: Response,
+  contentType: string,
+  hostname: string,
+  docsOrigin: string
+): Promise<Response> {
+  const isHtml = contentType.includes('text/html');
+  const isCss = contentType.includes('text/css');
+  const isJavaScript = contentType.includes('javascript') || contentType.includes('ecmascript');
+  if ((!isHtml && !isCss && !isJavaScript) || response.body === null) {
+    return response;
+  }
+  const rewritten = rewriteContent(
+    await response.text(),
+    isHtml,
+    isCss,
+    isJavaScript,
+    hostname,
+    docsOrigin
+  );
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(rewritten));
+      controller.close();
+    },
+  });
+  return new Response(body, response);
+}
+
+function finalizeDocsResponse(
+  response: Response,
+  contentType: string,
+  request: Request,
+  pathname: string,
+  targetUrl: string,
+  docsOrigin: string,
+  ctx: ExecutionContext
+): Response {
+  const headers = docsResponseHeaders(response, contentType, request.method, pathname, docsOrigin);
+  const finalResponse = new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+  if (shouldStoreDocsResponse(response, request.method, pathname, contentType)) {
+    const cacheKey = new Request(targetUrl, request);
+    ctx.waitUntil(caches.default.put(cacheKey, finalResponse.clone()));
+  }
+  return finalResponse;
+}
+
+function docsResponseHeaders(
+  response: Response,
+  contentType: string,
+  method: string,
+  pathname: string,
+  docsOrigin: string
+): Headers {
+  const headers = new Headers(response.headers);
+  headers.set('X-Cache', 'MISS');
+  headers.set('X-Proxy', 'Cloudflare-Worker-Router');
+  headers.set('X-Docs-Origin', docsOrigin);
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('X-Frame-Options', 'SAMEORIGIN');
+  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  const isSuccess = response.status >= 200 && response.status < 300;
+  if (isSuccess && method === 'GET' && shouldCache(pathname, contentType)) {
+    const cacheTtl = getCacheTtl(pathname, contentType);
+    headers.set('Cache-Control', `public, max-age=${cacheTtl}, s-maxage=${cacheTtl}, immutable`);
+  } else if (!isSuccess) {
+    headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  }
+  return headers;
+}
+
+function shouldStoreDocsResponse(
+  response: Response,
+  method: string,
+  pathname: string,
+  contentType: string
+): boolean {
+  return (
+    response.status >= 200 &&
+    response.status < 300 &&
+    method === 'GET' &&
+    shouldCache(pathname, contentType)
+  );
+}
+
+function docsUnavailableResponse(): Response {
+  return new Response('Docs temporarily unavailable', {
+    status: 503,
+    headers: {
+      'Content-Type': 'text/plain',
+      'X-Proxy-Error': 'true',
+      'Retry-After': '60',
+    },
+  });
 }
 
 /**

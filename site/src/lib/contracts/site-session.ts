@@ -10,7 +10,7 @@ export class SiteSessionParseError extends Error {
   readonly _tag = 'SiteSessionParseError';
   constructor(
     readonly reason: string,
-    readonly cause?: unknown
+    override readonly cause?: unknown
   ) {
     super(reason);
   }

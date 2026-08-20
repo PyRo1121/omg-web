@@ -28,7 +28,7 @@ class LicensingBffMisconfigured extends Error {
 
 class LicensingIdentityStoreUnavailable extends Error {
   readonly _tag = 'LicensingIdentityStoreUnavailable';
-  constructor(readonly cause?: unknown) {
+  constructor(override readonly cause?: unknown) {
     super('Licensing identity store unavailable');
   }
 }
