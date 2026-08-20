@@ -368,27 +368,26 @@ releases/       version metadata and artifacts
 
 #### Verified facts
 
-The licensing database currently has competing authorities:
+Repository authority is now consolidated:
 
-- `site/workers/schema.sql`
-- `site/workers/schema-production.sql`
-- `site/workers/schema-fresh.sql`
-- runtime `handleInitDb`: `site/workers/src/handlers/admin.ts:1721-1919`
-- a migration folder with inconsistent numbering and duplicate `009`
-- scripts using direct `d1 execute --file`: `site/workers/package.json:8-9`
+- `site/workers/migrations/` is the only configured licensing migration directory.
+- `0000_current_baseline.sql` captures the reconciled schema through legacy migration 010.
+- migrations 011 and 012 remain immutable incremental migrations for Stripe inbox leases and bounded OTP attempts.
+- historical migrations are preserved byte-for-byte under `site/workers/migrations-legacy/`, outside Wrangler's configured migration directory.
+- Worker tests apply the exact configured migration sequence through Cloudflare's `readD1Migrations` and `applyD1Migrations` APIs.
+- manual schema files, direct-file migration scripts, the alternate test schema, and runtime `/api/init-db` initialization have been removed.
+- the licensing Worker no longer binds the unused `ANALYTICS_DB` or legacy KV namespaces; release analytics retains separate ownership of its analytics database.
 
-These sources disagree on `customer_id` versus `user_id`, columns, and tables.
+Production remains intentionally unapplied. The current remote schema and `d1_migrations` history have not been inventoried, so the baseline must not be recorded remotely based on repository assumptions.
 
-#### Required adoption plan
+#### Required production adoption plan
 
-1. Perform read-only inventory of production schemas and `d1_migrations`.
-2. Reconcile deployed schema with current application queries.
-3. Archive manual/historical SQL outside configured migration directories.
-4. Establish one audited baseline per database.
-5. Configure `migrations_dir` for each binding.
-6. Permit only Wrangler migration create/list/apply operations in deployment.
-7. Use expand → compatible code → backfill → contract sequencing.
-8. Remove runtime initialization and destructive fresh-schema paths.
+1. Perform read-only inventory of the production schema and `d1_migrations`.
+2. Confirm the deployed database already satisfies the baseline-through-010 contract.
+3. Reconcile any drift with a new forward-only migration; never edit the baseline or migrations 011/012.
+4. Back up or bookmark Time Travel before applying pending migrations.
+5. Apply through Wrangler migration list/apply commands only.
+6. Use expand → compatible code → backfill → contract sequencing for every later schema change.
 
 Cloudflare D1 migration references:
 

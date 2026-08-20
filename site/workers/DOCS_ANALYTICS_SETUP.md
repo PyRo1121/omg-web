@@ -5,6 +5,7 @@ World-class web analytics for omg-docs.pages.dev integrated with your admin dash
 ## 🎯 Features
 
 ### Data Collection
+
 - **Pageviews**: Track every page visit with full context
 - **UTM Campaigns**: Monitor marketing attribution (source, medium, campaign, term, content)
 - **Referrers**: See where your traffic comes from
@@ -14,6 +15,7 @@ World-class web analytics for omg-docs.pages.dev integrated with your admin dash
 - **Geographic**: Country-level distribution via Cloudflare headers
 
 ### Data Storage & Performance
+
 - **Raw Events**: 7-day retention for debugging
 - **Daily Aggregates**: Permanent storage, optimized queries
 - **Batch Processing**: Client batches 10 events / 5 seconds
@@ -21,6 +23,7 @@ World-class web analytics for omg-docs.pages.dev integrated with your admin dash
 - **Rate Limiting**: 100 req/min per IP (prevents abuse)
 
 ### Security & Privacy
+
 - **No PII**: No tracking of personal information
 - **IP Anonymization**: Only country-level geo data
 - **CORS**: Restricted to docs domains
@@ -31,17 +34,18 @@ World-class web analytics for omg-docs.pages.dev integrated with your admin dash
 
 ### 1. Run Database Migration
 
+From `site/workers`, first inventory the remote migration history and schema. Do not apply the baseline until the existing database is confirmed to be at least at legacy migration 010.
+
 ```bash
-cd /home/pyro1121/Documents/code/filemanager/omg/site/workers
+npx wrangler d1 migrations list omg-licensing --remote
+npx wrangler d1 execute omg-licensing --remote --command="SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'docs_analytics%';"
 
-# Production database
-bunx wrangler d1 execute omg-licensing --remote --file=./migrations/008-docs-analytics.sql
-
-# Verify tables were created
-bunx wrangler d1 execute omg-licensing --remote --command="SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'docs_analytics%';"
+# Apply only after the migration inventory is reconciled.
+npm run db:migrate:remote
 ```
 
 Expected output:
+
 ```
 docs_analytics_events
 docs_analytics_pageviews_daily
@@ -64,6 +68,7 @@ curl -X GET https://api.pyro1121.com/health
 ```
 
 Expected output:
+
 ```json
 {
   "status": "ok",
@@ -97,6 +102,7 @@ curl -X POST https://api.pyro1121.com/api/docs/analytics \
 ```
 
 Expected output:
+
 ```json
 {
   "success": true,
@@ -140,6 +146,7 @@ bunx wrangler d1 execute omg-licensing --remote --command="SELECT event_type, ev
 ```
 
 Expected output (within a minute):
+
 ```
 pageview | page_view | 3
 interaction | code_copy | 1
@@ -243,6 +250,7 @@ bunx wrangler triggers run
 ## 📈 Performance Metrics
 
 ### Expected Throughput
+
 - **Events/second**: 100-500 (with batching)
 - **Database writes/second**: 10-50 (batched inserts)
 - **Response time**: <50ms (p95)
@@ -250,6 +258,7 @@ bunx wrangler triggers run
 - **Aggregate storage**: ~5MB/day (permanent)
 
 ### Rate Limits
+
 - **Analytics endpoint**: 100 req/min per IP
 - **Dashboard endpoint**: 1000 req/min per user
 - **Batch size**: Max 50 events per request
@@ -272,6 +281,7 @@ bunx wrangler tail --format=pretty
 ### Dashboard returns empty data
 
 1. **Verify aggregation ran**:
+
 ```bash
 bunx wrangler d1 execute omg-licensing --remote --command="SELECT COUNT(*) FROM docs_analytics_pageviews_daily;"
 ```
@@ -289,11 +299,13 @@ bunx wrangler d1 execute omg-licensing --remote --command="SELECT COUNT(*) FROM 
 ## 🔐 Security Notes
 
 ### CORS Configuration
+
 - Analytics endpoint: Public (allows all origins)
 - Dashboard endpoint: Restricted (admin only)
 - Origin validation for authenticated endpoints
 
 ### Data Privacy
+
 - **No cookies**: Session IDs generated client-side
 - **No localStorage**: Temporary sessionStorage only
 - **No fingerprinting**: Basic analytics only
@@ -301,12 +313,13 @@ bunx wrangler d1 execute omg-licensing --remote --command="SELECT COUNT(*) FROM 
 - **IP Anonymization**: Country-level only
 
 ### Rate Limiting
+
 ```typescript
 // In wrangler.toml
-[[ratelimits]]
-name = "API_RATE_LIMITER"
-namespace_id = "1003"
-simple = { limit = 100, period = 60 }  // 100 req/min
+[[ratelimits]];
+name = 'API_RATE_LIMITER';
+namespace_id = '1003';
+simple = { limit = 100, period = 60 }; // 100 req/min
 ```
 
 ## 📚 Integration Examples
@@ -362,6 +375,7 @@ bunx wrangler d1 execute omg-licensing --remote --command="
 ## ✅ Success Criteria
 
 **Day 1:**
+
 - [ ] Migration deployed successfully
 - [ ] Worker deployed and accessible
 - [ ] Test event ingested and stored
@@ -369,6 +383,7 @@ bunx wrangler d1 execute omg-licensing --remote --command="
 - [ ] Docs site sending events
 
 **Week 1:**
+
 - [ ] 1000+ events collected
 - [ ] Aggregations running nightly
 - [ ] Zero 500 errors
@@ -376,6 +391,7 @@ bunx wrangler d1 execute omg-licensing --remote --command="
 - [ ] Admin dashboard used 3+ times
 
 **Month 1:**
+
 - [ ] 50,000+ events collected
 - [ ] UTM tracking showing campaign ROI
 - [ ] Top pages identified for optimization

@@ -11,24 +11,7 @@ routes = [{ pattern = "api.pyro1121.com/*", zone_name = "pyro1121.com" }]
 binding = "DB"
 database_name = "omg-licensing"
 database_id = "bcaf7781-a747-4637-92d9-94782e4fa1db"
-
-[[d1_databases]]
-binding = "ANALYTICS_DB"
-database_name = "omg-analytics"
-database_id = "e11296b5-1c01-437a-9d22-2e3786c20932"
-
-# KV Namespaces
-[[kv_namespaces]]
-binding = "CACHE"
-id = "305ad768c4b94f72bbf2225721e73a4b"
-
-[[kv_namespaces]]
-binding = "SESSIONS"
-id = "1c7724b4fa6b4f0ca528d510b5009dd2"
-
-[[kv_namespaces]]
-binding = "FLAGS"
-id = "7017da41ba6a4b528dc3ea018cd997bd"
+migrations_dir = "migrations"
 
 # R2 Buckets
 [[r2_buckets]]
@@ -64,7 +47,6 @@ simple = { limit = 100, period = 60 }
 mode = "smart"
 
 [vars]
-ACCOUNT_ID = "f1e95b3e1b502cf366dfc81a863695fa"
 STRIPE_PRO_PRICE_ID = "price_1SqWTHEFWzXv59QZC5zBGdLg"
 STRIPE_TEAM_PRICE_ID = "price_1SqWTXEFWzXv59QZB5G51MOV"
 

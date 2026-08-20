@@ -1,0 +1,2 @@
+# Wrangler-generated runtime declarations preserve upstream whitespace verbatim.
+site/workers/worker-configuration.d.ts whitespace=-blank-at-eol

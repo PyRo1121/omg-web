@@ -511,18 +511,18 @@ describe('Privacy API', () => {
         'SELECT * FROM audit_log WHERE action = ? AND resource_id = ?'
       )
         .bind('data_deletion_request', TEST_CUSTOMER_ID)
-        .first<{ resource_type: string | null; details: string | null }>();
+        .first<{ resource_type: string | null; metadata: string | null }>();
 
       expect(audit).toBeTruthy();
-      if (audit === null || audit.details === null) {
-        throw new Error('Audit details must be stored as JSON text');
+      if (audit === null || audit.metadata === null) {
+        throw new Error('Audit metadata must be stored as JSON text');
       }
       expect(audit.resource_type).toBe('customer');
       let parsed: unknown;
       try {
-        parsed = JSON.parse(audit.details);
+        parsed = JSON.parse(audit.metadata);
       } catch {
-        throw new Error('Audit details must be valid JSON');
+        throw new Error('Audit metadata must be valid JSON');
       }
       const details = Schema.decodeUnknownEither(Schema.Struct({ reason: Schema.String }))(parsed);
       if (details._tag !== 'Right') {

@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/cloudflare';
-import { unauthorizedUnlessAdminSecret } from './admin-secret';
 import { forbiddenUnlessAdminSession } from './admin-auth';
 import { type Env, corsHeaders, jsonResponse, errorResponse } from './api';
 import { InstallsBadgeRowSchema, readOptionalExtraRow } from './contracts/d1-extras';
@@ -53,7 +52,6 @@ import {
   handleAdminRemoveTag,
   handleAdminGetCustomerHealth,
   handleAdminAdvancedMetrics,
-  handleInitDb,
 } from './handlers/admin';
 import { handleGetSmartInsights } from './handlers/insights';
 import { handleGetFirehose } from './handlers/firehose';
@@ -326,13 +324,10 @@ export default Sentry.withSentry(
             return handleAdminStripeSync(request, env);
           case '/api/admin/stripe/metrics':
             return handleAdminStripeMetrics(request, env);
-          case '/api/init-db': {
-            const unauthorized = unauthorizedUnlessAdminSecret(request, env);
-            return unauthorized ?? handleInitDb(env);
-          }
           case '/api/badge/installs':
             return handleInstallsBadge(env);
         }
+        return errorResponse('Not found', 404);
       } catch (error: unknown) {
         Sentry.captureException(error);
         return errorResponse('Internal server error', 500);

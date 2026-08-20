@@ -1,57 +1,4 @@
-/**
- * Test Utilities
- * Helper functions for setting up and tearing down test data
- */
-
-import { readFileSync } from 'fs';
-import { join } from 'path';
-
-export async function setupDatabase(db: D1Database) {
-  // Read and execute setup SQL
-  const setupSQL = readFileSync(join(__dirname, 'setup.sql'), 'utf-8');
-
-  // Split by statements and execute each one
-  const statements = setupSQL
-    .split(';')
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
-
-  for (const statement of statements) {
-    try {
-      await db.prepare(statement).run();
-    } catch (e: unknown) {
-      if (!(e instanceof Error) || !e.message.includes('already exists')) {
-        console.error('Failed to execute statement:', statement, e);
-      }
-    }
-  }
-}
-
-export async function clearAllTables(db: D1Database) {
-  // Delete in reverse order of dependencies
-  const tables = [
-    'audit_log',
-    'otp_codes',
-    'sessions',
-    'customer_notes',
-    'install_stats',
-    'machine_usage',
-    'feature_usage',
-    'performance_metric',
-    'session',
-    'command_event',
-    'licenses',
-    'customers',
-  ];
-
-  for (const table of tables) {
-    try {
-      await db.prepare(`DELETE FROM ${table}`).run();
-    } catch {
-      // Ignore if table doesn't exist
-    }
-  }
-}
+/** Test data helpers for the migrated licensing schema. */
 
 export interface TestCustomer {
   customerId: string;
@@ -65,9 +12,9 @@ export async function createTestCustomer(
   email: string = 'test@example.com',
   tier: string = 'pro'
 ): Promise<TestCustomer> {
-  const customerId = `test-customer-${Math.random().toString(36).substring(7)}`;
-  const licenseId = `test-license-${Math.random().toString(36).substring(7)}`;
-  const licenseKey = `test-key-${Math.random().toString(36).substring(7)}`;
+  const customerId = `test-customer-${crypto.randomUUID()}`;
+  const licenseId = `test-license-${crypto.randomUUID()}`;
+  const licenseKey = `test-key-${crypto.randomUUID()}`;
 
   await db
     .prepare(

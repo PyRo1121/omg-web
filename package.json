@@ -8,10 +8,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "npm run check:anti-slop && npm run typecheck && npm run lint && npm run format:check && npm test",
+    "check": "npm run check:anti-slop && npm run check:migrations && npm run typecheck && npm run lint && npm run format:check && npm test",
     "check:anti-slop": "node tools/oxlint/sync-anti-slop.mjs --check",
-    "format": "prettier --write --ignore-unknown site/src site/shared site/workers/src site/workers/tests workers/router/src workers/releases/src .github/workflows/ci.yml tools/oxlint/sync-anti-slop.mjs oxlint.config.ts prettier.config.js package.json site/package.json site/workers/package.json tsconfig.json site/tsconfig.json site/workers/tsconfig.json workers/router/tsconfig.json workers/releases/tsconfig.json",
-    "format:check": "prettier --check --ignore-unknown site/src site/shared site/workers/src site/workers/tests workers/router/src workers/releases/src .github/workflows/ci.yml tools/oxlint/sync-anti-slop.mjs oxlint.config.ts prettier.config.js package.json site/package.json site/workers/package.json tsconfig.json site/tsconfig.json site/workers/tsconfig.json workers/router/tsconfig.json workers/releases/tsconfig.json",
+    "check:migrations": "npm run check:migrations --prefix site/workers",
+    "format": "prettier --write --ignore-unknown site/src site/shared site/workers/src site/workers/tests site/workers/tools workers/router/src workers/releases/src .github/workflows/ci.yml tools/oxlint/sync-anti-slop.mjs oxlint.config.ts prettier.config.js package.json site/package.json site/workers/package.json tsconfig.json site/tsconfig.json site/workers/tsconfig.json workers/router/tsconfig.json workers/releases/tsconfig.json",
+    "format:check": "prettier --check --ignore-unknown site/src site/shared site/workers/src site/workers/tests site/workers/tools workers/router/src workers/releases/src .github/workflows/ci.yml tools/oxlint/sync-anti-slop.mjs oxlint.config.ts prettier.config.js package.json site/package.json site/workers/package.json tsconfig.json site/tsconfig.json site/workers/tsconfig.json workers/router/tsconfig.json workers/releases/tsconfig.json",
     "lint": "npm run lint:oxlint",
     "lint:anti-slop": "npm run lint:oxlint",
     "lint:oxlint": "oxlint --config oxlint.config.ts site/src site/shared site/workers/src site/workers/tests workers/router/src workers/releases/src",
@@ -28,7 +29,7 @@
     "typecheck:router": "wrangler types workers/router/worker-configuration.d.ts --config workers/router/wrangler.toml --check && tsc --project workers/router/tsconfig.json --noEmit",
     "typecheck:site": "tsc --project site/tsconfig.json --noEmit",
     "typecheck:tools": "tsc --project tsconfig.json --noEmit",
-    "typecheck:workers": "tsc --project site/workers/tsconfig.json --noEmit"
+    "typecheck:workers": "wrangler types site/workers/worker-configuration.d.ts --config site/workers/wrangler.toml --check && tsc --project site/workers/tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260815.1",

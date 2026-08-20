@@ -79,17 +79,10 @@ describe('open Worker routes require X-Admin-Secret', () => {
     expect(response.status).toBe(400);
   });
 
-  it('returns 401 for POST /api/init-db when the secret is missing', async () => {
+  it('does not expose runtime database initialization', async () => {
     const ctx = createExecutionContext();
-    const response = await worker.fetch(postJson('/api/init-db', null, '{}'), env, ctx);
+    const response = await worker.fetch(postJson('/api/init-db', TEST_SECRET, '{}'), env, ctx);
     await waitOnExecutionContext(ctx);
-    expect(response.status).toBe(401);
-  });
-
-  it('returns 401 for POST /api/init-db when the secret is wrong', async () => {
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(postJson('/api/init-db', 'wrong-secret', '{}'), env, ctx);
-    await waitOnExecutionContext(ctx);
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(404);
   });
 });

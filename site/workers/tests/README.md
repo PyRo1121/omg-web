@@ -114,24 +114,19 @@ All tests use isolated in-memory D1 databases via Miniflare. Each test suite:
 
 ## Database Schema
 
-See `setup.sql` for the complete test schema. Key tables:
+The test pool reads `../migrations/` with Cloudflare's `readD1Migrations` API and applies the same ordered sequence used by Wrangler. `migration-schema.test.ts` verifies the recorded migration names and security-critical columns. There is no separate test schema.
+
+Key tables include:
 
 - `customers` - Customer records
 - `licenses` - License keys
 - `command_event` - CLI command telemetry
-- `session` - User session tracking
+- `session` - CLI telemetry sessions
 - `performance_metric` - Performance metrics
 - `feature_usage` - Feature adoption tracking
 - `audit_log` - Audit trail for privacy actions
 
 ## Helper Functions
-
-### Database Setup
-
-```typescript
-setupDatabase(db: D1Database)         // Initialize schema
-clearAllTables(db: D1Database)        // Clean all data
-```
 
 ### Test Customer Management
 

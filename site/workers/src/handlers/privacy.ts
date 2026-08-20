@@ -100,7 +100,7 @@ interface ExportData {
  *
  * Deletes:
  * - Telemetry events (command_event, session, performance_metric, feature_usage)
- * - Usage statistics (machine_usage)
+ * - Registered machines
  * - Install pings (install_stats)
  * - Customer notes (customer_notes) - unless marked as internal
  * - Session tokens
@@ -155,28 +155,34 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
       {
         label: 'install_stats',
         statement: env.DB.prepare(
-          'DELETE FROM install_stats WHERE install_id IN (SELECT machine_id FROM machine_usage WHERE customer_id = ?)'
+          `DELETE FROM install_stats
+           WHERE install_id IN (
+             SELECT m.machine_id
+             FROM machines m
+             JOIN licenses l ON l.id = m.license_id
+             WHERE l.customer_id = ?
+           )`
         ).bind(customerId),
       },
       {
-        label: 'machine_usage',
-        statement: env.DB.prepare('DELETE FROM machine_usage WHERE customer_id = ?').bind(
-          customerId
-        ),
+        label: 'machines',
+        statement: env.DB.prepare(
+          'DELETE FROM machines WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
+        ).bind(customerId),
       },
       {
         label: 'customer_notes',
-        statement: env.DB.prepare(
-          'DELETE FROM customer_notes WHERE customer_id = ? AND is_internal = 0'
-        ).bind(customerId),
+        statement: env.DB.prepare('DELETE FROM customer_notes WHERE customer_id = ?').bind(
+          customerId
+        ),
       },
       {
         label: 'session_tokens',
         statement: env.DB.prepare('DELETE FROM sessions WHERE customer_id = ?').bind(customerId),
       },
       {
-        label: 'otp_codes',
-        statement: env.DB.prepare('DELETE FROM otp_codes WHERE email = ?').bind(email),
+        label: 'auth_codes',
+        statement: env.DB.prepare('DELETE FROM auth_codes WHERE email = ?').bind(email),
       },
     ] as const;
 
@@ -190,10 +196,11 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
       ).bind(customerId),
       env.DB.prepare(
         `INSERT INTO audit_log
-           (id, action, resource_type, resource_id, ip_address, details, created_at)
-         VALUES (?, 'data_deletion_request', 'customer', ?, ?, ?, datetime('now'))`
+           (id, customer_id, action, resource_type, resource_id, ip_address, metadata, created_at)
+         VALUES (?, ?, 'data_deletion_request', 'customer', ?, ?, ?, datetime('now'))`
       ).bind(
         requestId,
+        customerId,
         customerId,
         request.headers.get('CF-Connecting-IP') ?? 'unknown',
         JSON.stringify({ reason: body.reason ?? 'User requested deletion' })
@@ -263,7 +270,7 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
     };
 
     const licenses = await env.DB.prepare(
-      'SELECT tier, status, max_machines, activated_at, expires_at, created_at FROM licenses WHERE customer_id = ?'
+      'SELECT tier, status, max_machines, created_at AS activated_at, expires_at, created_at FROM licenses WHERE customer_id = ?'
     )
       .bind(customerId)
       .all();
@@ -280,9 +287,11 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
     exportData.licenses = decodedLicenses.value;
 
     const machines = await env.DB.prepare(
-      `SELECT machine_id, hostname, os, arch, omg_version, activated_at, last_seen_at
-       FROM machine_usage
-       WHERE customer_id = ?`
+      `SELECT m.machine_id, m.hostname, m.os, m.arch, m.omg_version,
+              m.first_seen_at AS activated_at, m.last_seen_at
+       FROM machines m
+       JOIN licenses l ON l.id = m.license_id
+       WHERE l.customer_id = ?`
     )
       .bind(customerId)
       .all();
@@ -391,7 +400,7 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Content-Disposition': `attachment; filename="omg-data-export-${new Date().toISOString().split('T')[0]}.json"`,
+        'Content-Disposition': `attachment; filename="omg-data-export-${new Date().toISOString().slice(0, 10)}.json"`,
         'Cache-Control': 'no-store',
         Pragma: 'no-cache',
         ...corsHeaders,

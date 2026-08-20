@@ -422,12 +422,6 @@ export const LicensingRoutes = {
     authentication: 'admin-session',
     transport: 'site-bff',
   },
-  initDatabase: {
-    method: 'POST',
-    path: '/api/init-db',
-    authentication: 'admin-secret',
-    transport: 'internal',
-  },
   installsBadge: {
     method: 'GET',
     path: '/api/badge/installs',
