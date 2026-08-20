@@ -140,7 +140,8 @@ export type StripeMetricsList = Schema.Schema.Type<typeof StripeMetricsListSchem
 
 /** Signed Stripe webhook envelope. */
 export const StripeWebhookEventSchema = Schema.Struct({
-  type: Schema.String,
+  id: Schema.String.pipe(Schema.minLength(1)),
+  type: Schema.String.pipe(Schema.minLength(1)),
   data: Schema.Struct({
     object: Schema.Struct({
       id: Schema.optional(Schema.String),

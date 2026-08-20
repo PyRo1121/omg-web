@@ -14,6 +14,7 @@ import { forbiddenUnlessAdminSession } from '../admin-auth';
 import { decodeThrownMessage } from '../contracts/http-bodies';
 import {
   StripeCustomerIdRowSchema,
+  StripeEventStateRowSchema,
   BillingCustomerRowSchema,
   customerIsAdmin,
   IdRowSchema,
@@ -32,6 +33,7 @@ import {
   StripeMetricsListSchema,
   StripePortalSessionSchema,
   StripeSubscriptionListSchema,
+  type StripeWebhookEvent,
 } from '../contracts/stripe';
 
 const PortalBodySchema = Schema.Struct({
@@ -49,6 +51,67 @@ async function readStripeJson<S extends Schema.Schema.AnyNoContext>(
     return null;
   }
   return decoded.value;
+}
+
+type StripeEventClaim = 'claimed' | 'processed' | 'busy' | 'invalid';
+
+async function claimStripeEvent(
+  db: D1Database,
+  event: StripeWebhookEvent,
+  eventData: string
+): Promise<StripeEventClaim> {
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO stripe_events (
+        id, stripe_event_id, event_type, event_data, processed, status, attempt_count
+      ) VALUES (?, ?, ?, ?, 0, 'received', 0)`
+    )
+    .bind(crypto.randomUUID(), event.id, event.type, eventData)
+    .run();
+
+  const claim = await db
+    .prepare(
+      `UPDATE stripe_events
+       SET status = 'processing', attempt_count = attempt_count + 1,
+           processing_started_at = CURRENT_TIMESTAMP, last_error = NULL
+       WHERE stripe_event_id = ? AND (
+         status IN ('received', 'failed') OR
+         (status = 'processing' AND processing_started_at < datetime('now', '-5 minutes'))
+       )`
+    )
+    .bind(event.id)
+    .run();
+  if (claim.meta.changes > 0) {
+    return 'claimed';
+  }
+
+  const stateRow = await db
+    .prepare(`SELECT status, processed FROM stripe_events WHERE stripe_event_id = ?`)
+    .bind(event.id)
+    .first();
+  const stateLookup = await readOptionalExtraRow(
+    StripeEventStateRowSchema,
+    'Stripe event inbox row has an invalid shape',
+    stateRow
+  );
+  if (stateLookup._tag !== 'present') {
+    return 'invalid';
+  }
+  return stateLookup.value.processed === 1 || stateLookup.value.status === 'processed'
+    ? 'processed'
+    : 'busy';
+}
+
+async function markStripeEventProcessed(db: D1Database, eventId: string): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE stripe_events
+       SET status = 'processed', processed = 1, processed_at = CURRENT_TIMESTAMP,
+           processing_started_at = NULL, last_error = NULL
+       WHERE stripe_event_id = ?`
+    )
+    .bind(eventId)
+    .run();
 }
 
 /**
@@ -279,6 +342,19 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
     return new Response('Invalid JSON', { status: 400 });
   }
   const event = decodedEvent.value;
+  const claim = await claimStripeEvent(env.DB, event, body);
+  if (claim === 'processed') {
+    return new Response('OK');
+  }
+  if (claim === 'busy') {
+    return new Response('Event processing in progress', {
+      status: 409,
+      headers: { 'Retry-After': '5' },
+    });
+  }
+  if (claim === 'invalid') {
+    return new Response('Failed to load webhook inbox', { status: 500 });
+  }
 
   switch (event.type) {
     case 'customer.subscription.created':
@@ -538,6 +614,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
     }
   }
 
+  await markStripeEventProcessed(env.DB, event.id);
   return new Response('OK');
 }
 

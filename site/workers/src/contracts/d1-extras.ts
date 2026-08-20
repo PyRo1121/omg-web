@@ -532,6 +532,13 @@ export const CurrentMrrRowSchema = Schema.Struct({
 });
 export type CurrentMrrRow = Schema.Schema.Type<typeof CurrentMrrRowSchema>;
 
+/** Persisted Stripe webhook inbox state. */
+export const StripeEventStateRowSchema = Schema.Struct({
+  status: Schema.Literal('received', 'processing', 'processed', 'failed'),
+  processed: Schema.Number,
+});
+export type StripeEventStateRow = Schema.Schema.Type<typeof StripeEventStateRowSchema>;
+
 /** Nullable Stripe customer id selected for the billing portal. */
 export const StripeCustomerIdRowSchema = Schema.Struct({
   stripe_customer_id: Schema.Union(Schema.Null, Schema.String.pipe(Schema.minLength(1))),
