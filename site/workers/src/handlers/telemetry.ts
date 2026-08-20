@@ -7,11 +7,7 @@ import {
   SingleTelemetryRequestSchema,
   type TelemetryEvent,
 } from '../contracts/cli-telemetry';
-import {
-  LicenseCustomerIdRowSchema,
-  isInvalidExtraRow,
-  readOptionalExtraRow,
-} from '../contracts/d1-extras';
+import { resolveTelemetryIngestion } from '../telemetry-policy';
 
 // ========== Payload Size Limits ==========
 const MAX_EVENT_PAYLOAD_BYTES = 100 * 1024; // 100 KB
@@ -153,25 +149,19 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
       return response;
     }
 
-    // Validate license key
-    const licenseRow = await env.DB.prepare(
-      'SELECT id, customer_id FROM licenses WHERE license_key = ? AND status = "active"'
-    )
-      .bind(body.license_key)
-      .first();
-    const licenseLookup = await readOptionalExtraRow(
-      LicenseCustomerIdRowSchema,
-      'Telemetry license row has an invalid shape',
-      licenseRow
+    const policyExit = await Effect.runPromiseExit(
+      resolveTelemetryIngestion(env.DB, body.license_key)
     );
-    if (isInvalidExtraRow(licenseLookup)) {
-      return errorResponse('Failed to load license', 500);
+    if (Exit.isFailure(policyExit)) {
+      return errorResponse('Failed to load telemetry policy', 500);
     }
-    if (licenseLookup._tag === 'missing') {
+    if (policyExit.value._tag === 'invalidLicense') {
       return errorResponse('Invalid license key', 401);
     }
-    const license = licenseLookup.value;
-
+    if (policyExit.value._tag === 'optedOut') {
+      return jsonResponse({ success: true, skipped: true, reason: 'telemetry_opt_out' });
+    }
+    const licenseId = policyExit.value.licenseId;
     const eventId = generateId();
 
     // Store based on event type (sanitize all fields)
@@ -189,7 +179,7 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
         )
           .bind(
             eventId,
-            license.id,
+            licenseId,
             truncateString(body.machine_id, MAX_STRING_LENGTH),
             cmd.session_id,
             cmd.command,
@@ -219,7 +209,7 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
         )
           .bind(
             eventId,
-            license.id,
+            licenseId,
             truncateString(body.machine_id, MAX_STRING_LENGTH),
             sess.session_id,
             sess.event_type,
@@ -245,7 +235,7 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
         )
           .bind(
             eventId,
-            license.id,
+            licenseId,
             truncateString(body.machine_id, MAX_STRING_LENGTH),
             perf.metric_type,
             perf.duration_ms,
@@ -268,7 +258,7 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
         )
           .bind(
             eventId,
-            license.id,
+            licenseId,
             truncateString(body.machine_id, MAX_STRING_LENGTH),
             feat.feature,
             feat.enabled ? 1 : 0,
@@ -332,25 +322,22 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
       return response;
     }
 
-    // Validate license key
-    const licenseRow = await env.DB.prepare(
-      'SELECT id, customer_id FROM licenses WHERE license_key = ? AND status = "active"'
-    )
-      .bind(licenseKey)
-      .first();
-    const licenseLookup = await readOptionalExtraRow(
-      LicenseCustomerIdRowSchema,
-      'Telemetry license row has an invalid shape',
-      licenseRow
-    );
-    if (isInvalidExtraRow(licenseLookup)) {
-      return errorResponse('Failed to load license', 500);
+    const policyExit = await Effect.runPromiseExit(resolveTelemetryIngestion(env.DB, licenseKey));
+    if (Exit.isFailure(policyExit)) {
+      return errorResponse('Failed to load telemetry policy', 500);
     }
-    if (licenseLookup._tag === 'missing') {
+    if (policyExit.value._tag === 'invalidLicense') {
       return errorResponse('Invalid license key', 401);
     }
-    const license = licenseLookup.value;
-
+    if (policyExit.value._tag === 'optedOut') {
+      return jsonResponse({
+        success: true,
+        processed: 0,
+        skipped: body.events.length,
+        reason: 'telemetry_opt_out',
+      });
+    }
+    const licenseId = policyExit.value.licenseId;
     const statements: D1PreparedStatement[] = [];
 
     // Process each event
@@ -371,7 +358,7 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
             `
             ).bind(
               eventId,
-              license.id,
+              licenseId,
               truncateString(item.machine_id, MAX_STRING_LENGTH),
               cmd.session_id,
               cmd.command,
@@ -401,7 +388,7 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
             `
             ).bind(
               eventId,
-              license.id,
+              licenseId,
               truncateString(item.machine_id, MAX_STRING_LENGTH),
               sess.session_id,
               sess.event_type,
@@ -427,7 +414,7 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
             `
             ).bind(
               eventId,
-              license.id,
+              licenseId,
               truncateString(item.machine_id, MAX_STRING_LENGTH),
               perf.metric_type,
               perf.duration_ms,
@@ -450,7 +437,7 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
             `
             ).bind(
               eventId,
-              license.id,
+              licenseId,
               truncateString(item.machine_id, MAX_STRING_LENGTH),
               feat.feature,
               feat.enabled ? 1 : 0,

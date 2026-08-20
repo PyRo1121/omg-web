@@ -22,7 +22,6 @@ import {
 } from '../contracts/validate-license';
 import { EmailAddress } from '../contracts/admin-session';
 import {
-  ActiveLicenseIdRowSchema,
   AnalyticsBatchSchema,
   CountRowSchema,
   LicenseOpsParseError,
@@ -32,6 +31,7 @@ import {
   type AnalyticsEvent,
   type ReportUsageRequest,
 } from '../contracts/license-ops';
+import { resolveTelemetryIngestion, type TelemetryIngestionDecision } from '../telemetry-policy';
 
 const maskKey = (key: string) => {
   if (key.length <= 8) return `****${key.slice(-4)}`;
@@ -577,20 +577,15 @@ function reportUsage(
 ): Effect.Effect<{ readonly success: true }, ReportUsageError> {
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, ReportUsageRequestSchema);
-    const licenseRow = yield* queryFirst(
-      env.DB,
-      `SELECT id, customer_id FROM licenses WHERE license_key = ? AND status = 'active'`,
-      [body.license_key],
-      'reportLicense'
+    const policy = yield* resolveTelemetryIngestion(env.DB, body.license_key).pipe(
+      Effect.mapError(cause => new ValidateLicenseStoreUnavailable('reportTelemetryPolicy', cause))
     );
-    if (licenseRow === null) {
+    if (policy._tag === 'invalidLicense') {
       return yield* Effect.fail(new InvalidLicenseError());
     }
-    const license = yield* decodeLicenseOpsRow(
-      ActiveLicenseIdRowSchema,
-      'Active license row has an invalid shape',
-      licenseRow
-    );
+    if (policy._tag === 'optedOut') {
+      return { success: true as const };
+    }
     const today = utcDate();
     yield* runSql(
       env.DB,
@@ -606,7 +601,7 @@ function reportUsage(
          time_saved_ms = MAX(usage_daily.time_saved_ms, excluded.time_saved_ms)`,
       [
         generateId(),
-        license.id,
+        policy.licenseId,
         today,
         optionalNumber(body.commands_run),
         optionalNumber(body.packages_installed),
@@ -618,7 +613,7 @@ function reportUsage(
       ],
       'upsertUsage'
     );
-    yield* reportMachineUsage(env, license.id, license.customer_id, today, body);
+    yield* reportMachineUsage(env, policy.licenseId, policy.customerId, today, body);
     return { success: true as const };
   });
 }
@@ -907,10 +902,36 @@ function ingestAnalytics(
 > {
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, AnalyticsBatchSchema);
-    const events = body.events === undefined ? [] : body.events;
+    const requestedEvents = body.events === undefined ? [] : body.events;
+    if (requestedEvents.length === 0) {
+      return { success: true as const, processed: 0 };
+    }
+
+    const decisionsByLicenseKey = new Map<string, TelemetryIngestionDecision>();
+    const events: AnalyticsEvent[] = [];
+    for (const event of requestedEvents) {
+      if (event.license_key === undefined) {
+        events.push(event);
+        continue;
+      }
+
+      let decision = decisionsByLicenseKey.get(event.license_key);
+      if (decision === undefined) {
+        decision = yield* resolveTelemetryIngestion(env.DB, event.license_key).pipe(
+          Effect.mapError(
+            cause => new ValidateLicenseStoreUnavailable('analyticsTelemetryPolicy', cause)
+          )
+        );
+        decisionsByLicenseKey.set(event.license_key, decision);
+      }
+      if (decision._tag === 'allowed') {
+        events.push(event);
+      }
+    }
     if (events.length === 0) {
       return { success: true as const, processed: 0 };
     }
+
     const today = utcDate();
     const statements: D1PreparedStatement[] = [];
     for (const event of events) {
