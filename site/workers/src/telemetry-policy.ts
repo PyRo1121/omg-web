@@ -68,14 +68,15 @@ export function resolveTelemetryIngestion(
       }
       return Schema.decodeUnknown(TelemetryPolicyRowSchema)(row).pipe(
         Effect.mapError(cause => new InvalidTelemetryPolicyRow(cause)),
-        Effect.map((policy): TelemetryIngestionDecision =>
-          policy.telemetry_opt_out === true || policy.telemetry_opt_out === 1
-            ? { _tag: 'optedOut' }
-            : {
-                _tag: 'allowed',
-                licenseId: policy.id,
-                customerId: policy.customer_id,
-              }
+        Effect.map(
+          (policy): TelemetryIngestionDecision =>
+            policy.telemetry_opt_out === true || policy.telemetry_opt_out === 1
+              ? { _tag: 'optedOut' }
+              : {
+                  _tag: 'allowed',
+                  licenseId: policy.id,
+                  customerId: policy.customer_id,
+                }
         )
       );
     })
