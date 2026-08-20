@@ -20,6 +20,7 @@ import {
   isInvalidExtraRow,
   readOptionalExtraRow,
 } from '../contracts/d1-extras';
+import { CheckoutRequestSchema, resolveBillingPrice } from '../contracts/billing-offer';
 import {
   decodeStripeJson,
   decodeStripeWebhookText,
@@ -32,10 +33,6 @@ import {
   StripePortalSessionSchema,
   StripeSubscriptionListSchema,
 } from '../contracts/stripe';
-
-const CheckoutBodySchema = Schema.Struct({
-  priceId: Schema.String.pipe(Schema.minLength(1)),
-});
 
 const PortalBodySchema = Schema.Struct({
   email: Schema.optional(EmailAddress),
@@ -130,11 +127,21 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   const auth = await validateSession(env.DB, token);
   if (!auth) return errorResponse('Invalid session', 401);
 
-  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, CheckoutBodySchema));
+  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, CheckoutRequestSchema));
   if (Exit.isFailure(decoded)) {
-    return errorResponse('Missing priceId');
+    return errorResponse('Invalid billing offer', 400);
   }
-  const { priceId } = decoded.value;
+  const { offer } = decoded.value;
+  const priceExit = await Effect.runPromiseExit(
+    resolveBillingPrice(offer, {
+      proPriceId: env.STRIPE_PRO_PRICE_ID,
+      teamPriceId: env.STRIPE_TEAM_PRICE_ID,
+    })
+  );
+  if (Exit.isFailure(priceExit)) {
+    return errorResponse('Billing offer unavailable', 503);
+  }
+  const priceId = priceExit.value;
   const email = auth.user.email;
 
   const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -177,7 +184,7 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     'checkout',
     session.id,
     request,
-    { priceId }
+    { offer }
   );
 
   return jsonResponse({ sessionId: session.id, url: session.url });

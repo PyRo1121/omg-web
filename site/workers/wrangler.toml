@@ -65,6 +65,8 @@ mode = "smart"
 
 [vars]
 ACCOUNT_ID = "f1e95b3e1b502cf366dfc81a863695fa"
+STRIPE_PRO_PRICE_ID = "price_1SqWTHEFWzXv59QZC5zBGdLg"
+STRIPE_TEAM_PRICE_ID = "price_1SqWTXEFWzXv59QZB5G51MOV"
 
 [triggers]
 crons = ["0 2 * * *"]

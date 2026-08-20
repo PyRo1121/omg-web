@@ -320,10 +320,13 @@ export async function revokeTeamMember(machineId: string): Promise<{ success: bo
   });
 }
 
-export async function createCheckout(email: string, priceId: string): Promise<{ url: string }> {
+/** Public subscription offers accepted by the billing Worker. */
+export type BillingOffer = 'pro' | 'team';
+
+export async function createCheckout(offer: BillingOffer): Promise<{ url: string }> {
   return apiRequest(Http.CheckoutUrlSchema, '/api/billing/checkout', {
     method: 'POST',
-    body: JSON.stringify({ email, priceId }),
+    body: JSON.stringify({ offer }),
   });
 }
 

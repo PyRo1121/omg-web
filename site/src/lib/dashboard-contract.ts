@@ -50,12 +50,6 @@ export interface GitHubComputingResponse {
 /** The two response shapes returned while GitHub computes statistics. */
 export type GitHubActivityResponse = readonly GitHubActivityWeek[] | GitHubComputingResponse;
 
-/** A checkout response returned by the billing Worker. */
-export interface CheckoutResponse {
-  readonly url: string | undefined;
-  readonly error: string | undefined;
-}
-
 /** A session token returned by the API Worker bridge. */
 export interface WorkerSessionResponse {
   readonly token: string;
@@ -276,30 +270,6 @@ export function parseGitHubActivityCache(value: unknown): ParseResult<GitHubActi
     return { ok: false, error: 'GitHub activity cache has an invalid shape' };
   }
   return { ok: true, value: decoded.right };
-}
-
-/**
- * Parse a checkout response before using its redirect URL.
- *
- * @param value - Untrusted JSON returned by the billing endpoint.
- * @returns A typed checkout response or a safe parse failure.
- */
-export function parseCheckoutResponse(value: unknown): ParseResult<CheckoutResponse> {
-  if (!isObject(value)) {
-    return { ok: false, error: 'Checkout response has an invalid shape' };
-  }
-
-  const url = field(value, 'url');
-  const error = field(value, 'error');
-  if ((url !== undefined && !isString(url)) || (error !== undefined && !isString(error))) {
-    return { ok: false, error: 'Checkout response has an invalid shape' };
-  }
-
-  const response = {
-    url: isString(url) ? url : undefined,
-    error: isString(error) ? error : undefined,
-  };
-  return { ok: true, value: response };
 }
 
 /**

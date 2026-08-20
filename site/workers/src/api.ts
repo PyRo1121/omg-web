@@ -34,6 +34,7 @@ export interface Env {
   RESEND_API_KEY?: string;
   JWT_PRIVATE_KEY?: string;
   ADMIN_USER_ID?: string;
+  STRIPE_PRO_PRICE_ID?: string;
   STRIPE_TEAM_PRICE_ID?: string;
   STRIPE_ENT_PRICE_ID?: string;
   META_API_KEY?: string;

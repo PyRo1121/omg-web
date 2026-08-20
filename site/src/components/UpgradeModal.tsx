@@ -1,5 +1,5 @@
 import { type Component, createSignal, Show, For } from 'solid-js';
-import { parseCheckoutResponse } from '../lib/dashboard-contract';
+import { ApiError, createCheckout } from '../lib/api';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -11,7 +11,6 @@ const TIERS = {
   pro: {
     name: 'Pro',
     price: 9,
-    priceId: 'price_1SqWTHEFWzXv59QZC5zBGdLg',
     description: 'For security-conscious developers',
     color: 'indigo',
     features: [
@@ -24,7 +23,6 @@ const TIERS = {
   team: {
     name: 'Team',
     price: 200,
-    priceId: 'price_1SqWTXEFWzXv59QZB5G51MOV',
     description: 'For teams & organizations',
     color: 'purple',
     features: [
@@ -40,8 +38,6 @@ const TIERS = {
 const UpgradeModal: Component<UpgradeModalProps> = props => {
   const [step, setStep] = createSignal<'select' | 'details' | 'processing'>('select');
   const [selectedTier, setSelectedTier] = createSignal<'pro' | 'team'>(props.initialTier || 'pro');
-  const [email, setEmail] = createSignal('');
-  const [name, setName] = createSignal('');
   const [error, setError] = createSignal<string | null>(null);
   const [isLoading, setIsLoading] = createSignal(false);
 
@@ -51,67 +47,45 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
   };
 
   const handleBack = () => {
-    if (step() === 'details') {setStep('select');}
+    if (step() === 'details') {
+      setStep('select');
+    }
   };
 
-  const handleCheckout = async () => {
-    if (!email() || !email().includes('@')) {
-      setError('Please enter a valid email address');
-      return;
-    }
-
+  const handleCheckout = async (): Promise<void> => {
     setError(null);
     setIsLoading(true);
     setStep('processing');
 
     try {
-      const tier = TIERS[selectedTier()];
-      const res = await fetch('https://api.pyro1121.com/api/create-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email(),
-          priceId: tier.priceId,
-          name: name() || undefined,
-        }),
-      });
-
-      const parsed = parseCheckoutResponse(await res.json());
-      if (!parsed.ok) {
-        setError(parsed.error);
+      const checkout = await createCheckout(selectedTier());
+      let checkoutUrl: URL;
+      try {
+        checkoutUrl = new URL(checkout.url);
+      } catch {
+        setError('Checkout returned an invalid redirect.');
         setStep('details');
         return;
       }
 
-      if (parsed.value.url) {
-        let checkoutUrl: URL;
-        try {
-          checkoutUrl = new URL(parsed.value.url);
-        } catch {
-          setError('Checkout returned an invalid redirect.');
-          setStep('details');
-          return;
-        }
-
-        if (checkoutUrl.protocol !== 'https:' || checkoutUrl.hostname !== 'checkout.stripe.com') {
-          setError('Checkout returned an untrusted redirect.');
-          setStep('details');
-          return;
-        }
-
-        // Small delay for animation
-        setTimeout(() => {
-          const redirectLink = document.createElement('a');
-          redirectLink.href = checkoutUrl.toString();
-          redirectLink.rel = 'noopener noreferrer';
-          redirectLink.click();
-        }, 800);
-      } else {
-        setError(parsed.value.error || 'Failed to create checkout session');
+      if (checkoutUrl.protocol !== 'https:' || checkoutUrl.hostname !== 'checkout.stripe.com') {
+        setError('Checkout returned an untrusted redirect.');
         setStep('details');
+        return;
       }
-    } catch {
-      setError('Network error. Please try again.');
+
+      setTimeout(() => {
+        const redirectLink = document.createElement('a');
+        redirectLink.href = checkoutUrl.toString();
+        redirectLink.rel = 'noopener noreferrer';
+        redirectLink.click();
+      }, 800);
+    } catch (cause: unknown) {
+      setError(
+        cause instanceof ApiError && cause.status === 401
+          ? 'Sign in before starting checkout.'
+          : 'Unable to start checkout. Please try again.'
+      );
       setStep('details');
     } finally {
       setIsLoading(false);
@@ -120,8 +94,6 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
 
   const handleClose = () => {
     setStep('select');
-    setEmail('');
-    setName('');
     setError(null);
     props.onClose();
   };
@@ -312,7 +284,7 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
               </button>
 
               <div class="grid gap-8 md:grid-cols-2">
-                {/* Left: Form */}
+                {/* Left: Checkout */}
                 <div>
                   <div class="mb-6">
                     <div
@@ -326,35 +298,14 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
                     </div>
                     <h2 class="mt-3 mb-1 text-2xl font-bold text-white">Complete Your Upgrade</h2>
                     <p class="text-sm text-slate-400">
-                      Enter your details to continue to secure checkout
+                      Checkout uses the email on your signed-in OMG account.
                     </p>
                   </div>
 
                   <div class="space-y-4">
-                    <div>
-                      <label class="mb-2 block text-sm font-medium text-slate-300">
-                        Email Address <span class="text-red-400">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        value={email()}
-                        onInput={e => setEmail(e.currentTarget.value)}
-                        placeholder="you@company.com"
-                        class="w-full rounded-xl border border-slate-600 bg-slate-900/50 px-4 py-3 text-white placeholder-slate-500 transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label class="mb-2 block text-sm font-medium text-slate-300">
-                        Full Name <span class="text-slate-500">(optional)</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={name()}
-                        onInput={e => setName(e.currentTarget.value)}
-                        placeholder="John Doe"
-                        class="w-full rounded-xl border border-slate-600 bg-slate-900/50 px-4 py-3 text-white placeholder-slate-500 transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
-                      />
+                    <div class="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-4 text-sm text-indigo-200">
+                      Sign in to continue. Your account identity determines the Stripe customer and
+                      cannot be overridden in this form.
                     </div>
 
                     <Show when={error()}>
