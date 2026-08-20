@@ -223,11 +223,11 @@ const ChannelSelector: Component<{
 };
 
 const ThresholdVisualizer: Component<{
-  currentValue?: number;
+  currentValue?: number | undefined;
   threshold: AlertThreshold;
   min: number;
   max: number;
-  unit?: string;
+  unit?: string | undefined;
 }> = props => {
   const getPosition = (value: number) => {
     return ((value - props.min) / (props.max - props.min)) * 100;

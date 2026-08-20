@@ -237,7 +237,7 @@ interface RawFirehoseEvent {
   platform?: string;
   timestamp?: string;
   created_at?: string;
-  duration_ms?: number;
+  duration_ms?: number | undefined;
   success?: boolean;
   metadata?: {
     hostname?: string;

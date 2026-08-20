@@ -1,4 +1,9 @@
+import { Schema } from '@effect/schema';
 import { Cause, Effect, Exit, Option } from 'effect';
+import {
+  LicensingDashboardSchema,
+  type LicensingDashboard,
+} from '../../../shared/licensing-dashboard';
 import {
   type Env,
   jsonResponse,
@@ -56,67 +61,6 @@ type DashboardError =
   | LicenseNotFoundError
   | AccountDashboardParseError
   | DashboardStoreUnavailable;
-
-interface AccountDashboardPayload {
-  readonly user: {
-    readonly id: string;
-    readonly email: string;
-    readonly name: string | null;
-    readonly avatar_url: string | null;
-    readonly created_at: string;
-  };
-  readonly license: {
-    readonly id: string;
-    readonly license_key: string;
-    readonly tier: string;
-    readonly status: string;
-    readonly max_machines: number;
-    readonly expires_at: string | null;
-    readonly features: ReadonlyArray<string>;
-  };
-  readonly machines: ReadonlyArray<unknown>;
-  readonly usage: {
-    readonly total_commands: number;
-    readonly total_packages_installed: number;
-    readonly total_packages_searched: number;
-    readonly total_runtimes_switched: number;
-    readonly total_sbom_generated: number;
-    readonly total_vulnerabilities_found: number;
-    readonly total_time_saved_ms: number;
-    readonly current_streak: number;
-    readonly longest_streak: number;
-    readonly daily: ReadonlyArray<{ date: string; commands_run: number; time_saved_ms: number }>;
-    readonly breakdown: {
-      readonly installed: number;
-      readonly searched: number;
-      readonly switched: number;
-      readonly sbom: number;
-      readonly vulns: number;
-    };
-  };
-  readonly achievements: ReadonlyArray<{
-    readonly id: string;
-    readonly emoji: string;
-    readonly name: string;
-    readonly description: string;
-    readonly unlocked: boolean;
-    readonly unlocked_at: string | null | undefined;
-  }>;
-  readonly subscription: {
-    readonly status: string;
-    readonly current_period_start: string | null;
-    readonly current_period_end: string | null;
-    readonly cancel_at_period_end: number;
-  } | null;
-  readonly invoices: ReadonlyArray<unknown>;
-  readonly is_admin: boolean;
-  readonly leaderboard: ReadonlyArray<{ readonly user: string; readonly time_saved: number }>;
-  readonly global_stats: {
-    readonly top_package: string;
-    readonly top_runtime: string;
-    readonly percentile: number;
-  };
-}
 
 function featuresForTier(tier: string): ReadonlyArray<string> {
   if (tier === 'pro' || tier === 'team' || tier === 'enterprise') {
@@ -214,7 +158,7 @@ function emptyUsage(): UsageStatsRow {
 export function getAccountDashboard(
   request: Request,
   env: Env
-): Effect.Effect<AccountDashboardPayload, DashboardError> {
+): Effect.Effect<LicensingDashboard, DashboardError> {
   return Effect.gen(function* () {
     const auth = yield* requireSession(request, env);
     const user: User = auth.user;
@@ -313,7 +257,7 @@ export function getAccountDashboard(
       name: item.name,
       description: item.description,
       unlocked: unlockMap.has(item.id),
-      unlocked_at: unlockMap.get(item.id),
+      unlocked_at: unlockMap.get(item.id) ?? null,
     }));
 
     const streakResult = yield* queryAll(
@@ -538,7 +482,12 @@ function httpStatusFor(error: DashboardError): number {
 export async function handleGetDashboard(request: Request, env: Env): Promise<Response> {
   const exit = await Effect.runPromiseExit(getAccountDashboard(request, env));
   return Exit.match(exit, {
-    onSuccess: payload => jsonResponse(payload),
+    onSuccess: payload => {
+      const decoded = Schema.decodeUnknownEither(LicensingDashboardSchema)(payload);
+      return decoded._tag === 'Right'
+        ? jsonResponse(decoded.right)
+        : errorResponse('Dashboard response has an invalid shape', 500);
+    },
     onFailure: cause => {
       const failure = Cause.failureOption(cause);
       if (Option.isSome(failure)) {

@@ -7,7 +7,7 @@ interface CustomerTag {
   name: string;
   color: string;
   description: string | null;
-  usage_count?: number;
+  usage_count?: number | undefined;
 }
 
 interface TagsSectionProps {

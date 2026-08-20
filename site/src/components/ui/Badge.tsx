@@ -7,7 +7,7 @@ interface BadgeProps {
   variant?: BadgeVariant;
   children: string;
   size?: 'sm' | 'md' | 'lg';
-  pulse?: boolean;
+  pulse?: boolean | undefined;
 }
 
 const variantClasses = {

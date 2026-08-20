@@ -34,23 +34,23 @@ function cn(...inputs: ClassValue[]) {
 
 interface ExecutiveKPIDashboardProps {
   kpi: ExecutiveKPI;
-  metrics?: AdvancedMetrics;
-  isLoading?: boolean;
-  mrrHistory?: number[];
-  dauHistory?: number[];
-  onDrillDown?: (metric: string) => void;
-  compareMode?: boolean;
-  previousKpi?: ExecutiveKPI;
-  mrrTarget?: number;
-  dauTarget?: number;
+  metrics?: AdvancedMetrics | undefined;
+  isLoading?: boolean | undefined;
+  mrrHistory?: number[] | undefined;
+  dauHistory?: number[] | undefined;
+  onDrillDown?: ((metric: string) => void) | undefined;
+  compareMode?: boolean | undefined;
+  previousKpi?: ExecutiveKPI | undefined;
+  mrrTarget?: number | undefined;
+  dauTarget?: number | undefined;
 }
 
 interface AnimatedCounterProps {
   value: number;
-  prefix?: string;
-  suffix?: string;
-  duration?: number;
-  decimals?: number;
+  prefix?: string | undefined;
+  suffix?: string | undefined;
+  duration?: number | undefined;
+  decimals?: number | undefined;
 }
 
 const AnimatedCounter: Component<AnimatedCounterProps> = props => {
@@ -102,8 +102,8 @@ const AnimatedCounter: Component<AnimatedCounterProps> = props => {
 
 interface TrendBadgeProps {
   value: number;
-  suffix?: string;
-  inverted?: boolean;
+  suffix?: string | undefined;
+  inverted?: boolean | undefined;
 }
 
 const TrendBadge: Component<TrendBadgeProps> = props => {
@@ -140,21 +140,21 @@ const TrendBadge: Component<TrendBadgeProps> = props => {
 interface KPICardProps {
   title: string;
   value: number;
-  prefix?: string;
-  suffix?: string;
-  change?: number;
-  changeInverted?: boolean;
+  prefix?: string | undefined;
+  suffix?: string | undefined;
+  change?: number | undefined;
+  changeInverted?: boolean | undefined;
   icon: typeof DollarSign;
   accent: 'aurora' | 'plasma' | 'flare' | 'solar' | 'indigo' | 'electric';
-  sparklineData?: number[];
-  subtitle?: string;
-  loading?: boolean;
-  onClick?: () => void;
-  expandable?: boolean;
-  previousValue?: number;
-  target?: number;
-  forecast?: number;
-  tooltip?: string;
+  sparklineData?: number[] | undefined;
+  subtitle?: string | undefined;
+  loading?: boolean | undefined;
+  onClick?: (() => void) | undefined;
+  expandable?: boolean | undefined;
+  previousValue?: number | undefined;
+  target?: number | undefined;
+  forecast?: number | undefined;
+  tooltip?: string | undefined;
 }
 
 const accentClasses = {
@@ -399,7 +399,7 @@ interface StickinessMeterProps {
   dau: number;
   wau: number;
   mau: number;
-  stickinessRatio?: string;
+  stickinessRatio?: string | undefined;
 }
 
 function getHealthLabel(stickiness: number) {
@@ -536,7 +536,7 @@ const StickinessMeter: Component<StickinessMeterProps> = props => {
 interface ChurnRiskOverviewProps {
   churnRate: number;
   atRiskCount: number;
-  segments?: Array<{ risk_segment: string; user_count: number; tier?: string }>;
+  segments?: Array<{ risk_segment: string; user_count: number; tier?: string }> | undefined;
 }
 
 const ChurnRiskOverview: Component<ChurnRiskOverviewProps> = props => {
@@ -621,14 +621,16 @@ const ChurnRiskOverview: Component<ChurnRiskOverviewProps> = props => {
 
 interface ExpansionPipelineProps {
   value: number;
-  opportunities?: Array<{
-    email: string;
-    tier: string;
-    opportunity_type: string;
-    priority: string;
-    potential_arr?: number;
-  }>;
-  expansionMRR12m?: number;
+  opportunities?:
+    | Array<{
+        email: string;
+        tier: string;
+        opportunity_type: string;
+        priority: string;
+        potential_arr?: number;
+      }>
+    | undefined;
+  expansionMRR12m?: number | undefined;
 }
 
 const ExpansionPipeline: Component<ExpansionPipelineProps> = props => {

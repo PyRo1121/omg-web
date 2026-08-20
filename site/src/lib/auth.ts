@@ -8,12 +8,12 @@ export interface CloudflareEnv {
   BETTER_AUTH_KV: KVNamespace;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
-  GITHUB_CLIENT_ID?: string;
-  GITHUB_CLIENT_SECRET?: string;
-  GOOGLE_CLIENT_ID?: string;
-  GOOGLE_CLIENT_SECRET?: string;
-  ADMIN_API_SECRET?: string;
-  LICENSING_API?: Fetcher;
+  GITHUB_CLIENT_ID?: string | undefined;
+  GITHUB_CLIENT_SECRET?: string | undefined;
+  GOOGLE_CLIENT_ID?: string | undefined;
+  GOOGLE_CLIENT_SECRET?: string | undefined;
+  ADMIN_API_SECRET?: string | undefined;
+  LICENSING_API?: Fetcher | undefined;
 }
 
 interface SocialProviderConfig {

@@ -72,7 +72,7 @@ interface FieldMeta {
   label: string;
   icon: typeof Users;
   type: 'string' | 'number' | 'date' | 'enum';
-  options?: { value: string; label: string }[];
+  options?: { value: string; label: string }[] | undefined;
 }
 
 const FIELD_METADATA = {

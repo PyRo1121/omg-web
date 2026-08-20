@@ -15,7 +15,7 @@ export interface CustomerHealth {
 export interface CRMCustomer {
   id: string;
   email: string;
-  company?: string;
+  company?: string | undefined;
   tier: string;
   status: 'active' | 'suspended' | 'cancelled';
   health: CustomerHealth;

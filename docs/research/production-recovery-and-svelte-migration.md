@@ -297,16 +297,14 @@ Cloudflare documents `D1.batch()` transactional rollback semantics:
 
 #### Verified defects
 
-- `omg-auth-db` and `omg-licensing` both hold mutable license/machine/usage state.
-- Site and Worker usage endpoints have incompatible aggregation semantics.
+- `omg-auth-db` still contains legacy license/machine/usage tables pending an explicit schema migration, but the site runtime no longer writes or synchronizes those mirrors.
 - Usage requests lack a durable event/idempotency identifier.
 - Counters accept negative, fractional, or impractically large finite numbers.
-- Full license keys are logged at `site/src/routes/api/telemetry/sync-license.ts:79-83`.
 - Some validation paths accept keys in URLs.
 
 #### Target
 
-- `omg-licensing` is the sole authoritative writer.
+- `omg-licensing` is the sole authoritative writer; the dashboard reads it through the same-origin licensing BFF without synchronizing mutable state into `omg-auth-db`.
 - Every usage report has an immutable `usage_event_id`, occurred-at time, device identity, schema version, and bounded non-negative integer metrics.
 - Insert raw event and update aggregate atomically only on first acceptance.
 - License credentials are stored as keyed hashes; raw keys are displayed once and never logged.

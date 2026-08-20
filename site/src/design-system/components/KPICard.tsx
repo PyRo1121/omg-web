@@ -130,10 +130,10 @@ const sizeConfig: SizeConfig = {
 
 const AnimatedCounter: Component<{
   value: number;
-  prefix?: string;
-  suffix?: string;
-  decimals?: number;
-  animated?: boolean;
+  prefix?: string | undefined;
+  suffix?: string | undefined;
+  decimals?: number | undefined;
+  animated?: boolean | undefined;
 }> = props => {
   const [displayValue, setDisplayValue] = createSignal(props.animated ? 0 : props.value);
   const decimals = () => props.decimals ?? (props.value < 100 ? 1 : 0);
@@ -187,8 +187,8 @@ const AnimatedCounter: Component<{
 
 const TrendIndicator: Component<{
   value: number;
-  inverted?: boolean;
-  size?: KPISize;
+  inverted?: boolean | undefined;
+  size?: KPISize | undefined;
 }> = props => {
   const isPositive = createMemo(() => (props.inverted ? props.value < 0 : props.value > 0));
 

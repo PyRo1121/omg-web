@@ -133,8 +133,8 @@ const PeriodSelector: Component<{
 const ComparisonBars: Component<{
   data: ComparisonDataSet;
   height: number;
-  prefix?: string;
-  unit?: string;
+  prefix?: string | undefined;
+  unit?: string | undefined;
 }> = props => {
   const maxValue = createMemo(() => {
     const allValues = [...props.data.current, ...props.data.previous].map(d => d.value);
@@ -186,10 +186,10 @@ const DualAxisChart: Component<{
   primaryData: ComparisonDataSet;
   secondaryData: ComparisonDataSet;
   height: number;
-  primaryPrefix?: string;
-  primaryUnit?: string;
-  secondaryPrefix?: string;
-  secondaryUnit?: string;
+  primaryPrefix?: string | undefined;
+  primaryUnit?: string | undefined;
+  secondaryPrefix?: string | undefined;
+  secondaryUnit?: string | undefined;
 }> = props => {
   const chartHeight = () => props.height - 40;
   const chartWidth = 400;

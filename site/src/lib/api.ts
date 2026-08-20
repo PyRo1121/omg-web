@@ -46,10 +46,11 @@ async function post<S extends Schema.Schema.AnyNoContext>(
   endpoint: string,
   body?: { readonly [key: string]: string | number | boolean | null | undefined }
 ): Promise<Schema.Schema.Type<S>> {
-  return apiRequest(schema, endpoint, {
-    method: 'POST',
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const requestInit: RequestInit = { method: 'POST' };
+  if (body !== undefined) {
+    requestInit.body = JSON.stringify(body);
+  }
+  return apiRequest(schema, endpoint, requestInit);
 }
 
 // Custom error class
@@ -426,9 +427,9 @@ export async function createAdminNote(
 
 export async function updateAdminNote(
   noteId: string,
-  updates: { content?: string; isPinned?: boolean }
+  updates: { content?: string | undefined; isPinned?: boolean | undefined }
 ): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, LicensingRoutes.adminNotesCreate.path, {
+  return apiRequest(Http.SuccessSchema, LicensingRoutes.adminNotesUpdate.path, {
     method: 'PUT',
     body: JSON.stringify({ noteId, ...updates }),
   });

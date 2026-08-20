@@ -4,7 +4,8 @@ import { Sparkline, TrendIndicator } from './Sparkline';
 interface CardProps {
   children: JSX.Element;
   class?: string;
-  gradient?: 'emerald' | 'cyan' | 'indigo' | 'orange' | 'purple' | 'pink' | 'red' | 'none';
+  gradient?:
+    'emerald' | 'cyan' | 'indigo' | 'orange' | 'purple' | 'pink' | 'red' | 'none' | undefined;
   hover?: boolean;
   glow?: boolean;
   onClick?: () => void;

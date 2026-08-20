@@ -265,11 +265,14 @@ export function proxyLicensingRequest(
     }
     headers.set('Authorization', `Bearer ${session.token}`);
 
-    const outbound = new Request(target, {
+    const requestInit: RequestInit = {
       method: inbound.method,
       headers,
-      body,
-    });
+    };
+    if (body !== undefined) {
+      requestInit.body = body;
+    }
+    const outbound = new Request(target, requestInit);
     const response = yield* serviceFetch(service, outbound);
     return sanitizedWorkerResponse(response);
   });

@@ -36,9 +36,13 @@ export function useAdminOverviewData() {
     transformToAdvancedMetrics(advancedMetricsQuery.data)
   );
 
-  const firehoseEvents = createMemo<FirehoseEvent[]>(() =>
-    transformFirehoseEvents(firehoseQuery.data?.events || [])
-  );
+  const firehoseEvents = createMemo<FirehoseEvent[]>(() => {
+    const events = (firehoseQuery.data?.events || []).map(event => ({
+      ...event,
+      duration_ms: event.duration_ms ?? 0,
+    }));
+    return transformFirehoseEvents(events);
+  });
 
   const geoDistribution = createMemo<GeoDistribution[]>(() => {
     const geoData = siteGeoQuery.data?.geo_distribution || [];
@@ -68,12 +72,14 @@ export function useAdminOverviewData() {
   const isLoading = () =>
     dashboardQuery.isLoading || firehoseQuery.isLoading || advancedMetricsQuery.isLoading;
 
-  const refetchAll = () => {
-    dashboardQuery.refetch();
-    firehoseQuery.refetch();
-    advancedMetricsQuery.refetch();
-    siteGeoQuery.refetch();
-    realtimeQuery.refetch();
+  const refetchAll = async (): Promise<void> => {
+    await Promise.all([
+      dashboardQuery.refetch(),
+      firehoseQuery.refetch(),
+      advancedMetricsQuery.refetch(),
+      siteGeoQuery.refetch(),
+      realtimeQuery.refetch(),
+    ]);
   };
 
   return {

@@ -54,7 +54,7 @@ interface BetterAuthSession {
     name: string;
     email: string;
     emailVerified: boolean;
-    image?: string | null;
+    image?: string | null | undefined;
   };
   session: {
     token: string;
@@ -296,7 +296,6 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
   const tabs = createMemo(() => {
     const role = telemetryData()?.user?.role;
-    console.log('[Tabs Memo] Computing tabs. User role:', role);
 
     const baseTabs: Array<{ id: TabType; label: string; icon: typeof LayoutDashboard }> = [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -307,11 +306,9 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     ];
 
     if (role === 'admin') {
-      console.log('[Tabs Memo] Adding admin tab');
       baseTabs.push({ id: 'admin', label: 'Admin', icon: Shield });
     }
 
-    console.log('[Tabs Memo] Final tabs count:', baseTabs.length);
     return baseTabs;
   });
 
@@ -321,7 +318,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     icon: Component<{ class?: string }>;
     color: string;
     sub?: string;
-    trend?: number;
+    trend?: number | undefined;
   }) => {
     const trendIcon =
       !cardProps.trend || cardProps.trend === 0

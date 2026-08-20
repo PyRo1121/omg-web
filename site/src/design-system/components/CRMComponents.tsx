@@ -128,7 +128,7 @@ const commTypeConfig: CommTypeConfig = {
 
 interface NoteCardProps {
   note: Note;
-  onDelete?: (id: string) => void;
+  onDelete?: ((id: string) => void) | undefined;
   class?: string;
 }
 

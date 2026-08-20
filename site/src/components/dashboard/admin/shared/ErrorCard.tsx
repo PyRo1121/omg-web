@@ -3,7 +3,7 @@ import { AlertCircle, RefreshCw } from 'lucide-solid';
 interface ErrorCardProps {
   title?: string;
   message?: string;
-  onRetry?: () => void;
+  onRetry?: (() => void) | undefined;
   className?: string;
 }
 

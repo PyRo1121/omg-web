@@ -1,10 +1,9 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import { createSignal, type Accessor } from 'solid-js';
 import { parseAccountDashboard, type DashboardData } from '~/lib/contracts/dashboard';
-import {
-  parseTelemetryDashboard,
-  type TelemetryDashboard,
-} from '~/lib/contracts/telemetry-dashboard';
+import type { TelemetryDashboard } from '~/lib/contracts/telemetry-dashboard';
+import { parseLicensingDashboard } from '~/lib/contracts/licensing-dashboard';
+import { LicensingRoutes } from '../../../shared/licensing-routes';
 import { parseApiError } from '~/lib/dashboard-contract';
 
 /** A failure while loading or decoding the account dashboard. */
@@ -29,6 +28,8 @@ export class TelemetryLoadError extends Error {
   }
 }
 
+const LICENSING_DASHBOARD_PATH = `/api/licensing${LicensingRoutes.dashboard.path}`;
+
 /** A fetch function used by the dashboard view-model. */
 export type DashboardFetch = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -36,10 +37,8 @@ function browserDashboardFetch(input: string, init?: RequestInit): Promise<Respo
   switch (input) {
     case '/api/dashboard':
       return fetch('/api/dashboard', init);
-    case '/api/telemetry/sync-license':
-      return fetch('/api/telemetry/sync-license', init);
-    case '/api/telemetry/dashboard':
-      return fetch('/api/telemetry/dashboard', init);
+    case LICENSING_DASHBOARD_PATH:
+      return fetch(LICENSING_DASHBOARD_PATH, init);
     default:
       return Promise.reject(new DashboardLoadError('Dashboard route is not allowed'));
   }
@@ -63,22 +62,10 @@ const loadDashboardPipeline = (fetchImpl: DashboardFetch) =>
     );
   });
 
-const licenseSyncEffect = (fetchImpl: DashboardFetch) =>
-  Effect.tryPromise({
-    try: () => fetchImpl('/api/telemetry/sync-license', { method: 'POST' }),
-    catch: cause => new TelemetryLoadError('License sync request failed', cause),
-  }).pipe(
-    Effect.flatMap(response =>
-      response.ok ? Effect.void : Effect.fail(new TelemetryLoadError('License sync was rejected'))
-    )
-  );
-
 const loadTelemetryPipeline = (fetchImpl: DashboardFetch) =>
   Effect.gen(function* () {
-    yield* licenseSyncEffect(fetchImpl);
-
     const response = yield* Effect.tryPromise({
-      try: () => fetchImpl('/api/telemetry/dashboard'),
+      try: () => fetchImpl(LICENSING_DASHBOARD_PATH),
       catch: cause => new TelemetryLoadError('Network request failed', cause),
     });
     const payload = yield* Effect.tryPromise({
@@ -90,7 +77,7 @@ const loadTelemetryPipeline = (fetchImpl: DashboardFetch) =>
         new TelemetryLoadError(parseApiError(payload, 'Failed to load telemetry data'))
       );
     }
-    return yield* parseTelemetryDashboard(payload).pipe(
+    return yield* parseLicensingDashboard(payload).pipe(
       Effect.mapError(cause => new TelemetryLoadError(cause.reason, cause))
     );
   });

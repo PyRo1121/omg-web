@@ -9,7 +9,7 @@ interface Note {
   content: string;
   note_type: string;
   is_pinned: number;
-  author_email?: string;
+  author_email?: string | undefined;
   created_at: string;
   updated_at: string;
 }
