@@ -30,3 +30,6 @@ tasks/
 # Logs
 *.log
 npm-debug.log*
+
+# Generated Cloudflare types
+workers/router/worker-configuration.d.ts
