@@ -21,13 +21,16 @@ import {
   isInvalidExtraRow,
   readOptionalExtraRow,
 } from '../contracts/d1-extras';
-import { CheckoutRequestSchema, resolveBillingPrice } from '../contracts/billing-offer';
+import {
+  CheckoutRequestSchema,
+  resolveBillingPrice,
+  type BillingCatalog,
+} from '../contracts/billing-offer';
 import {
   decodeStripeJson,
   decodeStripeWebhookText,
   StripeBalanceSchema,
   StripeCheckoutSessionSchema,
-  StripeCustomerEmailSchema,
   StripeCustomerListSchema,
   StripeInvoiceListSchema,
   StripeMetricsListSchema,
@@ -35,6 +38,11 @@ import {
   StripeSubscriptionListSchema,
   type StripeWebhookEvent,
 } from '../contracts/stripe';
+import {
+  applyStripeSubscriptionProjection,
+  reconcileStripeSubscriptionSignal,
+  type StripeFetch,
+} from '../stripe-reconciliation';
 
 const PortalBodySchema = Schema.Struct({
   email: Schema.optional(EmailAddress),
@@ -51,6 +59,13 @@ async function readStripeJson<S extends Schema.Schema.AnyNoContext>(
     return null;
   }
   return decoded.value;
+}
+
+function billingCatalog(env: Env): BillingCatalog {
+  return {
+    proPriceId: env.STRIPE_PRO_PRICE_ID,
+    teamPriceId: env.STRIPE_TEAM_PRICE_ID,
+  };
 }
 
 type StripeEventClaim = 'claimed' | 'processed' | 'busy' | 'invalid';
@@ -112,6 +127,30 @@ async function markStripeEventProcessed(db: D1Database, eventId: string): Promis
     )
     .bind(eventId)
     .run();
+}
+
+async function markStripeEventFailed(
+  db: D1Database,
+  eventId: string,
+  detail: string
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE stripe_events
+       SET status = 'failed', processed = 0, processing_started_at = NULL, last_error = ?
+       WHERE stripe_event_id = ?`
+    )
+    .bind(detail.slice(0, 1000), eventId)
+    .run();
+}
+
+async function failedStripeEventResponse(
+  db: D1Database,
+  eventId: string,
+  detail: string
+): Promise<Response> {
+  await markStripeEventFailed(db, eventId, detail);
+  return new Response('Stripe event reconciliation failed', { status: 500 });
 }
 
 /**
@@ -323,7 +362,11 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
   return jsonResponse({ success: true, url: session.url });
 }
 
-export async function handleStripeWebhook(request: Request, env: Env): Promise<Response> {
+export async function handleStripeWebhook(
+  request: Request,
+  env: Env,
+  stripeFetch: StripeFetch = fetch
+): Promise<Response> {
   const signature = request.headers.get('stripe-signature');
   if (!signature || !env.STRIPE_WEBHOOK_SECRET) {
     return new Response('Missing signature or secret', { status: 400 });
@@ -358,134 +401,27 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
 
   switch (event.type) {
     case 'customer.subscription.created':
-    case 'customer.subscription.updated': {
-      const subscription = event.data.object;
-      const customerId = subscription.customer;
-      const status = subscription.status;
-
-      const customerRow = await env.DB.prepare(
-        'SELECT id, email, stripe_customer_id FROM customers WHERE stripe_customer_id = ?'
-      )
-        .bind(customerId)
-        .first();
-      const customerLookup = await readOptionalExtraRow(
-        BillingCustomerRowSchema,
-        'Billing customer row has an invalid shape',
-        customerRow
-      );
-      if (customerLookup._tag === 'invalid') {
-        return new Response('Failed to load customer', { status: 500 });
-      }
-      let customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
-
-      if (customer === undefined) {
-        const stripeCustomerResponse = await fetch(
-          `https://api.stripe.com/v1/customers/${customerId}`,
-          {
-            headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
-          }
-        );
-        const stripeCustomer = await readStripeJson(
-          stripeCustomerResponse,
-          StripeCustomerEmailSchema,
-          'Stripe customer lookup has an invalid shape'
-        );
-        if (!stripeCustomer) {
-          return new Response('Invalid Stripe customer', { status: 400 });
-        }
-
-        const newCustomerId = crypto.randomUUID();
-        await env.DB.prepare(
-          `INSERT INTO customers (id, stripe_customer_id, email, tier) VALUES (?, ?, ?, 'pro')`
-        )
-          .bind(newCustomerId, customerId, stripeCustomer.email)
-          .run();
-
-        customer = { id: newCustomerId, email: stripeCustomer.email };
-      }
-
-      await env.DB.prepare(
-        `
-        INSERT OR REPLACE INTO subscriptions (id, customer_id, stripe_subscription_id, status, current_period_end)
-        VALUES (?, ?, ?, ?, datetime(?, 'unixepoch'))
-      `
-      )
-        .bind(
-          crypto.randomUUID(),
-          customer.id,
-          subscription.id,
-          status,
-          subscription.current_period_end
-        )
-        .run();
-
-      if (status === 'active') {
-        const existingLicenseRow = await env.DB.prepare(
-          'SELECT id FROM licenses WHERE customer_id = ?'
-        )
-          .bind(customer.id)
-          .first();
-        const existingLicenseLookup = await readOptionalExtraRow(
-          IdRowSchema,
-          'Billing license id row has an invalid shape',
-          existingLicenseRow
-        );
-        if (existingLicenseLookup._tag === 'invalid') {
-          return new Response('Failed to load license', { status: 500 });
-        }
-        const existingLicense =
-          existingLicenseLookup._tag === 'present' ? existingLicenseLookup.value : undefined;
-
-        if (existingLicense !== undefined) {
-          await env.DB.prepare(
-            `
-            UPDATE licenses SET expires_at = datetime(?, 'unixepoch'), status = 'active' WHERE customer_id = ?
-          `
-          )
-            .bind(subscription.current_period_end, customer.id)
-            .run();
-        } else {
-          const licenseKey = crypto.randomUUID();
-          await env.DB.prepare(
-            `
-            INSERT INTO licenses (id, customer_id, license_key, tier, expires_at)
-            VALUES (?, ?, ?, 'pro', datetime(?, 'unixepoch'))
-          `
-          )
-            .bind(crypto.randomUUID(), customer.id, licenseKey, subscription.current_period_end)
-            .run();
-        }
-      }
-      break;
-    }
-
+    case 'customer.subscription.updated':
     case 'customer.subscription.deleted': {
-      const subscription = event.data.object;
-      const customerId = subscription.customer;
-
-      const customerRow = await env.DB.prepare(
-        'SELECT id FROM customers WHERE stripe_customer_id = ?'
-      )
-        .bind(customerId)
-        .first();
-      const customerLookup = await readOptionalExtraRow(
-        IdRowSchema,
-        'Billing customer id row has an invalid shape',
-        customerRow
-      );
-      if (customerLookup._tag === 'invalid') {
-        return new Response('Failed to load customer', { status: 500 });
+      const subscriptionId = event.data.object.id;
+      if (subscriptionId === undefined || subscriptionId.length === 0) {
+        return failedStripeEventResponse(env.DB, event.id, 'Subscription event has no object id');
       }
-      const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
 
-      if (customer !== undefined) {
-        await env.DB.prepare(`UPDATE licenses SET status = 'cancelled' WHERE customer_id = ?`)
-          .bind(customer.id)
-          .run();
-
-        await env.DB.prepare(`UPDATE customers SET tier = 'free' WHERE id = ?`)
-          .bind(customer.id)
-          .run();
+      try {
+        await reconcileStripeSubscriptionSignal(
+          env.DB,
+          subscriptionId,
+          env.STRIPE_SECRET_KEY,
+          billingCatalog(env),
+          stripeFetch
+        );
+      } catch (error: unknown) {
+        return failedStripeEventResponse(
+          env.DB,
+          event.id,
+          decodeThrownMessage(error) || 'Unknown subscription reconciliation failure'
+        );
       }
       break;
     }
@@ -552,12 +488,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
 
       if (customer !== undefined) {
-        // Mark subscription as past_due
-        await env.DB.prepare(`UPDATE subscriptions SET status = 'past_due' WHERE customer_id = ?`)
-          .bind(customer.id)
-          .run();
-
-        // Log for admin visibility
+        // Preserve the historical payment signal without mutating current subscription state.
         await env.DB.prepare(
           `INSERT INTO audit_log (id, customer_id, action, metadata, created_at)
            VALUES (?, ?, 'billing.payment_failed', ?, CURRENT_TIMESTAMP)`
@@ -741,19 +672,7 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
           const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
 
           if (customer !== undefined) {
-            await env.DB.prepare(
-              `INSERT OR REPLACE INTO subscriptions (id, customer_id, stripe_subscription_id, status, current_period_end, created_at)
-               VALUES (COALESCE((SELECT id FROM subscriptions WHERE stripe_subscription_id = ?), ?), ?, ?, ?, datetime(?, 'unixepoch'), CURRENT_TIMESTAMP)`
-            )
-              .bind(
-                sub.id,
-                crypto.randomUUID(),
-                customer.id,
-                sub.id,
-                sub.status,
-                sub.current_period_end
-              )
-              .run();
+            await applyStripeSubscriptionProjection(env.DB, customer.id, sub, billingCatalog(env));
             results.subscriptions_synced++;
           }
         } catch (error: unknown) {

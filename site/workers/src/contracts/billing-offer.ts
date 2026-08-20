@@ -25,6 +25,17 @@ export interface BillingCatalog {
   readonly teamPriceId: string | undefined;
 }
 
+/** Canonical license limits granted by one server-owned billing offer. */
+export interface BillingEntitlement {
+  readonly tier: BillingOffer;
+  readonly maxSeats: number;
+}
+
+const BILLING_ENTITLEMENTS = {
+  pro: { tier: 'pro', maxSeats: 3 },
+  team: { tier: 'team', maxSeats: 10 },
+} as const satisfies Record<BillingOffer, BillingEntitlement>;
+
 /** The selected offer has no valid server-owned Stripe price configured. */
 export class BillingOfferUnavailable extends Error {
   readonly _tag = 'BillingOfferUnavailable';
@@ -34,6 +45,18 @@ export class BillingOfferUnavailable extends Error {
     readonly cause: unknown
   ) {
     super(`Billing offer ${offer} is unavailable`);
+  }
+}
+
+/** A Stripe Price cannot be projected to exactly one server-owned entitlement. */
+export class BillingEntitlementUnavailable extends Error {
+  readonly _tag = 'BillingEntitlementUnavailable';
+
+  constructor(
+    readonly priceId: string,
+    readonly cause: unknown
+  ) {
+    super(`Stripe Price ${priceId} has no unambiguous billing entitlement`);
   }
 }
 
@@ -52,4 +75,33 @@ export function resolveBillingPrice(
   return Schema.decodeUnknown(StripePriceIdSchema)(configuredPrice).pipe(
     Effect.mapError(cause => new BillingOfferUnavailable(offer, cause))
   );
+}
+
+/** Resolve a Stripe Price to exactly one canonical license entitlement. */
+export function resolveBillingEntitlement(
+  priceId: string,
+  catalog: BillingCatalog
+): Effect.Effect<BillingEntitlement, BillingEntitlementUnavailable> {
+  return Effect.gen(function* () {
+    const proPrice = yield* resolveBillingPrice('pro', catalog).pipe(
+      Effect.mapError(cause => new BillingEntitlementUnavailable(priceId, cause))
+    );
+    const teamPrice = yield* resolveBillingPrice('team', catalog).pipe(
+      Effect.mapError(cause => new BillingEntitlementUnavailable(priceId, cause))
+    );
+    if (proPrice === teamPrice) {
+      return yield* Effect.fail(
+        new BillingEntitlementUnavailable(priceId, new Error('Billing prices must be unique'))
+      );
+    }
+    if (priceId === proPrice) {
+      return BILLING_ENTITLEMENTS.pro;
+    }
+    if (priceId === teamPrice) {
+      return BILLING_ENTITLEMENTS.team;
+    }
+    return yield* Effect.fail(
+      new BillingEntitlementUnavailable(priceId, new Error('Stripe Price is not in the catalog'))
+    );
+  });
 }

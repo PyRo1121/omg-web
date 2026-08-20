@@ -57,12 +57,34 @@ export const StripeCustomerSchema = Schema.Struct({
 });
 export type StripeCustomer = Schema.Schema.Type<typeof StripeCustomerSchema>;
 
-/** Subscription record from list/sync. */
+export const StripeSubscriptionStatusSchema = Schema.Literal(
+  'active',
+  'trialing',
+  'past_due',
+  'canceled',
+  'unpaid',
+  'incomplete',
+  'incomplete_expired',
+  'paused'
+);
+export type StripeSubscriptionStatus = Schema.Schema.Type<typeof StripeSubscriptionStatusSchema>;
+
+const StripeSubscriptionItemSchema = Schema.Struct({
+  price: Schema.Struct({
+    id: Schema.String.pipe(Schema.minLength(1)),
+  }),
+  quantity: Schema.optional(Schema.Number),
+});
+
+/** Current subscription record used for entitlement reconciliation and admin sync. */
 export const StripeSubscriptionSchema = Schema.Struct({
-  id: Schema.String,
-  customer: Schema.String,
-  status: Schema.String,
+  id: Schema.String.pipe(Schema.minLength(1)),
+  customer: Schema.String.pipe(Schema.minLength(1)),
+  status: StripeSubscriptionStatusSchema,
   current_period_end: Schema.Number,
+  items: Schema.Struct({
+    data: Schema.Array(StripeSubscriptionItemSchema),
+  }),
 });
 export type StripeSubscription = Schema.Schema.Type<typeof StripeSubscriptionSchema>;
 
@@ -81,24 +103,22 @@ export const StripeInvoiceSchema = Schema.Struct({
 });
 export type StripeInvoice = Schema.Schema.Type<typeof StripeInvoiceSchema>;
 
-const StripePriceSchema = Schema.Struct({
-  unit_amount: Schema.optional(Schema.Number),
-  recurring: Schema.optional(
-    Schema.Struct({
-      interval: Schema.optional(Schema.String),
-      interval_count: Schema.optional(Schema.Number),
-    })
-  ),
-});
-
-const StripeSubscriptionItemSchema = Schema.Struct({
-  price: StripePriceSchema,
+const StripeMetricsItemSchema = Schema.Struct({
+  price: Schema.Struct({
+    unit_amount: Schema.optional(Schema.Number),
+    recurring: Schema.optional(
+      Schema.Struct({
+        interval: Schema.optional(Schema.String),
+        interval_count: Schema.optional(Schema.Number),
+      })
+    ),
+  }),
 });
 
 /** Active subscription used for MRR metrics. */
 export const StripeMetricsSubscriptionSchema = Schema.Struct({
   items: Schema.Struct({
-    data: Schema.Array(StripeSubscriptionItemSchema),
+    data: Schema.Array(StripeMetricsItemSchema),
   }),
 });
 export type StripeMetricsSubscription = Schema.Schema.Type<typeof StripeMetricsSubscriptionSchema>;
