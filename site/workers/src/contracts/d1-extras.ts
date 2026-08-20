@@ -532,9 +532,9 @@ export const CurrentMrrRowSchema = Schema.Struct({
 });
 export type CurrentMrrRow = Schema.Schema.Type<typeof CurrentMrrRowSchema>;
 
-/** Stripe customer id selected for the billing portal. */
+/** Nullable Stripe customer id selected for the billing portal. */
 export const StripeCustomerIdRowSchema = Schema.Struct({
-  stripe_customer_id: Schema.String.pipe(Schema.minLength(1)),
+  stripe_customer_id: Schema.Union(Schema.Null, Schema.String.pipe(Schema.minLength(1))),
 });
 export type StripeCustomerIdRow = Schema.Schema.Type<typeof StripeCustomerIdRowSchema>;
 

@@ -215,10 +215,13 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
   if (isInvalidExtraRow(stripeCustomerLookup)) {
     return errorResponse('Failed to load billing account', 500);
   }
-  if (stripeCustomerLookup._tag === 'missing') {
+  if (
+    stripeCustomerLookup._tag === 'missing' ||
+    stripeCustomerLookup.value.stripe_customer_id === null
+  ) {
     return errorResponse('No billing account found for this email', 404);
   }
-  const stripeCustomer = stripeCustomerLookup.value;
+  const stripeCustomerId = stripeCustomerLookup.value.stripe_customer_id;
 
   const portalResponse = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
     method: 'POST',
@@ -227,7 +230,7 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
-      customer: stripeCustomer.stripe_customer_id,
+      customer: stripeCustomerId,
       return_url: 'https://pyro1121.com/dashboard?portal=closed',
     }),
   });
