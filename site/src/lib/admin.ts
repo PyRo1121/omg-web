@@ -6,7 +6,10 @@ import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import { storedDataErrorResponse } from '~/lib/api-error';
 import { isInvalidD1Row, readOptionalD1Row, UserRoleRowSchema } from '~/lib/contracts/d1-rows';
 
-function getEnv(event: APIEvent): CloudflareEnv {
+/** The minimum request context needed to authorize an administrator. */
+export type AdminRequestEvent = Pick<APIEvent, 'nativeEvent' | 'request'>;
+
+function getEnv(event: AdminRequestEvent): CloudflareEnv {
   const env = event.nativeEvent.context.cloudflare?.env;
   if (!env) {
     throw new Error('Cloudflare environment not available');
@@ -24,7 +27,13 @@ function getEnv(event: APIEvent): CloudflareEnv {
   };
 }
 
-export async function requireAdmin(event: APIEvent) {
+/**
+ * Require a valid Better Auth session whose persisted role is `admin`.
+ *
+ * @param event - The incoming SolidStart request context.
+ * @returns The authorized principal and database context, or an HTTP denial response.
+ */
+export async function requireAdmin(event: AdminRequestEvent) {
   const env = getEnv(event);
   const auth = createAuth(env);
 
