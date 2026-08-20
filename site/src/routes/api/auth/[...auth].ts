@@ -28,7 +28,7 @@ async function handleAuth(event: APIEvent): Promise<Response> {
   const corsHeaders = {
     'Access-Control-Allow-Origin': 'https://pyro1121.com',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Credentials': 'true',
   };
 
@@ -52,9 +52,7 @@ async function handleAuth(event: APIEvent): Promise<Response> {
       statusText: response.statusText,
       headers: newHeaders,
     });
-  } catch (error: unknown) {
-    console.error('[AUTH ERROR]', error);
-
+  } catch {
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

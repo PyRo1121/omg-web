@@ -91,21 +91,6 @@ export const TrackedEventsSchema = Schema.Struct({
   processed: Num,
 });
 
-const UserSchema = Schema.Struct({
-  id: Schema.String,
-  email: Schema.String,
-  name: Schema.optionalWith(NullableString, { default: () => null }),
-  avatar_url: Schema.optionalWith(NullableString, { default: () => null }),
-  created_at: Str,
-});
-
-/** OTP session probe. */
-export const VerifySessionSchema = Schema.Struct({
-  valid: Schema.Boolean,
-  user: Schema.optional(UserSchema),
-  expires_at: Schema.optional(Schema.String),
-});
-
 const SessionSchema = Schema.Struct({
   id: Schema.String,
   ip_address: NullableString,
@@ -197,11 +182,6 @@ const PolicySchema = Schema.Struct({
 
 export const PoliciesResponseSchema = Schema.Struct({
   policies: decodeNumArray(PolicySchema),
-});
-
-export const CreatedPolicySchema = Schema.Struct({
-  success: Schema.Boolean,
-  policy: PolicySchema,
 });
 
 const NotificationSettingSchema = Schema.Struct({

@@ -1,7 +1,6 @@
 import { createAuthClient } from 'better-auth/solid';
 import { Effect } from 'effect';
-import { logout } from './api';
-import { signOutEverywhere, type BrowserSignOutResult } from './browser-sign-out';
+import { revokeBetterAuthSession, type BrowserSignOutResult } from './better-auth-sign-out';
 
 const getBaseURL = () => {
   if (import.meta.env.SSR) {
@@ -16,14 +15,10 @@ export const authClient = createAuthClient({
 
 export const { signIn, signUp, signOut, useSession } = authClient;
 
-/**
- * Revoke both browser session authorities without allowing one failure to skip the other.
- *
- * @returns Classified partial failures after Worker and Better Auth sign-out are attempted.
- */
+/** Revoke the Better Auth HttpOnly cookie without browser-stored Worker credentials. */
 export function signOutBrowserSessions(): Promise<BrowserSignOutResult> {
   return Effect.runPromise(
-    signOutEverywhere(logout, async () => {
+    revokeBetterAuthSession(async () => {
       await signOut();
     })
   );

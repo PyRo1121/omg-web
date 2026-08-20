@@ -64,48 +64,6 @@ export function useRevokeMachine() {
   }));
 }
 
-export function useCreatePolicy() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: (policy: { scope: string; rule: string; value: string; enforced?: boolean }) =>
-      api.createTeamPolicy(policy),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-policies'] });
-    },
-  }));
-}
-
-export function useDeletePolicy() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: (id: string) => api.deleteTeamPolicy(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-policies'] });
-    },
-  }));
-}
-
-export function useUpdateThreshold() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: ({ type, value }: { type: string; value: number }) =>
-      api.updateAlertThreshold(type, value),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-data'] });
-    },
-  }));
-}
-
-export function useUpdateNotifications() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: (settings: api.NotificationSetting[]) => api.updateNotificationSettings(settings),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notification-settings'] });
-    },
-  }));
-}
-
 export function useAdminRevenue() {
   return createQuery(() => ({
     queryKey: ['admin-revenue'],

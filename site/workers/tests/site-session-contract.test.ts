@@ -1,44 +1,53 @@
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
-  decodeAdminSessionRequest,
-  decodeAdminSessionWorkerResponse,
+  decodeSiteSessionRequest,
+  decodeSiteSessionWorkerResponse,
   decodeCustomerRow,
   decodeSessionRow,
-} from '../src/contracts/admin-session';
+} from '../src/contracts/site-session';
 
-/** Keep in sync with `site/src/lib/contracts/admin-session.test.ts`. */
+/** Keep in sync with `site/src/lib/contracts/site-session.test.ts`. */
 const validRequest = {
   email: 'Ada@Example.COM',
   name: 'Ada',
   betterAuthUserId: 'user_1',
+  role: 'admin',
 };
 
 function isSuccess<A, E>(exit: Exit.Exit<A, E>): boolean {
   return Exit.isSuccess(exit);
 }
 
-describe('decodeAdminSessionRequest', () => {
+describe('decodeSiteSessionRequest', () => {
   it('normalizes and brands a valid email', async () => {
-    const exit = await Effect.runPromiseExit(decodeAdminSessionRequest(validRequest));
+    const exit = await Effect.runPromiseExit(decodeSiteSessionRequest(validRequest));
     expect(isSuccess(exit)).toBe(true);
     if (exit._tag !== 'Success') {
       return;
     }
     expect(exit.value.email).toBe('ada@example.com');
     expect(exit.value.name).toBe('Ada');
+    expect(exit.value.role).toBe('admin');
   });
 
   it('ignores extra fields', async () => {
     const exit = await Effect.runPromiseExit(
-      decodeAdminSessionRequest({ ...validRequest, extra: true })
+      decodeSiteSessionRequest({ ...validRequest, extra: true })
     );
     expect(isSuccess(exit)).toBe(true);
   });
 
+  it('rejects an unknown role', async () => {
+    const exit = await Effect.runPromiseExit(
+      decodeSiteSessionRequest({ ...validRequest, role: 'owner' })
+    );
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
+
   it('rejects an invalid email', async () => {
     const exit = await Effect.runPromiseExit(
-      decodeAdminSessionRequest({ ...validRequest, email: 'not-an-email' })
+      decodeSiteSessionRequest({ ...validRequest, email: 'not-an-email' })
     );
     expect(Exit.isFailure(exit)).toBe(true);
   });
@@ -76,10 +85,10 @@ describe('decodeSessionRow', () => {
   });
 });
 
-describe('decodeAdminSessionWorkerResponse', () => {
+describe('decodeSiteSessionWorkerResponse', () => {
   it('decodes a valid Worker session payload', async () => {
     const exit = await Effect.runPromiseExit(
-      decodeAdminSessionWorkerResponse({
+      decodeSiteSessionWorkerResponse({
         token: 'tok_abc',
         expiresAt: '2026-01-01T00:00:00.000Z',
         customerId: 'cust_1',
@@ -90,7 +99,7 @@ describe('decodeAdminSessionWorkerResponse', () => {
 
   it('rejects a non-string token', async () => {
     const exit = await Effect.runPromiseExit(
-      decodeAdminSessionWorkerResponse({
+      decodeSiteSessionWorkerResponse({
         token: 123,
         expiresAt: '2026-01-01T00:00:00.000Z',
         customerId: 'cust_1',

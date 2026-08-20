@@ -4,7 +4,7 @@
 
 import { Effect } from 'effect';
 import { Schema } from '@effect/schema';
-import { CustomerId, EmailAddress, SessionToken } from './admin-session';
+import { CustomerId, EmailAddress, SessionToken } from './site-session';
 
 export { CustomerId, EmailAddress, SessionToken };
 

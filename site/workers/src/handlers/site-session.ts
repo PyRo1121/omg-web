@@ -3,43 +3,41 @@ import { type Env, jsonResponse, errorResponse, generateId, logAudit } from '../
 import { decodeJsonBody, InvalidJsonBodyError } from '../body';
 import { Schema } from '@effect/schema';
 import {
-  AdminSessionRequestSchema,
   CustomerId,
   decodeCustomerRow,
   decodeSessionRow,
   SessionToken,
-  type AdminSessionRequest,
-  type AdminSessionWorkerResponse,
+  SiteSessionRequestSchema,
+  type SiteSessionRequest,
+  type SiteSessionWorkerResponse,
   type CustomerId as CustomerIdBrand,
   type CustomerRow,
   type EmailAddress,
   type SessionToken as SessionTokenBrand,
-} from '../contracts/admin-session';
+  type SiteSessionRole,
+} from '../contracts/site-session';
 import { AdminUnauthorizedError, requireAdminSecret } from '../admin-secret';
 import { casesHandled } from '../prelude';
 
-/** The looked-up customer is not an admin. */
-export class AdminForbiddenError extends Error {
-  readonly _tag = 'AdminForbiddenError';
-  constructor(readonly customerId: CustomerIdBrand) {
-    super('User is not an admin');
-  }
-}
-
-/** D1 was unavailable or returned an unreadable row during admin-session minting. */
+/** D1 was unavailable or returned an unreadable row during site-session minting. */
 export class CustomerStoreUnavailable extends Error {
   readonly _tag = 'CustomerStoreUnavailable';
   constructor(
     readonly operation:
-      'findByEmail' | 'insertCustomer' | 'insertLicense' | 'findSession' | 'insertSession',
+      | 'findByEmail'
+      | 'insertCustomer'
+      | 'insertLicense'
+      | 'syncRole'
+      | 'findSession'
+      | 'insertSession'
+      | 'audit',
     readonly cause?: unknown
   ) {
     super(`Customer store unavailable during ${operation}`);
   }
 }
 
-type AdminSessionError =
-  AdminUnauthorizedError | AdminForbiddenError | InvalidJsonBodyError | CustomerStoreUnavailable;
+type SiteSessionError = AdminUnauthorizedError | InvalidJsonBodyError | CustomerStoreUnavailable;
 
 function brandGeneratedId<S extends Schema.Schema.AnyNoContext>(
   schema: S,
@@ -69,21 +67,22 @@ function findCustomerByEmail(
   );
 }
 
-function provisionAdminCustomer(
+function provisionSiteCustomer(
   db: D1Database,
-  body: AdminSessionRequest,
+  body: SiteSessionRequest,
   request: Request
 ): Effect.Effect<CustomerRow, CustomerStoreUnavailable> {
   const customerId = brandGeneratedId(CustomerId, generateId());
   const company = body.name === undefined ? null : body.name;
+  const admin = body.role === 'admin' ? 1 : 0;
   return Effect.gen(function* () {
     yield* Effect.tryPromise({
       try: () =>
         db
           .prepare(
-            `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', 1)`
+            `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', ?)`
           )
-          .bind(customerId, body.email, company)
+          .bind(customerId, body.email, company, admin)
           .run(),
       catch: cause => new CustomerStoreUnavailable('insertCustomer', cause),
     });
@@ -98,11 +97,28 @@ function provisionAdminCustomer(
           .run(),
       catch: cause => new CustomerStoreUnavailable('insertLicense', cause),
     });
-    yield* Effect.promise(() =>
-      logAudit(db, customerId, 'admin.session_created', 'customer', customerId, request)
-    );
-    return { id: customerId, email: body.email, admin: 1 };
+    yield* Effect.tryPromise({
+      try: () => logAudit(db, customerId, 'site.session_created', 'customer', customerId, request),
+      catch: cause => new CustomerStoreUnavailable('audit', cause),
+    });
+    return { id: customerId, email: body.email, admin };
   });
+}
+
+function syncCustomerRole(
+  db: D1Database,
+  customer: CustomerRow,
+  role: SiteSessionRole
+): Effect.Effect<CustomerRow, CustomerStoreUnavailable> {
+  const admin = role === 'admin' ? 1 : 0;
+  if (customer.admin === admin) {
+    return Effect.succeed(customer);
+  }
+  return Effect.tryPromise({
+    try: () =>
+      db.prepare(`UPDATE customers SET admin = ? WHERE id = ?`).bind(admin, customer.id).run(),
+    catch: cause => new CustomerStoreUnavailable('syncRole', cause),
+  }).pipe(Effect.map(() => ({ ...customer, admin })));
 }
 
 function findActiveSession(
@@ -140,7 +156,7 @@ function insertSession(
   db: D1Database,
   customerId: CustomerIdBrand,
   request: Request
-): Effect.Effect<AdminSessionWorkerResponse, CustomerStoreUnavailable> {
+): Effect.Effect<SiteSessionWorkerResponse, CustomerStoreUnavailable> {
   const sessionId = generateId();
   const token = brandGeneratedId(SessionToken, crypto.randomUUID());
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -153,32 +169,31 @@ function insertSession(
           .run(),
       catch: cause => new CustomerStoreUnavailable('insertSession', cause),
     });
-    yield* Effect.promise(() =>
-      logAudit(db, customerId, 'admin.session_created', 'session', sessionId, request)
-    );
+    yield* Effect.tryPromise({
+      try: () => logAudit(db, customerId, 'site.session_created', 'session', sessionId, request),
+      catch: cause => new CustomerStoreUnavailable('audit', cause),
+    });
     return { token, expiresAt, customerId };
   });
 }
 
 /**
- * Mint or reuse a Worker admin session for a Better Auth admin.
+ * Mint or reuse a Worker session for a server-authenticated Better Auth user.
  *
  * @param request - Incoming POST with `X-Admin-Secret` and JSON body.
  * @param env - Worker bindings, including D1 and `ADMIN_API_SECRET`.
- * @returns The session wire payload, or a tagged admin-session error.
+ * @returns The session wire payload, or a tagged site-session error.
  */
-export function mintAdminSession(
+export function mintSiteSession(
   request: Request,
   env: Env
-): Effect.Effect<AdminSessionWorkerResponse, AdminSessionError> {
+): Effect.Effect<SiteSessionWorkerResponse, SiteSessionError> {
   return Effect.gen(function* () {
     yield* requireAdminSecret(request.headers.get('X-Admin-Secret'), env.ADMIN_API_SECRET);
-    const body = yield* decodeJsonBody(request, AdminSessionRequestSchema);
+    const body = yield* decodeJsonBody(request, SiteSessionRequestSchema);
     const existing = yield* findCustomerByEmail(env.DB, body.email);
-    const customer = existing ?? (yield* provisionAdminCustomer(env.DB, body, request));
-    if (customer.admin !== 1) {
-      yield* Effect.fail(new AdminForbiddenError(customer.id));
-    }
+    const projected = existing ?? (yield* provisionSiteCustomer(env.DB, body, request));
+    const customer = yield* syncCustomerRole(env.DB, projected, body.role);
     const session = yield* findActiveSession(env.DB, customer.id);
     if (session !== null) {
       return {
@@ -191,14 +206,12 @@ export function mintAdminSession(
   });
 }
 
-function httpStatusFor(error: AdminSessionError): number {
+function httpStatusFor(error: SiteSessionError): number {
   switch (error._tag) {
     case 'AdminUnauthorizedError':
       return 401;
     case 'InvalidJsonBodyError':
       return 400;
-    case 'AdminForbiddenError':
-      return 403;
     case 'CustomerStoreUnavailable':
       return 500;
     default:
@@ -206,9 +219,7 @@ function httpStatusFor(error: AdminSessionError): number {
   }
 }
 
-function responseFromExit(
-  exit: Exit.Exit<AdminSessionWorkerResponse, AdminSessionError>
-): Response {
+function responseFromExit(exit: Exit.Exit<SiteSessionWorkerResponse, SiteSessionError>): Response {
   return Exit.match(exit, {
     onSuccess: session => jsonResponse(session),
     onFailure: cause => {
@@ -223,13 +234,13 @@ function responseFromExit(
 }
 
 /**
- * HTTP adapter for `POST /api/admin/create-session`.
+ * HTTP adapter for the internal site-session endpoint.
  *
  * @param request - Incoming request.
  * @param env - Worker bindings.
  * @returns JSON session payload or a mapped error response.
  */
-export async function handleCreateAdminSession(request: Request, env: Env): Promise<Response> {
-  const exit = await Effect.runPromiseExit(mintAdminSession(request, env));
+export async function handleCreateSiteSession(request: Request, env: Env): Promise<Response> {
+  const exit = await Effect.runPromiseExit(mintSiteSession(request, env));
   return responseFromExit(exit);
 }

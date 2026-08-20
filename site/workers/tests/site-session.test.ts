@@ -1,13 +1,14 @@
 import '../src/cloudflare-test.d.ts';
 import { Effect } from 'effect';
+import { Schema } from '@effect/schema';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import worker from '../src/worker';
-import { decodeAdminSessionWorkerResponse } from '../src/contracts/admin-session';
+import { decodeSiteSessionWorkerResponse } from '../src/contracts/site-session';
 
 const TEST_SECRET = 'test-admin-secret';
-const TEST_EMAIL = 'admin-session@example.com';
-const NON_ADMIN_EMAIL = 'user-session@example.com';
+const TEST_EMAIL = 'site-session-admin@example.com';
+const NON_ADMIN_EMAIL = 'site-session-user@example.com';
 
 async function ensureSchema(): Promise<void> {
   await env.DB.prepare(`ALTER TABLE customers ADD COLUMN admin INTEGER DEFAULT 0`)
@@ -23,14 +24,14 @@ function createSessionRequest(secret: string | null, serializedBody: string): Re
   if (secret !== null) {
     headers.set('X-Admin-Secret', secret);
   }
-  return new Request('http://localhost/api/admin/create-session', {
+  return new Request('http://localhost/api/internal/site-session', {
     method: 'POST',
     headers,
     body: serializedBody,
   });
 }
 
-describe('POST /api/admin/create-session', () => {
+describe('POST /api/internal/site-session', () => {
   beforeEach(async () => {
     env.ADMIN_API_SECRET = TEST_SECRET;
     await ensureSchema();
@@ -89,7 +90,7 @@ describe('POST /api/admin/create-session', () => {
     expect(response.status).toBe(400);
   });
 
-  it('returns 403 when the customer is not an admin', async () => {
+  it('creates a session for an existing non-admin user', async () => {
     await env.DB.prepare(
       `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', 0)`
     )
@@ -98,26 +99,72 @@ describe('POST /api/admin/create-session', () => {
 
     const ctx = createExecutionContext();
     const response = await worker.fetch(
-      createSessionRequest(TEST_SECRET, JSON.stringify({ email: NON_ADMIN_EMAIL })),
-      env,
-      ctx
-    );
-    await waitOnExecutionContext(ctx);
-    expect(response.status).toBe(403);
-  });
-
-  it('creates a session for a new admin customer', async () => {
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
-      createSessionRequest(TEST_SECRET, JSON.stringify({ email: TEST_EMAIL, name: 'Ada' })),
+      createSessionRequest(TEST_SECRET, JSON.stringify({ email: NON_ADMIN_EMAIL, role: 'user' })),
       env,
       ctx
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    const decoded = await Effect.runPromise(
-      decodeAdminSessionWorkerResponse(await response.json())
+  });
+
+  it('revokes stale licensing-admin state when Better Auth reports a user role', async () => {
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', 1)`
+    )
+      .bind('stale-admin-cust', NON_ADMIN_EMAIL, 'Former Admin')
+      .run();
+
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      createSessionRequest(TEST_SECRET, JSON.stringify({ email: NON_ADMIN_EMAIL, role: 'user' })),
+      env,
+      ctx
     );
+    await waitOnExecutionContext(ctx);
+    const customer = Schema.decodeUnknownSync(Schema.Struct({ admin: Schema.Number }))(
+      await env.DB.prepare(`SELECT admin FROM customers WHERE email = ?`)
+        .bind(NON_ADMIN_EMAIL)
+        .first()
+    );
+
+    expect(response.status).toBe(200);
+    expect(customer.admin).toBe(0);
+  });
+
+  it('provisions a new user without granting admin access', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      createSessionRequest(
+        TEST_SECRET,
+        JSON.stringify({ email: NON_ADMIN_EMAIL, name: 'Lin', role: 'user' })
+      ),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    const customer = Schema.decodeUnknownSync(Schema.Struct({ admin: Schema.Number }))(
+      await env.DB.prepare(`SELECT admin FROM customers WHERE email = ?`)
+        .bind(NON_ADMIN_EMAIL)
+        .first()
+    );
+
+    expect(response.status).toBe(200);
+    expect(customer.admin).toBe(0);
+  });
+
+  it('creates a session for a new admin customer', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      createSessionRequest(
+        TEST_SECRET,
+        JSON.stringify({ email: TEST_EMAIL, name: 'Ada', role: 'admin' })
+      ),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(200);
+    const decoded = await Effect.runPromise(decodeSiteSessionWorkerResponse(await response.json()));
     expect(decoded.token.length).toBeGreaterThan(0);
     expect(decoded.expiresAt.length).toBeGreaterThan(0);
     expect(decoded.customerId.length).toBeGreaterThan(0);
@@ -126,22 +173,28 @@ describe('POST /api/admin/create-session', () => {
   it('reuses an existing unexpired session', async () => {
     const firstCtx = createExecutionContext();
     const first = await worker.fetch(
-      createSessionRequest(TEST_SECRET, JSON.stringify({ email: TEST_EMAIL, name: 'Ada' })),
+      createSessionRequest(
+        TEST_SECRET,
+        JSON.stringify({ email: TEST_EMAIL, name: 'Ada', role: 'admin' })
+      ),
       env,
       firstCtx
     );
     await waitOnExecutionContext(firstCtx);
-    const firstBody = await Effect.runPromise(decodeAdminSessionWorkerResponse(await first.json()));
+    const firstBody = await Effect.runPromise(decodeSiteSessionWorkerResponse(await first.json()));
 
     const secondCtx = createExecutionContext();
     const second = await worker.fetch(
-      createSessionRequest(TEST_SECRET, JSON.stringify({ email: TEST_EMAIL, name: 'Ada' })),
+      createSessionRequest(
+        TEST_SECRET,
+        JSON.stringify({ email: TEST_EMAIL, name: 'Ada', role: 'admin' })
+      ),
       env,
       secondCtx
     );
     await waitOnExecutionContext(secondCtx);
     const secondBody = await Effect.runPromise(
-      decodeAdminSessionWorkerResponse(await second.json())
+      decodeSiteSessionWorkerResponse(await second.json())
     );
     expect(second.status).toBe(200);
     expect(secondBody.token).toBe(firstBody.token);

@@ -1,60 +1,29 @@
-// API Client for OMG Dashboard
-// All authenticated requests include Bearer token
+// API client for the same-origin licensing BFF and public site analytics.
 
 import { Cause, Effect, Exit, Option } from 'effect';
 import { casesHandled } from './prelude';
-import type { SendCodeResponse, VerifyCodeResponse } from './contracts/otp-auth';
-import type { WorkerDashboardData } from './contracts/worker-dashboard';
-import {
-  browserWorkerFetcher,
-  getWorkerDashboard,
-  logoutBrowserWorkerSession,
-  requestDecodedJson,
-  sendCodeToWorker,
-  verifyCodeWithWorker,
-  type WorkerApiError,
-} from './worker-api';
+import { browserWorkerFetcher, requestDecodedJson, type WorkerApiError } from './worker-api';
 import * as Http from './contracts/worker-http';
 import type { Schema } from '@effect/schema';
 
 type WorkerBody<S extends Schema.Schema.AnyNoContext> = Schema.Schema.Type<S>;
 
-const API_BASE = 'https://api.pyro1121.com';
+const PUBLIC_WORKER_BASE = 'https://api.pyro1121.com';
+const LICENSING_BFF_BASE = '/api/licensing';
 
-// Get stored session token
-export function getSessionToken(): string | null {
-  return localStorage.getItem('omg_session_token');
-}
-
-// Set session token
-export function setSessionToken(token: string): void {
-  localStorage.setItem('omg_session_token', token);
-}
-
-// Clear session
-export function clearSession(): void {
-  localStorage.removeItem('omg_session_token');
-}
-
-// Authenticated Worker JSON request with Schema decode at the boundary
+// Authenticated same-origin BFF request with Schema decode at the boundary
 async function apiRequest<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   endpoint: string,
   options: RequestInit = {}
 ): Promise<Schema.Schema.Type<S>> {
-  const token = getSessionToken();
-
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
-
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
 
   const exit = await Effect.runPromiseExit(
     requestDecodedJson(
       browserWorkerFetcher,
-      `${API_BASE}${endpoint}`,
+      `${LICENSING_BFF_BASE}${endpoint}`,
       { ...options, headers },
       schema,
       `Worker response for ${endpoint} has an invalid shape`
@@ -107,10 +76,6 @@ function unwrapWorkerApi<A>(exit: Exit.Exit<A, WorkerApiError>): A {
           throw new ApiError(error.message, error.status);
         case 'WorkerApiNetworkError':
           throw new ApiError('Request failed', 500);
-        case 'WorkerSessionStorageUnavailable':
-          throw new ApiError(error.message, 500);
-        case 'AuthParseError':
-        case 'WorkerDashboardParseError':
         case 'WorkerHttpParseError':
           throw new ApiError(error.reason, 502);
         default:
@@ -118,42 +83,6 @@ function unwrapWorkerApi<A>(exit: Exit.Exit<A, WorkerApiError>): A {
       }
     },
   });
-}
-
-// ============================================
-// Auth API
-// ============================================
-
-export type { SendCodeResponse, VerifyCodeResponse };
-
-export async function sendCode(email: string, turnstileToken?: string): Promise<SendCodeResponse> {
-  const exit = await Effect.runPromiseExit(
-    sendCodeToWorker(API_BASE, email, turnstileToken, browserWorkerFetcher)
-  );
-  return unwrapWorkerApi(exit);
-}
-
-export async function verifyCode(email: string, code: string): Promise<VerifyCodeResponse> {
-  const exit = await Effect.runPromiseExit(
-    verifyCodeWithWorker(API_BASE, email, code, browserWorkerFetcher)
-  );
-  return unwrapWorkerApi(exit);
-}
-
-export type VerifySessionResponse = WorkerBody<typeof Http.VerifySessionSchema>;
-
-export async function verifySession(token: string): Promise<VerifySessionResponse> {
-  return apiRequest(Http.VerifySessionSchema, '/api/auth/verify-session', {
-    method: 'POST',
-    body: JSON.stringify({ token }),
-  });
-}
-
-export async function logout(): Promise<void> {
-  const exit = await Effect.runPromiseExit(
-    logoutBrowserWorkerSession(API_BASE, localStorage, browserWorkerFetcher)
-  );
-  unwrapWorkerApi(exit);
 }
 
 // ============================================
@@ -258,13 +187,6 @@ export interface DashboardData {
   }>;
 }
 
-export async function getDashboard(): Promise<WorkerDashboardData> {
-  const exit = await Effect.runPromiseExit(
-    getWorkerDashboard(API_BASE, getSessionToken(), browserWorkerFetcher)
-  );
-  return unwrapWorkerApi(exit);
-}
-
 export async function updateProfile(name: string): Promise<{ success: boolean }> {
   return apiRequest(Http.SuccessSchema, '/api/user/profile', {
     method: 'PUT',
@@ -342,9 +264,7 @@ export async function openBillingPortal(email: string): Promise<{ success: boole
 // ============================================
 
 export type PoliciesResponse = WorkerBody<typeof Http.PoliciesResponseSchema>;
-export type Policy = PoliciesResponse['policies'][number];
 export type NotificationsResponse = WorkerBody<typeof Http.NotificationsResponseSchema>;
-export type NotificationSetting = NotificationsResponse['settings'][number];
 export type TeamAuditLogsResponse = WorkerBody<typeof Http.TeamAuditLogsResponseSchema>;
 export type TeamAuditLogEntry = TeamAuditLogsResponse['logs'][number];
 
@@ -352,53 +272,8 @@ export async function getTeamPolicies(): Promise<PoliciesResponse> {
   return apiRequest(Http.PoliciesResponseSchema, '/api/team/policies');
 }
 
-export async function createTeamPolicy(policy: {
-  scope: string;
-  rule: string;
-  value: string;
-  enforced?: boolean;
-}): Promise<WorkerBody<typeof Http.CreatedPolicySchema>> {
-  return apiRequest(Http.CreatedPolicySchema, '/api/team/policies', {
-    method: 'POST',
-    body: JSON.stringify(policy),
-  });
-}
-
-export async function updateTeamPolicy(
-  id: string,
-  updates: { value?: string; enforced?: boolean }
-): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/team/policies', {
-    method: 'PUT',
-    body: JSON.stringify({ id, ...updates }),
-  });
-}
-
-export async function deleteTeamPolicy(id: string): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/team/policies', {
-    method: 'DELETE',
-    body: JSON.stringify({ id }),
-  });
-}
-
 export async function getNotificationSettings(): Promise<NotificationsResponse> {
   return apiRequest(Http.NotificationsResponseSchema, '/api/team/notifications');
-}
-
-export async function updateNotificationSettings(
-  settings: NotificationSetting[]
-): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/team/notifications', {
-    method: 'POST',
-    body: JSON.stringify({ settings }),
-  });
-}
-
-export async function revokeTeamMemberAccess(machineId: string): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/team/members/revoke', {
-    method: 'POST',
-    body: JSON.stringify({ machine_id: machineId }),
-  });
 }
 
 export async function getTeamAuditLogs(params?: {
@@ -421,16 +296,6 @@ export async function getTeamAuditLogs(params?: {
     searchParams.set('resource_type', params.resource_type);
   }
   return apiRequest(Http.TeamAuditLogsResponseSchema, `/api/team/audit-logs?${searchParams}`);
-}
-
-export async function updateAlertThreshold(
-  thresholdType: string,
-  value: number
-): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, '/api/team/thresholds', {
-    method: 'POST',
-    body: JSON.stringify({ threshold_type: thresholdType, value }),
-  });
 }
 
 // ============================================
@@ -613,14 +478,7 @@ export async function getAdminAdvancedMetrics(): Promise<AdminAdvancedMetrics> {
 
 // Data Export - Fetch CSV data directly
 export async function exportAdminUsers(): Promise<string> {
-  const token = getSessionToken();
-  if (!token) {
-    throw new Error('No auth token');
-  }
-
-  const response = await fetch(`${API_BASE}/api/admin/export-users`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const response = await window.fetch('/api/licensing/api/admin/export/users');
 
   if (!response.ok) {
     throw new Error('Failed to export users');
@@ -630,14 +488,9 @@ export async function exportAdminUsers(): Promise<string> {
 }
 
 export async function exportAdminUsage(days = 30): Promise<string> {
-  const token = getSessionToken();
-  if (!token) {
-    throw new Error('No auth token');
-  }
-
-  const response = await fetch(`${API_BASE}/api/admin/export-usage?days=${days}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const response = await window.fetch(
+    `/api/licensing/api/admin/export/usage?days=${encodeURIComponent(days)}`
+  );
 
   if (!response.ok) {
     throw new Error('Failed to export usage');
@@ -647,14 +500,9 @@ export async function exportAdminUsage(days = 30): Promise<string> {
 }
 
 export async function exportAdminAudit(days = 30): Promise<string> {
-  const token = getSessionToken();
-  if (!token) {
-    throw new Error('No auth token');
-  }
-
-  const response = await fetch(`${API_BASE}/api/admin/export-audit?days=${days}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const response = await window.fetch(
+    `/api/licensing/api/admin/export/audit?days=${encodeURIComponent(days)}`
+  );
 
   if (!response.ok) {
     throw new Error('Failed to audit log');
@@ -675,19 +523,6 @@ export function downloadCSV(data: string, filename: string): void {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-}
-
-// Data Export (returns download URLs) - DEPRECATED, use export functions above
-export function getAdminExportUsersUrl(): string {
-  return `${API_BASE}/api/admin/export/users`;
-}
-
-export function getAdminExportUsageUrl(days = 30): string {
-  return `${API_BASE}/api/admin/export/usage?days=${days}`;
-}
-
-export function getAdminExportAuditUrl(days = 30): string {
-  return `${API_BASE}/api/admin/export/audit?days=${days}`;
 }
 
 // ============================================
@@ -717,24 +552,11 @@ export type SmartInsight = WorkerBody<typeof Http.SmartInsightSchema>;
 export async function getSmartInsights(
   target: 'user' | 'team' | 'admin' = 'user'
 ): Promise<SmartInsight | null> {
-  const token = getSessionToken();
-  if (!token) {
+  try {
+    return await apiRequest(Http.SmartInsightSchema, `/api/insights?target=${target}`);
+  } catch {
     return null;
   }
-
-  const exit = await Effect.runPromiseExit(
-    requestDecodedJson(
-      browserWorkerFetcher,
-      `${API_BASE}/api/insights?target=${target}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-      Http.SmartInsightSchema,
-      'Smart insights response has an invalid shape'
-    )
-  );
-  return Exit.match(exit, {
-    onSuccess: value => value,
-    onFailure: () => null,
-  });
 }
 
 // ============================================
@@ -767,10 +589,20 @@ export async function trackSiteEvent(
     duration_ms?: number;
   }>
 ): Promise<WorkerBody<typeof Http.TrackedEventsSchema>> {
-  return apiRequest(Http.TrackedEventsSchema, '/api/site/analytics/track', {
-    method: 'POST',
-    body: JSON.stringify({ events }),
-  });
+  const exit = await Effect.runPromiseExit(
+    requestDecodedJson(
+      browserWorkerFetcher,
+      `${PUBLIC_WORKER_BASE}/api/site/analytics/track`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ events }),
+      },
+      Http.TrackedEventsSchema,
+      'Site analytics response has an invalid shape'
+    )
+  );
+  return unwrapWorkerApi(exit);
 }
 
 // ============================================

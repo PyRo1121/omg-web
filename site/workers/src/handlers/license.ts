@@ -20,7 +20,7 @@ import {
   type ValidateLicenseRequest,
   type ValidateLicenseRow,
 } from '../contracts/validate-license';
-import { EmailAddress } from '../contracts/admin-session';
+import { EmailAddress } from '../contracts/site-session';
 import {
   AnalyticsBatchSchema,
   CountRowSchema,

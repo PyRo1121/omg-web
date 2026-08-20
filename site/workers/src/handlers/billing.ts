@@ -9,7 +9,7 @@ import {
 import { Effect, Exit } from 'effect';
 import { Schema } from '@effect/schema';
 import { decodeJsonBody } from '../body';
-import { EmailAddress } from '../contracts/admin-session';
+import { EmailAddress } from '../contracts/site-session';
 import { forbiddenUnlessAdminSession } from '../admin-auth';
 import { decodeThrownMessage } from '../contracts/http-bodies';
 import {

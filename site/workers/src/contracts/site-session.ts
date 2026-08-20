@@ -1,13 +1,13 @@
-// Boundary parser internals decode untrusted JSON and D1 rows into branded admin-session types.
+// Boundary parser internals decode untrusted JSON and D1 rows into branded site-session types.
 // The narrow suppression is limited to this parser module; callers receive typed contract values.
 // oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON boundary parsing requires these operations.
 
 import { Effect } from 'effect';
 import { Schema } from '@effect/schema';
 
-/** A failure decoding an admin-session wire payload or D1 row. */
-export class AdminSessionParseError extends Error {
-  readonly _tag = 'AdminSessionParseError';
+/** A failure decoding a site-session wire payload or D1 row. */
+export class SiteSessionParseError extends Error {
+  readonly _tag = 'SiteSessionParseError';
   constructor(
     readonly reason: string,
     readonly cause?: unknown
@@ -18,7 +18,7 @@ export class AdminSessionParseError extends Error {
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-/** A normalized email address used as the admin-session lookup key. */
+/** A normalized email address used as the site-session lookup key. */
 export const EmailAddress = Schema.String.pipe(
   Schema.transform(
     Schema.String.pipe(Schema.pattern(EMAIL_PATTERN), Schema.brand('EmailAddress')),
@@ -38,25 +38,28 @@ export type SessionToken = Schema.Schema.Type<typeof SessionToken>;
 export const CustomerId = Schema.String.pipe(Schema.minLength(1), Schema.brand('CustomerId'));
 export type CustomerId = Schema.Schema.Type<typeof CustomerId>;
 
-/** Body posted by the site to mint a Worker admin session. */
-export const AdminSessionRequestSchema = Schema.Struct({
+/** Better Auth role projected into the licensing Worker session. */
+export const SiteSessionRole = Schema.Literal('admin', 'user');
+export type SiteSessionRole = Schema.Schema.Type<typeof SiteSessionRole>;
+
+/** Body posted by the trusted site BFF to mint a Worker session. */
+export const SiteSessionRequestSchema = Schema.Struct({
   email: EmailAddress,
   name: Schema.optional(Schema.String),
   betterAuthUserId: Schema.optional(Schema.String),
+  role: SiteSessionRole,
 });
-export type AdminSessionRequest = Schema.Schema.Type<typeof AdminSessionRequestSchema>;
+export type SiteSessionRequest = Schema.Schema.Type<typeof SiteSessionRequestSchema>;
 
-/** Session payload returned by the Worker create-session endpoint. */
-export const AdminSessionWorkerResponseSchema = Schema.Struct({
+/** Session payload returned only to the server-side BFF. */
+export const SiteSessionWorkerResponseSchema = Schema.Struct({
   token: SessionToken,
   expiresAt: Schema.String.pipe(Schema.minLength(1)),
   customerId: CustomerId,
 });
-export type AdminSessionWorkerResponse = Schema.Schema.Type<
-  typeof AdminSessionWorkerResponseSchema
->;
+export type SiteSessionWorkerResponse = Schema.Schema.Type<typeof SiteSessionWorkerResponseSchema>;
 
-/** A customer row selected for admin-session minting. */
+/** A customer row selected for site-session minting. */
 export const CustomerRowSchema = Schema.Struct({
   id: CustomerId,
   email: Schema.String,
@@ -64,7 +67,7 @@ export const CustomerRowSchema = Schema.Struct({
 });
 export type CustomerRow = Schema.Schema.Type<typeof CustomerRowSchema>;
 
-/** An existing session row reused by admin-session minting. */
+/** An existing session row reused by site-session minting. */
 export const SessionRowSchema = Schema.Struct({
   token: SessionToken,
   expires_at: Schema.String.pipe(Schema.minLength(1)),
@@ -72,60 +75,38 @@ export const SessionRowSchema = Schema.Struct({
 export type SessionRow = Schema.Schema.Type<typeof SessionRowSchema>;
 
 function mapParseError(reason: string) {
-  return (cause: unknown): AdminSessionParseError => new AdminSessionParseError(reason, cause);
+  return (cause: unknown): SiteSessionParseError => new SiteSessionParseError(reason, cause);
 }
 
-/**
- * Decode an untrusted create-session request body.
- *
- * @param value - Raw JSON posted to the Worker.
- * @returns The typed request, or `AdminSessionParseError`.
- */
-export function decodeAdminSessionRequest(
+/** Decode an untrusted internal site-session request body. */
+export function decodeSiteSessionRequest(
   value: unknown
-): Effect.Effect<AdminSessionRequest, AdminSessionParseError> {
-  return Schema.decodeUnknown(AdminSessionRequestSchema)(value).pipe(
-    Effect.mapError(mapParseError('Admin session request has an invalid shape'))
+): Effect.Effect<SiteSessionRequest, SiteSessionParseError> {
+  return Schema.decodeUnknown(SiteSessionRequestSchema)(value).pipe(
+    Effect.mapError(mapParseError('Site session request has an invalid shape'))
   );
 }
 
-/**
- * Decode an untrusted Worker create-session response.
- *
- * @param value - Raw JSON from the Worker.
- * @returns The typed Worker session, or `AdminSessionParseError`.
- */
-export function decodeAdminSessionWorkerResponse(
+/** Decode the untrusted Worker response consumed only by the server-side BFF. */
+export function decodeSiteSessionWorkerResponse(
   value: unknown
-): Effect.Effect<AdminSessionWorkerResponse, AdminSessionParseError> {
-  return Schema.decodeUnknown(AdminSessionWorkerResponseSchema)(value).pipe(
+): Effect.Effect<SiteSessionWorkerResponse, SiteSessionParseError> {
+  return Schema.decodeUnknown(SiteSessionWorkerResponseSchema)(value).pipe(
     Effect.mapError(mapParseError('Worker session response has an invalid shape'))
   );
 }
 
-/**
- * Decode a D1 customer row selected for admin-session minting.
- *
- * @param value - The D1 `.first()` result.
- * @returns The typed customer row, or `AdminSessionParseError`.
- */
+/** Decode a D1 customer row selected for site-session minting. */
 export function decodeCustomerRow(
   value: unknown
-): Effect.Effect<CustomerRow, AdminSessionParseError> {
+): Effect.Effect<CustomerRow, SiteSessionParseError> {
   return Schema.decodeUnknown(CustomerRowSchema)(value).pipe(
     Effect.mapError(mapParseError('Customer row has an invalid shape'))
   );
 }
 
-/**
- * Decode a D1 session row reused for admin-session minting.
- *
- * @param value - The D1 `.first()` result.
- * @returns The typed session row, or `AdminSessionParseError`.
- */
-export function decodeSessionRow(
-  value: unknown
-): Effect.Effect<SessionRow, AdminSessionParseError> {
+/** Decode a D1 session row reused for site-session minting. */
+export function decodeSessionRow(value: unknown): Effect.Effect<SessionRow, SiteSessionParseError> {
   return Schema.decodeUnknown(SessionRowSchema)(value).pipe(
     Effect.mapError(mapParseError('Session row has an invalid shape'))
   );

@@ -73,8 +73,7 @@ import { handleGitHubProxy } from './handlers/github-proxy';
 import { handleBinaryDownload } from './handlers/downloads';
 import { handleImageOptimization } from './handlers/images';
 import { handleGetDashboard } from './handlers/account-dashboard';
-import { handleProvisionUser } from './handlers/provision';
-import { handleCreateAdminSession } from './handlers/admin-session';
+import { handleCreateSiteSession } from './handlers/site-session';
 import {
   handleTrackEvent,
   handleGetGeoAnalytics,
@@ -263,14 +262,9 @@ export default Sentry.withSentry(
           return handleImageOptimization(request, env);
         }
 
-        // Provision user (create customer + license for Better Auth users)
-        if (path === '/api/provision-user' && request.method === 'POST') {
-          return handleProvisionUser(request, env);
-        }
-
-        // Create admin session (for Better Auth bridge)
-        if (path === '/api/admin/create-session' && request.method === 'POST') {
-          return handleCreateAdminSession(request, env);
+        // Mint a server-only Worker session for the same-origin site BFF.
+        if (path === '/api/internal/site-session' && request.method === 'POST') {
+          return handleCreateSiteSession(request, env);
         }
 
         // ============================================

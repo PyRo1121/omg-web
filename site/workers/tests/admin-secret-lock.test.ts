@@ -22,24 +22,13 @@ describe('open Worker routes require X-Admin-Secret', () => {
     env.ADMIN_API_SECRET = TEST_SECRET;
   });
 
-  it('returns 401 for POST /api/provision-user when the secret is missing', async () => {
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
-      postJson('/api/provision-user', null, JSON.stringify({ email: 'lock@example.com' })),
-      env,
-      ctx
-    );
-    await waitOnExecutionContext(ctx);
-    expect(response.status).toBe(401);
-  });
-
-  it('returns 401 for POST /api/provision-user when the secret is wrong', async () => {
+  it('returns 401 for the internal site-session route when the secret is missing', async () => {
     const ctx = createExecutionContext();
     const response = await worker.fetch(
       postJson(
-        '/api/provision-user',
-        'wrong-secret',
-        JSON.stringify({ email: 'lock@example.com' })
+        '/api/internal/site-session',
+        null,
+        JSON.stringify({ email: 'lock@example.com', role: 'user' })
       ),
       env,
       ctx
@@ -48,11 +37,14 @@ describe('open Worker routes require X-Admin-Secret', () => {
     expect(response.status).toBe(401);
   });
 
-  it('returns 401 for POST /api/provision-user when ADMIN_API_SECRET is unset', async () => {
-    env.ADMIN_API_SECRET = '';
+  it('returns 401 for the internal site-session route when the secret is wrong', async () => {
     const ctx = createExecutionContext();
     const response = await worker.fetch(
-      postJson('/api/provision-user', TEST_SECRET, JSON.stringify({ email: 'lock@example.com' })),
+      postJson(
+        '/api/internal/site-session',
+        'wrong-secret',
+        JSON.stringify({ email: 'lock@example.com', role: 'user' })
+      ),
       env,
       ctx
     );
@@ -60,10 +52,26 @@ describe('open Worker routes require X-Admin-Secret', () => {
     expect(response.status).toBe(401);
   });
 
-  it('returns 400 for POST /api/provision-user when the secret is valid and the body is not', async () => {
+  it('returns 401 for the internal site-session route when the configured secret is empty', async () => {
+    env.ADMIN_API_SECRET = '';
     const ctx = createExecutionContext();
     const response = await worker.fetch(
-      postJson('/api/provision-user', TEST_SECRET, '{'),
+      postJson(
+        '/api/internal/site-session',
+        TEST_SECRET,
+        JSON.stringify({ email: 'lock@example.com', role: 'user' })
+      ),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(401);
+  });
+
+  it('returns 400 for an invalid site-session body after secret validation', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/internal/site-session', TEST_SECRET, '{'),
       env,
       ctx
     );

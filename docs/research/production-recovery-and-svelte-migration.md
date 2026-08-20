@@ -142,42 +142,23 @@ Cloudflare scheduled handlers and Cron triggers:
 
 #### Verified facts
 
-Better Auth owns one browser session, while the Worker owns another:
+#### Remediation status
 
-- Better Auth cookie/session schema: `site/src/db/auth-schema.ts:4-40`
-- Better Auth D1/KV configuration: `site/src/lib/auth.ts:50-70`
-- Worker bearer token in `localStorage`: `site/src/lib/api.ts:23-35`
-- Worker validation: `site/workers/src/api.ts:321-367`
-- Worker admin role: `site/workers/src/admin-auth.ts:72-92`
+The browser now has one session authority: the Better Auth `Secure`, `HttpOnly` cookie.
 
-Logout calls only Better Auth:
+- Authenticated licensing calls terminate at the same-origin `/api/licensing/*` BFF.
+- The BFF validates the Better Auth session and persisted role before every request.
+- `LICENSING_API` privately invokes `omg-saas` through a Cloudflare Service Binding.
+- The Worker token is minted at `/api/internal/site-session`, used only inside the BFF request, and never returned to JavaScript or persisted in browser storage.
+- The BFF strips browser cookies, caller authorization, and caller admin-secret headers before forwarding.
+- State-changing requests require a matching same-origin `Origin` header.
+- Only explicit route/method pairs may cross the proxy.
+- The old admin bridge, provisioning bridge, browser Worker logout, and `omg_session_token` paths have been removed.
+- CLI/native bearer authentication remains separate from browser authentication.
 
-- `site/src/pages/DashboardPage.tsx:177-184`
-- `site/src/routes/admin.tsx:19-25`
+#### Remaining risk
 
-Admin Worker sessions last seven days and OTP-created Worker sessions last thirty days:
-
-- `site/workers/src/handlers/admin-session.ts:139-159`
-- `site/workers/src/handlers/auth.ts:355-374`
-
-`syncAdminAuth` skips repair whenever any non-empty token exists:
-
-- `site/src/lib/state/dashboard-view.ts:123-137`
-- `site/src/lib/state/dashboard-view.test.ts:12-36`
-
-#### Impact
-
-Better Auth logout does not revoke Worker authority. A stale, expired, revoked, malformed, non-admin, or different-principal token suppresses reminting and remains attached to API requests. JavaScript-readable privileged credentials also expand XSS impact.
-
-#### Target browser session architecture
-
-1. Browser receives only the Better Auth `Secure`, `HttpOnly`, host-only cookie.
-2. Populate request-scoped user/session in SvelteKit `hooks.server.ts` or the equivalent current BFF boundary.
-3. Authorize every protected request server-side.
-4. Call the product Worker through a private Cloudflare Service Binding or private server adapter.
-5. Remove the admin bridge and browser `omg_session_token`.
-6. Keep separate versioned bearer credentials only for CLI/native devices.
-7. On cutover, prefer planned forced reauthentication unless a bounded, versioned compatibility reader is required.
+The BFF depends on the `LICENSING_API` service binding and the existing server-only `ADMIN_API_SECRET`; both production and preview environments must configure those bindings before cutover. Worker sessions remain reusable server-side for their existing lifetime, but Better Auth authorization gates every browser-originated use.
 
 Primary sources:
 

@@ -3,7 +3,7 @@
 
 import { Effect } from 'effect';
 import { Schema } from '@effect/schema';
-import { LicenseKey } from './provision';
+import { LicenseKey } from './license-key';
 
 export { LicenseKey };
 

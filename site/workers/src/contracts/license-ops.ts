@@ -3,8 +3,8 @@
 
 import { Effect } from 'effect';
 import { Schema } from '@effect/schema';
-import { EmailAddress } from './admin-session';
-import { LicenseKey } from './provision';
+import { EmailAddress } from './site-session';
+import { LicenseKey } from './license-key';
 
 export { EmailAddress, LicenseKey };
 
