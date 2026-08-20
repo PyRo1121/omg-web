@@ -1,3 +1,4 @@
+import { Schema } from '@effect/schema';
 import type { CLITelemetryReport } from '../types/telemetry';
 import {
   decodeDashboardData,
@@ -25,6 +26,20 @@ export interface GitHubActivityWeek {
   readonly week: number;
   readonly total: number;
 }
+
+const GitHubActivityBarSchema = Schema.Struct({
+  label: Schema.String,
+  value: Schema.Number.pipe(Schema.finite()),
+});
+
+const GitHubActivityCacheSchema = Schema.Struct({
+  data: Schema.Array(GitHubActivityBarSchema),
+  total: Schema.Number.pipe(Schema.finite()),
+  timestamp: Schema.Number.pipe(Schema.finite()),
+});
+
+/** A parsed localStorage cache of rendered GitHub activity bars. */
+export type GitHubActivityCache = Schema.Schema.Type<typeof GitHubActivityCacheSchema>;
 
 /** The two response shapes returned while GitHub computes statistics. */
 export interface GitHubComputingResponse {
@@ -175,10 +190,14 @@ export function parseSessionToken(value: unknown): ParseResult<string> {
  * @returns A safe error message.
  */
 export function parseApiError(value: unknown, fallback: string): string {
-  if (!isObject(value)) {return fallback;}
+  if (!isObject(value)) {
+    return fallback;
+  }
 
   const error = field(value, 'error');
-  if (isString(error) && error.length > 0) {return error;}
+  if (isString(error) && error.length > 0) {
+    return error;
+  }
 
   const message = field(value, 'message');
   return isString(message) && message.length > 0 ? message : fallback;
@@ -195,7 +214,9 @@ export function parseLicenseLookup(value: unknown): ParseResult<LicenseLookup> {
     return { ok: false, error: 'License lookup response has an invalid shape' };
   }
 
-  if (field(value, 'found') === false) {return { ok: true, value: { found: false } };}
+  if (field(value, 'found') === false) {
+    return { ok: true, value: { found: false } };
+  }
 
   const licenseKey = field(value, 'license_key');
   const tier = field(value, 'tier');
@@ -244,13 +265,29 @@ export function parseGitHubActivity(value: unknown): ParseResult<GitHubActivityR
 }
 
 /**
+ * Parse a locally cached GitHub activity payload.
+ *
+ * @param value - Untrusted JSON from localStorage.
+ * @returns A typed cache entry or a safe parse failure.
+ */
+export function parseGitHubActivityCache(value: unknown): ParseResult<GitHubActivityCache> {
+  const decoded = Schema.decodeUnknownEither(GitHubActivityCacheSchema)(value);
+  if (decoded._tag === 'Left') {
+    return { ok: false, error: 'GitHub activity cache has an invalid shape' };
+  }
+  return { ok: true, value: decoded.right };
+}
+
+/**
  * Parse a checkout response before using its redirect URL.
  *
  * @param value - Untrusted JSON returned by the billing endpoint.
  * @returns A typed checkout response or a safe parse failure.
  */
 export function parseCheckoutResponse(value: unknown): ParseResult<CheckoutResponse> {
-  if (!isObject(value)) {return { ok: false, error: 'Checkout response has an invalid shape' };}
+  if (!isObject(value)) {
+    return { ok: false, error: 'Checkout response has an invalid shape' };
+  }
 
   const url = field(value, 'url');
   const error = field(value, 'error');
@@ -272,7 +309,9 @@ export function parseCheckoutResponse(value: unknown): ParseResult<CheckoutRespo
  * @returns A typed session response or a safe parse failure.
  */
 export function parseWorkerSessionResponse(value: unknown): ParseResult<WorkerSessionResponse> {
-  if (!isObject(value)) {return { ok: false, error: 'Worker session response has an invalid shape' };}
+  if (!isObject(value)) {
+    return { ok: false, error: 'Worker session response has an invalid shape' };
+  }
 
   const token = field(value, 'token');
   const expiresAt = field(value, 'expiresAt');
@@ -290,7 +329,9 @@ export function parseWorkerSessionResponse(value: unknown): ParseResult<WorkerSe
 export function parseLicenseValidationRequest(
   value: unknown
 ): ParseResult<LicenseValidationRequest> {
-  if (!isObject(value)) {return { ok: false, error: 'License request has an invalid shape' };}
+  if (!isObject(value)) {
+    return { ok: false, error: 'License request has an invalid shape' };
+  }
 
   const licenseKey = field(value, 'license_key');
   return isString(licenseKey) && licenseKey.length > 0
@@ -300,7 +341,9 @@ export function parseLicenseValidationRequest(
 
 function optionalString(value: object, name: string): string | undefined {
   const candidate = field(value, name);
-  if (candidate === undefined) {return undefined;}
+  if (candidate === undefined) {
+    return undefined;
+  }
   return isString(candidate) ? candidate : undefined;
 }
 
@@ -311,13 +354,17 @@ function requiredNumber(value: object, name: string): number | undefined {
 
 function optionalNumber(value: object, name: string): number | undefined {
   const candidate = field(value, name);
-  if (candidate === undefined) {return undefined;}
+  if (candidate === undefined) {
+    return undefined;
+  }
   return isFiniteNumber(candidate) ? candidate : undefined;
 }
 
 /** Parse an admin CRM note request body. */
 export function parseAdminCrmNoteInput(value: unknown): ParseResult<AdminCrmNoteInput> {
-  if (!isObject(value)) {return { ok: false, error: 'Note request has an invalid shape' };}
+  if (!isObject(value)) {
+    return { ok: false, error: 'Note request has an invalid shape' };
+  }
 
   const isPinned = field(value, 'isPinned');
   if (isPinned !== undefined && !isBoolean(isPinned)) {
@@ -338,7 +385,9 @@ export function parseAdminCrmNoteInput(value: unknown): ParseResult<AdminCrmNote
 
 /** Parse an admin CRM tag request body. */
 export function parseAdminCrmTagInput(value: unknown): ParseResult<AdminCrmTagInput> {
-  if (!isObject(value)) {return { ok: false, error: 'Tag request has an invalid shape' };}
+  if (!isObject(value)) {
+    return { ok: false, error: 'Tag request has an invalid shape' };
+  }
 
   return {
     ok: true,
@@ -353,10 +402,14 @@ export function parseAdminCrmTagInput(value: unknown): ParseResult<AdminCrmTagIn
 }
 
 function parseExternalMachine(value: unknown): ExternalLicenseMachine | undefined {
-  if (!isObject(value)) {return undefined;}
+  if (!isObject(value)) {
+    return undefined;
+  }
   const machineId = field(value, 'machine_id');
   const active = field(value, 'is_active');
-  if (!isString(machineId) || !isFiniteNumber(active)) {return undefined;}
+  if (!isString(machineId) || !isFiniteNumber(active)) {
+    return undefined;
+  }
   return {
     machine_id: machineId,
     hostname: optionalString(value, 'hostname'),
@@ -370,7 +423,9 @@ function parseExternalMachine(value: unknown): ExternalLicenseMachine | undefine
 }
 
 function parseExternalUsage(value: unknown): ExternalLicenseUsage | undefined {
-  if (!isObject(value)) {return undefined;}
+  if (!isObject(value)) {
+    return undefined;
+  }
   const date = field(value, 'date');
   const commandsRun = requiredNumber(value, 'commands_run');
   const packagesInstalled = requiredNumber(value, 'packages_installed');
@@ -405,7 +460,9 @@ function parseExternalUsage(value: unknown): ExternalLicenseUsage | undefined {
 
 /** Parse a CLI telemetry report before persistence. */
 export function parseCLITelemetryReport(value: unknown): ParseResult<CLITelemetryReport> {
-  if (!isObject(value)) {return { ok: false, error: 'Telemetry report has an invalid shape' };}
+  if (!isObject(value)) {
+    return { ok: false, error: 'Telemetry report has an invalid shape' };
+  }
 
   const licenseKey = field(value, 'license_key');
   const machineId = field(value, 'machine_id');

@@ -1,11 +1,9 @@
 import { type Component, createSignal, onMount, Show, For } from 'solid-js';
-import { parseGitHubActivity } from '../lib/dashboard-contract';
-
-interface CachedData {
-  data: Array<{ label: string; value: number }>;
-  total: number;
-  timestamp: number;
-}
+import {
+  parseGitHubActivity,
+  parseGitHubActivityCache,
+  type GitHubActivityCache,
+} from '../lib/dashboard-contract';
 
 const CACHE_KEY = 'github-activity-cache';
 const CACHE_TTL = 2 * 60 * 1000;
@@ -16,23 +14,28 @@ function formatWeekLabel(timestamp: number): string {
 }
 
 const GitHubActivity: Component = () => {
-  const [data, setData] = createSignal<Array<{ label: string; value: number }>>([]);
+  const [data, setData] = createSignal<GitHubActivityCache['data']>([]);
   const [loading, setLoading] = createSignal(true);
   const [totalCommits, setTotalCommits] = createSignal(0);
   const [error, setError] = createSignal<string | null>(null);
 
-  const getCachedData = (): CachedData | null => {
+  const getCachedData = (): GitHubActivityCache | null => {
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (!cached) {
         return null;
       }
-      const parsed: CachedData = JSON.parse(cached);
-      if (Date.now() - parsed.timestamp > CACHE_TTL) {
+      const parsedJson: unknown = JSON.parse(cached);
+      const parsed = parseGitHubActivityCache(parsedJson);
+      if (!parsed.ok) {
+        console.warn('Ignoring invalid GitHub activity cache:', parsed.error);
         return null;
       }
-      return parsed;
-    } catch (err) {
+      if (Date.now() - parsed.value.timestamp > CACHE_TTL) {
+        return null;
+      }
+      return parsed.value;
+    } catch (err: unknown) {
       if (err instanceof Error) {
         console.warn('Ignoring invalid GitHub activity cache:', err.message);
       }
@@ -40,11 +43,11 @@ const GitHubActivity: Component = () => {
     }
   };
 
-  const setCachedData = (activity: Array<{ label: string; value: number }>, total: number) => {
+  const setCachedData = (activity: GitHubActivityCache['data'], total: number) => {
     try {
-      const cache: CachedData = { data: activity, total, timestamp: Date.now() };
+      const cache: GitHubActivityCache = { data: activity, total, timestamp: Date.now() };
       localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('Unable to cache GitHub activity:', err);
     }
   };
@@ -103,7 +106,7 @@ const GitHubActivity: Component = () => {
           value: w.total,
         }));
 
-      let finalData: Array<{ label: string; value: number }>;
+      let finalData: GitHubActivityCache['data'];
       let finalTotal: number;
 
       if (weeksWithCommits.length > 0) {
@@ -123,9 +126,9 @@ const GitHubActivity: Component = () => {
       setData(finalData);
       setTotalCommits(finalTotal);
       setCachedData(finalData, finalTotal);
-    } catch (e) {
-      console.error('GitHub API error:', e);
-      setError(e instanceof Error ? e.message : 'Failed to load');
+    } catch (cause: unknown) {
+      console.error('GitHub API error:', cause);
+      setError(cause instanceof Error ? cause.message : 'Failed to load');
     } finally {
       setLoading(false);
     }
