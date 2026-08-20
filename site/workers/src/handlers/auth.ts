@@ -7,7 +7,6 @@ import {
   errorResponse,
   generateId,
   generateToken,
-  generateOTP,
   validateSession,
   logAudit,
   verifyTurnstile,
@@ -27,6 +26,7 @@ import {
   type SendCodeResponse,
   type VerifyCodeResponse,
 } from '../contracts/otp-auth';
+import { generateOtpCode, hashOtpCode } from '../otp';
 import { casesHandled } from '../prelude';
 
 /** Too many OTP requests were made for this email. */
@@ -77,6 +77,14 @@ export class InvalidOtpError extends Error {
   }
 }
 
+/** Web Crypto could not create or verify an OTP digest. */
+export class AuthCryptoUnavailable extends Error {
+  readonly _tag = 'AuthCryptoUnavailable';
+  constructor(readonly cause?: unknown) {
+    super('Authentication cryptography unavailable');
+  }
+}
+
 /** D1 was unavailable or returned an unreadable row during OTP auth. */
 export class AuthStoreUnavailable extends Error {
   readonly _tag = 'AuthStoreUnavailable';
@@ -95,11 +103,29 @@ type SendCodeError =
   | TurnstileFailedError
   | EmailServiceUnconfigured
   | EmailDeliveryFailed
+  | AuthCryptoUnavailable
   | AuthStoreUnavailable;
 
-type VerifyCodeError = InvalidJsonBodyError | InvalidOtpError | AuthStoreUnavailable;
+type VerifyCodeError =
+  InvalidJsonBodyError | InvalidOtpError | AuthCryptoUnavailable | AuthStoreUnavailable;
 
 type SessionTokenError = InvalidJsonBodyError | AuthStoreUnavailable;
+
+const MAX_OTP_ATTEMPTS = 5;
+
+function digestOtpCode(
+  email: EmailAddress,
+  code: string,
+  secret: string
+): Effect.Effect<string, AuthCryptoUnavailable> {
+  return Effect.tryPromise({
+    try: () => hashOtpCode(email, code, secret),
+    catch: cause => new AuthCryptoUnavailable(cause),
+  });
+}
+
+/** Creates the plaintext OTP delivered to the user. */
+export type OtpCodeGenerator = () => string;
 
 /** Sends a generated OTP to an email address. */
 export type OtpMailer = (
@@ -206,12 +232,14 @@ function requireTurnstile(
  * @param request - Incoming POST with JSON body.
  * @param env - Worker bindings.
  * @param mailer - Deliver the generated code.
+ * @param generateCode - Create the code using the runtime's cryptographic generator.
  * @returns A success payload, or a tagged send-code error.
  */
 export function sendVerificationCode(
   request: Request,
   env: Env,
-  mailer: OtpMailer
+  mailer: OtpMailer,
+  generateCode: OtpCodeGenerator
 ): Effect.Effect<SendCodeResponse, SendCodeError> {
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, SendCodeRequestSchema);
@@ -238,15 +266,21 @@ export function sendVerificationCode(
     if (recent.count >= 3) {
       yield* Effect.fail(new AuthRateLimitedError());
     }
-    const code = generateOTP();
+    const code = generateCode();
+    const digest = yield* digestOtpCode(body.email, code, env.JWT_SECRET);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     yield* mailer(body.email, code);
     yield* Effect.tryPromise({
       try: () =>
-        env.DB.prepare(`INSERT INTO auth_codes (id, email, code, expires_at) VALUES (?, ?, ?, ?)`)
-          .bind(generateId(), body.email, code, expiresAt)
-          .run(),
-      catch: cause => new AuthStoreUnavailable('insertCode', cause),
+        env.DB.batch([
+          env.DB.prepare(`UPDATE auth_codes SET used = 1 WHERE email = ? AND used = 0`).bind(
+            body.email
+          ),
+          env.DB.prepare(
+            `INSERT INTO auth_codes (id, email, code, expires_at) VALUES (?, ?, ?, ?)`
+          ).bind(generateId(), body.email, digest, expiresAt),
+        ]),
+      catch: cause => new AuthStoreUnavailable('replaceCode', cause),
     });
     yield* Effect.promise(() =>
       logAudit(env.DB, null, 'auth.code_sent', 'auth_code', null, request, { email: body.email })
@@ -318,27 +352,50 @@ export function verifyCode(
 ): Effect.Effect<VerifyCodeResponse, VerifyCodeError> {
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, VerifyCodeRequestSchema);
+    const digest = yield* digestOtpCode(body.email, body.code, env.JWT_SECRET);
     const authCode = yield* Effect.tryPromise({
       try: () =>
         env.DB.prepare(
-          `SELECT id FROM auth_codes
-           WHERE email = ? AND code = ? AND used = 0 AND expires_at > datetime('now')
-           ORDER BY created_at DESC LIMIT 1`
+          `UPDATE auth_codes
+           SET used = 1
+           WHERE id = (
+             SELECT id FROM auth_codes
+             WHERE email = ? AND code = ? AND used = 0
+               AND attempt_count < ? AND expires_at > datetime('now')
+             ORDER BY created_at DESC LIMIT 1
+           ) AND used = 0
+           RETURNING id`
         )
-          .bind(body.email, body.code)
+          .bind(body.email, digest, MAX_OTP_ATTEMPTS)
           .first(),
-      catch: cause => new AuthStoreUnavailable('findCode', cause),
+      catch: cause => new AuthStoreUnavailable('claimCode', cause),
     }).pipe(
       Effect.flatMap(row => {
         if (row === null) {
           return Effect.succeed(null);
         }
         return decodeAuthCodeRow(row).pipe(
-          Effect.mapError(cause => new AuthStoreUnavailable('findCode', cause))
+          Effect.mapError(cause => new AuthStoreUnavailable('claimCode', cause))
         );
       })
     );
     if (authCode === null) {
+      yield* Effect.tryPromise({
+        try: () =>
+          env.DB.prepare(
+            `UPDATE auth_codes
+             SET attempt_count = attempt_count + 1,
+                 used = CASE WHEN attempt_count + 1 >= ? THEN 1 ELSE used END
+             WHERE id = (
+               SELECT id FROM auth_codes
+               WHERE email = ? AND used = 0 AND expires_at > datetime('now')
+               ORDER BY created_at DESC LIMIT 1
+             ) AND used = 0`
+          )
+            .bind(MAX_OTP_ATTEMPTS, body.email)
+            .run(),
+        catch: cause => new AuthStoreUnavailable('recordInvalidCode', cause),
+      });
       yield* Effect.promise(() =>
         logAudit(env.DB, null, 'auth.code_invalid', 'auth_code', null, request, {
           email: body.email,
@@ -346,11 +403,12 @@ export function verifyCode(
       );
       return yield* Effect.fail(new InvalidOtpError());
     }
-    const codeRow = authCode;
     yield* Effect.tryPromise({
       try: () =>
-        env.DB.prepare(`UPDATE auth_codes SET used = 1 WHERE id = ?`).bind(codeRow.id).run(),
-      catch: cause => new AuthStoreUnavailable('markCodeUsed', cause),
+        env.DB.prepare(`UPDATE auth_codes SET used = 1 WHERE email = ? AND used = 0`)
+          .bind(body.email)
+          .run(),
+      catch: cause => new AuthStoreUnavailable('invalidateCodes', cause),
     });
     const customer = yield* findOrCreateCustomer(env.DB, body.email, request);
     const sessionToken = brandGeneratedId(SessionToken, generateToken());
@@ -436,6 +494,7 @@ function httpStatusForSend(error: SendCodeError): number {
       return 429;
     case 'EmailServiceUnconfigured':
     case 'EmailDeliveryFailed':
+    case 'AuthCryptoUnavailable':
     case 'AuthStoreUnavailable':
       return 500;
     default:
@@ -449,6 +508,7 @@ function httpStatusForVerify(error: VerifyCodeError): number {
       return 400;
     case 'InvalidOtpError':
       return 401;
+    case 'AuthCryptoUnavailable':
     case 'AuthStoreUnavailable':
       return 500;
     default:
@@ -492,7 +552,9 @@ function responseFromVerifyExit(exit: Exit.Exit<VerifyCodeResponse, VerifyCodeEr
  * @returns JSON success payload or a mapped error response.
  */
 export async function handleSendCode(request: Request, env: Env): Promise<Response> {
-  const exit = await Effect.runPromiseExit(sendVerificationCode(request, env, resendMailer(env)));
+  const exit = await Effect.runPromiseExit(
+    sendVerificationCode(request, env, resendMailer(env), generateOtpCode)
+  );
   return responseFromSendExit(exit);
 }
 

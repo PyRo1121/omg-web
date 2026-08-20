@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   decodeSendCodeRequest,
   decodeSendCodeResponse,
+  decodeVerifyCodeRequest,
   decodeVerifyCodeResponse,
 } from './otp-auth';
 
@@ -46,6 +47,22 @@ describe('decodeSendCodeResponse', () => {
   it('rejects a failure-shaped 200 body', async () => {
     const exit = await Effect.runPromiseExit(
       decodeSendCodeResponse({ success: false, error: 'nope' })
+    );
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
+});
+
+describe('decodeVerifyCodeRequest', () => {
+  it('accepts a six-digit code', async () => {
+    const decoded = await Effect.runPromise(
+      decodeVerifyCodeRequest({ email: 'ada@example.com', code: '012345' })
+    );
+    expect(decoded.code).toBe('012345');
+  });
+
+  it('rejects a code outside the six-digit wire format', async () => {
+    const exit = await Effect.runPromiseExit(
+      decodeVerifyCodeRequest({ email: 'ada@example.com', code: '12345' })
     );
     expect(Exit.isFailure(exit)).toBe(true);
   });

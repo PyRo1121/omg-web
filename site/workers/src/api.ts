@@ -314,11 +314,6 @@ export function generateToken(): string {
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Generate 6-digit OTP
-export function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
 export async function validateSession(
   db: D1Database,
   token: string

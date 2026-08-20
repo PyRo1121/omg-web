@@ -20,7 +20,7 @@ export class AuthParseError extends Error {
 }
 
 /** A one-time verification code. */
-export const OtpCode = Schema.String.pipe(Schema.minLength(1), Schema.brand('OtpCode'));
+export const OtpCode = Schema.String.pipe(Schema.pattern(/^\d{6}$/u), Schema.brand('OtpCode'));
 export type OtpCode = Schema.Schema.Type<typeof OtpCode>;
 
 /** Body posted to send an OTP. */
