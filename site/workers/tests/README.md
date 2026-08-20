@@ -36,6 +36,7 @@ npm test -- --reporter=verbose
 ### Telemetry API (`/api/cli/event`, `/api/cli/batch`)
 
 #### Single Event Tests
+
 - ✅ Accept and store valid command events
 - ✅ Store session events
 - ✅ Store performance metric events
@@ -47,6 +48,7 @@ npm test -- --reporter=verbose
 - ✅ Return 500 for malformed JSON
 
 #### Batch Event Tests
+
 - ✅ Process batches of mixed event types atomically
 - ✅ Return success with 0 processed for empty batch
 - ✅ Return 401 when license_key is missing
@@ -56,35 +58,39 @@ npm test -- --reporter=verbose
 ### Privacy API (GDPR/CCPA Compliance)
 
 #### Privacy Status (`GET /api/privacy/status`)
-- ✅ Return privacy policy without license key
-- ✅ Return user status with valid license key
-- ✅ Return null user_status for invalid license key
+
+- ✅ Return the public privacy policy without authentication
+- ✅ Return customer status only for a valid Worker session
+- ✅ Reject invalid session tokens
 - ✅ Show available rights (access, deletion, opt-out, portability)
 
 #### Data Export (`POST /api/privacy/export`)
-- ✅ Export all user data with valid license key
-- ✅ Export data with email instead of license
-- ✅ Return 400 without email or license_key
-- ✅ Return 404 for non-existent user
-- ✅ Create audit log entry for exports
-- ✅ Include proper export format (JSON, structured)
+
+- ✅ Reject unauthenticated export requests
+- ✅ Derive export ownership from the Worker session
+- ✅ Ignore caller-supplied email/license selectors
+- ✅ Include every customer license in telemetry scope
+- ✅ Create audit log entries for exports
+- ✅ Return a non-cacheable structured JSON download
 
 #### Data Deletion (`POST /api/privacy/delete`)
-- ✅ Require `confirm: true` flag
-- ✅ Delete all user data (telemetry, usage, notes)
-- ✅ Delete by license_key, email, or machine_id
-- ✅ Anonymize license record (soft delete)
-- ✅ Create audit log entry for deletions
-- ✅ Return 400 without identifier
-- ✅ Return 404 for non-existent user
-- ✅ Preserve payment records (Stripe requirement)
+
+- ✅ Reject unauthenticated deletion without mutation
+- ✅ Require `confirm: true`
+- ✅ Derive deletion scope from the Worker session
+- ✅ Prevent caller identifiers from redirecting deletion across tenants
+- ✅ Delete telemetry, usage, notes, sessions, and OTP records atomically
+- ✅ Mark customer licenses as deleted
+- ✅ Create an audit receipt in the deletion transaction
+- ✅ Preserve payment records
 
 #### Telemetry Opt-Out (`POST /api/privacy/opt-out`)
-- ✅ Opt-out of telemetry collection
-- ✅ Opt-in to telemetry (re-enable)
-- ✅ Return 400 without license_key
-- ✅ Return 404 for invalid license_key
-- ✅ Keep license functional after opt-out
+
+- ✅ Reject unauthenticated preference changes
+- ✅ Opt the authenticated customer out of telemetry
+- ✅ Opt the authenticated customer back in
+- ✅ Reject missing preference values and invalid sessions
+- ✅ Keep licenses functional after opt-out
 
 ## Test Data Setup
 
@@ -121,20 +127,23 @@ See `setup.sql` for the complete test schema. Key tables:
 ## Helper Functions
 
 ### Database Setup
+
 ```typescript
 setupDatabase(db: D1Database)         // Initialize schema
 clearAllTables(db: D1Database)        // Clean all data
 ```
 
 ### Test Customer Management
+
 ```typescript
-createTestCustomer(db, email, tier)  // Create test customer with license
-deleteTestCustomer(db, customerId)   // Delete customer and cascade
+createTestCustomer(db, email, tier); // Create test customer with license
+deleteTestCustomer(db, customerId); // Delete customer and cascade
 ```
 
 ### Test Data Creation
+
 ```typescript
-createTelemetryData(db, licenseId, machineId)  // Seed telemetry data
+createTelemetryData(db, licenseId, machineId); // Seed telemetry data
 ```
 
 ## Assertions
@@ -142,14 +151,15 @@ createTelemetryData(db, licenseId, machineId)  // Seed telemetry data
 All tests use Vitest assertions:
 
 ```typescript
-expect(response.status).toBe(200)
-expect(body).toHaveProperty('success', true)
-expect(body.error).toContain('License key required')
+expect(response.status).toBe(200);
+expect(body).toHaveProperty('success', true);
+expect(body.error).toContain('License key required');
 ```
 
 ## CI/CD Integration
 
 These tests run on:
+
 - Every pull request
 - Pre-deployment checks
 - Scheduled nightly runs
@@ -178,6 +188,7 @@ These rights are available to **ALL users worldwide**, not just EU/California re
 ## Performance Benchmarks
 
 Test execution targets:
+
 - Single test: < 100ms
 - Full suite: < 5s
 - Database setup: < 500ms
@@ -185,17 +196,21 @@ Test execution targets:
 ## Debugging
 
 ### View Test Output
+
 ```bash
 npm test -- --reporter=verbose
 ```
 
 ### Debug Single Test
+
 ```bash
 npm test -- --grep "should accept and store a valid command event"
 ```
 
 ### Database State Inspection
+
 Add this to any test:
+
 ```typescript
 const data = await env.DB.prepare('SELECT * FROM command_event').all();
 console.log(data);
