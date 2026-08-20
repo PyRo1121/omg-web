@@ -7,22 +7,19 @@
     "deploy": "wrangler deploy",
     "db:create": "wrangler d1 create omg-licensing",
     "db:migrate": "wrangler d1 execute omg-licensing --file=./schema.sql",
-    "lint": "eslint src --ext .ts --report-unused-disable-directives --max-warnings 0",
-    "lint:fix": "eslint src --ext .ts --fix",
+    "lint": "npm --prefix ../.. run lint:workers",
+    "lint:fix": "npm --prefix ../.. run lint:workers:fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "check": "bun run typecheck && bun run lint && bun run format:check",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.21.3",
-    "@cloudflare/workers-types": "4.20260702.1",
-    "@typescript-eslint/eslint-plugin": "8.67.0",
-    "@typescript-eslint/parser": "8.67.0",
-    "eslint": "10.8.1",
+    "@cloudflare/workers-types": "5.20260815.1",
     "prettier": "3.8.0",
     "typescript": "5.9.3",
     "vitest": "4.1.10",
@@ -30,8 +27,7 @@
   },
   "dependencies": {
     "@effect/schema": "0.75.5",
-    "@sentry/cloudflare": "10.36.0",
-    "@sentry/solid": "10.36.0",
+    "@sentry/cloudflare": "10.70.0",
     "effect": "3.22.1"
   },
   "type": "module"

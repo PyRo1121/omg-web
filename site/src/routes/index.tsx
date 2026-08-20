@@ -53,7 +53,9 @@ export default function Home() {
 
   const fetchLicense = async () => {
     const userEmail = email();
-    if (!userEmail) {return;}
+    if (!userEmail) {
+      return;
+    }
 
     setLoading(true);
     setNotFound(false);
@@ -265,7 +267,9 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       const key = licenseKey();
-                      if (key) {copyToClipboard(key);}
+                      if (key) {
+                        copyToClipboard(key);
+                      }
                     }}
                     class="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 py-3 font-semibold text-white transition-all hover:bg-slate-600"
                   >

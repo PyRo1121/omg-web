@@ -114,7 +114,9 @@ const RECENT_THRESHOLD_MS = 30000; // 30 seconds
 // ============================================================================
 
 const getCountryCoords = (countryCode?: string): { x: number; y: number } => {
-  if (!countryCode) {return COUNTRY_COORDINATES.UNKNOWN;}
+  if (!countryCode) {
+    return COUNTRY_COORDINATES.UNKNOWN;
+  }
   return (
     Object.entries(COUNTRY_COORDINATES).find(([key]) => key === countryCode.toUpperCase())?.[1] ??
     COUNTRY_COORDINATES.UNKNOWN
@@ -135,14 +137,22 @@ const formatLastSeen = (timestamp: string): string => {
   const time = new Date(timestamp).getTime();
   const diffMs = now - time;
 
-  if (diffMs < 60000) {return 'Just now';}
-  if (diffMs < 3600000) {return `${Math.floor(diffMs / 60000)}m ago`;}
-  if (diffMs < 86400000) {return `${Math.floor(diffMs / 3600000)}h ago`;}
+  if (diffMs < 60000) {
+    return 'Just now';
+  }
+  if (diffMs < 3600000) {
+    return `${Math.floor(diffMs / 60000)}m ago`;
+  }
+  if (diffMs < 86400000) {
+    return `${Math.floor(diffMs / 3600000)}h ago`;
+  }
   return `${Math.floor(diffMs / 86400000)}d ago`;
 };
 
 const getCountryFlag = (code?: string): string => {
-  if (!code || code.length !== 2) {return '';}
+  if (!code || code.length !== 2) {
+    return '';
+  }
   const codePoints = code
     .toUpperCase()
     .split('')

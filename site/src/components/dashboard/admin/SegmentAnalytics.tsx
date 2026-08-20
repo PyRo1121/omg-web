@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { For, Show, createSignal, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -355,7 +355,9 @@ export const SegmentAnalytics: Component = () => {
   const metricsQuery = useAdminAdvancedMetrics();
 
   const segmentMetrics = createMemo((): SegmentMetrics[] => {
-    if (!metricsQuery.data) {return [];}
+    if (!metricsQuery.data) {
+      return [];
+    }
 
     const metrics = metricsQuery.data;
     const churnRiskMap: Record<string, number> = {};

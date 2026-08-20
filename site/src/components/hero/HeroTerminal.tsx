@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { createSignal, onMount, For, onCleanup } from 'solid-js';
 import GlassCard from '../ui/GlassCard';
 

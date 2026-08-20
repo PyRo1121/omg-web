@@ -12,7 +12,9 @@ export function Breadcrumbs() {
 
   const breadcrumbs = createMemo<BreadcrumbItem[]>(() => {
     const path = location.pathname;
-    if (!path.startsWith('/docs')) {return [];}
+    if (!path.startsWith('/docs')) {
+      return [];
+    }
 
     const segments = path.split('/').filter(Boolean);
     const items: BreadcrumbItem[] = [];

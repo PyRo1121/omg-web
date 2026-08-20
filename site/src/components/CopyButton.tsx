@@ -21,7 +21,9 @@ const CopyButton: Component<CopyButtonProps> = props => {
   let rippleId = 0;
 
   const handleCopy = async (e: MouseEvent) => {
-    if (!(e.currentTarget instanceof HTMLButtonElement)) {return;}
+    if (!(e.currentTarget instanceof HTMLButtonElement)) {
+      return;
+    }
     const button = e.currentTarget;
     const rect = button.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -92,18 +94,20 @@ const CopyButton: Component<CopyButtonProps> = props => {
       aria-label={copied() ? 'Copied to clipboard' : `Copy ${props.label || 'to clipboard'}`}
       title={copied() ? 'Copied!' : 'Copy to clipboard'}
     >
-      <For each={ripples()}>{ripple => (
-        <span
-          class="animate-ripple pointer-events-none absolute rounded-full bg-white/20"
-          style={{
-            left: `${ripple.x}px`,
-            top: `${ripple.y}px`,
-            width: '4px',
-            height: '4px',
-            transform: 'translate(-50%, -50%)',
-          }}
-        />
-      )}</For>
+      <For each={ripples()}>
+        {ripple => (
+          <span
+            class="animate-ripple pointer-events-none absolute rounded-full bg-white/20"
+            style={{
+              left: `${ripple.x}px`,
+              top: `${ripple.y}px`,
+              width: '4px',
+              height: '4px',
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
+        )}
+      </For>
 
       <span class="relative flex items-center justify-center">
         <span

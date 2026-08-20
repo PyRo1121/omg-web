@@ -72,7 +72,9 @@ export function SearchDialog(props: SearchDialogProps) {
     setLoading(true);
 
     try {
-      if (!pagefind?.search) {return;}
+      if (!pagefind?.search) {
+        return;
+      }
       const search = await pagefind.search(term);
       const data = await Promise.all(
         search.results.slice(0, 8).map(async r => {
@@ -95,7 +97,9 @@ export function SearchDialog(props: SearchDialogProps) {
 
   const handleKeyDown = (e: KeyboardEvent) => {
     const len = results().length;
-    if (len === 0) {return;}
+    if (len === 0) {
+      return;
+    }
 
     switch (e.key) {
       case 'ArrowDown':

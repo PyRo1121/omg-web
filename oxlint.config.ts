@@ -20,7 +20,13 @@ export default defineConfig({
     '**/.output/**',
     '**/coverage/**',
   ],
-  jsPlugins: [{ name: 'anti-slop', specifier: './tools/oxlint/anti-slop/index.ts' }],
+  jsPlugins: [
+    { name: 'anti-slop', specifier: './tools/oxlint/anti-slop/index.ts' },
+    {
+      name: 'anti-slop-effect',
+      specifier: './tools/oxlint/anti-slop/effect/index.ts',
+    },
+  ],
   categories: {
     correctness: 'error',
     suspicious: 'error',
@@ -44,5 +50,6 @@ export default defineConfig({
     'anti-slop/no-unsafe-dictionary-type': 'error',
     'anti-slop/no-widen-then-assert': 'error',
     'anti-slop/require-safety-comment-for-type-assertion': 'error',
+    'anti-slop-effect/no-service-constructor-imports': 'error',
   },
 });

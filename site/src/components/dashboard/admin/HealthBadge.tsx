@@ -164,9 +164,15 @@ function getHealthConfig(score: number, showGlow: boolean): HealthConfig {
 }
 
 function getStrokeColor(score: number): string {
-  if (score >= HEALTH_THRESHOLDS.EXCELLENT) {return 'var(--color-aurora-500)';}
-  if (score >= HEALTH_THRESHOLDS.GOOD) {return 'var(--color-electric-500)';}
-  if (score >= HEALTH_THRESHOLDS.FAIR) {return 'var(--color-solar-500)';}
+  if (score >= HEALTH_THRESHOLDS.EXCELLENT) {
+    return 'var(--color-aurora-500)';
+  }
+  if (score >= HEALTH_THRESHOLDS.GOOD) {
+    return 'var(--color-electric-500)';
+  }
+  if (score >= HEALTH_THRESHOLDS.FAIR) {
+    return 'var(--color-solar-500)';
+  }
   return 'var(--color-flare-500)';
 }
 

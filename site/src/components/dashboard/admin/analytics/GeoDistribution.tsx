@@ -149,7 +149,9 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
 
   const maxItems = () => props.maxItems || 10;
 
-  const sortedData = createMemo(() => [...props.data].toSorted((a, b) => b.user_count - a.user_count));
+  const sortedData = createMemo(() =>
+    [...props.data].toSorted((a, b) => b.user_count - a.user_count)
+  );
 
   const displayedData = createMemo(() =>
     showAll() ? sortedData() : sortedData().slice(0, maxItems())

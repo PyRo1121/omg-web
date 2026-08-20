@@ -1,16 +1,13 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { For, Show, createSignal } from 'solid-js';
-import type {
-  ColumnDef,
-  SortingState,
-  RowSelectionState} from '@tanstack/solid-table';
+import type { ColumnDef, SortingState, RowSelectionState } from '@tanstack/solid-table';
 import {
   createSolidTable,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
   getPaginationRowModel,
-  getFilteredRowModel
+  getFilteredRowModel,
 } from '@tanstack/solid-table';
 import * as api from '../../../lib/api';
 import { ChevronUp, ChevronDown, Trash2, Monitor, Search, X } from '../../ui/Icons';
@@ -29,20 +26,22 @@ export const FleetTable: Component<FleetTableProps> = props => {
   const columns: ColumnDef<api.Machine>[] = [
     {
       id: 'select',
-      header: (tableProps) => (
+      header: tableProps => (
         <div class="px-1">
           <input
             type="checkbox"
             class="rounded border-white/10 bg-white/5 text-blue-500 focus:ring-blue-500/20"
             checked={tableProps.table.getIsAllRowsSelected()}
             ref={el => {
-              if (el) {el.indeterminate = tableProps.table.getIsSomeRowsSelected();}
+              if (el) {
+                el.indeterminate = tableProps.table.getIsSomeRowsSelected();
+              }
             }}
             onChange={tableProps.table.getToggleAllRowsSelectedHandler()}
           />
         </div>
       ),
-      cell: (cellProps) => (
+      cell: cellProps => (
         <div class="px-1">
           <input
             type="checkbox"
@@ -98,7 +97,9 @@ export const FleetTable: Component<FleetTableProps> = props => {
         // Map status based on activity and potentially other flags
         // For now using is_active from original data if available
         let status = isOnline ? 'Active' : 'Offline';
-        if (info.row.original.is_active === 0) {status = 'Compromised';} // Example mapping
+        if (info.row.original.is_active === 0) {
+          status = 'Compromised';
+        } // Example mapping
 
         return (
           <div class="flex flex-col gap-1">

@@ -1,4 +1,4 @@
-import type { Component} from 'solid-js';
+import type { Component } from 'solid-js';
 import { For, Show, createSignal } from 'solid-js';
 import {
   TrendingUp,
@@ -12,11 +12,13 @@ import {
 import { useAdminRevenue } from '../../../lib/api-hooks';
 import { CardSkeleton } from '../../ui/Skeleton';
 
-
-
 const formatCompactCurrency = (value: number) => {
-  if (value >= 1000000) {return `$${(value / 1000000).toFixed(1)}M`;}
-  if (value >= 1000) {return `$${(value / 1000).toFixed(1)}K`;}
+  if (value >= 1000000) {
+    return `$${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `$${(value / 1000).toFixed(1)}K`;
+  }
   return `$${value}`;
 };
 
@@ -25,7 +27,7 @@ export const RevenueTab: Component = () => {
   const [selectedPeriod, setSelectedPeriod] = createSignal<'7d' | '30d' | '90d' | '1y'>('30d');
 
   const revenue = () => revenueQuery.data;
-  
+
   const maxMonthlyRevenue = () => {
     const monthly = revenue()?.monthly_revenue || [];
     return Math.max(...monthly.map(m => m.revenue), 1);

@@ -1,4 +1,4 @@
-import type { Env} from '../api';
+import type { Env } from '../api';
 import { errorResponse } from '../api';
 
 export async function handleBinaryDownload(request: Request, env: Env): Promise<Response> {
