@@ -119,10 +119,9 @@ const CommandPalette: Component = () => {
       if (query && !cmd.label.toLowerCase().includes(query)) {
         continue;
       }
-      if (!groups[cmd.group]) {
-        groups[cmd.group] = [];
-      }
-      groups[cmd.group].push(cmd);
+      const group = groups[cmd.group] ?? [];
+      group.push(cmd);
+      groups[cmd.group] = group;
     }
 
     return groups;

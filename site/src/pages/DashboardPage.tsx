@@ -261,9 +261,13 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     if (!data || data.daily.length === 0) {
       return null;
     }
-    return data.daily.reduce(
-      (max, d) => (d.commands_run > max.commands_run ? d : max),
-      data.daily[0]
+    const [firstDay, ...remainingDays] = data.daily;
+    if (firstDay === undefined) {
+      return null;
+    }
+    return remainingDays.reduce(
+      (max, day) => (day.commands_run > max.commands_run ? day : max),
+      firstDay
     );
   });
 

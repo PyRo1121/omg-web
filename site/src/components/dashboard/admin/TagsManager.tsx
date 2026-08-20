@@ -17,6 +17,8 @@ interface TagsManagerProps {
   onRefresh?: () => void;
 }
 
+const DEFAULT_TAG_COLOR = '#6366f1';
+
 const DEFAULT_COLORS = [
   '#ef4444',
   '#f59e0b',
@@ -32,7 +34,7 @@ export const TagsManager: Component<TagsManagerProps> = props => {
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = createSignal(false);
   const [newTagName, setNewTagName] = createSignal('');
-  const [newTagColor, setNewTagColor] = createSignal(DEFAULT_COLORS[4]);
+  const [newTagColor, setNewTagColor] = createSignal(DEFAULT_TAG_COLOR);
 
   const allTagsQuery = createQuery(() => ({
     queryKey: ['all-tags'],

@@ -30,7 +30,15 @@ const heatmapColors = [
   { bg: 'var(--color-indigo-500)', glow: 'rgba(99, 102, 241, 0.4)' },
   { bg: 'var(--color-electric-500)', glow: 'rgba(34, 211, 211, 0.4)' },
   { bg: 'var(--color-electric-400)', glow: 'rgba(34, 211, 211, 0.5)' },
-];
+] as const;
+
+function heatmapColor(level: number) {
+  return heatmapColors[level] ?? heatmapColors[0];
+}
+
+function dayLabel(day: number): string {
+  return DAYS[day] ?? 'Unknown';
+}
 
 export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
   const [mounted, setMounted] = createSignal(false);
@@ -88,9 +96,13 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
     if (props.data.length === 0) {
       return { day: 0, hour: 0, count: 0 };
     }
-    const peak = props.data.reduce(
-      (max, d) => (d.event_count > max.event_count ? d : max),
-      props.data[0]
+    const [first, ...rest] = props.data;
+    if (first === undefined) {
+      return { day: 0, hour: 0, count: 0 };
+    }
+    const peak = rest.reduce(
+      (max, item) => (item.event_count > max.event_count ? item : max),
+      first
     );
     return {
       day: parseInt(peak.day_of_week),
@@ -230,7 +242,7 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
                       {hour => {
                         const count = getCountForCell(dayIndex, hour);
                         const level = getHeatmapLevel(count);
-                        const colors = heatmapColors[level];
+                        const colors = heatmapColor(level);
                         const isPeak =
                           dayIndex === peakActivity().day && hour === peakActivity().hour;
                         const isHovered =
@@ -263,7 +275,7 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
                               style={{ background: 'var(--bg-overlay)' }}
                             >
                               <div class="text-nebula-400">
-                                {DAYS[dayIndex]} {hour}:00
+                                {dayLabel(dayIndex)} {hour}:00
                               </div>
                               <div
                                 class="mt-0.5 text-sm"
@@ -299,7 +311,7 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
             <div>
               <p class="text-2xs text-nebula-500">Peak Activity</p>
               <p class="text-nebula-200 text-sm font-bold">
-                {DAYS[peakActivity().day]} {peakActivity().hour}:00
+                {dayLabel(peakActivity().day)} {peakActivity().hour}:00
                 <span class="ml-2" style={{ color: 'var(--color-electric-400)' }}>
                   ({peakActivity().count.toLocaleString()})
                 </span>
@@ -315,8 +327,8 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
                   <div
                     class="h-4 w-4 rounded transition-all hover:scale-110"
                     style={{
-                      background: heatmapColors[level].bg,
-                      'box-shadow': `0 0 4px ${heatmapColors[level].glow}`,
+                      background: heatmapColor(level).bg,
+                      'box-shadow': `0 0 4px ${heatmapColor(level).glow}`,
                     }}
                   />
                 )}

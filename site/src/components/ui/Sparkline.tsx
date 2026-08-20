@@ -58,15 +58,17 @@ export const Sparkline: Component<SparklineProps> = props => {
       return { x, y };
     });
 
-    if (pts.length === 0) {
+    const firstPoint = pts.at(0);
+    const lastPoint = pts.at(-1);
+    if (firstPoint === undefined || lastPoint === undefined) {
       return '';
     }
 
-    let path = `M ${pts[0].x},${height - padding}`;
-    pts.forEach(pt => {
-      path += ` L ${pt.x},${pt.y}`;
+    let path = `M ${firstPoint.x},${height - padding}`;
+    pts.forEach(point => {
+      path += ` L ${point.x},${point.y}`;
     });
-    path += ` L ${pts[pts.length - 1].x},${height - padding} Z`;
+    path += ` L ${lastPoint.x},${height - padding} Z`;
 
     return path;
   };
@@ -84,7 +86,10 @@ export const Sparkline: Component<SparklineProps> = props => {
     const chartWidth = width - padding * 2;
     const chartHeight = height - padding * 2;
 
-    const lastValue = data[data.length - 1];
+    const lastValue = data.at(-1);
+    if (lastValue === undefined) {
+      return null;
+    }
     const x = padding + chartWidth;
     const y = padding + chartHeight - ((lastValue - min) / range) * chartHeight;
 

@@ -26,12 +26,13 @@ const RETENTION_COLORS = [
   { min: 40, bg: 'rgba(34, 197, 94, 0.5)', glow: 'rgba(34, 197, 94, 0.25)', label: 'Good' },
   { min: 60, bg: 'rgba(34, 197, 94, 0.65)', glow: 'rgba(34, 197, 94, 0.3)', label: 'Great' },
   { min: 80, bg: 'rgba(16, 185, 129, 0.8)', glow: 'rgba(16, 185, 129, 0.4)', label: 'Excellent' },
-];
+] as const;
 
 function getRetentionColor(rate: number) {
   for (let i = RETENTION_COLORS.length - 1; i >= 0; i--) {
-    if (rate >= RETENTION_COLORS[i].min) {
-      return RETENTION_COLORS[i];
+    const color = RETENTION_COLORS[i];
+    if (color !== undefined && rate >= color.min) {
+      return color;
     }
   }
   return RETENTION_COLORS[0];
@@ -121,18 +122,21 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
       for (let i = 0; i <= maxMonths(); i++) {
         const rate = getRetentionRate(cohortMonth, i);
         if (rate !== null) {
-          totals[i] += rate;
-          counts[i]++;
+          totals[i] = (totals[i] ?? 0) + rate;
+          counts[i] = (counts[i] ?? 0) + 1;
         }
       }
     }
 
-    return totals.map((total, i) => (counts[i] > 0 ? Math.round(total / counts[i]) : null));
+    return totals.map((total, i) => {
+      const count = counts[i] ?? 0;
+      return count > 0 ? Math.round(total / count) : null;
+    });
   });
 
   const overallHealth = createMemo(() => {
     const month3Avg = avgRetentionByMonth()[3];
-    if (month3Avg === null) {
+    if (month3Avg === undefined || month3Avg === null) {
       return { label: 'N/A', color: 'var(--color-nebula-400)' };
     }
     if (month3Avg >= 60) {

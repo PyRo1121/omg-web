@@ -28,7 +28,7 @@ describe('decodePersistedDashboardState', () => {
     expect(decoded).not.toBeNull();
     expect(decoded?.state.navigation.activeTab).toBe('analytics');
     expect(decoded?.state.filters.dateRange).toBe('90d');
-    expect(decoded?.state.views.saved[0].name).toBe('Enterprise health');
+    expect(decoded?.state.views.saved.at(0)?.name).toBe('Enterprise health');
     expect(decoded?.state.crm.viewMode).toBe('cards');
   });
 

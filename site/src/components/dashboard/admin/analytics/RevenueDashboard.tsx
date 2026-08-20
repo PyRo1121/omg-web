@@ -95,8 +95,12 @@ function formatMonth(monthStr: string): string {
     'Nov',
     'Dec',
   ];
-  const monthIndex = parseInt(parts[1], 10) - 1;
-  return months[monthIndex] || monthStr;
+  const monthPart = parts.at(1);
+  if (monthPart === undefined) {
+    return monthStr;
+  }
+  const monthIndex = parseInt(monthPart, 10) - 1;
+  return months[monthIndex] ?? monthStr;
 }
 
 export const RevenueDashboard: Component<RevenueDashboardProps> = props => {

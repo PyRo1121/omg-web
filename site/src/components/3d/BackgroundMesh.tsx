@@ -46,14 +46,15 @@ const BackgroundMesh: Component = () => {
       animationFrameId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      const positions = geometry.attributes['position'].array;
-      if (!(positions instanceof Float32Array)) {
+      const positionAttribute = geometry.attributes['position'];
+      const positions = positionAttribute?.array;
+      if (positionAttribute === undefined || !(positions instanceof Float32Array)) {
         renderer.render(scene, camera);
         return;
       }
-      for (let i = 0; i < positions.length; i += 3) {
-        const x = positions[i];
-        const y = positions[i + 1];
+      for (let i = 0; i + 2 < positions.length; i += 3) {
+        const x = positions[i] ?? 0;
+        const y = positions[i + 1] ?? 0;
 
         // Create wave effect
         const wave1 = Math.sin(x * 0.1 + elapsedTime) * 2;
@@ -62,7 +63,7 @@ const BackgroundMesh: Component = () => {
 
         positions[i + 2] = wave1 + wave2 + wave3;
       }
-      geometry.attributes['position'].needsUpdate = true;
+      positionAttribute.needsUpdate = true;
 
       renderer.render(scene, camera);
     };

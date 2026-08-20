@@ -68,6 +68,10 @@ function billingCatalog(env: Env): BillingCatalog {
   };
 }
 
+function lastStripeResourceId(resources: ReadonlyArray<{ readonly id: string }>): string | null {
+  return resources.at(-1)?.id ?? null;
+}
+
 type StripeEventClaim = 'claimed' | 'processed' | 'busy' | 'invalid';
 
 async function claimStripeEvent(
@@ -625,9 +629,12 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       }
 
       hasMore = data.has_more;
-      if (data.data.length > 0) {
-        startingAfter = data.data[data.data.length - 1].id;
+      const lastCustomerId = lastStripeResourceId(data.data);
+      if (hasMore && lastCustomerId === null) {
+        results.errors.push('Stripe customer pagination cursor is missing');
+        break;
       }
+      startingAfter = lastCustomerId ?? undefined;
     }
 
     // Sync subscriptions
@@ -683,9 +690,12 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       }
 
       hasMore = data.has_more;
-      if (data.data.length > 0) {
-        startingAfter = data.data[data.data.length - 1].id;
+      const lastSubscriptionId = lastStripeResourceId(data.data);
+      if (hasMore && lastSubscriptionId === null) {
+        results.errors.push('Stripe subscription pagination cursor is missing');
+        break;
       }
+      startingAfter = lastSubscriptionId ?? undefined;
     }
 
     // Sync invoices (last 12 months)
@@ -762,9 +772,12 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       }
 
       hasMore = data.has_more;
-      if (data.data.length > 0) {
-        startingAfter = data.data[data.data.length - 1].id;
+      const lastInvoiceId = lastStripeResourceId(data.data);
+      if (hasMore && lastInvoiceId === null) {
+        results.errors.push('Stripe invoice pagination cursor is missing');
+        break;
       }
+      startingAfter = lastInvoiceId ?? undefined;
     }
   } catch (error: unknown) {
     results.errors.push(`Sync error: ${decodeThrownMessage(error) || 'unknown error'}`);

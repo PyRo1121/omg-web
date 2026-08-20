@@ -29,8 +29,8 @@ describe('decodeDashboardData', () => {
     const decoded = decodeDashboardData(validPayload);
     expect(decoded).not.toBeNull();
     expect(decoded?.user.email).toBe('ada@example.com');
-    expect(decoded?.sessions[0].isCurrent).toBe(true);
-    expect(decoded?.accounts[0].provider).toBe('github');
+    expect(decoded?.sessions.at(0)?.isCurrent).toBe(true);
+    expect(decoded?.accounts.at(0)?.provider).toBe('github');
   });
 
   it('rejects a payload where emailVerified is not a boolean', () => {

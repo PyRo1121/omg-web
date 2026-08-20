@@ -19,9 +19,12 @@ export async function handleBinaryDownload(request: Request, env: Env): Promise<
   const range = request.headers.get('Range');
 
   if (range) {
-    const parts = range.replace(/bytes=/, '').split('-');
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : object.size - 1;
+    const [startText, endText] = range.replace(/bytes=/, '').split('-');
+    if (startText === undefined) {
+      return new Response('Invalid range', { status: 416 });
+    }
+    const start = parseInt(startText, 10);
+    const end = endText ? parseInt(endText, 10) : object.size - 1;
 
     if (isNaN(start) || isNaN(end) || start >= object.size || end >= object.size || start > end) {
       return new Response('Invalid range', { status: 416 });

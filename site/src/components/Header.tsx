@@ -123,7 +123,7 @@ const Header: Component = () => {
                   aria-expanded={userMenuOpen()}
                 >
                   <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400">
-                    {session()?.data?.user?.email?.[0].toUpperCase()}
+                    {session()?.data?.user?.email?.[0]?.toUpperCase() ?? '?'}
                   </div>
                   <span class="max-w-[150px] truncate">{session()?.data?.user?.email}</span>
                   <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

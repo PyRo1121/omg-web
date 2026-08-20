@@ -65,13 +65,11 @@ function getInitialState(): DashboardState {
     const parsed: unknown = JSON.parse(stored);
     const persisted = decodePersistedDashboardState(parsed);
     if (!persisted) {
-      console.warn('[DashboardStore] Invalid or unsupported state, using defaults');
       return createDefaultState();
     }
 
     return mergePersisted(createDefaultState(), persisted.state);
-  } catch (error: unknown) {
-    console.error('[DashboardStore] Failed to restore state:', error);
+  } catch {
     return createDefaultState();
   }
 }
@@ -129,8 +127,8 @@ export function createDashboardStore() {
     const debouncedPersist = debounce((snapshot: ReturnType<typeof persistableState>) => {
       try {
         browserWindow.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-      } catch (error) {
-        console.error('[DashboardStore] Failed to persist state:', error);
+      } catch {
+        // Dashboard preferences are best-effort when browser storage is unavailable.
       }
     }, 500);
 
@@ -152,7 +150,10 @@ export function createDashboardStore() {
       if (history.length === 0) {
         return;
       }
-      const previousTab = history[history.length - 1];
+      const previousTab = history.at(-1);
+      if (previousTab === undefined) {
+        return;
+      }
       setState('navigation', {
         activeTab: previousTab,
         tabHistory: history.slice(0, -1),

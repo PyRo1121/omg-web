@@ -307,7 +307,7 @@ const VennDiagramConcept: Component<{ segments: SegmentMetrics[] }> = props => {
               { left: '50%', top: '20%' },
               { left: '37%', top: '45%' },
             ];
-            const pos = positions[i()] || positions[0];
+            const pos = positions[i()] ?? { left: '25%', top: '20%' };
 
             return (
               <div

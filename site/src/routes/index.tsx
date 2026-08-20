@@ -44,7 +44,7 @@ export default function Home() {
     const pieces = Array.from({ length: 50 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
-      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)] ?? '#6366f1',
       delay: Math.random() * 0.5,
     }));
     setConfetti(pieces);

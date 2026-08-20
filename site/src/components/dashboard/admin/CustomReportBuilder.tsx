@@ -159,8 +159,14 @@ const AVAILABLE_METRICS: Metric[] = [
   },
 ];
 
+const DEFAULT_DIMENSION: Dimension = {
+  id: 'tier',
+  name: 'Subscription Tier',
+  dataKey: 'tier',
+};
+
 const AVAILABLE_DIMENSIONS: Dimension[] = [
-  { id: 'tier', name: 'Subscription Tier', dataKey: 'tier' },
+  DEFAULT_DIMENSION,
   { id: 'lifecycle', name: 'Lifecycle Stage', dataKey: 'lifecycle_stage' },
   { id: 'platform', name: 'Platform', dataKey: 'platform' },
   { id: 'country', name: 'Country', dataKey: 'country' },
@@ -168,9 +174,15 @@ const AVAILABLE_DIMENSIONS: Dimension[] = [
   { id: 'month', name: 'Month', dataKey: 'month' },
 ];
 
+const DEFAULT_VISUALIZATION = {
+  type: 'bar',
+  icon: BarChart3,
+  label: 'Bar Chart',
+} as const;
+
 const VISUALIZATION_OPTIONS: { type: VisualizationType; icon: typeof BarChart3; label: string }[] =
   [
-    { type: 'bar', icon: BarChart3, label: 'Bar Chart' },
+    DEFAULT_VISUALIZATION,
     { type: 'line', icon: LineChart, label: 'Line Chart' },
     { type: 'pie', icon: PieChart, label: 'Pie Chart' },
     { type: 'table', icon: Table2, label: 'Data Table' },
@@ -461,8 +473,7 @@ const SavedReportCard: Component<{
   onDelete: () => void;
 }> = props => {
   const vizOption = () =>
-    VISUALIZATION_OPTIONS.find(v => v.type === props.report.visualization) ||
-    VISUALIZATION_OPTIONS[0];
+    VISUALIZATION_OPTIONS.find(v => v.type === props.report.visualization) ?? DEFAULT_VISUALIZATION;
   const IconComponent = vizOption().icon;
 
   return (
@@ -544,7 +555,7 @@ export const CustomReportBuilder: Component = () => {
   const addFilter = () => {
     setFilters(prev => [
       ...prev,
-      { dimension: AVAILABLE_DIMENSIONS[0].id, operator: 'equals', value: '' },
+      { dimension: DEFAULT_DIMENSION.id, operator: 'equals', value: '' },
     ]);
   };
 

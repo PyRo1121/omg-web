@@ -93,7 +93,7 @@ function getPageContext(): PageContext {
   }
   return {
     page_path: globalThis.window.location.pathname,
-    page_url: globalThis.window.location.href.split('?')[0], // Strip query params for privacy
+    page_url: globalThis.window.location.href.split('?').at(0) ?? globalThis.window.location.href, // Strip query params for privacy
   };
 }
 

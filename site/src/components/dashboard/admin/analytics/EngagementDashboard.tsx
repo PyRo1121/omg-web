@@ -374,8 +374,8 @@ export const EngagementDashboard: Component<EngagementDashboardProps> = props =>
                       'linear-gradient(90deg, var(--color-photon-600), var(--color-photon-400))',
                     glow: 'rgba(176, 109, 232, 0.3)',
                   },
-                ];
-                const stageColors = colors[index() % colors.length];
+                ] as const;
+                const stageColors = colors[index() % colors.length] ?? colors[0];
                 const prevStage = funnelStages()[index() - 1];
                 const dropoff = prevStage
                   ? (((prevStage.count - stage.count) / prevStage.count) * 100).toFixed(1)

@@ -136,12 +136,15 @@ const REGION_COLORS = [
     gradient: 'linear-gradient(135deg, var(--color-solar-600), var(--color-solar-400))',
     glow: 'rgba(245, 158, 11, 0.4)',
   },
-];
+] as const;
+
+function regionColor(index: number) {
+  return REGION_COLORS[index % REGION_COLORS.length] ?? REGION_COLORS[0];
+}
 
 export const GeoDistribution: Component<GeoDistributionProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [showAll, setShowAll] = createSignal(false);
-  const [hoveredCountry, setHoveredCountry] = createSignal<string | null>(null);
 
   onMount(() => {
     requestAnimationFrame(() => setMounted(true));
@@ -171,6 +174,13 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
     totalUsers() > 0 ? ((count / totalUsers()) * 100).toFixed(1) : '0';
 
   const getBarWidth = (count: number) => (count / maxUsers()) * 100;
+
+  const geographicInsight = createMemo(() => {
+    const topCountry = sortedData().at(0);
+    return topCountry === undefined
+      ? 'Geographic distribution data will help identify key markets.'
+      : `${getCountryName(topCountry.country_code)} leads with ${getPercentage(topCountry.user_count)}% of users. Consider localization for top markets.`;
+  });
 
   const topRegions = createMemo(() => {
     const regions = {
@@ -277,7 +287,7 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
         <div class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
           <For each={topRegions().slice(0, 4)}>
             {(region, index) => {
-              const colors = REGION_COLORS[index() % REGION_COLORS.length];
+              const colors = regionColor(index());
               const percentage =
                 totalUsers() > 0 ? ((region.count / totalUsers()) * 100).toFixed(0) : '0';
 
@@ -318,36 +328,29 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
         >
           <For each={displayedData()}>
             {(country, index) => {
-              const isHovered = () => hoveredCountry() === country.country_code;
               const barWidth = getBarWidth(country.user_count);
               const isTopThree = index() < 3;
-              const colors = REGION_COLORS[index() % REGION_COLORS.length];
+              const colors = regionColor(index());
 
               return (
                 <div
                   class={cn(
                     'group bg-void-800/30 relative rounded-xl border p-3',
-                    'cursor-default transition-all duration-300',
-                    isHovered() && 'bg-void-750/50 border-white/10',
-                    !isHovered() && 'border-white/[0.04]'
+                    'cursor-default border-white/[0.04] transition-all duration-300',
+                    'hover:bg-void-750/50 hover:border-white/10'
                   )}
                   style={{
                     'animation-delay': `${index() * 30}ms`,
                   }}
-                  onMouseEnter={() => setHoveredCountry(country.country_code)}
-                  onMouseLeave={() => setHoveredCountry(null)}
                 >
                   <div class="flex items-center gap-3">
                     <div
                       class={cn(
                         'flex h-8 w-8 items-center justify-center rounded-lg text-lg',
-                        'transition-transform duration-300',
-                        isHovered() && 'scale-110'
+                        'transition-transform duration-300 group-hover:scale-110'
                       )}
                       style={{
                         background: isTopThree ? colors.gradient : 'var(--color-void-700)',
-                        'box-shadow':
-                          isHovered() && isTopThree ? `0 0 12px ${colors.glow}` : undefined,
                       }}
                     >
                       {isTopThree ? (
@@ -386,7 +389,6 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
                           style={{
                             width: mounted() ? `${barWidth}%` : '0%',
                             background: isTopThree ? colors.gradient : 'var(--color-nebula-600)',
-                            'box-shadow': isHovered() ? `0 0 8px ${colors.glow}` : undefined,
                           }}
                         />
                       </div>
@@ -409,6 +411,7 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
 
         <Show when={sortedData().length > maxItems()}>
           <button
+            type="button"
             onClick={() => setShowAll(!showAll())}
             class={cn(
               'mt-4 w-full rounded-xl py-2.5 text-sm font-medium',
@@ -442,11 +445,7 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
             </div>
             <div>
               <p class="text-nebula-100 text-sm font-semibold">Geographic Insight</p>
-              <p class="text-nebula-400 mt-0.5 text-xs">
-                {sortedData()[0]
-                  ? `${getCountryName(sortedData()[0].country_code)} leads with ${getPercentage(sortedData()[0].user_count)}% of users. Consider localization for top markets.`
-                  : 'Geographic distribution data will help identify key markets.'}
-              </p>
+              <p class="text-nebula-400 mt-0.5 text-xs">{geographicInsight()}</p>
             </div>
           </div>
         </div>

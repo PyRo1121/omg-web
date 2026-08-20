@@ -53,7 +53,7 @@ describe('decodeTelemetryDashboard', () => {
     expect(decoded).not.toBeNull();
     expect(decoded?.user.id).toBe('u1');
     expect(decoded?.license.license_key).toBe('KEY-123');
-    expect(decoded?.machines[0].machine_id).toBe('mac-1');
+    expect(decoded?.machines.at(0)?.machine_id).toBe('mac-1');
   });
 
   it('rejects a payload with a wrong field type', () => {

@@ -474,6 +474,9 @@ export const AdminDashboard: Component = () => {
     }
 
     const nextTab = TABS_ORDER[nextIndex];
+    if (nextTab === undefined) {
+      return;
+    }
     actions.setTab(nextTab);
 
     setTimeout(() => {

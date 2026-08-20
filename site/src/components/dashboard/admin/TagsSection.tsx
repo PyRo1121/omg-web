@@ -20,6 +20,8 @@ interface TagsSectionProps {
   isLoading?: boolean;
 }
 
+const DEFAULT_TAG_COLOR = '#10b981';
+
 const TAG_COLORS = [
   { value: '#10b981', label: 'Emerald' },
   { value: '#06b6d4', label: 'Cyan' },
@@ -35,7 +37,7 @@ export const TagsSection: Component<TagsSectionProps> = props => {
   const [isAdding, setIsAdding] = createSignal(false);
   const [showNewTagForm, setShowNewTagForm] = createSignal(false);
   const [newTagName, setNewTagName] = createSignal('');
-  const [newTagColor, setNewTagColor] = createSignal(TAG_COLORS[0].value);
+  const [newTagColor, setNewTagColor] = createSignal(DEFAULT_TAG_COLOR);
 
   const availableTags = () => {
     const assignedIds = new Set(props.customerTags.map(t => t.id));
@@ -52,7 +54,7 @@ export const TagsSection: Component<TagsSectionProps> = props => {
     if (name && props.onCreateTag) {
       props.onCreateTag(name, newTagColor());
       setNewTagName('');
-      setNewTagColor(TAG_COLORS[0].value);
+      setNewTagColor(DEFAULT_TAG_COLOR);
       setShowNewTagForm(false);
     }
   };

@@ -138,7 +138,7 @@ export async function handleDocsAnalytics(
 
     // Trigger async aggregation for the current day (fire-and-forget)
     // This updates daily rollups without blocking the response
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().slice(0, 10);
     ctx.waitUntil(
       aggregateDocsAnalytics(env.DB, today).catch(error => {
         console.error('Docs analytics background aggregation failed:', error);

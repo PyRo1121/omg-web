@@ -240,6 +240,24 @@ export async function handleAdminDashboard(request: Request, env: Env): Promise<
     commandStatsResult,
   ] = batchResults;
 
+  if (
+    countsResult === undefined ||
+    tierBreakdownResult === undefined ||
+    usageTotalsResult === undefined ||
+    dailyActiveUsersResult === undefined ||
+    recentSignupsResult === undefined ||
+    installsByPlatformResult === undefined ||
+    installsByVersionResult === undefined ||
+    subscriptionStatsResult === undefined ||
+    mrrDataResult === undefined ||
+    globalUsageResult === undefined ||
+    fleetVersionsResult === undefined ||
+    geoDistResult === undefined ||
+    commandStatsResult === undefined
+  ) {
+    return errorResponse('Failed to load dashboard', 500);
+  }
+
   const countsLookup = await readOptionalExtraRow(
     AdminCountsRowSchema,
     'Admin overview counts have an invalid shape',

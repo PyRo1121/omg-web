@@ -307,7 +307,11 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
     }
 
     // Extract license key from first event (all should have same license)
-    const licenseKey = body.events[0].license_key;
+    const firstEvent = body.events.at(0);
+    if (firstEvent === undefined) {
+      return jsonResponse({ success: true, processed: 0 });
+    }
+    const licenseKey = firstEvent.license_key;
     if (!licenseKey) {
       return errorResponse('License key required', 401);
     }
