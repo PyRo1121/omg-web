@@ -17,7 +17,6 @@ function getEnv(event: AdminRequestEvent): CloudflareEnv {
 
   return {
     DB: env.DB,
-    BETTER_AUTH_KV: env.BETTER_AUTH_KV,
     BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: env.BETTER_AUTH_URL,
     GITHUB_CLIENT_ID: env.GITHUB_CLIENT_ID,

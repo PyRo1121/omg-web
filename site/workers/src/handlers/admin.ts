@@ -1,3 +1,4 @@
+import { reportError } from '../observability';
 /**
  * Admin API Handlers - Production-Grade Implementation
  */
@@ -127,7 +128,7 @@ async function validateAdmin(
       action: 'admin.unauthorized_access',
       userId: auth.user.id,
       request,
-      metadata: { attempted_path: new URL(request.url).pathname },
+      metadata: { attempted_path: URL.parse(request.url)?.pathname ?? '' },
       success: false,
     });
     return { error: errorResponse('Unauthorized', 403) };
@@ -177,7 +178,7 @@ async function logAdminAudit<TMetadata extends object>(
       )
       .run();
   } catch (error: unknown) {
-    console.error('Admin audit log error', error);
+    reportError('Admin audit log error', error);
   }
 }
 
@@ -434,9 +435,12 @@ export async function handleAdminCRMUsers(request: Request, env: Env): Promise<R
   }
   const { context } = result;
 
-  const url = new URL(request.url);
-  const page = parseInt(url.searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
+  const page = parseInt(url.searchParams.get('page') || '1', 10);
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 100);
   const offset = (page - 1) * limit;
   const search = url.searchParams.get('search') || '';
 
@@ -507,7 +511,10 @@ export async function handleAdminUserDetail(request: Request, env: Env): Promise
   }
   const { context } = result;
 
-  const url = new URL(request.url);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
   const userId = url.searchParams.get('id');
   if (!userId) {
     return errorResponse('User ID required');
@@ -1056,7 +1063,10 @@ export async function handleAdminAuditLog(request: Request, env: Env): Promise<R
     return result.error;
   }
   const { context } = result;
-  const url = new URL(request.url);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
   const page = parseInt(url.searchParams.get('page') || '1', 10);
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 100);
   const logs = await env.DB.prepare(
@@ -1358,7 +1368,10 @@ export async function handleAdminGetNotes(request: Request, env: Env): Promise<R
   }
   const { context } = result;
 
-  const url = new URL(request.url);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
   const customerId = url.searchParams.get('customerId');
   if (!customerId) {
     return errorResponse('Customer ID required', 400);
@@ -1480,7 +1493,10 @@ export async function handleAdminDeleteNote(request: Request, env: Env): Promise
   }
   const { context } = result;
 
-  const url = new URL(request.url);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
   const noteId = url.searchParams.get('noteId');
   if (!noteId) {
     return errorResponse('Note ID required', 400);
@@ -1546,7 +1562,10 @@ export async function handleAdminGetCustomerTags(request: Request, env: Env): Pr
   }
   const { context } = result;
 
-  const url = new URL(request.url);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
   const customerId = url.searchParams.get('customerId');
   if (!customerId) {
     return errorResponse('Customer ID required', 400);
@@ -1670,7 +1689,10 @@ export async function handleAdminRemoveTag(request: Request, env: Env): Promise<
   }
   const { context } = result;
 
-  const url = new URL(request.url);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
   const customerId = url.searchParams.get('customerId');
   const tagId = url.searchParams.get('tagId');
 
@@ -1707,7 +1729,10 @@ export async function handleAdminGetCustomerHealth(request: Request, env: Env): 
   }
   const { context } = result;
 
-  const url = new URL(request.url);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
   const customerId = url.searchParams.get('customerId');
   if (!customerId) {
     return errorResponse('Customer ID required', 400);

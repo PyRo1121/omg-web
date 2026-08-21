@@ -34,7 +34,7 @@ Determine how to make the public site, docs, dashboard, admin dashboard, licensi
 
 | Surface                 | Runtime                              | Primary responsibility                                                     | Storage                                          |
 | ----------------------- | ------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------ |
-| `pyro1121.com`          | SolidStart/Vinxi on Cloudflare Pages | marketing, Better Auth, `/dashboard`, `/admin`, same-origin API/BFF routes | `omg-auth-db`, `BETTER_AUTH_KV`                  |
+| `pyro1121.com`          | SolidStart/Vinxi on Cloudflare Pages | marketing, Better Auth, `/dashboard`, `/admin`, same-origin API/BFF routes | `omg-auth-db`                                    |
 | `api.pyro1121.com`      | `omg-saas` Cloudflare Worker         | OTP, licensing, telemetry, billing, admin/CRM, analytics, downloads        | `omg-licensing`, nominal `omg-analytics`, KV, R2 |
 | `/docs`                 | router Worker                        | reverse proxy and body rewriting to external Docusaurus Pages              | Cache API                                        |
 | `releases.pyro1121.com` | release Worker                       | version metadata and release artifacts                                     | `omg-releases` R2                                |

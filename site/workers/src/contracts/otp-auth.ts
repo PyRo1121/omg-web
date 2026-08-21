@@ -1,9 +1,7 @@
 // Boundary parser internals decode untrusted JSON and D1 rows into branded OTP auth types.
-// The narrow suppression is limited to this parser module; callers receive typed contract values.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON boundary parsing requires these operations.
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { CustomerId, EmailAddress, SessionToken } from './site-session';
 
 export { CustomerId, EmailAddress, SessionToken };
@@ -94,7 +92,7 @@ function mapParseError(reason: string) {
  * @returns The typed request, or `AuthParseError`.
  */
 export function decodeSendCodeRequest(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<SendCodeRequest, AuthParseError> {
   return Schema.decodeUnknown(SendCodeRequestSchema)(value).pipe(
     Effect.mapError(mapParseError('Send-code request has an invalid shape'))
@@ -108,7 +106,7 @@ export function decodeSendCodeRequest(
  * @returns The typed request, or `AuthParseError`.
  */
 export function decodeVerifyCodeRequest(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<VerifyCodeRequest, AuthParseError> {
   return Schema.decodeUnknown(VerifyCodeRequestSchema)(value).pipe(
     Effect.mapError(mapParseError('Verify-code request has an invalid shape'))
@@ -122,7 +120,7 @@ export function decodeVerifyCodeRequest(
  * @returns The typed count row, or `AuthParseError`.
  */
 export function decodeAuthCodeCountRow(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<AuthCodeCountRow, AuthParseError> {
   return Schema.decodeUnknown(AuthCodeCountRowSchema)(value).pipe(
     Effect.mapError(mapParseError('Auth code count row has an invalid shape'))
@@ -135,7 +133,9 @@ export function decodeAuthCodeCountRow(
  * @param value - The D1 `.first()` result.
  * @returns The typed OTP row, or `AuthParseError`.
  */
-export function decodeAuthCodeRow(value: unknown): Effect.Effect<AuthCodeRow, AuthParseError> {
+export function decodeAuthCodeRow(
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
+): Effect.Effect<AuthCodeRow, AuthParseError> {
   return Schema.decodeUnknown(AuthCodeRowSchema)(value).pipe(
     Effect.mapError(mapParseError('Auth code row has an invalid shape'))
   );
@@ -148,7 +148,7 @@ export function decodeAuthCodeRow(value: unknown): Effect.Effect<AuthCodeRow, Au
  * @returns The typed customer row, or `AuthParseError`.
  */
 export function decodeAuthCustomerRow(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<AuthCustomerRow, AuthParseError> {
   return Schema.decodeUnknown(AuthCustomerRowSchema)(value).pipe(
     Effect.mapError(mapParseError('Customer row has an invalid shape'))

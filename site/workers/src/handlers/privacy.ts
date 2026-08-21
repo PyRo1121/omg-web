@@ -1,7 +1,7 @@
 // Privacy and data deletion handlers (GDPR/CCPA compliance)
 // Available globally to all users, regardless of jurisdiction
 import { Effect, Exit } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import * as Sentry from '@sentry/cloudflare';
 import { decodeJsonBody } from '../body';
 import {
@@ -496,8 +496,14 @@ export async function handlePrivacyStatus(request: Request, env: Env): Promise<R
       return errorResponse('Failed to load privacy status', 500);
     }
     const statusEmail = decodedStatus.value.email;
+    const separatorIndex = statusEmail?.lastIndexOf('@') ?? -1;
     const emailDomain =
-      statusEmail === null || statusEmail === undefined ? undefined : statusEmail.split('@')[1];
+      statusEmail !== null &&
+      statusEmail !== undefined &&
+      separatorIndex > 0 &&
+      separatorIndex < statusEmail.length - 1
+        ? statusEmail.slice(separatorIndex + 1)
+        : undefined;
 
     return jsonResponse({
       ...baseResponse,

@@ -2,7 +2,10 @@ import type { Env } from '../api';
 import { errorResponse } from '../api';
 
 export async function handleBinaryDownload(request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
   const platform = url.pathname.split('/').pop();
 
   if (!platform) {
@@ -26,7 +29,13 @@ export async function handleBinaryDownload(request: Request, env: Env): Promise<
     const start = parseInt(startText, 10);
     const end = endText ? parseInt(endText, 10) : object.size - 1;
 
-    if (isNaN(start) || isNaN(end) || start >= object.size || end >= object.size || start > end) {
+    if (
+      Number.isNaN(start) ||
+      Number.isNaN(end) ||
+      start >= object.size ||
+      end >= object.size ||
+      start > end
+    ) {
       return new Response('Invalid range', { status: 416 });
     }
 

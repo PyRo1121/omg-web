@@ -1,8 +1,7 @@
 // Boundary parser internals decode remaining Worker JSON responses.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON boundary parsing requires these operations.
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** A failure decoding a Worker JSON response. */
 export class WorkerHttpParseError extends Error {
@@ -730,7 +729,7 @@ export const SmartInsightSchema = Schema.Struct({
 export function decodeWorkerHttp<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<Schema.Schema.Type<S>, WorkerHttpParseError> {
   return Schema.decodeUnknown(schema)(value).pipe(
     Effect.mapError(

@@ -1,3 +1,4 @@
+import { reportError } from '../observability';
 import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 import { decodeJsonBody } from '../body';
@@ -239,7 +240,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
 
     return jsonResponse({ success: true, processed: body.events.length });
   } catch (error: unknown) {
-    console.error('Site analytics error:', error);
+    reportError('Site analytics error:', error);
     return errorResponse('Failed to process events', 500);
   }
 }
@@ -409,7 +410,7 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
       },
     });
   } catch (error: unknown) {
-    console.error('Geo analytics error:', error);
+    reportError('Geo analytics error:', error);
     return errorResponse('Failed to load geo analytics', 500);
   }
 }
@@ -486,7 +487,7 @@ export async function handleGetRealtimeAnalytics(_request: Request, env: Env): P
       timestamp: Date.now(),
     });
   } catch (error: unknown) {
-    console.error('Realtime analytics error:', error);
+    reportError('Realtime analytics error:', error);
     return errorResponse('Failed to load realtime analytics', 500);
   }
 }
@@ -615,7 +616,7 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
       device_breakdown: decodedDevices.value,
     });
   } catch (error: unknown) {
-    console.error('Analytics overview error:', error);
+    reportError('Analytics overview error:', error);
     return errorResponse('Failed to load analytics overview', 500);
   }
 }
@@ -632,6 +633,6 @@ export async function cleanupOldAnalytics(db: D1Database): Promise<void> {
       db.prepare(`DELETE FROM site_analytics_realtime WHERE last_seen_at < ?`).bind(fiveMinutesAgo),
     ]);
   } catch (error: unknown) {
-    console.error('Cleanup error:', error);
+    reportError('Cleanup error:', error);
   }
 }

@@ -30,7 +30,7 @@ export function transformToExecutiveKPI(
     wau: metrics?.engagement?.wau || 0,
     mau,
     stickiness: parseFloat(
-      metrics?.engagement?.stickiness?.daily_to_monthly?.replace('%', '') || '0'
+      metrics?.engagement?.stickiness?.daily_to_monthly?.replaceAll('%', '') || '0'
     ),
     churn_rate: mau > 0 ? (highRiskCount / mau) * 100 : 0,
     at_risk_count: highRiskCount,

@@ -1,4 +1,6 @@
-import { createSignal, onCleanup, type Accessor } from 'solid-js';
+import { reportClientError, reportClientWarning } from '~/lib/observability';
+import { casesHandled } from '~/lib/prelude';
+import { createSignal, onCleanup, type Accessor, type Setter } from 'solid-js';
 import {
   parseTelemetryMessage,
   type CommandEvent,
@@ -6,10 +8,6 @@ import {
   type HealthUpdate,
   type TelemetryMessage,
 } from './telemetry-message';
-
-// ============================================================================
-// Types
-// ============================================================================
 
 export type { CommandEvent, SessionEvent, HealthUpdate, TelemetryMessage };
 
@@ -38,280 +36,244 @@ export interface UseRealtimeDataOptions {
 }
 
 export interface UseRealtimeDataReturn {
-  // Connection state
   connectionState: Accessor<RealtimeConnectionState>;
   isConnected: Accessor<boolean>;
-
-  // Data accessors
   commands: Accessor<CommandEvent[]>;
   activeSessions: Accessor<SessionEvent[]>;
   activeSessionsMap: Accessor<Map<string, SessionEvent>>;
   health: Accessor<HealthUpdate | null>;
-
-  // Computed values
   commandCount: Accessor<number>;
   activeSessionCount: Accessor<number>;
   sessionsByCountry: Accessor<Map<string, SessionEvent[]>>;
-
-  // Actions
   connect: () => void;
   disconnect: () => void;
   clearCommands: () => void;
 }
 
-// ============================================================================
-// Constants
-// ============================================================================
+interface MessageHandlerDependencies {
+  readonly maxCommands: number;
+  readonly setCommands: Setter<CommandEvent[]>;
+  readonly setActiveSessions: Setter<Map<string, SessionEvent>>;
+  readonly setHealth: Setter<HealthUpdate | null>;
+  readonly onCommand: ((event: CommandEvent) => void) | undefined;
+  readonly onSession: ((event: SessionEvent) => void) | undefined;
+  readonly onHealth: ((update: HealthUpdate) => void) | undefined;
+}
+
+interface ConnectionDependencies {
+  readonly wsUrl: string;
+  readonly autoReconnect: boolean;
+  readonly maxReconnectAttempts: number;
+  readonly connectionState: Accessor<RealtimeConnectionState>;
+  readonly setConnectionState: Setter<RealtimeConnectionState>;
+  readonly handleMessage: (message: TelemetryMessage) => void;
+  readonly onError: ((error: Error) => void) | undefined;
+}
+
+interface ConnectionActions {
+  readonly connect: () => void;
+  readonly disconnect: () => void;
+}
 
 const DEFAULT_MAX_COMMANDS = 100;
 const DEFAULT_MAX_RECONNECT_ATTEMPTS = 10;
-const BASE_RECONNECT_DELAY = 1000; // 1 second
-const MAX_RECONNECT_DELAY = 30000; // 30 seconds
+const BASE_RECONNECT_DELAY = 1_000;
+const MAX_RECONNECT_DELAY = 30_000;
 
-// ============================================================================
-// Hook Implementation
-// ============================================================================
+function reconnectDelay(attempt: number): number {
+  const delay = Math.min(BASE_RECONNECT_DELAY * 2 ** attempt, MAX_RECONNECT_DELAY);
+  return delay + delay * Math.random() * 0.25;
+}
 
-export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDataReturn {
-  const {
-    wsUrl,
-    maxCommands = DEFAULT_MAX_COMMANDS,
-    autoReconnect = true,
-    maxReconnectAttempts = DEFAULT_MAX_RECONNECT_ATTEMPTS,
-    onCommand,
-    onSession,
-    onHealth,
-    onError,
-  } = options;
+function groupSessionsByCountry(
+  activeSessions: ReadonlyMap<string, SessionEvent>
+): Map<string, SessionEvent[]> {
+  const sessions = new Map<string, SessionEvent[]>();
+  for (const session of activeSessions.values()) {
+    const countryCode = session.geo?.country_code ?? 'UNKNOWN';
+    const countrySessions = sessions.get(countryCode) ?? [];
+    countrySessions.push(session);
+    sessions.set(countryCode, countrySessions);
+  }
+  return sessions;
+}
 
-  // Connection state
-  const [connectionState, setConnectionState] = createSignal<RealtimeConnectionState>({
-    status: 'disconnected',
-    reconnectAttempt: 0,
-  });
-
-  // Data state
-  const [commands, setCommands] = createSignal<CommandEvent[]>([]);
-  const [activeSessions, setActiveSessions] = createSignal<Map<string, SessionEvent>>(new Map());
-  const [health, setHealth] = createSignal<HealthUpdate | null>(null);
-
-  // Internal refs
-  let ws: WebSocket | null = null;
-  let reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  let isManualDisconnect = false;
-
-  // Computed values
-  const isConnected = () => connectionState().status === 'connected';
-  const commandCount = () => commands().length;
-  const activeSessionCount = () => activeSessions().size;
-
-  const activeSessionsList = () => Array.from(activeSessions().values());
-
-  const sessionsByCountry = () => {
-    const map = new Map<string, SessionEvent[]>();
-    for (const session of activeSessions().values()) {
-      const countryCode = session.geo?.country_code || 'UNKNOWN';
-      const existing = map.get(countryCode) || [];
-      existing.push(session);
-      map.set(countryCode, existing);
-    }
-    return map;
-  };
-
-  // Calculate exponential backoff delay
-  const getReconnectDelay = (attempt: number): number => {
-    const delay = Math.min(BASE_RECONNECT_DELAY * 2 ** attempt, MAX_RECONNECT_DELAY);
-    // Add jitter (0-25% of delay)
-    const jitter = delay * Math.random() * 0.25;
-    return delay + jitter;
-  };
-
-  // Handle incoming telemetry message
-  const handleMessage = (message: TelemetryMessage): void => {
+function createMessageHandler(
+  dependencies: MessageHandlerDependencies
+): (message: TelemetryMessage) => void {
+  return message => {
     switch (message.type) {
-      case 'command_event': {
-        const event = message.data;
-        setCommands(prev => {
-          const updated = [event, ...prev];
-          // Keep only the latest N commands
-          return updated.slice(0, maxCommands);
-        });
-        onCommand?.(event);
-        break;
-      }
-
-      case 'session_start': {
-        const session = message.data;
-        setActiveSessions(prev => {
-          const updated = new Map(prev);
-          updated.set(session.session_id, { ...session, is_active: true });
+      case 'command_event':
+        dependencies.setCommands(previous =>
+          [message.data, ...previous].slice(0, dependencies.maxCommands)
+        );
+        dependencies.onCommand?.(message.data);
+        return;
+      case 'session_start':
+        dependencies.setActiveSessions(previous => {
+          const updated = new Map(previous);
+          updated.set(message.data.session_id, { ...message.data, is_active: true });
           return updated;
         });
-        onSession?.(session);
-        break;
-      }
-
-      case 'session_end': {
-        const session = message.data;
-        setActiveSessions(prev => {
-          const updated = new Map(prev);
-          updated.delete(session.session_id);
+        dependencies.onSession?.(message.data);
+        return;
+      case 'session_end':
+        dependencies.setActiveSessions(previous => {
+          const updated = new Map(previous);
+          updated.delete(message.data.session_id);
           return updated;
         });
-        onSession?.({ ...session, is_active: false });
-        break;
-      }
-
-      case 'health_update': {
-        const update = message.data;
-        setHealth(update);
-        onHealth?.(update);
-        break;
-      }
+        dependencies.onSession?.({ ...message.data, is_active: false });
+        return;
+      case 'health_update':
+        dependencies.setHealth(message.data);
+        dependencies.onHealth?.(message.data);
+        return;
+      default:
+        return casesHandled(message);
     }
   };
+}
 
-  // Connect to WebSocket
+function createConnectionActions(dependencies: ConnectionDependencies): ConnectionActions {
+  let socket: WebSocket | null = null;
+  let reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let manualDisconnect = false;
+
+  const disconnect = (): void => {
+    manualDisconnect = true;
+    if (reconnectTimeoutId !== null) {
+      clearTimeout(reconnectTimeoutId);
+      reconnectTimeoutId = null;
+    }
+    socket?.close(1_000, 'Client disconnect');
+    socket = null;
+    dependencies.setConnectionState({ status: 'disconnected', reconnectAttempt: 0 });
+  };
+
   const connect = (): void => {
-    if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
+    if (socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) {
       return;
     }
 
-    isManualDisconnect = false;
-    setConnectionState(prev => ({
-      ...prev,
-      status: 'connecting',
-    }));
+    manualDisconnect = false;
+    dependencies.setConnectionState(previous => ({ ...previous, status: 'connecting' }));
 
     try {
-      ws = new WebSocket(wsUrl);
-
-      ws.addEventListener('open', () => {
-        setConnectionState({
+      socket = new WebSocket(dependencies.wsUrl);
+      socket.addEventListener('open', () => {
+        dependencies.setConnectionState({
           status: 'connected',
           reconnectAttempt: 0,
           lastConnectedAt: new Date().toISOString(),
         });
       });
-
-      ws.addEventListener('message', event => {
+      socket.addEventListener('message', event => {
         try {
           const message = parseTelemetryMessage(JSON.parse(event.data));
-          if (!message) {
-            console.warn('[useRealtimeData] Dropping unrecognized telemetry message');
+          if (message === null) {
+            reportClientWarning('[useRealtimeData] Dropping unrecognized telemetry message');
             return;
           }
-          handleMessage(message);
-        } catch (err) {
-          console.error('[useRealtimeData] Failed to parse message:', err);
+          dependencies.handleMessage(message);
+        } catch (cause: unknown) {
+          reportClientError('[useRealtimeData] Failed to parse message', cause);
         }
       });
-
-      ws.addEventListener('error', () => {
+      socket.addEventListener('error', () => {
         const error = new Error('WebSocket connection error');
-        setConnectionState(prev => ({
-          ...prev,
+        dependencies.setConnectionState(previous => ({
+          ...previous,
           status: 'error',
           error: error.message,
         }));
-        onError?.(error);
+        dependencies.onError?.(error);
       });
+      socket.addEventListener('close', () => {
+        socket = null;
+        if (manualDisconnect) {
+          dependencies.setConnectionState({ status: 'disconnected', reconnectAttempt: 0 });
+          return;
+        }
 
-      ws.addEventListener('close', _event => {
-        ws = null;
-
-        if (isManualDisconnect) {
-          setConnectionState({
-            status: 'disconnected',
-            reconnectAttempt: 0,
+        const nextAttempt = dependencies.connectionState().reconnectAttempt + 1;
+        if (!dependencies.autoReconnect || nextAttempt > dependencies.maxReconnectAttempts) {
+          dependencies.setConnectionState({
+            status: 'error',
+            reconnectAttempt: nextAttempt,
+            error: dependencies.autoReconnect
+              ? 'Max reconnection attempts reached'
+              : 'Connection closed',
           });
           return;
         }
 
-        const currentState = connectionState();
-        const nextAttempt = currentState.reconnectAttempt + 1;
-
-        if (autoReconnect && nextAttempt <= maxReconnectAttempts) {
-          const delay = getReconnectDelay(nextAttempt - 1);
-
-          setConnectionState({
-            status: 'disconnected',
-            reconnectAttempt: nextAttempt,
-            error: `Connection closed. Reconnecting in ${Math.round(delay / 1000)}s...`,
-          });
-
-          reconnectTimeoutId = setTimeout(() => {
-            connect();
-          }, delay);
-        } else {
-          setConnectionState({
-            status: 'error',
-            reconnectAttempt: nextAttempt,
-            error: autoReconnect ? 'Max reconnection attempts reached' : 'Connection closed',
-          });
-        }
+        const delay = reconnectDelay(nextAttempt - 1);
+        dependencies.setConnectionState({
+          status: 'disconnected',
+          reconnectAttempt: nextAttempt,
+          error: `Connection closed. Reconnecting in ${Math.round(delay / 1_000)}s...`,
+        });
+        reconnectTimeoutId = setTimeout(connect, delay);
       });
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to connect');
-      setConnectionState({
+    } catch (cause: unknown) {
+      const error = cause instanceof Error ? cause : new Error('Failed to connect', { cause });
+      dependencies.setConnectionState({
         status: 'error',
-        reconnectAttempt: connectionState().reconnectAttempt,
+        reconnectAttempt: dependencies.connectionState().reconnectAttempt,
         error: error.message,
       });
-      onError?.(error);
+      dependencies.onError?.(error);
     }
   };
 
-  // Disconnect from WebSocket
-  const disconnect = (): void => {
-    isManualDisconnect = true;
+  return { connect, disconnect };
+}
 
-    if (reconnectTimeoutId) {
-      clearTimeout(reconnectTimeoutId);
-      reconnectTimeoutId = null;
-    }
+export function useRealtimeData(options: UseRealtimeDataOptions): UseRealtimeDataReturn {
+  const maxCommands = options.maxCommands ?? DEFAULT_MAX_COMMANDS;
+  const [connectionState, setConnectionState] = createSignal<RealtimeConnectionState>({
+    status: 'disconnected',
+    reconnectAttempt: 0,
+  });
+  const [commands, setCommands] = createSignal<CommandEvent[]>([]);
+  const [activeSessions, setActiveSessions] = createSignal<Map<string, SessionEvent>>(new Map());
+  const [health, setHealth] = createSignal<HealthUpdate | null>(null);
 
-    if (ws) {
-      ws.close(1000, 'Client disconnect');
-      ws = null;
-    }
-
-    setConnectionState({
-      status: 'disconnected',
-      reconnectAttempt: 0,
-    });
-  };
-
-  // Clear commands buffer
-  const clearCommands = (): void => {
-    setCommands([]);
-  };
-
-  // Cleanup on unmount
-  onCleanup(() => {
-    disconnect();
+  const handleMessage = createMessageHandler({
+    maxCommands,
+    setCommands,
+    setActiveSessions,
+    setHealth,
+    onCommand: options.onCommand,
+    onSession: options.onSession,
+    onHealth: options.onHealth,
+  });
+  const connection = createConnectionActions({
+    wsUrl: options.wsUrl,
+    autoReconnect: options.autoReconnect ?? true,
+    maxReconnectAttempts: options.maxReconnectAttempts ?? DEFAULT_MAX_RECONNECT_ATTEMPTS,
+    connectionState,
+    setConnectionState,
+    handleMessage,
+    onError: options.onError,
   });
 
-  return {
-    // Connection state
-    connectionState,
-    isConnected,
+  onCleanup(connection.disconnect);
 
-    // Data accessors
+  return {
+    connectionState,
+    isConnected: () => connectionState().status === 'connected',
     commands,
-    activeSessions: activeSessionsList,
+    activeSessions: () => Array.from(activeSessions().values()),
     activeSessionsMap: activeSessions,
     health,
-
-    // Computed values
-    commandCount,
-    activeSessionCount,
-    sessionsByCountry,
-
-    // Actions
-    connect,
-    disconnect,
-    clearCommands,
+    commandCount: () => commands().length,
+    activeSessionCount: () => activeSessions().size,
+    sessionsByCountry: () => groupSessionsByCountry(activeSessions()),
+    connect: connection.connect,
+    disconnect: connection.disconnect,
+    clearCommands: () => setCommands([]),
   };
 }
 

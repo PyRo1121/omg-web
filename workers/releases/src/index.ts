@@ -4,7 +4,10 @@ export interface Env {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
+    const url = URL.parse(request.url);
+    if (url === null) {
+      return new Response('Invalid request URL', { status: 400 });
+    }
     const path = url.pathname;
 
     // Endpoint: GET /latest-version

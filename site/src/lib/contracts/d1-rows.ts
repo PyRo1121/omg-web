@@ -1,8 +1,10 @@
 // Boundary parser internals decode SolidStart D1/drizzle rows.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe D1 boundary parsing requires these operations.
 
 import { Effect, Exit } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
+
+/** Raw value accepted only at a Schema-decoded D1 boundary. */
+type D1BoundaryInput = Schema.Schema.Encoded<Schema.Schema.Any>;
 
 /** A failure decoding a persisted D1/drizzle row. */
 export class D1RowParseError extends Error {
@@ -47,7 +49,7 @@ const NullableTimestamp = Schema.Union(Schema.Null, D1Timestamp);
 export function decodeD1Row<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: D1BoundaryInput
 ): Effect.Effect<Schema.Schema.Type<S>, D1RowParseError> {
   return Schema.decodeUnknown(schema)(value).pipe(
     Effect.mapError((cause: unknown): D1RowParseError => new D1RowParseError(reason, cause))
@@ -58,7 +60,7 @@ export function decodeD1Row<S extends Schema.Schema.AnyNoContext>(
 export function decodeD1RowArray<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: D1BoundaryInput
 ): Effect.Effect<ReadonlyArray<Schema.Schema.Type<S>>, D1RowParseError> {
   if (value === undefined || value === null) {
     return Effect.succeed([]);
@@ -66,14 +68,15 @@ export function decodeD1RowArray<S extends Schema.Schema.AnyNoContext>(
   if (!Array.isArray(value)) {
     return Effect.fail(new D1RowParseError(reason));
   }
-  return Effect.forEach(value, row => decodeD1Row(schema, reason, row));
+  const rows = Array.from(value);
+  return Effect.forEach(rows, row => decodeD1Row(schema, reason, row));
 }
 
 /** Decode a drizzle `.get()` row. Missing stays missing. Malformed fails. */
 export function decodeOptionalD1Row<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: D1BoundaryInput
 ): Effect.Effect<Schema.Schema.Type<S> | undefined, D1RowParseError> {
   if (value === undefined || value === null) {
     return Effect.succeed(undefined);
@@ -91,7 +94,7 @@ export type OptionalD1Row<A> =
 export async function readOptionalD1Row<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: D1BoundaryInput
 ): Promise<OptionalD1Row<Schema.Schema.Type<S>>> {
   const exit = await Effect.runPromiseExit(decodeOptionalD1Row(schema, reason, value));
   if (Exit.isFailure(exit)) {
@@ -111,7 +114,7 @@ export type D1RowList<A> =
 export async function readD1RowArray<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: D1BoundaryInput
 ): Promise<D1RowList<Schema.Schema.Type<S>>> {
   const exit = await Effect.runPromiseExit(decodeD1RowArray(schema, reason, value));
   if (Exit.isFailure(exit)) {

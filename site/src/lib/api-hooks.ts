@@ -96,7 +96,7 @@ export function useAdminUserDetail(userId: string) {
   return createQuery(() => ({
     queryKey: ['admin-user-detail', userId],
     queryFn: () => api.getAdminUserDetail(userId),
-    enabled: !!userId,
+    enabled: Boolean(userId),
   }));
 }
 
@@ -111,7 +111,7 @@ export function useAdminNotes(customerId: string) {
   return createQuery(() => ({
     queryKey: ['admin-notes', customerId],
     queryFn: () => api.getAdminNotes(customerId),
-    enabled: !!customerId,
+    enabled: Boolean(customerId),
   }));
 }
 
@@ -164,7 +164,7 @@ export function useAdminCustomerTags(customerId: string) {
   return createQuery(() => ({
     queryKey: ['admin-customer-tags', customerId],
     queryFn: () => api.getAdminCustomerTags(customerId),
-    enabled: !!customerId,
+    enabled: Boolean(customerId),
   }));
 }
 
@@ -207,7 +207,7 @@ export function useAdminCustomerHealth(customerId: string) {
   return createQuery(() => ({
     queryKey: ['admin-customer-health', customerId],
     queryFn: () => api.getAdminCustomerHealth(customerId),
-    enabled: !!customerId,
+    enabled: Boolean(customerId),
   }));
 }
 

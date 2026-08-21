@@ -1,5 +1,5 @@
 import { Effect, Exit } from 'effect';
-import type { Schema } from '@effect/schema';
+import type * as Schema from 'effect/Schema';
 import {
   BillingCustomerRowSchema,
   type BillingCustomerRow,

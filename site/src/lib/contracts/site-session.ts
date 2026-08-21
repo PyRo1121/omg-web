@@ -1,9 +1,7 @@
 // Boundary parser internals decode untrusted JSON into branded site-session types.
-// The narrow suppression is limited to this parser module; callers receive typed contract values.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON boundary parsing requires these operations.
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** A failure decoding a site-session wire payload. */
 export class SiteSessionParseError extends Error {
@@ -65,7 +63,7 @@ function mapParseError(reason: string) {
 
 /** Decode an untrusted internal site-session request body. */
 export function decodeSiteSessionRequest(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<SiteSessionRequest, SiteSessionParseError> {
   return Schema.decodeUnknown(SiteSessionRequestSchema)(value).pipe(
     Effect.mapError(mapParseError('Site session request has an invalid shape'))
@@ -74,7 +72,7 @@ export function decodeSiteSessionRequest(
 
 /** Decode the untrusted Worker response consumed only by the server-side BFF. */
 export function decodeSiteSessionWorkerResponse(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<SiteSessionWorkerResponse, SiteSessionParseError> {
   return Schema.decodeUnknown(SiteSessionWorkerResponseSchema)(value).pipe(
     Effect.mapError(mapParseError('Worker session response has an invalid shape'))

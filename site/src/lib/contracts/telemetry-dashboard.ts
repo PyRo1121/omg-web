@@ -1,9 +1,7 @@
 // Boundary parser internals intentionally inspect unknown telemetry payloads.
-// The narrow suppression is limited to this parser module; callers receive typed contract values.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns, anti-slop/no-reflect-get -- Safe JSON boundary parsing requires these operations.
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** A failure decoding or encoding a telemetry dashboard payload. */
 export class TelemetryDashboardParseError extends Error {
@@ -124,7 +122,7 @@ export type TelemetryDashboard = Schema.Schema.Type<typeof TelemetryDashboardSch
  * @returns The typed dashboard payload, or `TelemetryDashboardParseError`.
  */
 export function parseTelemetryDashboard(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<TelemetryDashboard, TelemetryDashboardParseError> {
   return Schema.decodeUnknown(TelemetryDashboardSchema)(value).pipe(
     Effect.mapError(
@@ -140,7 +138,9 @@ export function parseTelemetryDashboard(
  * @param value - The raw JSON received from the telemetry dashboard endpoint.
  * @returns The typed dashboard payload, or `null` when the payload does not match the schema.
  */
-export function decodeTelemetryDashboard(value: unknown): TelemetryDashboard | null {
+export function decodeTelemetryDashboard(
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
+): TelemetryDashboard | null {
   const decoded = Schema.decodeUnknownEither(TelemetryDashboardSchema)(value);
   return decoded._tag === 'Right' ? decoded.right : null;
 }

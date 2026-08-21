@@ -1,17 +1,57 @@
 import type { APIEvent } from '@solidjs/start/server';
-import { Effect, Exit } from 'effect';
+import * as Sentry from '@sentry/solid';
+import { Cause, Effect, Exit, Option } from 'effect';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import * as schema from '../../db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
-import { parseAccountDashboard } from '~/lib/contracts/dashboard';
-import { storedDataErrorResponse } from '~/lib/api-error';
+import { parseAccountDashboard, type DashboardData } from '~/lib/contracts/dashboard';
 import { AccountRowSchema, SessionRowSchema, readD1RowArray } from '~/lib/contracts/d1-rows';
+import { casesHandled } from '~/lib/prelude';
 
-function internalErrorResponse(): Response {
-  return new Response(JSON.stringify({ error: 'Internal server error' }), {
-    status: 500,
-    headers: { 'Content-Type': 'application/json' },
+class DashboardUnauthorized extends Error {
+  readonly _tag = 'DashboardUnauthorized';
+  constructor() {
+    super('Dashboard authorization required');
+  }
+}
+
+class DashboardUnavailable extends Error {
+  readonly _tag = 'DashboardUnavailable';
+  constructor(
+    readonly operation: string,
+    override readonly cause?: unknown
+  ) {
+    super(`Dashboard unavailable during ${operation}`);
+  }
+}
+
+class DashboardStoredDataInvalid extends Error {
+  readonly _tag = 'DashboardStoredDataInvalid';
+  constructor() {
+    super('Dashboard persisted data has an invalid shape');
+  }
+}
+
+class DashboardOutboundPayloadInvalid extends Error {
+  readonly _tag = 'DashboardOutboundPayloadInvalid';
+  constructor(override readonly cause?: unknown) {
+    super('Dashboard response has an invalid shape');
+  }
+}
+
+type DashboardRouteError =
+  | DashboardUnauthorized
+  | DashboardUnavailable
+  | DashboardStoredDataInvalid
+  | DashboardOutboundPayloadInvalid;
+
+type DashboardHttpBody = DashboardData | { readonly error: string };
+
+function jsonResponse(body: DashboardHttpBody, status: number): Response {
+  return Response.json(body, {
+    status,
+    headers: { 'Cache-Control': 'no-store' },
   });
 }
 
@@ -23,7 +63,6 @@ function readCloudflareEnv(event: APIEvent): CloudflareEnv | null {
 
   return {
     DB: env.DB,
-    BETTER_AUTH_KV: env.BETTER_AUTH_KV,
     BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: env.BETTER_AUTH_URL,
     GITHUB_CLIENT_ID: env.GITHUB_CLIENT_ID,
@@ -33,54 +72,40 @@ function readCloudflareEnv(event: APIEvent): CloudflareEnv | null {
   };
 }
 
-export async function GET(event: APIEvent) {
-  const env = readCloudflareEnv(event);
-  if (env === null) {
-    console.error('Dashboard API: Cloudflare environment not available');
-    return internalErrorResponse();
-  }
-
-  try {
+function loadDashboard(
+  request: Request,
+  env: CloudflareEnv
+): Effect.Effect<DashboardData, DashboardRouteError> {
+  return Effect.gen(function* () {
     const auth = createAuth(env);
-
-    const session = await auth.api.getSession({
-      headers: event.request.headers,
+    const session = yield* Effect.tryPromise({
+      try: () => auth.api.getSession({ headers: request.headers }),
+      catch: cause => new DashboardUnavailable('readSession', cause),
     });
-
-    if (!session?.user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (session?.user === undefined) {
+      return yield* Effect.fail(new DashboardUnauthorized());
     }
 
     const db = drizzle(env.DB, { schema });
-    const currentSessionToken = session.session.token;
+    const [userSessions, userAccounts] = yield* Effect.tryPromise({
+      try: () =>
+        Promise.all([
+          db.select().from(schema.session).where(eq(schema.session.userId, session.user.id)).all(),
+          db.select().from(schema.account).where(eq(schema.account.userId, session.user.id)).all(),
+        ]),
+      catch: cause => new DashboardUnavailable('readDashboardRows', cause),
+    });
 
-    const userSessions = await db
-      .select()
-      .from(schema.session)
-      .where(eq(schema.session.userId, session.user.id))
-      .all();
-
-    const userAccounts = await db
-      .select()
-      .from(schema.account)
-      .where(eq(schema.account.userId, session.user.id))
-      .all();
-
-    const sessionsLookup = await readD1RowArray(
-      SessionRowSchema,
-      'Session rows have an invalid shape',
-      userSessions
-    );
-    const accountsLookup = await readD1RowArray(
-      AccountRowSchema,
-      'Account rows have an invalid shape',
-      userAccounts
-    );
+    const [sessionsLookup, accountsLookup] = yield* Effect.tryPromise({
+      try: () =>
+        Promise.all([
+          readD1RowArray(SessionRowSchema, 'Session rows have an invalid shape', userSessions),
+          readD1RowArray(AccountRowSchema, 'Account rows have an invalid shape', userAccounts),
+        ]),
+      catch: cause => new DashboardUnavailable('decodeDashboardRows', cause),
+    });
     if (sessionsLookup._tag === 'invalid' || accountsLookup._tag === 'invalid') {
-      return storedDataErrorResponse();
+      return yield* Effect.fail(new DashboardStoredDataInvalid());
     }
 
     const response = {
@@ -89,37 +114,59 @@ export async function GET(event: APIEvent) {
         name: session.user.name,
         email: session.user.email,
         emailVerified: session.user.emailVerified,
-        image: session.user.image || null,
+        image: session.user.image ?? null,
         createdAt: new Date(session.user.createdAt).toISOString(),
       },
-      sessions: sessionsLookup.value.map(s => ({
-        id: s.id,
-        ipAddress: s.ipAddress ?? null,
-        userAgent: s.userAgent ?? null,
-        createdAt: s.createdAt.toISOString(),
-        expiresAt: s.expiresAt.toISOString(),
-        isCurrent: s.token === currentSessionToken,
+      sessions: sessionsLookup.value.map(item => ({
+        id: item.id,
+        ipAddress: item.ipAddress ?? null,
+        userAgent: item.userAgent ?? null,
+        createdAt: item.createdAt.toISOString(),
+        expiresAt: item.expiresAt.toISOString(),
+        isCurrent: item.token === session.session.token,
       })),
-      accounts: accountsLookup.value.map(a => ({
-        provider: a.providerId,
-        accountId: a.accountId,
+      accounts: accountsLookup.value.map(item => ({
+        provider: item.providerId,
+        accountId: item.accountId,
       })),
     };
 
-    const encoded = await Effect.runPromiseExit(parseAccountDashboard(response));
-    return Exit.match(encoded, {
-      onFailure: cause => {
-        console.error('Dashboard API: outbound payload failed schema encode', cause);
-        return internalErrorResponse();
-      },
-      onSuccess: payload =>
-        new Response(JSON.stringify(payload), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-    });
-  } catch (error: unknown) {
-    console.error('Dashboard API error:', error);
-    return internalErrorResponse();
+    return yield* parseAccountDashboard(response).pipe(
+      Effect.mapError(cause => new DashboardOutboundPayloadInvalid(cause))
+    );
+  });
+}
+
+function responseFromExit(exit: Exit.Exit<DashboardData, DashboardRouteError>): Response {
+  return Exit.match(exit, {
+    onSuccess: payload => jsonResponse(payload, 200),
+    onFailure: cause => {
+      const failure = Cause.failureOption(cause);
+      if (Option.isNone(failure)) {
+        Sentry.captureException(Cause.pretty(cause));
+        return jsonResponse({ error: 'Internal server error' }, 500);
+      }
+
+      const error = failure.value;
+      switch (error._tag) {
+        case 'DashboardUnauthorized':
+          return jsonResponse({ error: 'Unauthorized' }, 401);
+        case 'DashboardStoredDataInvalid':
+        case 'DashboardOutboundPayloadInvalid':
+        case 'DashboardUnavailable':
+          Sentry.captureException(error);
+          return jsonResponse({ error: 'Internal server error' }, 500);
+        default:
+          return casesHandled(error);
+      }
+    },
+  });
+}
+
+export async function GET(event: APIEvent): Promise<Response> {
+  const env = readCloudflareEnv(event);
+  if (env === null) {
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
+  return responseFromExit(await Effect.runPromiseExit(loadDashboard(event.request, env)));
 }

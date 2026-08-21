@@ -1,7 +1,6 @@
 // This module is the untrusted Worker JSON boundary; callers receive only Schema-decoded values.
-// oxlint-disable anti-slop/no-unknown-parameters -- Effect Schema owns parsing at this boundary.
 
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { Effect } from 'effect';
 import {
   LicensingDashboardSchema,
@@ -73,7 +72,7 @@ function projectTelemetryDashboard(source: LicensingDashboard) {
 
 /** Decode the canonical Worker response and project it into the dashboard view contract. */
 export function parseLicensingDashboard(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<TelemetryDashboard, LicensingDashboardParseError> {
   return Schema.decodeUnknown(LicensingDashboardSchema)(value).pipe(
     Effect.mapError(

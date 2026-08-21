@@ -446,10 +446,7 @@ export function resolveLicensingRoute(
   path: string
 ): ResolvedLicensingRoute | undefined {
   const normalizedPath = normalizeLicensingPath(path);
-  const match = routeEntries.find(
-    route => route.method === method && route.path === normalizedPath
-  );
-  return match;
+  return routeEntries.find(route => route.method === method && route.path === normalizedPath);
 }
 
 /** Whether a route is permitted through the authenticated same-origin site BFF. */

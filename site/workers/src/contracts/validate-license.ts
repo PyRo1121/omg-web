@@ -1,8 +1,7 @@
 // Boundary parser internals decode untrusted license-validation JSON and D1 rows.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON/D1 boundary parsing requires these operations.
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { LicenseKey } from './license-key';
 
 export { LicenseKey };
@@ -118,7 +117,7 @@ function nonempty(value: string | null | undefined): string | null {
  * @returns The typed fields, or `ValidateLicenseParseError`.
  */
 export function decodeValidateLicenseFields(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<ValidateLicenseFields, ValidateLicenseParseError> {
   return Schema.decodeUnknown(ValidateLicenseFieldsSchema)(value).pipe(
     Effect.mapError(mapParseError('Validate-license request has an invalid shape'))
@@ -161,7 +160,7 @@ export function toValidateLicenseRequest(
 export function decodeRow<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<Schema.Schema.Type<S>, ValidateLicenseParseError> {
   return Schema.decodeUnknown(schema)(value).pipe(Effect.mapError(mapParseError(reason)));
 }
@@ -177,7 +176,7 @@ export function decodeRow<S extends Schema.Schema.AnyNoContext>(
 export function decodeRowArray<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<ReadonlyArray<Schema.Schema.Type<S>>, ValidateLicenseParseError> {
   if (value === undefined || value === null) {
     return Effect.succeed([]);

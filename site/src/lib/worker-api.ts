@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { Schema } from '@effect/schema';
+import type * as Schema from 'effect/Schema';
 import { parseApiError } from './dashboard-contract';
 import { decodeWorkerHttp, type WorkerHttpParseError } from './contracts/worker-http';
 

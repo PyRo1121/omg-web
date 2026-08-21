@@ -1,4 +1,4 @@
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 import * as BillingEntitlements from '../src/contracts/billing-offer';

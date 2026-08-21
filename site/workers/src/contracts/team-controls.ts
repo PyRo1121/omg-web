@@ -1,8 +1,7 @@
 // Boundary parser internals decode team-control JSON and D1 rows.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON/D1 boundary parsing requires these operations.
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** A failure decoding a team-controls payload or stored JSON field. */
 export class TeamControlsParseError extends Error {
@@ -174,7 +173,7 @@ export function decodeStoredJsonObject(
 export function decodeTeamControlsRow<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<Schema.Schema.Type<S>, TeamControlsParseError> {
   return Schema.decodeUnknown(schema)(value).pipe(
     Effect.mapError(
@@ -194,7 +193,7 @@ export function decodeTeamControlsRow<S extends Schema.Schema.AnyNoContext>(
 export function decodeTeamControlsRowArray<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<ReadonlyArray<Schema.Schema.Type<S>>, TeamControlsParseError> {
   if (value === undefined || value === null) {
     return Effect.succeed([]);

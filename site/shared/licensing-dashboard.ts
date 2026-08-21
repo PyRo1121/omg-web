@@ -1,4 +1,4 @@
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 const NullableString = Schema.Union(Schema.Null, Schema.String);
 

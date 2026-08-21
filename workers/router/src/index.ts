@@ -7,7 +7,10 @@
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const url = new URL(request.url);
+    const url = URL.parse(request.url);
+    if (url === null) {
+      return new Response('Invalid request URL', { status: 400 });
+    }
     const path = url.pathname;
 
     // Route /docs requests to the docs site with production-ready proxy
@@ -16,7 +19,10 @@ export default {
     }
 
     // All other requests go to main site
-    const mainUrl = new URL(path + url.search, env.MAIN_SITE);
+    const mainUrl = URL.parse(path + url.search, env.MAIN_SITE);
+    if (mainUrl === null) {
+      return new Response('Main site origin is invalid', { status: 502 });
+    }
     const mainRequestInit: RequestInit = {
       method: request.method,
       headers: prepareOriginHeaders(request.headers, env.MAIN_SITE),
@@ -157,14 +163,7 @@ async function rewriteDocsResponse(
   if ((!isHtml && !isCss && !isJavaScript) || response.body === null) {
     return response;
   }
-  const rewritten = rewriteContent(
-    await response.text(),
-    isHtml,
-    isCss,
-    isJavaScript,
-    hostname,
-    docsOrigin
-  );
+  const rewritten = rewriteContent(await response.text(), isCss, hostname, docsOrigin);
   const body = new ReadableStream({
     start(controller) {
       controller.enqueue(new TextEncoder().encode(rewritten));
@@ -272,8 +271,10 @@ function prepareOriginHeaders(headers: Headers, origin: string): Headers {
   }
 
   // Set proper Host header for origin
-  const originHost = new URL(origin).hostname;
-  newHeaders.set('Host', originHost);
+  const originUrl = URL.parse(origin);
+  if (originUrl !== null) {
+    newHeaders.set('Host', originUrl.hostname);
+  }
 
   // Set X-Forwarded headers
   newHeaders.set('X-Forwarded-Proto', 'https');
@@ -292,71 +293,23 @@ function prepareOriginHeaders(headers: Headers, origin: string): Headers {
  */
 function rewriteContent(
   content: string,
-  isHTML: boolean,
   isCSS: boolean,
-  isJS: boolean,
   hostname: string,
   docsOrigin: string
 ): string {
-  let rewritten = content;
-  const docsHostname = new URL(docsOrigin).hostname;
-
-  if (isHTML) {
-    // Rewrite absolute URLs in HTML
-    rewritten = rewritten
-      // Fix href and src attributes
-      .replace(
-        new RegExp(`href="https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'),
-        `href="https://${hostname}/docs$1"`
-      )
-      .replace(
-        new RegExp(`src="https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'),
-        `src="https://${hostname}/docs$1"`
-      )
-      // Fix base href if present
-      .replace(
-        new RegExp(`<base\\s+href="[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'),
-        `<base href="https://${hostname}/docs$1"`
-      )
-      // Fix meta tags
-      .replace(
-        new RegExp(
-          `content="https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`,
-          'g'
-        ),
-        `content="https://${hostname}/docs$1"`
-      )
-      // Fix JSON-LD and structured data
-      .replace(
-        new RegExp(`https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}`, 'g'),
-        `https://${hostname}/docs`
-      );
+  const docsUrl = URL.parse(docsOrigin);
+  if (docsUrl === null) {
+    return content;
   }
+
+  const proxyOrigin = `https://${hostname}/docs`;
+  const insecureDocsOrigin = `http://${docsUrl.host}`;
+  let rewritten = content
+    .replaceAll(docsUrl.origin, proxyOrigin)
+    .replaceAll(insecureDocsOrigin, proxyOrigin);
 
   if (isCSS) {
-    // Rewrite URLs in CSS url() functions
-    rewritten = rewritten
-      .replace(
-        new RegExp(
-          `url\\(["']?https?:\\/\\/[^)\\"']*${docsHostname.replace('.', '\\.')}([^)\\"']*)["']?\\)`,
-          'g'
-        ),
-        `url("https://${hostname}/docs$1")`
-      )
-      .replace(/url\(["']?\/([^)"']*)["']?\)/g, `url("/docs/$1")`);
-  }
-
-  if (isJS) {
-    // Rewrite URLs in JavaScript strings (careful to not break code)
-    rewritten = rewritten
-      .replace(
-        new RegExp(`"https?:\\/\\/[^\\"]*${docsHostname.replace('.', '\\.')}([^\\"]*)"`, 'g'),
-        `"https://${hostname}/docs$1"`
-      )
-      .replace(
-        new RegExp(`'https?:\\/\\/[^']*${docsHostname.replace('.', '\\.')}([^']*)'`, 'g'),
-        `'https://${hostname}/docs$1'`
-      );
+    rewritten = rewritten.replace(/url\(["']?\/([^)"']*)["']?\)/g, `url("/docs/$1")`);
   }
 
   return rewritten;
@@ -366,26 +319,16 @@ function rewriteContent(
  * Rewrite redirect URLs
  */
 function rewriteUrl(url: string, hostname: string, docsOrigin: string): string {
-  try {
-    // Handle relative URLs (like /quickstart/)
-    if (url.startsWith('/')) {
-      return `https://${hostname}/docs${url}`;
-    }
+  if (url.startsWith('/')) {
+    return `https://${hostname}/docs${url}`;
+  }
 
-    // Handle absolute URLs
-    const parsed = new URL(url);
-    const docsHostname = new URL(docsOrigin).hostname;
-    if (parsed.hostname.includes(docsHostname)) {
-      return `https://${hostname}/docs${parsed.pathname}${parsed.search}${parsed.hash}`;
-    }
-    return url;
-  } catch {
-    // If URL parsing fails, assume it's relative
-    if (url.startsWith('/')) {
-      return `https://${hostname}/docs${url}`;
-    }
+  const parsed = URL.parse(url);
+  const docsUrl = URL.parse(docsOrigin);
+  if (parsed === null || docsUrl === null || parsed.hostname !== docsUrl.hostname) {
     return url;
   }
+  return `https://${hostname}/docs${parsed.pathname}${parsed.search}${parsed.hash}`;
 }
 
 /**

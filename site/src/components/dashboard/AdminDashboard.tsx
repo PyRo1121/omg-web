@@ -1,3 +1,4 @@
+import { reportClientError } from '~/lib/observability';
 import { type Component, createMemo, For, Show, Switch, Match } from 'solid-js';
 import {
   Activity,
@@ -133,7 +134,7 @@ function transformToExecutiveKPI(
     wau: metrics?.engagement?.wau || 0,
     mau: metrics?.engagement?.mau || 0,
     stickiness: parseFloat(
-      metrics?.engagement?.stickiness?.daily_to_monthly?.replace('%', '') || '0'
+      metrics?.engagement?.stickiness?.daily_to_monthly?.replaceAll('%', '') || '0'
     ),
     churn_rate: metrics?.churn_risk_segments?.reduce(
       (acc, s) =>
@@ -419,7 +420,7 @@ export const AdminDashboard: Component = () => {
       }
       api.downloadCSV(data, filename);
     } catch (error) {
-      console.error('Export failed:', error);
+      reportClientError('Export failed:', error);
     } finally {
       actions.setExporting(false);
     }

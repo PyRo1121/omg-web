@@ -1,5 +1,5 @@
 import { Cause, Effect, Exit, Option } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import {
   type Env,
   errorResponse,

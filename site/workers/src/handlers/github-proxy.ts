@@ -1,5 +1,6 @@
+import { reportError, reportWarning } from '../observability';
 import { Effect, Exit } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { errorResponse, getCorsHeaders } from '../api';
 import {
   GitHubCommitActivityResponseSchema,
@@ -34,7 +35,7 @@ export async function handleGitHubProxy(
   const cachedResponse = await cache.match(cacheKey);
 
   if (cachedResponse) {
-    const age = parseInt(cachedResponse.headers.get('Age') || '0');
+    const age = parseInt(cachedResponse.headers.get('Age') || '0', 10);
 
     if (age < CACHE_TTL) {
       return new Response(cachedResponse.body, {
@@ -51,7 +52,7 @@ export async function handleGitHubProxy(
       // Never let background refresh failures bubble as uncaught Worker exceptions.
       ctx.waitUntil(
         refreshCache(cache, cacheKey, request.headers.get('Origin')).catch(error => {
-          console.error('GitHub cache background refresh failed:', error);
+          reportError('GitHub cache background refresh failed:', error);
         })
       );
 
@@ -83,13 +84,13 @@ async function refreshCache(
       },
     });
   } catch (error: unknown) {
-    console.error('GitHub API network error:', error);
+    reportError('GitHub API network error:', error);
     return errorResponse('GitHub API unreachable', 503);
   }
 
   const remaining = ghResponse.headers.get('X-RateLimit-Remaining');
-  if (remaining && parseInt(remaining) < 10) {
-    console.warn(`GitHub rate limit low: ${remaining} requests remaining`);
+  if (remaining && parseInt(remaining, 10) < 10) {
+    reportWarning(`GitHub rate limit low: ${remaining} requests remaining`);
   }
 
   if (ghResponse.status === 202) {
@@ -112,7 +113,7 @@ async function refreshCache(
   }
 
   if (!ghResponse.ok) {
-    console.error(`GitHub API error: ${ghResponse.status}`);
+    reportError(`GitHub API error: ${ghResponse.status}`);
     return errorResponse(`GitHub API error: ${ghResponse.status}`, ghResponse.status);
   }
 
@@ -123,7 +124,7 @@ async function refreshCache(
     }).pipe(Effect.flatMap(Schema.decodeUnknown(GitHubCommitActivityResponseSchema)))
   );
   if (Exit.isFailure(decodedData)) {
-    console.error('GitHub API returned an invalid commit activity payload');
+    reportError('GitHub API returned an invalid commit activity payload');
     return errorResponse('GitHub API returned invalid data', 502);
   }
   const data: GitHubCommitActivityResponse = decodedData.value;
@@ -142,7 +143,7 @@ async function refreshCache(
   try {
     await cache.put(cacheKey, response.clone());
   } catch (error: unknown) {
-    console.warn('Failed to write GitHub response to cache:', error);
+    reportWarning('Failed to write GitHub response to cache:', error);
   }
 
   return response;

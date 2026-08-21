@@ -1,6 +1,6 @@
 import '../src/cloudflare-test.d.ts';
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import worker from '../src/worker';

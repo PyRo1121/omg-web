@@ -138,6 +138,42 @@ async function handleInstallsBadge(env: Env): Promise<Response> {
   }
 }
 
+function handleAdminNotesRoute(
+  method: string,
+  request: Request,
+  env: Env
+): Response | Promise<Response> {
+  switch (method) {
+    case 'GET':
+      return handleAdminGetNotes(request, env);
+    case 'POST':
+      return handleAdminCreateNote(request, env);
+    case 'PUT':
+      return handleAdminUpdateNote(request, env);
+    case 'DELETE':
+      return handleAdminDeleteNote(request, env);
+    default:
+      return errorResponse('Not found', 404);
+  }
+}
+
+function handleAdminCustomerTagsRoute(
+  method: string,
+  request: Request,
+  env: Env
+): Response | Promise<Response> {
+  switch (method) {
+    case 'GET':
+      return handleAdminGetCustomerTags(request, env);
+    case 'POST':
+      return handleAdminAssignTag(request, env);
+    case 'DELETE':
+      return handleAdminRemoveTag(request, env);
+    default:
+      return errorResponse('Not found', 404);
+  }
+}
+
 export default Sentry.withSentry(
   (env: Env) => ({
     dsn: env.SENTRY_DSN,
@@ -155,10 +191,10 @@ export default Sentry.withSentry(
         });
       }
 
-      const url = new URL(request.url);
-      const path = normalizeLicensingPath(url.pathname);
-
       try {
+        const url = new URL(request.url);
+        const path = normalizeLicensingPath(url.pathname);
+
         if (path.startsWith('/download/') && request.method === 'GET') {
           return handleBinaryDownload(request, env);
         }
@@ -279,33 +315,13 @@ export default Sentry.withSentry(
           case '/api/admin/audit-log':
             return handleAdminAuditLog(request, env);
           case '/api/admin/notes':
-            switch (route.method) {
-              case 'GET':
-                return handleAdminGetNotes(request, env);
-              case 'POST':
-                return handleAdminCreateNote(request, env);
-              case 'PUT':
-                return handleAdminUpdateNote(request, env);
-              case 'DELETE':
-                return handleAdminDeleteNote(request, env);
-              default:
-                return errorResponse('Not found', 404);
-            }
+            return handleAdminNotesRoute(route.method, request, env);
           case '/api/admin/tags':
             return route.method === 'GET'
               ? handleAdminGetTags(request, env)
               : handleAdminCreateTag(request, env);
           case '/api/admin/customer-tags':
-            switch (route.method) {
-              case 'GET':
-                return handleAdminGetCustomerTags(request, env);
-              case 'POST':
-                return handleAdminAssignTag(request, env);
-              case 'DELETE':
-                return handleAdminRemoveTag(request, env);
-              default:
-                return errorResponse('Not found', 404);
-            }
+            return handleAdminCustomerTagsRoute(route.method, request, env);
           case '/api/admin/customer-health':
             return handleAdminGetCustomerHealth(request, env);
           case '/api/admin/advanced-metrics':

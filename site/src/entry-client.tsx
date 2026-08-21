@@ -4,4 +4,6 @@ const root = document.getElementById('app');
 if (root === null) {
   throw new Error('Missing #app mount element');
 }
-mount(() => <StartClient />, root);
+const clientMount = mount(() => <StartClient />, root);
+
+export default clientMount;

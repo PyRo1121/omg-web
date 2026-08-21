@@ -264,7 +264,7 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = props => {
     if (!raw) {
       return 0;
     }
-    return parseFloat(raw.replace('%', ''));
+    return parseFloat(raw.replaceAll('%', ''));
   });
 
   const wauMauRatio = createMemo(() => {
@@ -272,7 +272,7 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = props => {
     if (!raw) {
       return 0;
     }
-    return parseFloat(raw.replace('%', ''));
+    return parseFloat(raw.replaceAll('%', ''));
   });
 
   const stickinessHealth = createMemo(() => getStickinessHealth(stickinessValue()));

@@ -1,8 +1,7 @@
 // Boundary parser internals decode D1 rows and the Worker account dashboard payload.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON/D1 boundary parsing requires these operations.
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** A failure decoding a Worker account dashboard payload or D1 row. */
 export class AccountDashboardParseError extends Error {
@@ -161,7 +160,7 @@ function mapParseError(reason: string) {
 export function decodeRowArray<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<ReadonlyArray<Schema.Schema.Type<S>>, AccountDashboardParseError> {
   if (value === undefined || value === null) {
     return Effect.succeed([]);
@@ -183,7 +182,7 @@ export function decodeRowArray<S extends Schema.Schema.AnyNoContext>(
 export function decodeRow<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<Schema.Schema.Type<S>, AccountDashboardParseError> {
   return Schema.decodeUnknown(schema)(value).pipe(Effect.mapError(mapParseError(reason)));
 }

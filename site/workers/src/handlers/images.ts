@@ -2,14 +2,17 @@ import type { Env } from '../api';
 import { errorResponse } from '../api';
 
 export async function handleImageOptimization(request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
   const imagePath = url.pathname.replace('/img/', '');
 
   if (!imagePath) {
     return errorResponse('Image path not specified', 400);
   }
 
-  const cacheKey = new URL(request.url);
+  const cacheKey = url;
   const cache = caches.default;
 
   const cachedResponse = await cache.match(cacheKey);

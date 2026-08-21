@@ -1,3 +1,4 @@
+import { reportError } from '../observability';
 // Firehose Handler - Streaming real-time events to Admin Dashboard
 import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
@@ -27,11 +28,13 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
     return errorResponse('Forbidden', 403);
   }
 
-  const url = new URL(request.url);
-  const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 100);
-  const since = url.searchParams.get('since'); // ISO timestamp
-
   try {
+    const url = URL.parse(request.url);
+    if (url === null) {
+      return errorResponse('Invalid request URL', 400);
+    }
+    const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 100);
+    const since = url.searchParams.get('since'); // ISO timestamp
     let query = `
       SELECT
         id,
@@ -93,7 +96,7 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    console.error('Firehose error:', error);
+    reportError('Firehose error:', error);
     return errorResponse('Failed to fetch firehose data', 500);
   }
 }

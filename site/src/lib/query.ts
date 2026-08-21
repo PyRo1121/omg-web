@@ -1,8 +1,7 @@
 // Boundary parser internals decode TanStack Query failure objects.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe error-shape parsing requires these operations.
 
 import { QueryClient } from '@tanstack/solid-query';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { ApiError } from './api';
 
 const QueryHttpErrorSchema = Schema.Struct({

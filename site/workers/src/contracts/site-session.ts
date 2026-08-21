@@ -1,9 +1,7 @@
 // Boundary parser internals decode untrusted JSON and D1 rows into branded site-session types.
-// The narrow suppression is limited to this parser module; callers receive typed contract values.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON boundary parsing requires these operations.
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** A failure decoding a site-session wire payload or D1 row. */
 export class SiteSessionParseError extends Error {
@@ -80,7 +78,7 @@ function mapParseError(reason: string) {
 
 /** Decode an untrusted internal site-session request body. */
 export function decodeSiteSessionRequest(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<SiteSessionRequest, SiteSessionParseError> {
   return Schema.decodeUnknown(SiteSessionRequestSchema)(value).pipe(
     Effect.mapError(mapParseError('Site session request has an invalid shape'))
@@ -89,7 +87,7 @@ export function decodeSiteSessionRequest(
 
 /** Decode the untrusted Worker response consumed only by the server-side BFF. */
 export function decodeSiteSessionWorkerResponse(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<SiteSessionWorkerResponse, SiteSessionParseError> {
   return Schema.decodeUnknown(SiteSessionWorkerResponseSchema)(value).pipe(
     Effect.mapError(mapParseError('Worker session response has an invalid shape'))
@@ -98,7 +96,7 @@ export function decodeSiteSessionWorkerResponse(
 
 /** Decode a D1 customer row selected for site-session minting. */
 export function decodeCustomerRow(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<CustomerRow, SiteSessionParseError> {
   return Schema.decodeUnknown(CustomerRowSchema)(value).pipe(
     Effect.mapError(mapParseError('Customer row has an invalid shape'))
@@ -106,7 +104,9 @@ export function decodeCustomerRow(
 }
 
 /** Decode a D1 session row reused for site-session minting. */
-export function decodeSessionRow(value: unknown): Effect.Effect<SessionRow, SiteSessionParseError> {
+export function decodeSessionRow(
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
+): Effect.Effect<SessionRow, SiteSessionParseError> {
   return Schema.decodeUnknown(SessionRowSchema)(value).pipe(
     Effect.mapError(mapParseError('Session row has an invalid shape'))
   );

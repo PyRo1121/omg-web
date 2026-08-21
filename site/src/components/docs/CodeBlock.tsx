@@ -1,3 +1,4 @@
+import { reportClientError } from '~/lib/observability';
 import type { Component } from 'solid-js';
 import { createResource, Show } from 'solid-js';
 import type { HighlighterCore } from 'shiki/core';
@@ -60,7 +61,7 @@ const CodeBlock: Component<CodeBlockProps> = props => {
         theme: 'github-dark',
       });
     } catch (e) {
-      console.error('Shiki highlighting failed:', e);
+      reportClientError('Shiki highlighting failed:', e);
       return `<code>${code()}</code>`;
     }
   };

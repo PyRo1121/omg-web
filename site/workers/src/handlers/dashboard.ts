@@ -1,5 +1,6 @@
+import { reportError } from '../observability';
 // Dashboard API handlers (all require authentication)
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import {
   type Env,
   jsonResponse,
@@ -452,7 +453,10 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
     // Calculate fleet compliance (version drift)
     const versions = machines.map(member => member.omg_version || 'unknown');
     const uniqueVersions = [...new Set(versions)];
-    const latestVersion = uniqueVersions.toSorted().toReversed()[0] || 'unknown';
+    const latestVersion =
+      uniqueVersions.toSorted((left, right) =>
+        right.localeCompare(left, undefined, { numeric: true, sensitivity: 'base' })
+      )[0] ?? 'unknown';
     const complianceRate =
       (versions.filter(v => v === latestVersion).length / (versions.length || 1)) * 100;
 
@@ -519,7 +523,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       },
     });
   } catch (error: unknown) {
-    console.error('handleGetTeamMembers error:', error);
+    reportError('handleGetTeamMembers error:', error);
     return errorResponse('Failed to load team data', 500);
   }
 }

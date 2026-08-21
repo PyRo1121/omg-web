@@ -1,4 +1,4 @@
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** Cloudflare Turnstile Siteverify response fields consumed by authentication. */
 export const TurnstileSiteverifySchema = Schema.Struct({

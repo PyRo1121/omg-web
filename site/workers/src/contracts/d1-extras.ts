@@ -1,8 +1,7 @@
 // Boundary parser internals decode remaining D1 rows and provider JSON.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON/D1 boundary parsing requires these operations.
 
 import { Effect, Exit } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** A failure decoding a remaining D1 row or provider payload. */
 export class ExtraRowParseError extends Error {
@@ -1018,7 +1017,7 @@ export function decodeStoredProperties(
 export function decodeExtraRow<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<Schema.Schema.Type<S>, ExtraRowParseError> {
   return Schema.decodeUnknown(schema)(value).pipe(
     Effect.mapError((cause: unknown): ExtraRowParseError => new ExtraRowParseError(reason, cause))
@@ -1036,7 +1035,7 @@ export function decodeExtraRow<S extends Schema.Schema.AnyNoContext>(
 export function decodeExtraRowArray<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<ReadonlyArray<Schema.Schema.Type<S>>, ExtraRowParseError> {
   if (value === undefined || value === null) {
     return Effect.succeed([]);
@@ -1060,7 +1059,7 @@ export function decodeExtraRowArray<S extends Schema.Schema.AnyNoContext>(
 export function decodeOptionalExtraRow<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<Schema.Schema.Type<S> | undefined, ExtraRowParseError> {
   if (value === undefined || value === null) {
     return Effect.succeed(undefined);
@@ -1085,7 +1084,7 @@ export type OptionalExtraRow<A> =
 export async function readOptionalExtraRow<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Promise<OptionalExtraRow<Schema.Schema.Type<S>>> {
   const exit = await Effect.runPromiseExit(decodeOptionalExtraRow(schema, reason, value));
   if (Exit.isFailure(exit)) {
@@ -1127,7 +1126,9 @@ export function isInvalidExtraRow(
  * @param row - The `.first()` result from `SELECT admin`.
  * @returns True only when admin is exactly 1.
  */
-export async function customerIsAdmin(row: unknown): Promise<boolean> {
+export async function customerIsAdmin(
+  row: Schema.Schema.Encoded<Schema.Schema.Any>
+): Promise<boolean> {
   const decoded = await readOptionalExtraRow(
     AdminFlagRowSchema,
     'Admin flag row has an invalid shape',

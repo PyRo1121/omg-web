@@ -1,8 +1,9 @@
+import { reportError } from './observability';
 // API Types and Utilities for OMG Dashboard
 // All authenticated endpoints require a valid session token
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import {
   ExtraRowParseError,
   readOptionalExtraRow,
@@ -477,7 +478,7 @@ export async function sendEmail(
   html: string
 ): Promise<boolean> {
   if (!env.RESEND_API_KEY) {
-    console.error('RESEND_API_KEY not set');
+    reportError('RESEND_API_KEY not set');
     return false;
   }
 
@@ -498,7 +499,7 @@ export async function sendEmail(
 
     return response.ok;
   } catch (error: unknown) {
-    console.error('Email send error:', error);
+    reportError('Email send error:', error);
     return false;
   }
 }

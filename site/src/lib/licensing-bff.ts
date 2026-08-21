@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { isSiteBffRoute, LicensingRoutes } from '../../shared/licensing-routes';
 import {
   decodeSiteSessionWorkerResponse,
@@ -112,14 +112,17 @@ function requireSameOrigin(inbound: Request): Effect.Effect<void, LicensingSameO
   if (inbound.method === 'GET' || inbound.method === 'HEAD') {
     return Effect.void;
   }
-  const url = new URL(inbound.url);
-  return inbound.headers.get('Origin') === url.origin
+  const url = URL.parse(inbound.url);
+  return url !== null && inbound.headers.get('Origin') === url.origin
     ? Effect.void
     : Effect.fail(new LicensingSameOriginRequired());
 }
 
 function downstreamUrl(inbound: Request): Effect.Effect<URL, LicensingRouteRejected> {
-  const source = new URL(inbound.url);
+  const source = URL.parse(inbound.url);
+  if (source === null) {
+    return Effect.fail(new LicensingRouteRejected('', inbound.method));
+  }
   if (!source.pathname.startsWith(`${BFF_PATH_PREFIX}/`)) {
     return Effect.fail(new LicensingRouteRejected(source.pathname, inbound.method));
   }
@@ -127,7 +130,10 @@ function downstreamUrl(inbound: Request): Effect.Effect<URL, LicensingRouteRejec
   if (!isSiteBffRoute(inbound.method, path)) {
     return Effect.fail(new LicensingRouteRejected(path, inbound.method));
   }
-  const target = new URL(path, INTERNAL_WORKER_ORIGIN);
+  const target = URL.parse(path, INTERNAL_WORKER_ORIGIN);
+  if (target === null) {
+    return Effect.fail(new LicensingRouteRejected(path, inbound.method));
+  }
   target.search = source.search;
   return Effect.succeed(target);
 }

@@ -1,3 +1,4 @@
+import { reportError, reportWarning } from '../observability';
 // CLI telemetry event handlers
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 import { Effect, Exit } from 'effect';
@@ -97,7 +98,7 @@ async function checkRateLimit(
   licenseKey: string
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
   if (!env.API_RATE_LIMITER) {
-    console.warn('API_RATE_LIMITER binding not available, skipping rate limit');
+    reportWarning('API_RATE_LIMITER binding not available, skipping rate limit');
     return { allowed: true };
   }
 
@@ -112,7 +113,7 @@ async function checkRateLimit(
 
     return { allowed: true };
   } catch (error: unknown) {
-    console.error('Rate limit check failed:', error);
+    reportError('Rate limit check failed:', error);
     // Fail open - allow request if rate limiter fails
     return { allowed: true };
   }
@@ -275,7 +276,7 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
 
     return jsonResponse({ success: true, event_id: eventId });
   } catch (error: unknown) {
-    console.error('CLI event error:', error);
+    reportError('CLI event error:', error);
     return errorResponse('Failed to process event', 500);
   }
 }
@@ -451,6 +452,8 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
           );
           break;
         }
+        default:
+          return errorResponse('Unsupported telemetry event type', 400);
       }
     }
 
@@ -461,7 +464,7 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
 
     return jsonResponse({ success: true, processed: body.events.length });
   } catch (error: unknown) {
-    console.error('CLI batch error:', error);
+    reportError('CLI batch error:', error);
     return errorResponse('Failed to process batch', 500);
   }
 }

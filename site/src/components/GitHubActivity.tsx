@@ -1,3 +1,4 @@
+import { reportClientError, reportClientWarning } from '~/lib/observability';
 import { type Component, createSignal, onMount, Show, For } from 'solid-js';
 import {
   parseGitHubActivity,
@@ -28,7 +29,7 @@ const GitHubActivity: Component = () => {
       const parsedJson: unknown = JSON.parse(cached);
       const parsed = parseGitHubActivityCache(parsedJson);
       if (!parsed.ok) {
-        console.warn('Ignoring invalid GitHub activity cache:', parsed.error);
+        reportClientWarning('Ignoring invalid GitHub activity cache:', parsed.error);
         return null;
       }
       if (Date.now() - parsed.value.timestamp > CACHE_TTL) {
@@ -37,7 +38,7 @@ const GitHubActivity: Component = () => {
       return parsed.value;
     } catch (err: unknown) {
       if (err instanceof Error) {
-        console.warn('Ignoring invalid GitHub activity cache:', err.message);
+        reportClientWarning('Ignoring invalid GitHub activity cache:', err.message);
       }
       return null;
     }
@@ -48,7 +49,7 @@ const GitHubActivity: Component = () => {
       const cache: GitHubActivityCache = { data: activity, total, timestamp: Date.now() };
       localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
     } catch (err: unknown) {
-      console.warn('Unable to cache GitHub activity:', err);
+      reportClientWarning('Unable to cache GitHub activity:', err);
     }
   };
 
@@ -65,7 +66,7 @@ const GitHubActivity: Component = () => {
       let response = await fetch('https://api.pyro1121.com/api/github-stats');
 
       if (!response.ok) {
-        console.warn('Proxy failed, falling back to direct GitHub API');
+        reportClientWarning('Proxy failed, falling back to direct GitHub API');
         response = await fetch('https://api.github.com/repos/PyRo1121/omg/stats/commit_activity', {
           headers: { Accept: 'application/vnd.github.v3+json' },
         });
@@ -127,7 +128,7 @@ const GitHubActivity: Component = () => {
       setTotalCommits(finalTotal);
       setCachedData(finalData, finalTotal);
     } catch (cause: unknown) {
-      console.error('GitHub API error:', cause);
+      reportClientError('GitHub API error:', cause);
       setError(cause instanceof Error ? cause.message : 'Failed to load');
     } finally {
       setLoading(false);

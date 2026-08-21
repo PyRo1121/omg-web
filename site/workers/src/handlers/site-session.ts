@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import { type Env, jsonResponse, errorResponse, generateId, logAudit } from '../api';
 import { decodeJsonBody, InvalidJsonBodyError } from '../body';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import {
   CustomerId,
   decodeCustomerRow,
@@ -42,8 +42,7 @@ function brandGeneratedId<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   value: string
 ): Schema.Schema.Type<S> {
-  const decoded = Schema.decodeUnknownSync(schema)(value);
-  return decoded;
+  return Schema.decodeUnknownSync(schema)(value);
 }
 
 function findCustomerByEmail(

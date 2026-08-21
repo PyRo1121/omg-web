@@ -4,7 +4,7 @@ import { Cause, Effect, Exit, Option } from 'effect';
 import { casesHandled } from './prelude';
 import { browserWorkerFetcher, requestDecodedJson, type WorkerApiError } from './worker-api';
 import * as Http from './contracts/worker-http';
-import type { Schema } from '@effect/schema';
+import type * as Schema from 'effect/Schema';
 import { LicensingRoutes } from '../../shared/licensing-routes';
 
 type WorkerBody<S extends Schema.Schema.AnyNoContext> = Schema.Schema.Type<S>;
@@ -510,7 +510,7 @@ export async function exportAdminUsers(): Promise<string> {
     throw new Error('Failed to export users');
   }
 
-  return await response.text();
+  return response.text();
 }
 
 export async function exportAdminUsage(days = 30): Promise<string> {
@@ -522,7 +522,7 @@ export async function exportAdminUsage(days = 30): Promise<string> {
     throw new Error('Failed to export usage');
   }
 
-  return await response.text();
+  return response.text();
 }
 
 export async function exportAdminAudit(days = 30): Promise<string> {
@@ -534,7 +534,7 @@ export async function exportAdminAudit(days = 30): Promise<string> {
     throw new Error('Failed to audit log');
   }
 
-  return await response.text();
+  return response.text();
 }
 
 // Helper function to trigger CSV download in browser
@@ -545,7 +545,7 @@ export function downloadCSV(data: string, filename: string): void {
   link.href = url;
   link.download = filename;
   link.style.display = 'none';
-  document.body.appendChild(link);
+  document.body.insertAdjacentElement('beforeend', link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
@@ -582,10 +582,7 @@ export async function getSmartInsights(
   target: 'user' | 'team' | 'admin' = 'user'
 ): Promise<SmartInsight | null> {
   try {
-    return await apiRequest(
-      Http.SmartInsightSchema,
-      `${LicensingRoutes.insights.path}?target=${target}`
-    );
+    return apiRequest(Http.SmartInsightSchema, `${LicensingRoutes.insights.path}?target=${target}`);
   } catch {
     return null;
   }

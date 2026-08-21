@@ -421,7 +421,7 @@ function observeLargestContentfulPaint(metrics: WebVitalsMetrics): void {
   try {
     const observer = new PerformanceObserver(list => {
       const entries = list.getEntries();
-      const lastEntry = entries[entries.length - 1];
+      const lastEntry = entries.at(-1);
       if (lastEntry !== undefined) {
         metrics.lcp = lastEntry.startTime;
       }

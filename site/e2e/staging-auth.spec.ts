@@ -1,4 +1,4 @@
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { expect, test, type Page } from '@playwright/test';
 
 const baseUrl = process.env['E2E_BASE_URL']?.trim();
@@ -40,10 +40,10 @@ test.describe('staging authenticated user', () => {
     await expect(page).toHaveURL(/\/dashboard$/);
 
     await page.getByRole('button', { name: 'Sign Out' }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login\/?$/);
 
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login\/?$/);
   });
 
   test('creates a sandbox checkout session only when mutation tests are explicitly enabled', async ({

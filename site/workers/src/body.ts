@@ -1,7 +1,7 @@
 import { tryPromise, fail, succeed, flatMap } from 'effect/Effect';
 import type { Effect } from 'effect';
-import { decodeUnknownEither } from '@effect/schema/Schema';
-import type { Schema } from '@effect/schema';
+import { decodeUnknownEither } from 'effect/Schema';
+import type * as Schema from 'effect/Schema';
 
 /** A request body that is not valid JSON or does not match its contract schema. */
 export class InvalidJsonBodyError extends Error {

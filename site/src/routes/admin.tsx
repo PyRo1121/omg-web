@@ -1,3 +1,4 @@
+import { reportClientError } from '~/lib/observability';
 import { lazy, Show, Suspense } from 'solid-js';
 import { Title, Meta } from '@solidjs/meta';
 import { A, createAsync, query, redirect } from '@solidjs/router';
@@ -47,7 +48,10 @@ function LoadingScreen() {
 async function handleSignOut(): Promise<void> {
   const result = await signOutBrowserSessions();
   if (result.failures.length > 0) {
-    console.error('Sign out incomplete:', result.failures.map(failure => failure._tag).join(', '));
+    reportClientError(
+      'Sign out incomplete:',
+      result.failures.map(failure => failure._tag).join(', ')
+    );
     return;
   }
   window.location.href = '/';

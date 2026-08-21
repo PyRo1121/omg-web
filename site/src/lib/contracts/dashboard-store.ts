@@ -1,8 +1,6 @@
 // Boundary parser internals intentionally inspect unknown persisted state.
-// The narrow suppression is limited to this parser module; callers receive typed contract values.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns, anti-slop/no-reflect-get -- Safe JSON boundary parsing requires these operations.
 
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** The supported date range presets. */
 export const DateRangeSchema = Schema.Union(
@@ -59,7 +57,9 @@ export type PersistedDashboardState = Schema.Schema.Type<typeof PersistedDashboa
  * @param value - The raw parsed value stored under the dashboard state key.
  * @returns The typed persisted state, or `null` when the version or shape is invalid.
  */
-export function decodePersistedDashboardState(value: unknown): PersistedDashboardState | null {
+export function decodePersistedDashboardState(
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
+): PersistedDashboardState | null {
   const decoded = Schema.decodeUnknownEither(PersistedDashboardStateSchema)(value);
   return decoded._tag === 'Right' ? decoded.right : null;
 }

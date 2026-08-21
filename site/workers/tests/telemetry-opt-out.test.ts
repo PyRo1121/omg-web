@@ -2,7 +2,7 @@ import '../src/cloudflare-test.d.ts';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import worker from '../src/worker';
 
 const CUSTOMER_ID = 'opt-out-customer';

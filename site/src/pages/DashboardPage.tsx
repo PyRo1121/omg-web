@@ -1,3 +1,4 @@
+import { reportClientError } from '~/lib/observability';
 import { type Component, createSignal, onMount, Show, For, createMemo } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import {
@@ -177,7 +178,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
   const handleSignOut = async (): Promise<void> => {
     const result = await signOutBrowserSessions();
     if (result.failures.length > 0) {
-      console.error(
+      reportClientError(
         'Sign out incomplete:',
         result.failures.map(failure => failure._tag).join(', ')
       );

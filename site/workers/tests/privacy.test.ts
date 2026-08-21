@@ -10,7 +10,7 @@ import '../src/cloudflare-test.d.ts';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import worker from '../src/worker';
 
 const ErrorResponseSchema = Schema.Struct({ error: Schema.String });

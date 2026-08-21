@@ -35,7 +35,7 @@ interface AnalyticsEvent {
 }
 
 function generateSessionId(): string {
-  return `ses_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
+  return `ses_${crypto.randomUUID()}`;
 }
 
 function getSessionId(): string {

@@ -1,8 +1,7 @@
 // Boundary parser internals decode Stripe JSON into typed billing values.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON boundary parsing requires these operations.
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** A failure decoding a Stripe API payload. */
 export class StripeParseError extends Error {
@@ -204,7 +203,7 @@ export type StripeWebhookEvent = Schema.Schema.Type<typeof StripeWebhookEventSch
 export function decodeStripeJson<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<Schema.Schema.Type<S>, StripeParseError> {
   return Schema.decodeUnknown(schema)(value).pipe(Effect.mapError(mapParseError(reason)));
 }

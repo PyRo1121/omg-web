@@ -1,3 +1,4 @@
+import { reportError, reportInfo } from '../observability';
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * DOCS ANALYTICS HANDLER - World-Class Web Telemetry
@@ -141,7 +142,7 @@ export async function handleDocsAnalytics(
     const today = new Date().toISOString().slice(0, 10);
     ctx.waitUntil(
       aggregateDocsAnalytics(env.DB, today).catch(error => {
-        console.error('Docs analytics background aggregation failed:', error);
+        reportError('Docs analytics background aggregation failed:', error);
       })
     );
 
@@ -151,7 +152,7 @@ export async function handleDocsAnalytics(
       message: `Successfully processed ${eventIds.length} analytics events`,
     });
   } catch (error: unknown) {
-    console.error('Docs analytics error:', error);
+    reportError('Docs analytics error:', error);
     return errorResponse('Failed to process analytics events', 500);
   }
 }
@@ -347,7 +348,7 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
       performance: decodedPerformance.value,
     });
   } catch (error: unknown) {
-    console.error('Docs analytics dashboard error:', error);
+    reportError('Docs analytics dashboard error:', error);
     return errorResponse('Failed to load analytics dashboard', 500);
   }
 }
@@ -459,9 +460,9 @@ async function aggregateDocsAnalytics(db: D1Database, date: string): Promise<voi
       .bind(date)
       .run();
 
-    console.log(`Successfully aggregated docs analytics for ${date}`);
+    reportInfo(`Successfully aggregated docs analytics for ${date}`);
   } catch (error: unknown) {
-    console.error(`Failed to aggregate docs analytics for ${date}:`, error);
+    reportError(`Failed to aggregate docs analytics for ${date}:`, error);
   }
 }
 
@@ -483,7 +484,7 @@ export async function cleanupDocsAnalytics(db: D1Database): Promise<void> {
       .bind(cutoffDateStr)
       .run();
 
-    console.log(`Cleaned up ${result.meta.changes} old docs analytics events`);
+    reportInfo(`Cleaned up ${result.meta.changes} old docs analytics events`);
 
     // Clean up old sessions (>30 days)
     await db
@@ -492,6 +493,6 @@ export async function cleanupDocsAnalytics(db: D1Database): Promise<void> {
       )
       .run();
   } catch (error: unknown) {
-    console.error('Docs analytics cleanup error:', error);
+    reportError('Docs analytics cleanup error:', error);
   }
 }

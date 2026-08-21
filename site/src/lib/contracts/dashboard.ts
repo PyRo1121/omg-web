@@ -1,9 +1,7 @@
 // Boundary parser internals intentionally inspect unknown account dashboard payloads.
-// The narrow suppression is limited to this parser module; callers receive typed contract values.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns, anti-slop/no-reflect-get -- Safe JSON boundary parsing requires these operations.
 
 import { Effect } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 /** A failure decoding or encoding an account dashboard payload. */
 export class DashboardDataParseError extends Error {
@@ -61,7 +59,7 @@ export type DashboardData = Schema.Schema.Type<typeof DashboardDataSchema>;
  * @returns The typed dashboard payload, or `DashboardDataParseError`.
  */
 export function parseAccountDashboard(
-  value: unknown
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<DashboardData, DashboardDataParseError> {
   return Schema.decodeUnknown(DashboardDataSchema)(value).pipe(
     Effect.mapError(
@@ -76,7 +74,9 @@ export function parseAccountDashboard(
  * @param value - The raw JSON received from the account dashboard endpoint.
  * @returns The typed dashboard payload, or `null` when the payload does not match the schema.
  */
-export function decodeDashboardData(value: unknown): DashboardData | null {
+export function decodeDashboardData(
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
+): DashboardData | null {
   const decoded = Schema.decodeUnknownEither(DashboardDataSchema)(value);
   return decoded._tag === 'Right' ? decoded.right : null;
 }

@@ -21,16 +21,19 @@
     "test:ui": "vitest --ui"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "0.21.3",
-    "prettier": "3.8.0",
-    "typescript": "5.9.3",
-    "vitest": "4.1.10",
-    "wrangler": "4.123.0"
+    "@cloudflare/vitest-plugin": "1.0.0",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11",
+    "wrangler": "4.125.0"
   },
   "dependencies": {
-    "@effect/schema": "0.75.5",
     "@sentry/cloudflare": "10.70.0",
     "effect": "3.22.1"
   },
-  "type": "module"
+  "type": "module",
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260820.1": true
+  }
 }

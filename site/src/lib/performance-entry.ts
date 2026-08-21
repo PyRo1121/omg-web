@@ -1,82 +1,61 @@
-// Boundary parser internals read PerformanceEntry fields the DOM types do not expose uniformly.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns, anti-slop/no-reflect-get -- Safe performance-entry parsing requires these operations.
+import * as Schema from 'effect/Schema';
 
-function isRecord(value: unknown): value is object {
-  return typeof value === 'object' && value !== null;
+/** Raw Performance API entry accepted only at a Schema boundary. */
+type PerformanceBoundaryInput = Schema.Schema.Encoded<Schema.Schema.Any>;
+
+const FiniteNumber = Schema.Number.pipe(Schema.finite());
+const InputTimingSchema = Schema.Struct({
+  startTime: FiniteNumber,
+  processingStart: FiniteNumber,
+});
+const InteractionTimingSchema = Schema.Struct({
+  startTime: FiniteNumber,
+  processingEnd: FiniteNumber,
+});
+const LayoutShiftSchema = Schema.Struct({
+  value: FiniteNumber,
+  hadRecentInput: Schema.Boolean,
+});
+const NavigationTimingSchema = Schema.Struct({
+  requestStart: FiniteNumber,
+  responseStart: FiniteNumber,
+});
+
+/** Duration from start to processing start (first-input / FID-style). */
+export function inputDelayMs(entry: PerformanceBoundaryInput): number | undefined {
+  const decoded = Schema.decodeUnknownEither(InputTimingSchema)(entry);
+  return decoded._tag === 'Right'
+    ? Math.max(0, decoded.right.processingStart - decoded.right.startTime)
+    : undefined;
 }
 
-function field(value: object, name: string): unknown {
-  return Reflect.get(value, name);
+/** Duration from start to processing end (event / INP-style). */
+export function interactionMs(entry: PerformanceBoundaryInput): number | undefined {
+  const decoded = Schema.decodeUnknownEither(InteractionTimingSchema)(entry);
+  return decoded._tag === 'Right'
+    ? Math.max(0, decoded.right.processingEnd - decoded.right.startTime)
+    : undefined;
 }
 
-function finiteNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+/** Layout-shift score, excluding shifts that follow recent input. */
+export function layoutShiftDelta(entry: PerformanceBoundaryInput): number | undefined {
+  const decoded = Schema.decodeUnknownEither(LayoutShiftSchema)(entry);
+  if (decoded._tag === 'Left' || decoded.right.hadRecentInput) {
+    return undefined;
+  }
+  return decoded.right.value;
 }
 
-/**
- * Duration from start to processing start (first-input / FID-style).
- *
- * @param entry - Untrusted performance entry.
- * @returns Milliseconds, or undefined when the fields are missing.
- */
-export function inputDelayMs(entry: unknown): number | undefined {
-  if (!isRecord(entry)) {
+/** TTFB from the first navigation timing entry. */
+export function navigationTtfbMs(
+  entries: ReadonlyArray<PerformanceBoundaryInput>
+): number | undefined {
+  const firstEntry = entries[0];
+  if (firstEntry === undefined) {
     return undefined;
   }
-  const startTime = finiteNumber(field(entry, 'startTime'));
-  const processingStart = finiteNumber(field(entry, 'processingStart'));
-  if (startTime === undefined || processingStart === undefined) {
-    return undefined;
-  }
-  return processingStart - startTime;
-}
-
-/**
- * Duration from start to processing end (event / INP-style).
- *
- * @param entry - Untrusted performance entry.
- * @returns Milliseconds, or undefined when the fields are missing.
- */
-export function interactionMs(entry: unknown): number | undefined {
-  if (!isRecord(entry)) {
-    return undefined;
-  }
-  const startTime = finiteNumber(field(entry, 'startTime'));
-  const processingEnd = finiteNumber(field(entry, 'processingEnd'));
-  if (startTime === undefined || processingEnd === undefined) {
-    return undefined;
-  }
-  return processingEnd - startTime;
-}
-
-/**
- * Layout-shift score, ignoring shifts that follow recent input.
- *
- * @param entry - Untrusted performance entry.
- * @returns The shift value, or undefined when it should not count.
- */
-export function layoutShiftDelta(entry: unknown): number | undefined {
-  if (!isRecord(entry) || field(entry, 'hadRecentInput') === true) {
-    return undefined;
-  }
-  return finiteNumber(field(entry, 'value'));
-}
-
-/**
- * TTFB from the first navigation timing entry.
- *
- * @param entries - `performance.getEntriesByType('navigation')`.
- * @returns Milliseconds, or undefined when timing fields are missing.
- */
-export function navigationTtfbMs(entries: ReadonlyArray<unknown>): number | undefined {
-  const entry = entries[0];
-  if (!isRecord(entry)) {
-    return undefined;
-  }
-  const responseStart = finiteNumber(field(entry, 'responseStart'));
-  const requestStart = finiteNumber(field(entry, 'requestStart'));
-  if (responseStart === undefined || requestStart === undefined) {
-    return undefined;
-  }
-  return responseStart - requestStart;
+  const decoded = Schema.decodeUnknownEither(NavigationTimingSchema)(firstEntry);
+  return decoded._tag === 'Right'
+    ? Math.max(0, decoded.right.responseStart - decoded.right.requestStart)
+    : undefined;
 }

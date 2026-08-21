@@ -4,7 +4,7 @@ declare module '*?raw' {
 }
 
 declare module 'cloudflare:test' {
-  import type { D1Migration } from '@cloudflare/vitest-pool-workers';
+  import type { D1Migration } from '@cloudflare/vitest-plugin';
   import type { Env } from './api';
 
   export const env: Env & { TEST_MIGRATIONS: D1Migration[] };

@@ -12,14 +12,12 @@ async function requireAuth() {
   const event = getRequestEvent();
   const cf = event?.nativeEvent.context.cloudflare?.env;
 
-  if (!event || !cf?.DB || !cf?.BETTER_AUTH_KV) {
-    console.error('Auth bindings not available in dashboard route');
+  if (!event || !cf?.DB) {
     throw redirect('/login');
   }
 
   const env: CloudflareEnv = {
     DB: cf.DB,
-    BETTER_AUTH_KV: cf.BETTER_AUTH_KV,
     BETTER_AUTH_SECRET: cf.BETTER_AUTH_SECRET || 'dev-secret-change-me',
     BETTER_AUTH_URL: cf.BETTER_AUTH_URL || 'http://localhost:3000',
     GITHUB_CLIENT_ID: cf.GITHUB_CLIENT_ID,

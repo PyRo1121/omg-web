@@ -1,5 +1,6 @@
 // AI Insights Handler - Using Cloudflare AI Gateway with Meta.com
 import { type Env, jsonResponse, errorResponse, getAuthToken, validateSession } from '../api';
+import { reportError, reportWarning } from '../observability';
 import { Effect, Exit } from 'effect';
 import {
   customerIsAdmin,
@@ -34,18 +35,21 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
         return errorResponse('Rate limit exceeded. Please try again in a minute.', 429);
       }
     } catch (error: unknown) {
-      console.error('Insights rate limit check failed:', error);
+      reportError('Insights rate limit check failed:', error);
       return errorResponse('Failed to check rate limit', 500);
     }
   } else {
-    console.warn('API_RATE_LIMITER binding not available, skipping insights rate limit');
+    reportWarning('API_RATE_LIMITER binding not available, skipping insights rate limit');
   }
 
   const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
     .bind(auth.user.id)
     .first();
   const isAdmin = await customerIsAdmin(adminCheck);
-  const url = new URL(request.url);
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
   const target = url.searchParams.get('target') || 'user'; // 'user', 'team', or 'admin'
 
   try {
@@ -205,7 +209,7 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
         }
       } else {
         const errorText = await response.text();
-        console.warn('Meta API error:', response.status, errorText);
+        reportWarning(`Meta API error ${response.status}: ${errorText}`);
       }
     }
 
@@ -236,7 +240,7 @@ export async function handleGetSmartInsights(request: Request, env: Env): Promis
       generated_by: modelUsed,
     });
   } catch (error: unknown) {
-    console.error('AI Insight Error:', error);
+    reportError('AI Insight Error:', error);
     return errorResponse('Failed to generate insights', 500);
   }
 }

@@ -1,5 +1,5 @@
 import { Effect, Exit } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { describe, expect, it } from 'vitest';
 import { requestDecodedJson, WorkerApiNetworkError, type WorkerFetcher } from './worker-api';
 

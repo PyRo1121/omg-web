@@ -97,9 +97,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
   }));
 
   const deleteNoteMutation = createMutation(() => ({
-    mutationFn: async (noteId: string) => {
-      return deleteAdminNote(noteId);
-    },
+    mutationFn: deleteAdminNote,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-user-detail', props.customerId] });
       props.onRefresh?.();

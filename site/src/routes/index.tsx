@@ -1,3 +1,4 @@
+import { reportClientError } from '~/lib/observability';
 import { createSignal, onMount, Show, For } from 'solid-js';
 import { Title, Meta, Link } from '@solidjs/meta';
 import { clientOnly } from '@solidjs/start';
@@ -78,7 +79,7 @@ export default function Home() {
         setRetryCount(c => c + 1);
       }
     } catch (e) {
-      console.error(e);
+      reportClientError('Unhandled client operation failed', e);
       setNotFound(true);
     }
     setLoading(false);

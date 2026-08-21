@@ -1,3 +1,4 @@
+import { reportError } from '../observability';
 import {
   type Env,
   jsonResponse,
@@ -7,7 +8,7 @@ import {
   logAudit,
 } from '../api';
 import { Effect, Exit } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { decodeJsonBody } from '../body';
 import { EmailAddress } from '../contracts/site-session';
 import { forbiddenUnlessAdminSession } from '../admin-auth';
@@ -180,7 +181,7 @@ async function verifyStripeSignature(
     const expectedSig = parts.get('v1');
 
     if (!timestamp || !expectedSig) {
-      console.error('Stripe signature missing timestamp or v1 signature');
+      reportError('Stripe signature missing timestamp or v1 signature');
       return false;
     }
 
@@ -188,7 +189,7 @@ async function verifyStripeSignature(
     const timestampNum = parseInt(timestamp, 10);
     const now = Math.floor(Date.now() / 1000);
     if (Math.abs(now - timestampNum) > 300) {
-      console.error('Stripe webhook timestamp too old or in future');
+      reportError('Stripe webhook timestamp too old or in future');
       return false;
     }
 
@@ -221,7 +222,7 @@ async function verifyStripeSignature(
 
     return result === 0;
   } catch (error: unknown) {
-    console.error('Stripe signature verification error:', error);
+    reportError('Stripe signature verification error:', error);
     return false;
   }
 }
@@ -545,6 +546,9 @@ export async function handleStripeWebhook(
       }
       break;
     }
+    default:
+      // Unknown event types are durable no-ops so Stripe does not retry them indefinitely.
+      break;
   }
 
   await markStripeEventProcessed(env.DB, event.id);

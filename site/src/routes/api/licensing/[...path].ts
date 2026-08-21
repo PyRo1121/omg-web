@@ -42,7 +42,6 @@ type LicensingRouteError =
 function authEnvFrom(cloudflareEnv: CloudflareEnv): CloudflareEnv {
   return {
     DB: cloudflareEnv.DB,
-    BETTER_AUTH_KV: cloudflareEnv.BETTER_AUTH_KV,
     BETTER_AUTH_SECRET: cloudflareEnv.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: cloudflareEnv.BETTER_AUTH_URL,
     GITHUB_CLIENT_ID: cloudflareEnv.GITHUB_CLIENT_ID,
@@ -174,22 +173,22 @@ async function handle(event: APIEvent): Promise<Response> {
   return responseFromExit(await Effect.runPromiseExit(proxyFromEvent(event)));
 }
 
-export async function GET(event: APIEvent): Promise<Response> {
+export function GET(event: APIEvent): Promise<Response> {
   return handle(event);
 }
 
-export async function POST(event: APIEvent): Promise<Response> {
+export function POST(event: APIEvent): Promise<Response> {
   return handle(event);
 }
 
-export async function PUT(event: APIEvent): Promise<Response> {
+export function PUT(event: APIEvent): Promise<Response> {
   return handle(event);
 }
 
-export async function PATCH(event: APIEvent): Promise<Response> {
+export function PATCH(event: APIEvent): Promise<Response> {
   return handle(event);
 }
 
-export async function DELETE(event: APIEvent): Promise<Response> {
+export function DELETE(event: APIEvent): Promise<Response> {
   return handle(event);
 }

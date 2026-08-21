@@ -8,13 +8,8 @@ function getEnv(event: APIEvent): CloudflareEnv {
     throw new Error('D1 database binding not found');
   }
 
-  if (!cf?.BETTER_AUTH_KV) {
-    throw new Error('KV namespace binding not found');
-  }
-
   return {
     DB: cf.DB,
-    BETTER_AUTH_KV: cf.BETTER_AUTH_KV,
     BETTER_AUTH_SECRET: cf.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: cf.BETTER_AUTH_URL,
     GITHUB_CLIENT_ID: cf.GITHUB_CLIENT_ID,

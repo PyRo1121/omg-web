@@ -294,7 +294,7 @@ export async function handleGetNotificationSettings(request: Request, env: Env):
     }
     merged.push({
       ...def,
-      enabled: !!existing.enabled,
+      enabled: Boolean(existing.enabled),
       threshold: existing.threshold ?? def.threshold,
       channels: [...decodedChannels.value],
     });
@@ -434,8 +434,8 @@ export async function handleGetAuditLogs(request: Request, env: Env): Promise<Re
   } catch {
     return errorResponse('Invalid request URL', 400);
   }
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
-  const offset = parseInt(url.searchParams.get('offset') || '0');
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
+  const offset = parseInt(url.searchParams.get('offset') || '0', 10);
   const action = url.searchParams.get('action');
   const resource_type = url.searchParams.get('resource_type');
 

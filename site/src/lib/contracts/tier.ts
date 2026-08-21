@@ -1,7 +1,6 @@
 // Boundary parser internals decode untrusted tier strings.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe string boundary parsing requires these operations.
 
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import type { Tier } from '~/design-system/components/TierBadge';
 
 /** Supported customer tiers. */

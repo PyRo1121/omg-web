@@ -1,6 +1,6 @@
 import '../src/cloudflare-test.d.ts';
 
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { Effect, Exit } from 'effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:test';

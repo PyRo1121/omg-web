@@ -1,7 +1,6 @@
 // Boundary parser internals decode CLI telemetry JSON.
-// oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-object-parameters, anti-slop/no-unknown-returns -- Safe JSON boundary parsing requires these operations.
 
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 
 const OptionalBoolean = Schema.optional(Schema.Boolean);
 const OptionalNumber = Schema.optional(Schema.Number);

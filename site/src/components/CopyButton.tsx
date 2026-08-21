@@ -1,3 +1,4 @@
+import { reportClientWarning } from '~/lib/observability';
 import { type Component, createSignal, Show, For } from 'solid-js';
 import { Copy, Check } from 'lucide-solid';
 
@@ -51,7 +52,7 @@ const CopyButton: Component<CopyButtonProps> = props => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch {
-        console.warn('Copy to clipboard failed');
+        reportClientWarning('Copy to clipboard failed');
       }
       document.body.removeChild(textarea);
     }

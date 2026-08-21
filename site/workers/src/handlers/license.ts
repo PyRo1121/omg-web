@@ -1,6 +1,6 @@
 // License validation handlers (for CLI activation)
 import { Cause, Effect, Exit, Option } from 'effect';
-import { Schema } from '@effect/schema';
+import * as Schema from 'effect/Schema';
 import { decodeJsonBody, InvalidJsonBodyError } from '../body';
 import { type Env, jsonResponse, errorResponse, generateId, logAudit, TIER_FEATURES } from '../api';
 import { casesHandled } from '../prelude';
@@ -196,24 +196,19 @@ function decodeInput(
     return decodeJsonBody(request, ValidateLicenseFieldsSchema).pipe(Effect.flatMap(fromFields));
   }
 
-  return Effect.try({
-    try: () => new URL(request.url),
-    catch: () => new InvalidRequestUrlError(),
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return Effect.fail(new InvalidRequestUrlError());
+  }
+  return decodeValidateLicenseFields({
+    key: url.searchParams.get('key'),
+    license_key: url.searchParams.get('license_key'),
+    machine_id: url.searchParams.get('machine_id'),
+    user_name: url.searchParams.get('user_name'),
+    user_email: url.searchParams.get('user_email'),
   }).pipe(
-    Effect.flatMap(url =>
-      decodeValidateLicenseFields({
-        key: url.searchParams.get('key'),
-        license_key: url.searchParams.get('license_key'),
-        machine_id: url.searchParams.get('machine_id'),
-        user_name: url.searchParams.get('user_name'),
-        user_email: url.searchParams.get('user_email'),
-      }).pipe(
-        Effect.mapError(
-          () => new InvalidJsonBodyError('Body does not match the expected contract')
-        ),
-        Effect.flatMap(fromFields)
-      )
-    )
+    Effect.mapError(() => new InvalidJsonBodyError('Body does not match the expected contract')),
+    Effect.flatMap(fromFields)
   );
 }
 
@@ -487,10 +482,10 @@ function lookupPublicLicense(
   | LicenseOpsParseError
 > {
   return Effect.gen(function* () {
-    const url = yield* Effect.try({
-      try: () => new URL(request.url),
-      catch: () => new InvalidRequestUrlError(),
-    });
+    const url = URL.parse(request.url);
+    if (url === null) {
+      return yield* Effect.fail(new InvalidRequestUrlError());
+    }
     const rawEmail = url.searchParams.get('email');
     if (rawEmail === null || rawEmail.length === 0) {
       return yield* Effect.fail(new EmailRequiredError());

@@ -1,3 +1,4 @@
+import { reportClientError, reportClientWarning } from '~/lib/observability';
 import { createSignal, For, Show, onMount, createEffect } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import { Dialog } from '@kobalte/core';
@@ -47,7 +48,7 @@ export function SearchDialog(props: SearchDialogProps) {
       // Pagefind is generated at build time and served as a static asset
       pagefind = globalThis.__pagefind ?? (await import(/* @vite-ignore */ PAGEFIND_URL));
     } catch {
-      console.warn('Pagefind not available - search disabled');
+      reportClientWarning('Pagefind not available - search disabled');
     }
   });
 
@@ -88,7 +89,7 @@ export function SearchDialog(props: SearchDialogProps) {
       );
       setResults(data);
     } catch (err) {
-      console.error('Search failed:', err);
+      reportClientError('Search failed:', err);
       setResults([]);
     } finally {
       setLoading(false);
