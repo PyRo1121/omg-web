@@ -571,8 +571,32 @@ export const SessionJoinRowSchema = Schema.Struct({
 export type SessionJoinRow = Schema.Schema.Type<typeof SessionJoinRowSchema>;
 
 /** Site analytics salt BLOB. */
+/**
+ * D1 BLOB bytes across transports: production workerd returns an ArrayBuffer,
+ * the Vitest pool bridge returns a plain number array.
+ */
+const SaltBytes = Schema.Union(
+  Schema.instanceOf(ArrayBuffer),
+  Schema.instanceOf(Uint8Array),
+  Schema.Array(Schema.Number)
+).pipe(
+  Schema.transform(Schema.instanceOf(Uint8Array), {
+    strict: false,
+    decode: fromA => {
+      if (fromA instanceof ArrayBuffer) {
+        return new Uint8Array(fromA);
+      }
+      if (fromA instanceof Uint8Array) {
+        return fromA;
+      }
+      return new Uint8Array(fromA);
+    },
+    encode: toI => toI,
+  })
+);
+
 export const AnalyticsSaltRowSchema = Schema.Struct({
-  salt: Schema.Union(Schema.instanceOf(ArrayBuffer), Schema.instanceOf(Uint8Array)),
+  salt: SaltBytes,
 });
 export type AnalyticsSaltRow = Schema.Schema.Type<typeof AnalyticsSaltRowSchema>;
 

@@ -2,7 +2,7 @@ import { reportError } from '../observability';
 import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 import { decodeJsonBody } from '../body';
-import { TrackingBatchSchema, optionalStringField } from '../contracts/http-bodies';
+import { TrackingBatch, TrackingBatchSchema, optionalStringField } from '../contracts/http-bodies';
 import {
   AnalyticsSaltRowSchema,
   CliGeoRowSchema,
@@ -47,8 +47,7 @@ async function getCurrentSalt(db: D1Database): Promise<Uint8Array> {
     throw new ExtraRowParseError('Analytics salt row has an invalid shape');
   }
   if (saltLookup._tag === 'present') {
-    const saltRow = saltLookup.value;
-    return saltRow.salt instanceof ArrayBuffer ? new Uint8Array(saltRow.salt) : saltRow.salt;
+    return saltLookup.value.salt;
   }
 
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -134,6 +133,114 @@ function extractReferrerDomain(referrer: string | null): string {
   }
 }
 
+/** Per-request ingestion context shared by every event in a batch. */
+interface TrackingContext {
+  readonly db: D1Database;
+  readonly visitorId: string;
+  readonly country: string;
+  readonly city: string;
+  readonly device: string;
+  readonly browser: string;
+  readonly os: string;
+  readonly now: number;
+  readonly today: string;
+  readonly hour: number;
+}
+
+type TrackingEvent = TrackingBatch['events'][number];
+
+const MAX_EVENTS_PER_BATCH = 50;
+
+const EVENT_INSERT_SQL = `INSERT INTO site_analytics_events
+  (id, event_type, event_name, properties, timestamp, session_id, visitor_id, country_code, city, duration_ms, created_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+const REALTIME_UPSERT_SQL = `INSERT INTO site_analytics_realtime (visitor_id, session_id, page_path, country_code, city, referrer, last_seen_at, page_count)
+  VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+  ON CONFLICT(visitor_id) DO UPDATE SET
+    session_id = excluded.session_id,
+    page_path = excluded.page_path,
+    last_seen_at = excluded.last_seen_at,
+    page_count = page_count + 1`;
+
+const GEO_DAILY_UPSERT_SQL = `INSERT INTO site_analytics_geo_daily (date, country_code, city, visitors, sessions, pageviews)
+  VALUES (?, ?, ?, 1, 1, 1)
+  ON CONFLICT(date, country_code, city) DO UPDATE SET
+    pageviews = pageviews + 1,
+    sessions = sessions + (CASE WHEN excluded.visitors = 1 THEN 1 ELSE 0 END)`;
+
+const HOURLY_UPSERT_SQL = `INSERT INTO site_analytics_hourly (date, hour, visitors, sessions, pageviews)
+  VALUES (?, ?, 1, 1, 1)
+  ON CONFLICT(date, hour) DO UPDATE SET pageviews = pageviews + 1`;
+
+async function createTrackingContext(request: Request, env: Env): Promise<TrackingContext> {
+  const { device, browser, os } = parseUserAgent(request.headers.get('User-Agent') || '');
+  const now = Date.now();
+  return {
+    db: env.DB,
+    visitorId: await generateVisitorId(request, env.DB, 'omg.latham.cloud'),
+    country: request.headers.get('CF-IPCountry') || 'XX',
+    city: request.headers.get('CF-City') || 'Unknown',
+    device,
+    browser,
+    os,
+    now,
+    today: new Date(now).toISOString().slice(0, 10),
+    hour: new Date(now).getUTCHours(),
+  };
+}
+
+/** Build the persistence statements for one tracked event. */
+function eventStatements(context: TrackingContext, event: TrackingEvent): D1PreparedStatement[] {
+  const props = event.properties || {};
+  const referrerDomain = extractReferrerDomain(optionalStringField(props['referrer']) ?? null);
+  const enrichedProperties = JSON.stringify({
+    ...props,
+    device: context.device,
+    browser: context.browser,
+    os: context.os,
+    referrer_domain: referrerDomain,
+  });
+
+  const statements = [
+    context.db
+      .prepare(EVENT_INSERT_SQL)
+      .bind(
+        generateId(),
+        event.event_type,
+        event.event_name,
+        enrichedProperties,
+        event.timestamp || context.now,
+        event.session_id,
+        context.visitorId,
+        context.country,
+        context.city,
+        event.duration_ms || null,
+        context.now
+      ),
+    context.db
+      .prepare(REALTIME_UPSERT_SQL)
+      .bind(
+        context.visitorId,
+        event.session_id,
+        optionalStringField(props['path']) ?? '/',
+        context.country,
+        context.city,
+        referrerDomain,
+        context.now
+      ),
+  ];
+
+  if (event.event_type === 'pageview') {
+    statements.push(
+      context.db.prepare(GEO_DAILY_UPSERT_SQL).bind(context.today, context.country, context.city),
+      context.db.prepare(HOURLY_UPSERT_SQL).bind(context.today, context.hour)
+    );
+  }
+
+  return statements;
+}
+
 export async function handleTrackEvent(request: Request, env: Env): Promise<Response> {
   try {
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
@@ -148,97 +255,18 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     if (Exit.isFailure(decodedBody)) {
       return errorResponse('Invalid payload', 400);
     }
-    const body = decodedBody.value;
-    if (!body.events || !Array.isArray(body.events) || body.events.length > 50) {
+    const events = decodedBody.value.events;
+    if (!Array.isArray(events) || events.length > MAX_EVENTS_PER_BATCH) {
       return errorResponse('Invalid payload', 400);
     }
 
-    const country = request.headers.get('CF-IPCountry') || 'XX';
-    const city = request.headers.get('CF-City') || 'Unknown';
-    const userAgent = request.headers.get('User-Agent') || '';
-    const visitorId = await generateVisitorId(request, env.DB, 'omg.latham.cloud');
-    const { device, browser, os } = parseUserAgent(userAgent);
-
-    const statements: D1PreparedStatement[] = [];
-    const now = Date.now();
-    const today = new Date().toISOString().slice(0, 10);
-    const hour = new Date().getUTCHours();
-
-    for (const event of body.events) {
-      if (!event.event_type || !event.event_name || !event.session_id) {
-        continue;
-      }
-
-      const eventId = generateId();
-      const props = event.properties || {};
-      const referrerDomain = extractReferrerDomain(optionalStringField(props.referrer) ?? null);
-
-      statements.push(
-        env.DB.prepare(
-          `INSERT INTO site_analytics_events 
-           (id, event_type, event_name, properties, timestamp, session_id, visitor_id, country_code, city, duration_ms, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(
-          eventId,
-          event.event_type,
-          event.event_name,
-          JSON.stringify({ ...props, device, browser, os, referrer_domain: referrerDomain }),
-          event.timestamp || now,
-          event.session_id,
-          visitorId,
-          country,
-          city,
-          event.duration_ms || null,
-          now
-        )
-      );
-
-      statements.push(
-        env.DB.prepare(
-          `INSERT INTO site_analytics_realtime (visitor_id, session_id, page_path, country_code, city, referrer, last_seen_at, page_count)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-           ON CONFLICT(visitor_id) DO UPDATE SET
-             session_id = excluded.session_id,
-             page_path = excluded.page_path,
-             last_seen_at = excluded.last_seen_at,
-             page_count = page_count + 1`
-        ).bind(
-          visitorId,
-          event.session_id,
-          optionalStringField(props.path) ?? '/',
-          country,
-          city,
-          referrerDomain,
-          now
-        )
-      );
-
-      if (event.event_type === 'pageview') {
-        statements.push(
-          env.DB.prepare(
-            `INSERT INTO site_analytics_geo_daily (date, country_code, city, visitors, sessions, pageviews)
-             VALUES (?, ?, ?, 1, 1, 1)
-             ON CONFLICT(date, country_code, city) DO UPDATE SET
-               pageviews = pageviews + 1,
-               sessions = sessions + (CASE WHEN excluded.visitors = 1 THEN 1 ELSE 0 END)`
-          ).bind(today, country, city)
-        );
-
-        statements.push(
-          env.DB.prepare(
-            `INSERT INTO site_analytics_hourly (date, hour, visitors, sessions, pageviews)
-             VALUES (?, ?, 1, 1, 1)
-             ON CONFLICT(date, hour) DO UPDATE SET pageviews = pageviews + 1`
-          ).bind(today, hour)
-        );
-      }
-    }
-
+    const context = await createTrackingContext(request, env);
+    const statements = events.flatMap(event => eventStatements(context, event));
     if (statements.length > 0) {
-      await env.DB.batch(statements);
+      await context.db.batch(statements);
     }
 
-    return jsonResponse({ success: true, processed: body.events.length });
+    return jsonResponse({ success: true, processed: events.length });
   } catch (error: unknown) {
     reportError('Site analytics error:', error);
     return errorResponse('Failed to process events', 500);
