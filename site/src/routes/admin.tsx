@@ -1,7 +1,7 @@
 import { reportClientError } from '~/lib/observability';
 import { Show, Suspense } from 'solid-js';
 import { Title, Meta } from '@solidjs/meta';
-import { A, createAsync, redirect } from '@solidjs/router';
+import { A, createAsync, query, redirect } from '@solidjs/router';
 import { clientOnly } from '@solidjs/start';
 import { getRequestEvent } from 'solid-js/web';
 import { LayoutDashboard, LogOut, Shield } from 'lucide-solid';
@@ -35,6 +35,8 @@ async function requireAdminPage(): Promise<{ readonly userId: string }> {
 
   return { userId: authorization.userId };
 }
+
+const requireAdminPageQuery = query(requireAdminPage, 'admin-page-authorization');
 
 function LoadingScreen() {
   return (
@@ -108,8 +110,9 @@ function AuthorizedAdminPage() {
 }
 
 export default function AdminRoute() {
-  // Authorization must resolve before the shell streams out.
-  const authorization = createAsync(() => requireAdminPage());
+  // The deferred check streams the loading shell first and resolves once the
+  // D1-backed authorization settles; unauthorized roles are redirected.
+  const authorization = createAsync(() => requireAdminPageQuery(), { deferStream: true });
 
   return (
     <>
