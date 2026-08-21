@@ -13,7 +13,7 @@ const CheckoutResponseSchema = Schema.Struct({
 });
 
 async function login(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
   await page.getByLabel('Email Address').fill(email);
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign In' }).click();
@@ -36,13 +36,13 @@ test.describe('staging authenticated user', () => {
     expect(dashboardResponse.status()).toBe(200);
     expect(dashboardResponse.headers()['content-type']).toContain('application/json');
 
-    await page.goto('/admin');
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/dashboard$/);
 
     await page.getByRole('button', { name: 'Sign Out' }).click();
     await expect(page).toHaveURL(/\/login$/);
 
-    await page.goto('/dashboard');
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/login$/);
   });
 
@@ -76,7 +76,7 @@ test.describe('staging admin', () => {
 
   test('authorizes the admin page and downloads the users export', async ({ page }) => {
     await login(page, adminEmail ?? '', adminPassword ?? '');
-    await page.goto('/admin');
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
 
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByText('OMG Admin', { exact: true })).toBeVisible();
