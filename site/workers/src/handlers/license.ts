@@ -2,7 +2,7 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
 import { decodeJsonBody, InvalidJsonBodyError } from '../body';
-import { type Env, jsonResponse, errorResponse, generateId, logAudit, TIER_FEATURES } from '../api';
+import { type Env, jsonResponse, errorResponse, logAudit, TIER_FEATURES } from '../api';
 import { casesHandled } from '../prelude';
 import {
   ActiveMachineRowSchema,
@@ -302,7 +302,7 @@ function registerOrTouchMachine(
       env.DB,
       `INSERT INTO machines (id, license_id, machine_id, user_name, user_email, is_active)
        VALUES (?, ?, ?, ?, ?, 1)`,
-      [generateId(), license.id, machineId, body.userName, body.userEmail],
+      [crypto.randomUUID(), license.id, machineId, body.userName, body.userEmail],
       'insertMachine'
     );
     yield* logAudit(
@@ -600,7 +600,7 @@ function reportUsage(
          vulnerabilities_found = MAX(usage_daily.vulnerabilities_found, excluded.vulnerabilities_found),
          time_saved_ms = MAX(usage_daily.time_saved_ms, excluded.time_saved_ms)`,
       [
-        generateId(),
+        crypto.randomUUID(),
         policy.licenseId,
         today,
         optionalNumber(body.commands_run),
@@ -638,7 +638,7 @@ function reportMachineUsage(
            runtimes_switched = MAX(usage_member_daily.runtimes_switched, excluded.runtimes_switched),
            time_saved_ms = MAX(usage_member_daily.time_saved_ms, excluded.time_saved_ms)`,
         [
-          generateId(),
+          crypto.randomUUID(),
           licenseId,
           machineId,
           today,
@@ -705,7 +705,7 @@ function reportMachineUsage(
           env.DB,
           `INSERT OR IGNORE INTO achievements (id, customer_id, achievement_id)
            VALUES (?, ?, ?)`,
-          [generateId(), customerId, achievement],
+          [crypto.randomUUID(), customerId, achievement],
           'upsertAchievement'
         );
       }
@@ -779,7 +779,7 @@ export async function handleInstallPing(request: Request, env: Env): Promise<Res
             `INSERT OR IGNORE INTO install_stats (id, install_id, version, platform, backend, created_at)
              VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
           )
-            .bind(generateId(), body.install_id, version, platform, backend)
+            .bind(crypto.randomUUID(), body.install_id, version, platform, backend)
             .run(),
         catch: cause => new InstallPingStoreUnavailable(cause),
       });

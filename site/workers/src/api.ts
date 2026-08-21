@@ -271,11 +271,6 @@ export function errorResponse(message: string, status = 400): Response {
   return jsonResponse({ error: message }, status);
 }
 
-// Generate UUID
-export function generateId(): string {
-  return crypto.randomUUID();
-}
-
 // Generate secure token
 export function generateToken(): string {
   const array = new Uint8Array(32);
@@ -371,7 +366,7 @@ export function logAudit<TMetadata extends object>(
     `
         )
         .bind(
-          generateId(),
+          crypto.randomUUID(),
           customerId ?? null,
           action,
           resourceType ?? null,

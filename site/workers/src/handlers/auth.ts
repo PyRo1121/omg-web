@@ -5,7 +5,6 @@ import {
   type Env,
   jsonResponse,
   errorResponse,
-  generateId,
   generateToken,
   validateSession,
   logAudit,
@@ -278,7 +277,7 @@ export function sendVerificationCode(
           ),
           env.DB.prepare(
             `INSERT INTO auth_codes (id, email, code, expires_at) VALUES (?, ?, ?, ?)`
-          ).bind(generateId(), body.email, digest, expiresAt),
+          ).bind(crypto.randomUUID(), body.email, digest, expiresAt),
         ]),
       catch: cause => new AuthStoreUnavailable('replaceCode', cause),
     });
@@ -312,7 +311,7 @@ function findOrCreateCustomer(
     if (existing !== null) {
       return existing;
     }
-    const customerId = brandGeneratedId(CustomerId, generateId());
+    const customerId = brandGeneratedId(CustomerId, crypto.randomUUID());
     yield* Effect.tryPromise({
       try: () =>
         db
@@ -328,7 +327,7 @@ function findOrCreateCustomer(
             `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
              VALUES (?, ?, ?, 'free', 'active', 1)`
           )
-          .bind(generateId(), customerId, crypto.randomUUID())
+          .bind(crypto.randomUUID(), customerId, crypto.randomUUID())
           .run(),
       catch: cause => new AuthStoreUnavailable('insertLicense', cause),
     });
@@ -416,7 +415,7 @@ export function verifyCode(
            VALUES (?, ?, ?, ?, ?, ?)`
         )
           .bind(
-            generateId(),
+            crypto.randomUUID(),
             customer.id,
             sessionToken,
             request.headers.get('CF-Connecting-IP'),

@@ -7,7 +7,7 @@ import { reportError, reportInfo } from '../observability';
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-import { type Env, jsonResponse, errorResponse, generateId } from '../api';
+import { type Env, jsonResponse, errorResponse } from '../api';
 import { Effect, Exit } from 'effect';
 import { decodeJsonBody } from '../body';
 import { DocsAnalyticsBatchSchema } from '../contracts/http-bodies';
@@ -78,7 +78,7 @@ export async function handleDocsAnalytics(
         continue; // Skip malformed events
       }
 
-      const eventId = generateId();
+      const eventId = crypto.randomUUID();
       eventIds.push(eventId);
 
       // Enrich properties with server-side data

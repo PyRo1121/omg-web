@@ -1,6 +1,6 @@
 import { reportError } from '../observability';
 import { Effect, Exit } from 'effect';
-import { type Env, jsonResponse, errorResponse, generateId } from '../api';
+import { type Env, jsonResponse, errorResponse } from '../api';
 import { decodeJsonBody } from '../body';
 import {
   type TrackingBatch,
@@ -210,7 +210,7 @@ function eventStatements(context: TrackingContext, event: TrackingEvent): D1Prep
     context.db
       .prepare(EVENT_INSERT_SQL)
       .bind(
-        generateId(),
+        crypto.randomUUID(),
         event.event_type,
         event.event_name,
         enrichedProperties,

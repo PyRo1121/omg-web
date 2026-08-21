@@ -1,6 +1,6 @@
 import { reportError, reportWarning } from '../observability';
 // CLI telemetry event handlers
-import { type Env, jsonResponse, errorResponse, generateId } from '../api';
+import { type Env, jsonResponse, errorResponse } from '../api';
 import { Effect, Exit } from 'effect';
 import { decodeJsonBody } from '../body';
 import {
@@ -163,7 +163,7 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
       return jsonResponse({ success: true, skipped: true, reason: 'telemetry_opt_out' });
     }
     const licenseId = policyExit.value.licenseId;
-    const eventId = generateId();
+    const eventId = crypto.randomUUID();
 
     // Store based on event type (sanitize all fields)
     switch (body.event.type) {
@@ -347,7 +347,7 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
 
     // Process each event
     for (const item of body.events) {
-      const eventId = generateId();
+      const eventId = crypto.randomUUID();
 
       switch (item.event.type) {
         case 'command': {

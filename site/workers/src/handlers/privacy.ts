@@ -9,7 +9,6 @@ import {
   jsonResponse,
   errorResponse,
   corsHeaders,
-  generateId,
   getAuthToken,
   validateSession,
 } from '../api';
@@ -186,7 +185,7 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
       },
     ] as const;
 
-    const requestId = generateId();
+    const requestId = crypto.randomUUID();
     const results = await env.DB.batch([
       ...deletionOperations.map(operation => operation.statement),
       env.DB.prepare(
@@ -393,7 +392,7 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
       `INSERT INTO audit_log (id, action, resource_type, resource_id, ip_address, created_at)
        VALUES (?, 'data_export_request', 'customer', ?, ?, datetime('now'))`
     )
-      .bind(generateId(), customerId, request.headers.get('CF-Connecting-IP') ?? 'unknown')
+      .bind(crypto.randomUUID(), customerId, request.headers.get('CF-Connecting-IP') ?? 'unknown')
       .run();
 
     return new Response(JSON.stringify(exportData, null, 2), {

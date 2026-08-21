@@ -3,14 +3,7 @@ import { reportError } from '../observability';
  * Admin API Handlers - Production-Grade Implementation
  */
 
-import {
-  type Env,
-  jsonResponse,
-  errorResponse,
-  validateSession,
-  getAuthToken,
-  generateId,
-} from '../api';
+import { type Env, jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
 import { Effect, Exit } from 'effect';
 import { decodeJsonBody } from '../body';
 import {
@@ -107,7 +100,7 @@ async function validateAdmin(
   request: Request,
   env: Env
 ): Promise<{ context: AdminContext; error?: never } | { context?: never; error: Response }> {
-  const requestId = generateId();
+  const requestId = crypto.randomUUID();
   const timestamp = new Date().toISOString();
   const token = getAuthToken(request);
   if (!token) {
@@ -153,7 +146,7 @@ async function logAdminAudit<TMetadata extends object>(
   entry: AdminAuditEntry<TMetadata>
 ): Promise<void> {
   try {
-    const id = generateId();
+    const id = crypto.randomUUID();
     const ip = entry.request?.headers.get('CF-Connecting-IP') || null;
     const userAgent = entry.request?.headers.get('User-Agent') || null;
     const country = entry.request?.headers.get('CF-IPCountry') || null;
@@ -1413,7 +1406,7 @@ export async function handleAdminCreateNote(request: Request, env: Env): Promise
   }
   const body = decoded.value;
 
-  const noteId = generateId();
+  const noteId = crypto.randomUUID();
   const noteType = body.noteType || 'general';
 
   await env.DB.prepare(
@@ -1610,7 +1603,7 @@ export async function handleAdminCreateTag(request: Request, env: Env): Promise<
   }
   const body = decoded.value;
 
-  const tagId = generateId();
+  const tagId = crypto.randomUUID();
   const color = body.color || '#6366f1'; // Default indigo
 
   await env.DB.prepare(

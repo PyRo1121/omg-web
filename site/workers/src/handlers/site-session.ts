@@ -1,5 +1,5 @@
 import { Cause, Effect, Exit, Option } from 'effect';
-import { type Env, jsonResponse, errorResponse, generateId, logAudit } from '../api';
+import { type Env, jsonResponse, errorResponse, logAudit } from '../api';
 import { decodeJsonBody, InvalidJsonBodyError } from '../body';
 import * as Schema from 'effect/Schema';
 import {
@@ -70,7 +70,7 @@ function provisionSiteCustomer(
   body: SiteSessionRequest,
   request: Request
 ): Effect.Effect<CustomerRow, CustomerStoreUnavailable> {
-  const customerId = brandGeneratedId(CustomerId, generateId());
+  const customerId = brandGeneratedId(CustomerId, crypto.randomUUID());
   const company = body.name === undefined ? null : body.name;
   const admin = body.role === 'admin' ? 1 : 0;
   return Effect.gen(function* () {
@@ -91,7 +91,7 @@ function provisionSiteCustomer(
             `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
              VALUES (?, ?, ?, 'free', 'active', 1)`
           )
-          .bind(generateId(), customerId, crypto.randomUUID())
+          .bind(crypto.randomUUID(), customerId, crypto.randomUUID())
           .run(),
       catch: cause => new CustomerStoreUnavailable('insertLicense', cause),
     });
@@ -152,7 +152,7 @@ function insertSession(
   customerId: CustomerIdBrand,
   request: Request
 ): Effect.Effect<SiteSessionWorkerResponse, CustomerStoreUnavailable> {
-  const sessionId = generateId();
+  const sessionId = crypto.randomUUID();
   const token = brandGeneratedId(SessionToken, crypto.randomUUID());
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   return Effect.gen(function* () {
