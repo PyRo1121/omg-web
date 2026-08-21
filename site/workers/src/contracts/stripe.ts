@@ -176,7 +176,7 @@ export const StripeWebhookEventSchema = Schema.Struct({
       period_end: Schema.optional(Schema.Number),
       created: Schema.optional(Schema.Number),
       name: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
-      email: Schema.optional(Schema.String),
+      email: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
       metadata: Schema.optional(
         Schema.Struct({
           company: Schema.optional(Schema.String),

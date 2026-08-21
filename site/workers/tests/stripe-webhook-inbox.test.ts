@@ -232,6 +232,48 @@ describe('Stripe webhook inbox', () => {
     });
   });
 
+  it('processes customer.created with a null-email real-world payload', async () => {
+    // Stripe fixture customers carry email: null, name: null, and an empty
+    // metadata object; the event envelope must decode despite them.
+    const payload = JSON.stringify({
+      id: 'evt_customer_null_email',
+      object: 'event',
+      api_version: '2026-06-24.dahlia',
+      created: Math.floor(Date.now() / 1000),
+      data: {
+        object: {
+          id: 'cus_fixture_null_email',
+          object: 'customer',
+          created: Math.floor(Date.now() / 1000),
+          email: null,
+          name: null,
+          metadata: {},
+        },
+      },
+      livemode: false,
+      type: 'customer.created',
+    });
+
+    const response = await handleStripeWebhook(
+      new Request('http://localhost/api/webhooks/stripe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'stripe-signature': await stripeSignature(payload),
+        },
+        body: payload,
+      }),
+      env
+    );
+
+    expect(response.status).toBe(200);
+    expect(await readInboxRow('evt_customer_null_email')).toEqual({
+      status: 'processed',
+      attempt_count: 1,
+      processed: 1,
+    });
+  });
+
   it('asks Stripe to retry an event already being processed', async () => {
     await env.DB.prepare(
       `INSERT INTO stripe_events (

@@ -55,8 +55,8 @@ persist = true
 mode = "smart"
 
 [vars]
-STRIPE_PRO_PRICE_ID = "price_1SqWTHEFWzXv59QZC5zBGdLg"
-STRIPE_TEAM_PRICE_ID = "price_1SqWTXEFWzXv59QZB5G51MOV"
+STRIPE_PRO_PRICE_ID = "price_1U71F8PI6tkdUQScELAVo5Iz"
+STRIPE_TEAM_PRICE_ID = "price_1U71F8PI6tkdUQScqu6DuYI4"
 
 [triggers]
 crons = ["0 2 * * *"]

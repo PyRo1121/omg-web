@@ -515,6 +515,12 @@ export async function handleStripeWebhook(
     case 'customer.created': {
       const stripeCustomer = event.data.object;
 
+      // Customers without an email (possible at fixture/checkout start) cannot
+      // be keyed; the row is created by later events that carry one.
+      if (!stripeCustomer.email) {
+        break;
+      }
+
       // Check if customer already exists
       const existingRow = await env.DB.prepare(
         'SELECT id, stripe_customer_id FROM customers WHERE stripe_customer_id = ? OR email = ?'
@@ -533,14 +539,13 @@ export async function handleStripeWebhook(
 
       if (existing === undefined) {
         await env.DB.prepare(
-          `INSERT INTO customers (id, stripe_customer_id, email, name, company, created_at)
-           VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+          `INSERT INTO customers (id, stripe_customer_id, email, company, created_at)
+           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
         )
           .bind(
             crypto.randomUUID(),
             stripeCustomer.id,
             stripeCustomer.email,
-            stripeCustomer.name || null,
             stripeCustomer.metadata?.company || null
           )
           .run();
@@ -618,8 +623,8 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       for (const customer of data.data) {
         try {
           await env.DB.prepare(
-            `INSERT OR REPLACE INTO customers (id, stripe_customer_id, email, name, company, created_at)
-             VALUES (COALESCE((SELECT id FROM customers WHERE stripe_customer_id = ? OR email = ?), ?), ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+            `INSERT OR REPLACE INTO customers (id, stripe_customer_id, email, company, created_at)
+             VALUES (COALESCE((SELECT id FROM customers WHERE stripe_customer_id = ? OR email = ?), ?), ?, ?, ?, CURRENT_TIMESTAMP)`
           )
             .bind(
               customer.id,
@@ -627,7 +632,6 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
               crypto.randomUUID(),
               customer.id,
               customer.email,
-              customer.name,
               customer.metadata?.company
             )
             .run();

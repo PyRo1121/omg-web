@@ -53,7 +53,10 @@ test.describe('staging authenticated user', () => {
     test.skip(!allowMutations, 'Set E2E_ALLOW_MUTATIONS=true only for an isolated Stripe sandbox');
     await login(page, userEmail ?? '', userPassword ?? '');
 
+    // The BFF enforces same-origin on mutations; browsers always send Origin
+    // on POST, so the characterization must too.
     const response = await page.request.post('/api/licensing/api/billing/checkout', {
+      headers: { Origin: baseUrl ?? '' },
       data: { offer: 'pro' },
     });
     expect(response.status()).toBe(200);
