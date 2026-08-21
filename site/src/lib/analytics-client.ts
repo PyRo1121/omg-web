@@ -47,12 +47,13 @@ interface Viewport {
 type AnalyticsValue = string | number | boolean | null | UtmParams | Viewport;
 type AnalyticsProperties = Record<string, AnalyticsValue>;
 
+/** Event envelope matching the Worker's TrackingEventSchema. */
 interface AnalyticsEvent {
-  type: EventType;
-  name: string;
+  event_type: EventType;
+  event_name: string;
+  session_id: string;
   timestamp: number;
-  page_path: string;
-  page_url: string;
+  duration_ms?: number;
   properties: AnalyticsProperties;
 }
 
@@ -68,6 +69,17 @@ interface WebVitalsMetrics {
 let eventQueue: AnalyticsEvent[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let pageLoadTime = 0;
+
+// Random per-page-load session id; no storage is used, by design. Generated
+// lazily because global scope in Workers disallows random values at startup.
+let sessionId: string | null = null;
+
+function getSessionId(): string {
+  if (sessionId === null) {
+    sessionId = `ses_${crypto.randomUUID()}`;
+  }
+  return sessionId;
+}
 let maxScrollDepth = 0;
 let isInitialized = false;
 let vitalsReported = false;
@@ -153,15 +165,14 @@ function getUtmParams(): UtmParams {
  * Queue an analytics event
  */
 function queueEvent(type: EventType, name: string, properties: AnalyticsProperties = {}): void {
-  const context = getPageContext();
   const event: AnalyticsEvent = {
-    type,
-    name,
+    event_type: type,
+    event_name: name,
+    session_id: getSessionId(),
     timestamp: Date.now(),
-    page_path: context.page_path,
-    page_url: context.page_url,
     properties: {
       ...properties,
+      path: getPageContext().page_path,
       pv_id: currentPageViewId,
     },
   };

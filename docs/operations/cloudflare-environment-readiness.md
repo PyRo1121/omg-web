@@ -63,10 +63,22 @@ It performs only read operations and exits nonzero if `omg-saas`, `omg-site`, or
 ## Remaining production steps
 
 1. Configure OAuth provider callback URLs (`https://omg.latham.cloud/api/auth/callback/{github,google}`) in the GitHub/Google consoles when social sign-in is enabled.
-2. Verify `latham.cloud` email deliverability with Resend before enabling OTP email (`noreply@latham.cloud` sender); OTP stays unavailable until then.
+2. OTP email delivery requires either Workers Paid (Cloudflare Email Sending to arbitrary recipients is unavailable on the Free plan) or a third-party sender; until then OTP stays unavailable while email/password sign-up works fully.
 3. Configure Stripe products/prices/webhook secret in test mode first; billing stays `503` until then. Update checkout success/return URLs only if the domain changes again.
-4. Run authenticated Playwright characterization against `https://omg.latham.cloud`.
-5. Verify Workers observability after first real traffic and confirm rollback via `wrangler deployments list`.
+4. Verify Workers observability after first real traffic and confirm rollback via `wrangler deployments list`.
+
+## Authenticated characterization status
+
+Password sign-up and sign-in are live-verified against production (2026-08-21). Two designated E2E users exist in the platform database (`e2e-user@latham.cloud`, `e2e-admin@latham.cloud`; passwords are provided per-run via `E2E_*` environment variables, never committed):
+
+```bash
+cd site && E2E_BASE_URL=https://omg.latham.cloud \
+  E2E_USER_EMAIL=... E2E_USER_PASSWORD=... \
+  E2E_ADMIN_EMAIL=... E2E_ADMIN_PASSWORD=... \
+  npx playwright test e2e/
+```
+
+The suite covers login, dashboard rendering, the authenticated licensing BFF, non-admin authorization redirects, admin authorization with the users CSV export, and logout. The Stripe checkout check remains gated behind `E2E_ALLOW_MUTATIONS=true` for an isolated sandbox.
 
 See also:
 

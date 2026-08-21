@@ -532,11 +532,20 @@ export const AdminAdvancedMetricsSchema = Schema.Struct({
           retained_users: Num,
         })
       ),
-      product_stickiness: Schema.Struct({
-        daily_active_pct: Num,
-        weekly_active_pct: Num,
-        avg_days_between_sessions: Num,
-      }),
+      product_stickiness: Schema.optionalWith(
+        Schema.Struct({
+          daily_active_pct: Num,
+          weekly_active_pct: Num,
+          avg_days_between_sessions: Num,
+        }),
+        {
+          default: () => ({
+            daily_active_pct: 0,
+            weekly_active_pct: 0,
+            avg_days_between_sessions: 0,
+          }),
+        }
+      ),
     })
   ),
   ltv_by_tier: decodeNumArray(

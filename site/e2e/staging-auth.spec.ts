@@ -86,6 +86,6 @@ test.describe('staging admin', () => {
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: /Users/ }).click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/^users-.*\.csv$/);
+    expect(download.suggestedFilename()).toMatch(/^omg-users-.*\.csv$/);
   });
 });
