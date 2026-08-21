@@ -23,6 +23,7 @@ jobs:
       - run: npm ci --prefix site
       - run: npm ci --prefix site/workers
       - run: npm run check
+      - run: npm run build:check --prefix site
 
   e2e-anonymous:
     runs-on: ubuntu-latest
