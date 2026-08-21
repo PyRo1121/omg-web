@@ -122,76 +122,119 @@ const SOFTWARE_SCHEMA: SoftwareApplicationSchema = {
   },
 };
 
+/**
+ * Build the page title with the site name suffix unless already exact.
+ *
+ * @param title - Raw page title.
+ * @returns The full title for search results and social cards.
+ */
+export function buildFullTitle(title: string): string {
+  return title === SITE_NAME ? title : `${title} | ${SITE_NAME}`;
+}
+
+/**
+ * Resolve a possibly relative URL against the site origin.
+ *
+ * @param url - Absolute or site-relative URL.
+ * @returns The absolute URL, or undefined when no value was provided.
+ */
+export function absoluteUrl(url: string | undefined): string | undefined {
+  if (url === undefined) {
+    return undefined;
+  }
+  return url.startsWith('http') ? url : `${SITE_URL}${url}`;
+}
+
+const INDEX_ROBOTS_CONTENT =
+  'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
+
+/**
+ * Build the robots directive for a page.
+ *
+ * @param noindex - Whether indexing is disabled.
+ * @returns The robots meta content.
+ */
+export function robotsContent(noindex: boolean | undefined): string {
+  return noindex === true ? 'noindex, nofollow' : INDEX_ROBOTS_CONTENT;
+}
+
+/**
+ * Build a BreadcrumbList schema from breadcrumb items.
+ *
+ * @param breadcrumbs - Ordered breadcrumb items.
+ * @returns The schema node, or null when no breadcrumbs exist.
+ */
+export function breadcrumbListSchema(
+  breadcrumbs: BreadcrumbItem[] | undefined
+): BreadcrumbListSchema | null {
+  if (!breadcrumbs || breadcrumbs.length === 0) {
+    return null;
+  }
+  return {
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumbs.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: absoluteUrl(item.url) ?? item.url,
+    })),
+  };
+}
+
+/**
+ * Combine the default and page-specific structured data nodes.
+ *
+ * @param props - Resolved page SEO inputs.
+ * @returns The JSON-LD @graph entries.
+ */
+function combinedStructuredData(props: {
+  breadcrumbs?: BreadcrumbItem[];
+  structuredData?: StructuredData[];
+}): StructuredData[] {
+  const data: StructuredData[] = [ORGANIZATION_SCHEMA, SOFTWARE_SCHEMA];
+  const breadcrumbs = breadcrumbListSchema(props.breadcrumbs);
+  if (breadcrumbs !== null) {
+    data.push(breadcrumbs);
+  }
+  if (props.structuredData !== undefined) {
+    data.push(...props.structuredData);
+  }
+  return data;
+}
+
+/**
+ * Serialize the page's structured data into JSON-LD content.
+ *
+ * @param props - Resolved page SEO inputs.
+ * @returns The JSON-LD script body.
+ */
+export function jsonLdContent(props: {
+  breadcrumbs?: BreadcrumbItem[];
+  structuredData?: StructuredData[];
+}): string {
+  const graph = {
+    '@context': 'https://schema.org',
+    '@graph': combinedStructuredData(props),
+  };
+  return JSON.stringify(graph);
+}
+
 // ============================================================================
 // Component
 // ============================================================================
 
 const SeoMeta: Component<SeoMetaProps> = props => {
   // Build full title with site name
-  const fullTitle = createMemo(() => {
-    if (props.title === SITE_NAME) {
-      return props.title;
-    }
-    return `${props.title} | ${SITE_NAME}`;
-  });
+  const fullTitle = createMemo(() => buildFullTitle(props.title));
 
   // Canonical URL
-  const canonicalUrl = createMemo(() => {
-    if (props.canonical) {
-      return props.canonical.startsWith('http') ? props.canonical : `${SITE_URL}${props.canonical}`;
-    }
-    return undefined;
-  });
+  const canonicalUrl = createMemo(() => absoluteUrl(props.canonical));
 
   // Image URL
-  const imageUrl = createMemo(() => {
-    const img = props.image || DEFAULT_IMAGE;
-    return img.startsWith('http') ? img : `${SITE_URL}${img}`;
-  });
-
-  // Build BreadcrumbList schema from props
-  const breadcrumbSchema = createMemo((): BreadcrumbListSchema | null => {
-    if (!props.breadcrumbs || props.breadcrumbs.length === 0) {
-      return null;
-    }
-
-    return {
-      '@type': 'BreadcrumbList',
-      itemListElement: props.breadcrumbs.map((item, index) => ({
-        '@type': 'ListItem',
-        position: index + 1,
-        name: item.name,
-        item: item.url.startsWith('http') ? item.url : `${SITE_URL}${item.url}`,
-      })),
-    };
-  });
-
-  // Combine all structured data
-  const allStructuredData = createMemo(() => {
-    const data: StructuredData[] = [ORGANIZATION_SCHEMA, SOFTWARE_SCHEMA];
-
-    // Add breadcrumbs if provided
-    const breadcrumbs = breadcrumbSchema();
-    if (breadcrumbs) {
-      data.push(breadcrumbs);
-    }
-
-    // Add custom structured data
-    if (props.structuredData) {
-      data.push(...props.structuredData);
-    }
-
-    return data;
-  });
+  const imageUrl = createMemo(() => absoluteUrl(props.image) ?? DEFAULT_IMAGE);
 
   // Generate JSON-LD script content
-  const jsonLd = createMemo(() => {
-    const graph = {
-      '@context': 'https://schema.org',
-      '@graph': allStructuredData(),
-    };
-    return JSON.stringify(graph);
-  });
+  const jsonLd = createMemo(() => jsonLdContent(props));
 
   return (
     <>
@@ -206,15 +249,7 @@ const SeoMeta: Component<SeoMetaProps> = props => {
       </Show>
 
       {/* Robots */}
-      <Show when={props.noindex}>
-        <SolidMeta name="robots" content="noindex, nofollow" />
-      </Show>
-      <Show when={!props.noindex}>
-        <SolidMeta
-          name="robots"
-          content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
-        />
-      </Show>
+      <SolidMeta name="robots" content={robotsContent(props.noindex)} />
 
       {/* Canonical URL */}
       <Show when={canonicalUrl()}>
