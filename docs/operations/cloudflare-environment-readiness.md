@@ -33,6 +33,7 @@ The 2026-08-21 inventory used Wrangler 4.125.0 and the authenticated `PyRo1121` 
 - All three configured D1 UUIDs returned Cloudflare error `7404` (database not found).
 - The account contained only the unrelated `tcg-vault-images` R2 bucket.
 - Both checked production R2 buckets returned Cloudflare error `10006` (bucket does not exist).
+- Contemporaneous DNS resolution failed for `pyro1121.com`, `api.pyro1121.com`, `releases.pyro1121.com`, `omg-site-4gd.pages.dev`, and `omg-docs.pages.dev`. Search indexes still contain historical page snapshots, but those are not evidence of a live deployment.
 
 Therefore a successful local dry run proves only that bundles and configuration syntax are valid. It does **not** prove that the configured remote resources or service bindings exist.
 
