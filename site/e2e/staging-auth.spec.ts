@@ -40,7 +40,8 @@ test.describe('staging authenticated user', () => {
     await expect(page).toHaveURL(/\/dashboard$/);
 
     await page.getByRole('button', { name: 'Sign Out' }).click();
-    await expect(page).toHaveURL(/\/login\/?$/);
+    // Sign-out intentionally returns to the marketing home page.
+    await expect(page).toHaveURL(/\/$/);
 
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/login\/?$/);

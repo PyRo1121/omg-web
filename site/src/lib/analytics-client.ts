@@ -17,7 +17,7 @@ import {
   navigationTtfbMs,
 } from './performance-entry';
 
-const ANALYTICS_ENDPOINT = 'https://omg-api.latham.cloud/api/site/analytics/events';
+const ANALYTICS_ENDPOINT = 'https://omg-api.latham.cloud/api/site/analytics/track';
 const BATCH_INTERVAL_MS = 3000;
 const MAX_BATCH_SIZE = 20;
 

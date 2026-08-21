@@ -33,6 +33,7 @@ describe('canonical D1 migrations', () => {
       '011_stripe_event_inbox.sql',
       '012_secure_otp.sql',
       '013_better_auth.sql',
+      '014_better_auth_issuer.sql',
     ]);
   });
 
@@ -50,7 +51,7 @@ describe('canonical D1 migrations', () => {
       expect.arrayContaining(['id', 'token', 'expires_at', 'user_id'])
     );
     expect(await tableColumns('auth_account')).toEqual(
-      expect.arrayContaining(['id', 'account_id', 'provider_id', 'user_id'])
+      expect.arrayContaining(['id', 'issuer', 'account_id', 'provider_id', 'user_id'])
     );
     expect(await tableColumns('auth_verification')).toEqual(
       expect.arrayContaining(['id', 'identifier', 'value', 'expires_at'])

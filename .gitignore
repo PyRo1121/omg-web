@@ -35,3 +35,4 @@ tasks/
 *.log
 *.cpuprofile
 npm-debug.log*
+site/workers/.wrangler/

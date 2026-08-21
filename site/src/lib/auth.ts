@@ -30,7 +30,11 @@ export function createAuth(env: CloudflareEnv) {
   const db = drizzle(env.DB, { schema });
   const socialProviders: SocialProviders = {};
 
-  const baseUrl = new URL(env.BETTER_AUTH_URL).origin;
+  const parsedBaseUrl = URL.parse(env.BETTER_AUTH_URL);
+  if (parsedBaseUrl === null) {
+    throw new Error('BETTER_AUTH_URL must be a valid absolute URL');
+  }
+  const baseUrl = parsedBaseUrl.origin;
 
   if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
     socialProviders.github = {
