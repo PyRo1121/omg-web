@@ -21,7 +21,7 @@ function getEnv(event: APIEvent): CloudflareEnv {
 
 async function handleAuth(event: APIEvent): Promise<Response> {
   const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://pyro1121.com',
+    'Access-Control-Allow-Origin': 'https://omg.latham.cloud',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Credentials': 'true',

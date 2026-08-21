@@ -84,7 +84,7 @@ Do not log raw payloads, session identifiers, user agents, IP addresses, or cust
 - Check the HTTP status before inspecting storage.
 - Confirm the request body matches the installed Schema contract and contains no more than 50 events.
 - Check rate-limit events and structured Worker errors.
-- Confirm the request reached `api.pyro1121.com` and was not rejected by routing or CORS policy.
+- Confirm the request reached `omg-api.latham.cloud` and was not rejected by routing or CORS policy.
 
 ### Aggregates are stale
 

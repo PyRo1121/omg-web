@@ -1,1 +1,2 @@
-/omg-*.tar.gz  https://api.pyro1121.com/download/x86_64-unknown-linux-gnu  301
+# Release artifacts are delivered from GitHub Releases (free-tier policy).
+/omg-*.tar.gz  https://github.com/PyRo1121/omg/releases/latest/download/omg-x86_64-unknown-linux-gnu.tar.gz  302

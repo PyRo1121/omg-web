@@ -193,7 +193,7 @@ const Pricing: Component = () => {
             </ul>
 
             <a
-              href="mailto:enterprise@pyro1121.com"
+              href="mailto:enterprise@latham.cloud"
               class="btn-secondary w-full justify-center text-sm"
             >
               Contact Sales
@@ -203,7 +203,7 @@ const Pricing: Component = () => {
 
         <p class="mt-8 text-center text-slate-500">
           Need custom terms or volume pricing?{' '}
-          <a href="mailto:sales@pyro1121.com" class="text-indigo-400 hover:underline">
+          <a href="mailto:sales@latham.cloud" class="text-indigo-400 hover:underline">
             Contact sales
           </a>
         </p>

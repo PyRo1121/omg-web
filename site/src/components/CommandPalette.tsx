@@ -30,7 +30,7 @@ const CommandPalette: Component = () => {
   const navigate = useNavigate();
 
   const copyInstallCommand = () => {
-    navigator.clipboard.writeText('curl -fsSL https://pyro1121.com/install.sh | bash');
+    navigator.clipboard.writeText('curl -fsSL https://omg.latham.cloud/install.sh | bash');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     setOpen(false);

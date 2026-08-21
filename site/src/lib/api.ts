@@ -9,7 +9,7 @@ import { LicensingRoutes } from '../../shared/licensing-routes';
 
 type WorkerBody<S extends Schema.Schema.AnyNoContext> = Schema.Schema.Type<S>;
 
-const PUBLIC_WORKER_BASE = 'https://api.pyro1121.com';
+const PUBLIC_WORKER_BASE = 'https://omg-api.latham.cloud';
 const LICENSING_BFF_BASE = '/api/licensing';
 
 // Authenticated same-origin BFF request with Schema decode at the boundary

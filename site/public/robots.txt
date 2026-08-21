@@ -1,4 +1,4 @@
-# OMG Package Manager - https://pyro1121.com
+# OMG Package Manager - https://omg.latham.cloud
 # The fastest unified package manager for Linux
 # Manage packages + runtimes (Node, Python, Go, Rust, Ruby, Java, Bun) in one CLI
 
@@ -10,8 +10,7 @@ Disallow: /_*
 Disallow: /private/
 
 # Sitemaps (main site + documentation)
-Sitemap: https://pyro1121.com/sitemap.xml
-Sitemap: https://pyro1121.com/docs/sitemap.xml
+Sitemap: https://omg.latham.cloud/sitemap.xml
 
 # ===========================================
 # Major Search Engines - Full Access
@@ -183,4 +182,4 @@ Disallow: /
 # ===========================================
 # Host directive (canonical domain)
 # ===========================================
-Host: pyro1121.com
+Host: omg.latham.cloud

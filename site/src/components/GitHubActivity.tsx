@@ -63,7 +63,7 @@ const GitHubActivity: Component = () => {
     }
 
     try {
-      let response = await fetch('https://api.pyro1121.com/api/github-stats');
+      let response = await fetch('https://omg-api.latham.cloud/api/github-stats');
 
       if (!response.ok) {
         reportClientWarning('Proxy failed, falling back to direct GitHub API');

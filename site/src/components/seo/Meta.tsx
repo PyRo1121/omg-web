@@ -91,7 +91,7 @@ interface WebPageSchema {
 // ============================================================================
 
 const SITE_NAME = 'OMG Package Manager';
-const SITE_URL = 'https://pyro1121.com';
+const SITE_URL = 'https://omg.latham.cloud';
 const DEFAULT_IMAGE = `${SITE_URL}/og/omg-og.png`;
 const DEFAULT_IMAGE_ALT = 'OMG - The Fastest Linux Package Manager';
 const TWITTER_HANDLE = '@omgpkg';

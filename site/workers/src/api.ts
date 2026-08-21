@@ -231,30 +231,20 @@ export const TIER_FEATURES = {
   },
 };
 
-// CORS headers - Allow main site and docs site
+// CORS headers - Allow the deployed site subdomain
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://pyro1121.com',
+  'Access-Control-Allow-Origin': 'https://omg.latham.cloud',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 // Helper to get origin-specific CORS headers (for authenticated endpoints)
 export function getCorsHeaders(origin: string | null) {
-  const allowedOrigins = [
-    'https://pyro1121.com',
-    'https://omg-docs.pages.dev',
-    'https://*.omg-docs.pages.dev',
-  ];
+  const allowedOrigins = ['https://omg.latham.cloud'];
 
-  const isAllowed =
-    origin &&
-    allowedOrigins.some(allowed =>
-      allowed.includes('*')
-        ? origin.endsWith(allowed.replace('https://*.', '.'))
-        : origin === allowed
-    );
+  const isAllowed = origin !== null && allowedOrigins.includes(origin);
 
-  const allowedOrigin = isAllowed && origin ? origin : 'https://pyro1121.com';
+  const allowedOrigin = isAllowed && origin ? origin : 'https://omg.latham.cloud';
 
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
@@ -477,7 +467,7 @@ export async function sendEmail(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'OMG <noreply@pyro1121.com>',
+        from: 'OMG <noreply@latham.cloud>',
         to,
         subject,
         html,

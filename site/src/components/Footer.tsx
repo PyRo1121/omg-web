@@ -96,7 +96,7 @@ const Footer: Component = () => {
                 </a>
               </li>
               <li>
-                <a href="mailto:support@pyro1121.com" class="transition-colors hover:text-white">
+                <a href="mailto:support@latham.cloud" class="transition-colors hover:text-white">
                   Contact
                 </a>
               </li>

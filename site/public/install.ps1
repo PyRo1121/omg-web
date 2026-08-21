@@ -1,5 +1,5 @@
 # OMG Installer for Windows
-# Usage: irm https://pyro1121.com/install.ps1 | iex
+# Usage: irm https://omg.latham.cloud/install.ps1 | iex
 
 param(
     [string]$Version = "latest",
@@ -219,7 +219,7 @@ function Main {
     Write-Host ""
     
     Write-Host "📚 Full documentation: " -NoNewline
-    Write-Host "https://pyro1121.com/docs" -ForegroundColor Blue
+    Write-Host "https://github.com/PyRo1121/omg/blob/main/README.md" -ForegroundColor Blue
     Write-Host ""
     
     Write-Warning "Restart your terminal for PATH changes to take effect"

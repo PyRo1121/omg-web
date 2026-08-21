@@ -6,8 +6,8 @@ const Installation: Component = () => {
   const [activeTab, setActiveTab] = createSignal<'curl' | 'windows' | 'arch' | 'scoop'>('curl');
 
   const commands = {
-    curl: 'curl -fsSL https://pyro1121.com/install.sh | bash',
-    windows: 'irm https://pyro1121.com/install.ps1 | iex',
+    curl: 'curl -fsSL https://omg.latham.cloud/install.sh | bash',
+    windows: 'irm https://omg.latham.cloud/install.ps1 | iex',
     arch: 'yay -S omg-bin',
     scoop: 'scoop install omg',
   };
@@ -211,7 +211,9 @@ const Installation: Component = () => {
             <p class="mb-3 text-sm text-slate-400">
               PowerShell installer or Scoop package manager. Native Windows support.
             </p>
-            <code class="font-mono text-xs text-blue-400">irm pyro1121.com/install.ps1 | iex</code>
+            <code class="font-mono text-xs text-blue-400">
+              irm omg.latham.cloud/install.ps1 | iex
+            </code>
           </div>
         </div>
 

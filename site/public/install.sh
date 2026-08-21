@@ -102,40 +102,40 @@ detect_os() {
     local os
     os="$(uname -s)"
     case "$os" in
-        Linux*)
-            # Check for WSL
-            if grep -qi microsoft /proc/version 2>/dev/null; then
-                echo "windows"
-            else
-                echo "linux"
-            fi
-            ;;
-        Darwin*) echo "darwin" ;;
-        MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
-        *) echo "unknown" ;;
+    Linux*)
+        # Check for WSL
+        if grep -qi microsoft /proc/version 2>/dev/null; then
+            echo "windows"
+        else
+            echo "linux"
+        fi
+        ;;
+    Darwin*) echo "darwin" ;;
+    MINGW* | MSYS* | CYGWIN*) echo "windows" ;;
+    *) echo "unknown" ;;
     esac
 }
 
 detect_distro() {
     local distro="unknown"
-    
+
     if [[ -f /etc/os-release ]]; then
         # Source the file and extract ID
         # shellcheck disable=SC1091
         . /etc/os-release
         distro="${ID:-unknown}"
-        
+
         # Normalize common distro names
         case "$distro" in
-            ubuntu) distro="ubuntu" ;;
-            debian) distro="debian" ;;
-            arch) distro="arch" ;;
-            fedora) distro="fedora" ;;
-            rhel|centos) distro="fedora" ;; # Use Fedora binary for RHEL/CentOS
-            *) distro="unknown" ;;
+        ubuntu) distro="ubuntu" ;;
+        debian) distro="debian" ;;
+        arch) distro="arch" ;;
+        fedora) distro="fedora" ;;
+        rhel | centos) distro="fedora" ;; # Use Fedora binary for RHEL/CentOS
+        *) distro="unknown" ;;
         esac
     fi
-    
+
     echo "$distro"
 }
 
@@ -143,12 +143,12 @@ detect_arch() {
     local machine
     machine="$(uname -m)"
     case "$machine" in
-        x86_64|amd64) echo "x86_64" ;;
-        aarch64) echo "aarch64" ;;
-        arm64) echo "aarch64" ;; # macOS uses arm64, normalize to aarch64
-        i686|i386) echo "i686" ;;
-        armv7l) echo "armv7l" ;;
-        *) echo "$machine" ;;
+    x86_64 | amd64) echo "x86_64" ;;
+    aarch64) echo "aarch64" ;;
+    arm64) echo "aarch64" ;; # macOS uses arm64, normalize to aarch64
+    i686 | i386) echo "i686" ;;
+    armv7l) echo "armv7l" ;;
+    *) echo "$machine" ;;
     esac
 }
 
@@ -158,31 +158,31 @@ select_artifact() {
     local distro="$3"
     local arch="$4"
     local asset_name=""
-    
+
     case "$os" in
-        linux)
-            case "$distro" in
-                arch|debian|ubuntu|fedora)
-                    asset_name="omg-${version}-${arch}-linux-${distro}.tar.gz"
-                    ;;
-                *)
-                    # Fallback to Fedora binary for unknown distros
-                    warn "Unknown Linux distro '${distro}', using Fedora binary (pure Rust, most portable)"
-                    asset_name="omg-${version}-${arch}-linux-fedora.tar.gz"
-                    ;;
-            esac
-            ;;
-        darwin)
-            asset_name="omg-${version}-${arch}-darwin.tar.gz"
-            ;;
-        windows)
-            asset_name="omg-${version}-${arch}-windows.zip"
+    linux)
+        case "$distro" in
+        arch | debian | ubuntu | fedora)
+            asset_name="omg-${version}-${arch}-linux-${distro}.tar.gz"
             ;;
         *)
-            return 1
+            # Fallback to Fedora binary for unknown distros
+            warn "Unknown Linux distro '${distro}', using Fedora binary (pure Rust, most portable)"
+            asset_name="omg-${version}-${arch}-linux-fedora.tar.gz"
             ;;
+        esac
+        ;;
+    darwin)
+        asset_name="omg-${version}-${arch}-darwin.tar.gz"
+        ;;
+    windows)
+        asset_name="omg-${version}-${arch}-windows.zip"
+        ;;
+    *)
+        return 1
+        ;;
     esac
-    
+
     echo "$asset_name"
 }
 
@@ -227,7 +227,7 @@ install_from_release() {
     # Select correct artifact name
     local artifact_name
     artifact_name=$(select_artifact "$actual_version" "$detected_os" "$detected_distro" "$detected_arch")
-    
+
     if [[ -z "$artifact_name" ]]; then
         warn "Unable to determine artifact name for ${detected_os}/${detected_distro}/${detected_arch}"
         return 1
@@ -235,11 +235,11 @@ install_from_release() {
 
     # Find download URL for the artifact
     local asset_url
-    asset_url=$(printf "%s" "$release_json" \
-        | grep -Eo '"browser_download_url"\s*:\s*"[^"]+"' \
-        | cut -d '"' -f4 \
-        | grep -F "$artifact_name" \
-        | head -n1)
+    asset_url=$(printf "%s" "$release_json" |
+        grep -Eo '"browser_download_url"\s*:\s*"[^"]+"' |
+        cut -d '"' -f4 |
+        grep -F "$artifact_name" |
+        head -n1)
 
     if [[ -z "$asset_url" ]]; then
         warn "No prebuilt binary found for ${detected_os}/${detected_distro}/${detected_arch} (artifact: ${artifact_name})"
@@ -258,7 +258,7 @@ install_from_release() {
     else
         download_file="$tmp_dir/omg-release.tar.gz"
     fi
-    
+
     if curl -fsSL "$asset_url" -o "$download_file" >/dev/null 2>&1; then
         stop_spinner "Download complete"
     else
@@ -337,11 +337,11 @@ header() {
 start_spinner() {
     local msg="$1"
     tput_safe civis # Hide cursor
-    
+
     (
         local chars="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
         while :; do
-            for (( i=0; i<${#chars}; i++ )); do
+            for ((i = 0; i < ${#chars}; i++)); do
                 local c="${chars:$i:1}"
                 printf "\r${CYAN}${c}${RESET} %s..." "$msg"
                 sleep 0.1
@@ -374,7 +374,7 @@ fail_spinner() {
 print_banner() {
     clear
     printf "${MAGENTA}${BOLD}"
-    cat << 'EOF'
+    cat <<'EOF'
     ____  __  __  ____ 
    / __ \|  \/  |/ ___|
   | |  | | |\/| | |  _ 
@@ -388,48 +388,48 @@ EOF
 # 🛡️ System Checks
 check_platform() {
     header "Checking System"
-    
+
     local detected_os
     local detected_distro
     local detected_arch
     detected_os=$(detect_os)
     detected_distro=$(detect_distro)
     detected_arch=$(detect_arch)
-    
+
     info "Detected OS: ${detected_os}"
     info "Detected Distro: ${detected_distro}"
     info "Detected Architecture: ${detected_arch}"
-    
+
     case "$detected_os" in
-        linux)
-            case "$detected_distro" in
-                arch|debian|ubuntu|fedora)
-                    success "Supported platform detected"
-                    ;;
-                unknown)
-                    warn "Unknown Linux distro detected - will use Fedora binary (pure Rust, most portable)"
-                    ;;
-                *)
-                    warn "Untested platform - attempting installation with Fedora binary"
-                    ;;
-            esac
+    linux)
+        case "$detected_distro" in
+        arch | debian | ubuntu | fedora)
+            success "Supported platform detected"
             ;;
-        darwin)
-            success "macOS detected"
-            ;;
-        windows)
-            success "Windows/WSL detected"
+        unknown)
+            warn "Unknown Linux distro detected - will use Fedora binary (pure Rust, most portable)"
             ;;
         *)
-            error "Unsupported platform: ${detected_os}. Please file an issue at https://github.com/PyRo1121/omg/issues"
+            warn "Untested platform - attempting installation with Fedora binary"
             ;;
+        esac
+        ;;
+    darwin)
+        success "macOS detected"
+        ;;
+    windows)
+        success "Windows/WSL detected"
+        ;;
+    *)
+        error "Unsupported platform: ${detected_os}. Please file an issue at https://github.com/PyRo1121/omg/issues"
+        ;;
     esac
 }
 
 check_dependencies() {
     local missing=()
     local deps=("git" "cargo" "pkg-config" "gcc")
-    
+
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" >/dev/null 2>&1; then
             missing+=("$dep")
@@ -446,62 +446,62 @@ check_dependencies() {
         echo
         if [[ ! $REPLY =~ ^[Nn]$ ]]; then
             start_spinner "Installing dependencies"
-            
+
             local detected_os
             detected_os=$(detect_os)
-            
+
             case "$detected_os" in
-                linux)
-                    local detected_distro
-                    detected_distro=$(detect_distro)
-                    case "$detected_distro" in
-                        arch)
-                            if sudo pacman -S --needed --noconfirm "${missing[@]}" base-devel >/dev/null 2>&1; then
-                                stop_spinner "Dependencies installed"
-                            else
-                                fail_spinner "Failed to install dependencies"
-                                error "Please install manually: sudo pacman -S ${missing[*]} base-devel"
-                            fi
-                            ;;
-                        debian|ubuntu)
-                            if sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y "${missing[@]}" >/dev/null 2>&1; then
-                                stop_spinner "Dependencies installed"
-                            else
-                                fail_spinner "Failed to install dependencies"
-                                error "Please install manually: sudo apt-get install ${missing[*]}"
-                            fi
-                            ;;
-                        fedora)
-                            if sudo dnf install -y "${missing[@]}" >/dev/null 2>&1; then
-                                stop_spinner "Dependencies installed"
-                            else
-                                fail_spinner "Failed to install dependencies"
-                                error "Please install manually: sudo dnf install ${missing[*]}"
-                            fi
-                            ;;
-                        *)
-                            fail_spinner "Unknown package manager"
-                            error "Please install dependencies manually: ${missing[*]}"
-                            ;;
-                    esac
-                    ;;
-                darwin)
-                    if command -v brew >/dev/null 2>&1; then
-                        if brew install "${missing[@]}" >/dev/null 2>&1; then
-                            stop_spinner "Dependencies installed"
-                        else
-                            fail_spinner "Failed to install dependencies"
-                            error "Please install manually: brew install ${missing[*]}"
-                        fi
+            linux)
+                local detected_distro
+                detected_distro=$(detect_distro)
+                case "$detected_distro" in
+                arch)
+                    if sudo pacman -S --needed --noconfirm "${missing[@]}" base-devel >/dev/null 2>&1; then
+                        stop_spinner "Dependencies installed"
                     else
-                        fail_spinner "Homebrew not found"
-                        error "Please install Homebrew first: https://brew.sh"
+                        fail_spinner "Failed to install dependencies"
+                        error "Please install manually: sudo pacman -S ${missing[*]} base-devel"
+                    fi
+                    ;;
+                debian | ubuntu)
+                    if sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y "${missing[@]}" >/dev/null 2>&1; then
+                        stop_spinner "Dependencies installed"
+                    else
+                        fail_spinner "Failed to install dependencies"
+                        error "Please install manually: sudo apt-get install ${missing[*]}"
+                    fi
+                    ;;
+                fedora)
+                    if sudo dnf install -y "${missing[@]}" >/dev/null 2>&1; then
+                        stop_spinner "Dependencies installed"
+                    else
+                        fail_spinner "Failed to install dependencies"
+                        error "Please install manually: sudo dnf install ${missing[*]}"
                     fi
                     ;;
                 *)
-                    fail_spinner "Unknown OS"
+                    fail_spinner "Unknown package manager"
                     error "Please install dependencies manually: ${missing[*]}"
                     ;;
+                esac
+                ;;
+            darwin)
+                if command -v brew >/dev/null 2>&1; then
+                    if brew install "${missing[@]}" >/dev/null 2>&1; then
+                        stop_spinner "Dependencies installed"
+                    else
+                        fail_spinner "Failed to install dependencies"
+                        error "Please install manually: brew install ${missing[*]}"
+                    fi
+                else
+                    fail_spinner "Homebrew not found"
+                    error "Please install Homebrew first: https://brew.sh"
+                fi
+                ;;
+            *)
+                fail_spinner "Unknown OS"
+                error "Please install dependencies manually: ${missing[*]}"
+                ;;
             esac
         else
             error "Dependencies required to proceed."
@@ -514,16 +514,16 @@ check_dependencies() {
 # 🏗️ Build & Install
 build_omg() {
     header "Building OMG"
-    
+
     local work_dir
-    
+
     if [[ "$IS_SOURCE_INSTALL" == "true" ]]; then
         work_dir="$SCRIPT_DIR"
         info "Installing from source directory"
     else
         work_dir=$(mktemp -d)
         trap 'rm -rf "$work_dir"' EXIT
-        
+
         start_spinner "Cloning repository"
         if git clone --depth 1 "$REPO_URL" "$work_dir" >/dev/null 2>&1; then
             stop_spinner "Repository cloned"
@@ -534,7 +534,7 @@ build_omg() {
     fi
 
     cd "$work_dir"
-    
+
     export RUSTFLAGS="-C target-cpu=native"
     start_spinner "Compiling binary (release)"
     if cargo build --release --quiet >/dev/null 2>&1; then
@@ -553,19 +553,19 @@ build_omg() {
         cp "target/release/omgd" "$INSTALL_DIR/"
     fi
     chmod +x "$INSTALL_DIR/omg"
-    
+
     success "Installed to $INSTALL_DIR/omg"
 }
 
 # ⚙️ Configuration
 setup_config() {
     header "Configuration"
-    
+
     mkdir -p "$DATA_DIR"/{versions,cache,db}
     mkdir -p "$CONFIG_DIR"
 
     if [[ ! -f "$CONFIG_DIR/config.toml" ]]; then
-        cat > "$CONFIG_DIR/config.toml" << 'EOF'
+        cat >"$CONFIG_DIR/config.toml" <<'EOF'
 [general]
 use_shims = false
 
@@ -600,13 +600,13 @@ setup_telemetry() {
     printf "  • Error reports (helps us fix bugs)\\n"
     printf "\\n"
     printf "  ${DIM}No personal information, file contents, or package names collected.${RESET}\\n"
-    printf "  ${DIM}Data is sent to api.pyro1121.com. You can opt out at any time.${RESET}\\n"
+    printf "  ${DIM}Data is sent to omg-api.latham.cloud. You can opt out at any time.${RESET}\\n"
     printf "\\n"
 
     # Ask for consent
     read -p "$(printf "${BOLD}Allow anonymous telemetry to help improve OMG?${RESET} [Y/n] ")" -n 1 -r
     echo
-    
+
     if [[ $REPLY =~ ^[Nn]$ ]]; then
         set_telemetry_opt_out
         success "Telemetry disabled. You can re-enable with: unset OMG_TELEMETRY"
@@ -620,22 +620,25 @@ setup_telemetry() {
 set_telemetry_opt_out() {
     local shell_type=$(basename "$SHELL")
     local rc_file=""
-    
+
     case "$shell_type" in
-        bash) rc_file="$HOME/.bashrc" ;;
-        zsh)  rc_file="$HOME/.zshrc" ;;
-        fish) rc_file="$HOME/.config/fish/config.fish" ;;
-        *)    warn "Unsupported shell: $shell_type"; return ;;
+    bash) rc_file="$HOME/.bashrc" ;;
+    zsh) rc_file="$HOME/.zshrc" ;;
+    fish) rc_file="$HOME/.config/fish/config.fish" ;;
+    *)
+        warn "Unsupported shell: $shell_type"
+        return
+        ;;
     esac
 
     if [[ -f "$rc_file" ]]; then
         if ! grep -q "OMG_TELEMETRY" "$rc_file"; then
-            echo >> "$rc_file"
-            echo "# OMG Telemetry opt-out" >> "$rc_file"
+            echo >>"$rc_file"
+            echo "# OMG Telemetry opt-out" >>"$rc_file"
             if [[ "$shell_type" == "fish" ]]; then
-                echo "set -gx OMG_TELEMETRY 0" >> "$rc_file"
+                echo "set -gx OMG_TELEMETRY 0" >>"$rc_file"
             else
-                echo "export OMG_TELEMETRY=0" >> "$rc_file"
+                echo "export OMG_TELEMETRY=0" >>"$rc_file"
             fi
         fi
     fi
@@ -649,15 +652,18 @@ setup_shell() {
     fi
 
     header "Shell Integration"
-    
+
     local shell_type=$(basename "$SHELL")
     local rc_file=""
-    
+
     case "$shell_type" in
-        bash) rc_file="$HOME/.bashrc" ;;
-        zsh)  rc_file="$HOME/.zshrc" ;;
-        fish) rc_file="$HOME/.config/fish/config.fish" ;;
-        *)    warn "Unsupported shell: $shell_type"; return ;;
+    bash) rc_file="$HOME/.bashrc" ;;
+    zsh) rc_file="$HOME/.zshrc" ;;
+    fish) rc_file="$HOME/.config/fish/config.fish" ;;
+    *)
+        warn "Unsupported shell: $shell_type"
+        return
+        ;;
     esac
 
     # Ensure PATH
@@ -665,9 +671,9 @@ setup_shell() {
         if [[ -f "$rc_file" ]]; then
             if ! grep -q "export PATH=\"$INSTALL_DIR" "$rc_file"; then
                 if [[ "$shell_type" == "fish" ]]; then
-                    echo "fish_add_path $INSTALL_DIR" >> "$rc_file"
+                    echo "fish_add_path $INSTALL_DIR" >>"$rc_file"
                 else
-                    echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$rc_file"
+                    echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >>"$rc_file"
                 fi
                 success "Added $INSTALL_DIR to PATH in $rc_file"
             fi
@@ -677,19 +683,19 @@ setup_shell() {
     # Ensure Hook
     if [[ -f "$rc_file" ]]; then
         if ! grep -q "omg hook" "$rc_file"; then
-            echo >> "$rc_file"
-            echo "# OMG Package Manager" >> "$rc_file"
+            echo >>"$rc_file"
+            echo "# OMG Package Manager" >>"$rc_file"
             if [[ "$shell_type" == "fish" ]]; then
-                echo "omg hook fish | source" >> "$rc_file"
+                echo "omg hook fish | source" >>"$rc_file"
             else
-                echo 'eval "$(omg hook '"$shell_type"')"' >> "$rc_file"
+                echo 'eval "$(omg hook '"$shell_type"')"' >>"$rc_file"
             fi
             success "Added hook to $rc_file"
         else
             info "Hook already present"
         fi
     fi
-    
+
     # Generate completions
     "$INSTALL_DIR/omg" completions "$shell_type" >/dev/null 2>&1 || true
 }
@@ -697,13 +703,13 @@ setup_shell() {
 setup_turbo() {
     local detected_os
     detected_os=$(detect_os)
-    
+
     if [[ "$detected_os" != "linux" ]]; then
         return
     fi
 
     header "Turbo Mode (Recommended)"
-    
+
     printf "\\n${BOLD}What is Turbo Mode?${RESET}\\n"
     printf "  Turbo mode enables instant package operations without sudo prompts.\\n"
     printf "  It uses Linux capabilities to grant omg permission to manage packages.\\n"
@@ -716,7 +722,7 @@ setup_turbo() {
 
     read -p "$(printf "${BOLD}Enable turbo mode now?${RESET} [Y/n] ")" -n 1 -r
     echo
-    
+
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
         start_spinner "Enabling turbo mode"
         if sudo setcap 'cap_dac_override,cap_fowner,cap_chown+ep' "$INSTALL_DIR/omg" >/dev/null 2>&1; then

@@ -10,7 +10,7 @@ describe('provider response boundaries', () => {
     const decoded = Schema.decodeUnknownEither(TurnstileSiteverifySchema)({
       success: false,
       'error-codes': ['invalid-input-response'],
-      hostname: 'pyro1121.com',
+      hostname: 'omg.latham.cloud',
     });
 
     expect(decoded._tag).toBe('Right');

@@ -1,6 +1,6 @@
 import { inputDelayMs, layoutShiftDelta } from './performance-entry';
 
-const API_URL = 'https://api.pyro1121.com/api/site/analytics/track';
+const API_URL = 'https://omg-api.latham.cloud/api/site/analytics/track';
 const BATCH_INTERVAL = 5000;
 const SESSION_TIMEOUT = 30 * 60 * 1000;
 

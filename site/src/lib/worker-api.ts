@@ -34,7 +34,7 @@ function allowedBrowserRequestUrl(input: string): URL {
   const sameOriginLicensingRoute =
     url.origin === window.location.origin && url.pathname.startsWith('/api/licensing/');
   const publicAnalyticsRoute =
-    url.origin === 'https://api.pyro1121.com' && url.pathname === '/api/site/analytics/track';
+    url.origin === 'https://omg-api.latham.cloud' && url.pathname === '/api/site/analytics/track';
   if (!sameOriginLicensingRoute && !publicAnalyticsRoute) {
     throw new WorkerApiNetworkError(new Error('Worker API route is not allowed'));
   }

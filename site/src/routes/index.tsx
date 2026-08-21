@@ -63,7 +63,7 @@ export default function Home() {
 
     try {
       const res = await fetch(
-        `https://api.pyro1121.com/api/get-license?email=${encodeURIComponent(userEmail)}`
+        `https://omg-api.latham.cloud/api/get-license?email=${encodeURIComponent(userEmail)}`
       );
       const parsed = parseLicenseLookup(await res.json());
       if (!parsed.ok) {
@@ -111,7 +111,7 @@ export default function Home() {
         name="keywords"
         content="package manager, linux package manager, arch linux, pacman alternative, yay alternative, nvm alternative, pyenv alternative, rustup alternative, unified package manager"
       />
-      <Link rel="canonical" href="https://pyro1121.com/" />
+      <Link rel="canonical" href="https://omg.latham.cloud/" />
 
       <Meta property="og:type" content="website" />
       <Meta property="og:title" content="OMG - Fastest Linux Package Manager | 22x Faster" />
@@ -119,8 +119,8 @@ export default function Home() {
         property="og:description"
         content="Unified CLI for system packages + language runtimes. Native Node, Python, Go, Rust, Ruby, Java, Bun managers. 22x faster than pacman. Pure Rust."
       />
-      <Meta property="og:url" content="https://pyro1121.com/" />
-      <Meta property="og:image" content="https://pyro1121.com/og/omg-og.png" />
+      <Meta property="og:url" content="https://omg.latham.cloud/" />
+      <Meta property="og:image" content="https://omg.latham.cloud/og/omg-og.png" />
       <Meta property="og:site_name" content="OMG Package Manager" />
 
       <Meta name="twitter:card" content="summary_large_image" />
@@ -129,7 +129,7 @@ export default function Home() {
         name="twitter:description"
         content="One CLI for packages + runtimes. Node, Python, Go, Rust, Ruby, Java, Bun. 22x faster than pacman. Pure Rust."
       />
-      <Meta name="twitter:image" content="https://pyro1121.com/og/omg-og.png" />
+      <Meta name="twitter:image" content="https://omg.latham.cloud/og/omg-og.png" />
 
       <div class="min-h-screen">
         <Show when={show3D()}>

@@ -1,7 +1,7 @@
 import type { APIEvent } from '@solidjs/start/server';
 
 // Site configuration
-const SITE_URL = 'https://pyro1121.com';
+const SITE_URL = 'https://omg.latham.cloud';
 
 /**
  * Generate robots.txt content
@@ -13,7 +13,7 @@ const SITE_URL = 'https://pyro1121.com';
  */
 function generateRobotsTxt(): string {
   return `# OMG Package Manager - robots.txt
-# https://pyro1121.com
+# https://omg.latham.cloud
 
 # Allow all crawlers
 User-agent: *

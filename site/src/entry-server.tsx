@@ -13,7 +13,7 @@ export default createHandler(() => (
           <meta name="theme-color" content="#0a0a0a" />
 
           {/* Preconnects */}
-          <link rel="preconnect" href="https://api.pyro1121.com" />
+          <link rel="preconnect" href="https://omg-api.latham.cloud" />
 
           {/* Structured Data */}
           <script type="application/ld+json">{`
@@ -24,7 +24,7 @@ export default createHandler(() => (
               "applicationCategory": "DeveloperApplication",
               "operatingSystem": "Linux",
               "description": "Fastest unified package manager for Arch Linux, Debian, and Ubuntu. Native Node.js, Python, Go, Rust, Ruby, Java, and Bun support. 22x faster than pacman.",
-              "url": "https://pyro1121.com",
+              "url": "https://omg.latham.cloud",
               "offers": {
                 "@type": "Offer",
                 "price": "0",

@@ -156,7 +156,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     const country = request.headers.get('CF-IPCountry') || 'XX';
     const city = request.headers.get('CF-City') || 'Unknown';
     const userAgent = request.headers.get('User-Agent') || '';
-    const visitorId = await generateVisitorId(request, env.DB, 'pyro1121.com');
+    const visitorId = await generateVisitorId(request, env.DB, 'omg.latham.cloud');
     const { device, browser, os } = parseUserAgent(userAgent);
 
     const statements: D1PreparedStatement[] = [];

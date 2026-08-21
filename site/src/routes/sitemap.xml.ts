@@ -1,7 +1,7 @@
 import type { APIEvent } from '@solidjs/start/server';
 
 // Site configuration
-const SITE_URL = 'https://pyro1121.com';
+const SITE_URL = 'https://omg.latham.cloud';
 
 // Static pages with their priorities and change frequencies
 interface PageEntry {

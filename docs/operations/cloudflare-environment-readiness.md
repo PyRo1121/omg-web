@@ -2,21 +2,23 @@
 
 **Last inventory/provisioning pass:** 2026-08-21
 
-**Deployment status:** staging topology live on workers.dev; production DNS pending
+**Deployment status:** live on `omg.latham.cloud` and `omg-api.latham.cloud` (Workers Custom Domains)
 
-This document records the deployed Cloudflare topology, the free-tier usage ceilings it must never exceed, and the remaining steps to restore the custom domains.
+This document records the deployed Cloudflare topology, the free-tier usage ceilings it must never exceed, and the remaining steps to finish production hardening.
 
 ## Deployed topology (free plan)
 
-| Kind                        | Resource                                                | Repository authority         | Public URL                            |
-| --------------------------- | ------------------------------------------------------- | ---------------------------- | ------------------------------------- |
-| Worker                      | `omg-saas`                                              | `site/workers/wrangler.toml` | `https://omg-saas.latham.workers.dev` |
-| Worker + static assets      | `omg-site`                                              | `site/wrangler.toml`         | `https://omg-site.latham.workers.dev` |
-| D1 (single shared database) | `omg-platform` / `fee8ddab-fb4a-4be4-b8d2-8abb7c2db188` | both wrangler configs        | n/a                                   |
+| Kind                        | Resource                                                | Repository authority         | Public URL                     |
+| --------------------------- | ------------------------------------------------------- | ---------------------------- | ------------------------------ |
+| Worker                      | `omg-saas`                                              | `site/workers/wrangler.toml` | `https://omg-api.latham.cloud` |
+| Worker + static assets      | `omg-site`                                              | `site/wrangler.toml`         | `https://omg.latham.cloud`     |
+| D1 (single shared database) | `omg-platform` / `fee8ddab-fb4a-4be4-b8d2-8abb7c2db188` | both wrangler configs        | n/a                            |
+
+Both hostnames are Workers Custom Domains on the `latham.cloud` zone; Cloudflare provisions DNS and certificates automatically. The `omg-saas` workers.dev hostname is disabled; the site's workers.dev hostname remains available as a fallback.
 
 Deliberately **not provisioned** (free-tier and ownership constraints):
 
-- `omg-router` and `omg-releases` Workers: `/docs` is served by external Docusaurus once DNS is restored, and release artifacts are delivered from GitHub Releases by `install.sh`.
+- `omg-router` and `omg-releases` Workers: `/docs` links point at the GitHub README until a docs product returns, and release artifacts are delivered from GitHub Releases by `install.sh` (with a `_redirects` fallback).
 - All R2 buckets (`omg-assets`, `omg-releases`, `omg-releases-preview`): metered storage/operations can exceed the free allowance, so binary downloads stay on GitHub Releases.
 - Workers AI binding: removed with the AI insights feature; inference is a paid metered product.
 - Separate auth/analytics D1 databases: the Free plan allows 10 databases per account and this account already holds nine unrelated databases. One physical database is used with strict table-level ownership instead.
@@ -33,7 +35,7 @@ The canonical migration sequence lives only in `site/workers/migrations/`; integ
 ### Secrets (server-only, set via `wrangler secret put`)
 
 - `omg-saas`: `JWT_SECRET`, `ADMIN_API_SECRET`
-- `omg-site`: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=https://omg-site.latham.workers.dev`, `ADMIN_API_SECRET` (same value as `omg-saas`)
+- `omg-site`: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=https://omg.latham.cloud`, `ADMIN_API_SECRET` (same value as `omg-saas`)
 - Optional, unset until their features are enabled: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `TURNSTILE_SECRET_KEY`, `SENTRY_DSN`, OAuth client credentials. Billing routes return `503` until `STRIPE_SECRET_KEY` exists.
 
 ## Free-tier ceilings that gate this design
@@ -60,10 +62,10 @@ It performs only read operations and exits nonzero if `omg-saas`, `omg-site`, or
 
 ## Remaining production steps
 
-1. Restore `pyro1121.com` DNS in this Cloudflare account, then move both Workers from `workers.dev` onto their configured custom routes (`api.pyro1121.com/*`, and the site's apex route) and update `BETTER_AUTH_URL` plus Better Auth provider callback URLs.
-2. Point the docs hostname at Docusaurus and re-enable the router path only if that product returns.
-3. Configure Stripe products/prices/webhook secret in test mode first; billing stays `503` until then.
-4. Run authenticated Playwright characterization against the workers.dev staging URL.
+1. Configure OAuth provider callback URLs (`https://omg.latham.cloud/api/auth/callback/{github,google}`) in the GitHub/Google consoles when social sign-in is enabled.
+2. Verify `latham.cloud` email deliverability with Resend before enabling OTP email (`noreply@latham.cloud` sender); OTP stays unavailable until then.
+3. Configure Stripe products/prices/webhook secret in test mode first; billing stays `503` until then. Update checkout success/return URLs only if the domain changes again.
+4. Run authenticated Playwright characterization against `https://omg.latham.cloud`.
 5. Verify Workers observability after first real traffic and confirm rollback via `wrangler deployments list`.
 
 See also:

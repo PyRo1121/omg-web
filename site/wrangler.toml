@@ -8,6 +8,8 @@ compatibility_flags = ["nodejs_compat"]
 # dist/_headers and dist/_redirects are honored by Workers Static Assets.
 workers_dev = true
 
+routes = [{ pattern = "omg.latham.cloud", custom_domain = true }]
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"

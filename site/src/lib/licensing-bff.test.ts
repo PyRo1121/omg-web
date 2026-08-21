@@ -49,7 +49,7 @@ class RecordingLicensingService implements LicensingService {
 }
 
 function siteRequest(path: string, init?: RequestInit): Request {
-  return new Request(`https://pyro1121.com${path}`, init);
+  return new Request(`https://omg.latham.cloud${path}`, init);
 }
 
 describe('proxyLicensingRequest', () => {
@@ -103,7 +103,7 @@ describe('proxyLicensingRequest', () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Origin: 'https://pyro1121.com',
+            Origin: 'https://omg.latham.cloud',
           },
           body: JSON.stringify({ offer: 'team' }),
         }),
@@ -161,7 +161,7 @@ describe('proxyLicensingRequest', () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Origin: 'https://pyro1121.com',
+            Origin: 'https://omg.latham.cloud',
           },
           body: 'x'.repeat(1024 * 1024 + 1),
         }),

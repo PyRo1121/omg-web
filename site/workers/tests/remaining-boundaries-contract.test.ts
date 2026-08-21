@@ -132,7 +132,7 @@ describe('Stripe JSON decode', () => {
 
 describe('team-controls JSON decode', () => {
   it('decodes a create-policy body', async () => {
-    const request = new Request('https://api.pyro1121.com/api/policies', {
+    const request = new Request('https://omg-api.latham.cloud/api/policies', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -173,7 +173,7 @@ describe('team-controls JSON decode', () => {
 
 describe('CLI telemetry JSON decode', () => {
   it('decodes a command event', async () => {
-    const request = new Request('https://api.pyro1121.com/api/cli/event', {
+    const request = new Request('https://omg-api.latham.cloud/api/cli/event', {
       method: 'POST',
       body: JSON.stringify({
         event: { type: 'command', command: 'search', success: true, subcommand: null },
@@ -189,7 +189,7 @@ describe('CLI telemetry JSON decode', () => {
   });
 
   it('rejects a non-object event envelope', async () => {
-    const request = new Request('https://api.pyro1121.com/api/cli/event', {
+    const request = new Request('https://omg-api.latham.cloud/api/cli/event', {
       method: 'POST',
       body: 'not-json',
     });
@@ -200,7 +200,7 @@ describe('CLI telemetry JSON decode', () => {
 
 describe('remaining HTTP bodies', () => {
   it('requires a machine_id', async () => {
-    const request = new Request('https://api.pyro1121.com/api/machines/revoke', {
+    const request = new Request('https://omg-api.latham.cloud/api/machines/revoke', {
       method: 'POST',
       body: JSON.stringify({}),
     });
@@ -209,7 +209,7 @@ describe('remaining HTTP bodies', () => {
   });
 
   it('decodes a tracking batch', async () => {
-    const request = new Request('https://api.pyro1121.com/api/track', {
+    const request = new Request('https://omg-api.latham.cloud/api/track', {
       method: 'POST',
       body: JSON.stringify({
         events: [
@@ -261,7 +261,7 @@ describe('firehose rows', () => {
     expect(empty).toEqual({});
 
     const parsed = await Effect.runPromise(decodeStoredProperties('{"ok":true}'));
-    expect(parsed.ok).toBe(true);
+    expect(parsed['ok']).toBe(true);
 
     const corrupt = await Effect.runPromiseExit(decodeStoredProperties('{'));
     expect(Exit.isFailure(corrupt)).toBe(true);

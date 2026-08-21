@@ -265,8 +265,8 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
       customer_email: email,
       'line_items[0][price]': priceId,
       'line_items[0][quantity]': '1',
-      success_url: 'https://pyro1121.com/dashboard?success=true',
-      cancel_url: 'https://pyro1121.com/#pricing',
+      success_url: 'https://omg.latham.cloud/dashboard?success=true',
+      cancel_url: 'https://omg.latham.cloud/#pricing',
     }),
   });
 
@@ -347,7 +347,7 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
     },
     body: new URLSearchParams({
       customer: stripeCustomerId,
-      return_url: 'https://pyro1121.com/dashboard?portal=closed',
+      return_url: 'https://omg.latham.cloud/dashboard?portal=closed',
     }),
   });
 

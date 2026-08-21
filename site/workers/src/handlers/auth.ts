@@ -150,7 +150,7 @@ async function sendOTPEmail(email: string, code: string, apiKey: string): Promis
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'OMG <noreply@pyro1121.com>',
+      from: 'OMG <noreply@latham.cloud>',
       to: [email],
       subject: 'Your OMG verification code',
       html: `
