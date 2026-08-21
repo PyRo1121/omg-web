@@ -1,6 +1,6 @@
 import { lazy, Show, Suspense } from 'solid-js';
 import { Title, Meta } from '@solidjs/meta';
-import { A, createAsync, redirect } from '@solidjs/router';
+import { A, createAsync, query, redirect } from '@solidjs/router';
 import { getRequestEvent } from 'solid-js/web';
 import { LayoutDashboard, LogOut, Shield } from 'lucide-solid';
 import { signOutBrowserSessions, useSession } from '~/lib/auth-client';
@@ -12,7 +12,8 @@ async function requireAdminPage(): Promise<{ readonly userId: string }> {
   'use server';
 
   const event = getRequestEvent();
-  if (event === undefined) {
+  const cloudflareEnv = event?.nativeEvent.context.cloudflare?.env;
+  if (event === undefined || cloudflareEnv?.DB === undefined) {
     throw redirect('/login');
   }
 
@@ -29,6 +30,8 @@ async function requireAdminPage(): Promise<{ readonly userId: string }> {
 
   return { userId: authorization.userId };
 }
+
+const requireAdminPageQuery = query(requireAdminPage, 'admin-page-authorization');
 
 function LoadingScreen() {
   return (
@@ -99,7 +102,7 @@ function AuthorizedAdminPage() {
 }
 
 export default function AdminRoute() {
-  const authorization = createAsync(() => requireAdminPage());
+  const authorization = createAsync(() => requireAdminPageQuery(), { deferStream: true });
 
   return (
     <>

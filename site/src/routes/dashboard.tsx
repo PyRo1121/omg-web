@@ -1,6 +1,6 @@
 import { lazy, Suspense, Show } from 'solid-js';
 import { Title, Meta } from '@solidjs/meta';
-import { createAsync, redirect } from '@solidjs/router';
+import { createAsync, query, redirect } from '@solidjs/router';
 import { getRequestEvent } from 'solid-js/web';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 
@@ -40,6 +40,8 @@ async function requireAuth() {
   return session;
 }
 
+const requireAuthQuery = query(requireAuth, 'dashboard-auth');
+
 function PageLoader() {
   return (
     <div class="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
@@ -49,7 +51,7 @@ function PageLoader() {
 }
 
 export default function Dashboard() {
-  const session = createAsync(() => requireAuth(), { deferStream: true });
+  const session = createAsync(() => requireAuthQuery(), { deferStream: true });
 
   return (
     <>

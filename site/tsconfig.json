@@ -27,6 +27,6 @@
       "~/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "shared/**/*"],
+  "include": ["src/**/*", "shared/**/*", "e2e/**/*", "playwright.config.ts"],
   "exclude": ["node_modules", "dist"]
 }
