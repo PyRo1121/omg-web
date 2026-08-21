@@ -6,9 +6,9 @@ import {
   Package,
   Search,
   RefreshCw,
-  AlertCircle,
-  CheckCircle,
-  Filter,
+  CircleAlert,
+  CircleCheckBig,
+  Funnel,
   Pause,
   Play,
   Trash2,
@@ -259,7 +259,7 @@ const CommandItem: Component<CommandItemProps> = props => {
         {/* Error Message */}
         <Show when={props.command.status === 'error' && props.command.error_message}>
           <div class="bg-flare-500/10 mt-1.5 flex items-start gap-1.5 rounded-md px-2 py-1">
-            <AlertCircle size={12} class="text-flare-400 mt-0.5 shrink-0" />
+            <CircleAlert size={12} class="text-flare-400 mt-0.5 shrink-0" />
             <span class="text-2xs text-flare-300 font-mono">{props.command.error_message}</span>
           </div>
         </Show>
@@ -268,9 +268,9 @@ const CommandItem: Component<CommandItemProps> = props => {
       {/* Status Indicator */}
       <div class="shrink-0">
         {props.command.status === 'success' ? (
-          <CheckCircle size={14} class="text-aurora-400" />
+          <CircleCheckBig size={14} class="text-aurora-400" />
         ) : (
-          <AlertCircle size={14} class="text-flare-400" />
+          <CircleAlert size={14} class="text-flare-400" />
         )}
       </div>
     </div>
@@ -295,7 +295,7 @@ const FilterBar: Component<FilterBarProps> = props => {
     <div class="flex flex-wrap items-center gap-3">
       {/* Command Type Filter */}
       <div class="flex items-center gap-1.5">
-        <Filter size={12} class="text-nebula-500" />
+        <Funnel size={12} class="text-nebula-500" />
         <select
           value={props.commandFilter}
           onChange={e => props.onCommandFilterChange(parseCommandFilter(e.currentTarget.value))}
@@ -480,11 +480,11 @@ export const RealTimeCommandFeed: Component<RealTimeCommandFeedProps> = props =>
             <span class="font-bold text-white">{props.commands.length}</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <CheckCircle size={10} class="text-aurora-400" />
+            <CircleCheckBig size={10} class="text-aurora-400" />
             <span class="text-aurora-400 font-bold">{successCount()}</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <AlertCircle size={10} class="text-flare-400" />
+            <CircleAlert size={10} class="text-flare-400" />
             <span class="text-flare-400 font-bold">{errorCount()}</span>
           </div>
           <div class="flex items-center gap-1.5">

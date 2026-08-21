@@ -4,6 +4,7 @@ import {
   createSignal,
   createMemo,
   createEffect,
+  createUniqueId,
   onMount,
   For,
 } from 'solid-js';
@@ -321,9 +322,9 @@ export const HealthScoreGauge: Component<HealthScoreGaugeProps> = props => {
     setShowTooltip(false);
   };
 
-  // Unique gradient ID
-  const gradientId = `health-gauge-gradient-${Math.random().toString(36).substr(2, 9)}`;
-  const glowId = `health-gauge-glow-${Math.random().toString(36).substr(2, 9)}`;
+  const gaugeId = createUniqueId();
+  const gradientId = `health-gauge-gradient-${gaugeId}`;
+  const glowId = `health-gauge-glow-${gaugeId}`;
 
   return (
     <div

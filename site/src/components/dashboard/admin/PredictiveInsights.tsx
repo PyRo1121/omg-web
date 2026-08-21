@@ -2,7 +2,7 @@ import { type Component, For, Show, createSignal, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
-  AlertTriangle,
+  TriangleAlert,
   TrendingUp,
   TrendingDown,
   Zap,
@@ -129,7 +129,7 @@ const ChurnPredictionCard: Component<{
         <div class="mb-4 flex items-start justify-between">
           <div class="flex items-center gap-3">
             <div class="bg-flare-500/10 flex h-10 w-10 items-center justify-center rounded-xl">
-              <AlertTriangle size={18} class="text-flare-400" />
+              <TriangleAlert size={18} class="text-flare-400" />
             </div>
             <div>
               <h4 class="font-bold text-white">{props.prediction.email}</h4>
@@ -306,7 +306,7 @@ const AnomalyAlertCard: Component<{
   onResolve: () => void;
 }> = props => {
   const severityConfig = {
-    critical: { color: 'text-flare-400', bg: 'bg-flare-500/10', icon: AlertTriangle },
+    critical: { color: 'text-flare-400', bg: 'bg-flare-500/10', icon: TriangleAlert },
     high: { color: 'text-solar-400', bg: 'bg-solar-500/10', icon: Bell },
     medium: { color: 'text-indigo-400', bg: 'bg-indigo-500/10', icon: Activity },
     low: { color: 'text-nebula-400', bg: 'bg-nebula-500/10', icon: Activity },
@@ -580,7 +580,7 @@ export const PredictiveInsights: Component = () => {
     {
       id: 'churn',
       label: 'Churn Risk',
-      icon: AlertTriangle,
+      icon: TriangleAlert,
       count: () => churnPredictions().length,
     },
     {

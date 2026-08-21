@@ -4,12 +4,12 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
   Users,
-  AlertTriangle,
+  TriangleAlert,
   Layers,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
-  BarChart3,
+  ChartColumn,
 } from 'lucide-solid';
 import { useAdminAdvancedMetrics } from '../../../lib/api-hooks';
 import { CardSkeleton } from '../../ui/Skeleton';
@@ -461,7 +461,7 @@ export const SegmentAnalytics: Component = () => {
         <div>
           <h2 class="flex items-center gap-3 text-2xl font-black tracking-tight text-white">
             <div class="bg-photon-500/10 rounded-xl p-2">
-              <BarChart3 size={24} class="text-photon-400" />
+              <ChartColumn size={24} class="text-photon-400" />
             </div>
             Segment Analytics
           </h2>
@@ -508,7 +508,7 @@ export const SegmentAnalytics: Component = () => {
 
       <Show when={metricsQuery.isError}>
         <div class="border-flare-500/30 bg-flare-500/10 rounded-2xl border p-8 text-center">
-          <AlertTriangle size={32} class="text-flare-400 mx-auto mb-3" />
+          <TriangleAlert size={32} class="text-flare-400 mx-auto mb-3" />
           <p class="text-flare-400 font-bold">Failed to load segment analytics</p>
           <p class="text-nebula-500 mt-2 text-sm">{metricsQuery.error?.message}</p>
           <button

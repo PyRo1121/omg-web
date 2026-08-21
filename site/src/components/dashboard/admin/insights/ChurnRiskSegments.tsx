@@ -1,9 +1,9 @@
 import { type Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import {
-  AlertTriangle,
-  AlertCircle,
+  TriangleAlert,
+  CircleAlert,
   Info,
-  CheckCircle,
+  CircleCheckBig,
   ChevronRight,
   Mail,
   Phone,
@@ -31,7 +31,7 @@ interface ChurnRiskSegmentsProps {
 type RiskLevel = 'critical' | 'high' | 'medium' | 'low' | 'healthy';
 
 interface RiskConfig {
-  icon: typeof AlertTriangle;
+  icon: typeof TriangleAlert;
   color: string;
   bgColor: string;
   borderColor: string;
@@ -43,7 +43,7 @@ interface RiskConfig {
 
 const RISK_CONFIG = {
   critical: {
-    icon: AlertTriangle,
+    icon: TriangleAlert,
     color: 'var(--color-flare-400)',
     bgColor: 'rgba(239, 68, 68, 0.1)',
     borderColor: 'rgba(239, 68, 68, 0.2)',
@@ -53,7 +53,7 @@ const RISK_CONFIG = {
     priority: 5,
   },
   high: {
-    icon: AlertCircle,
+    icon: CircleAlert,
     color: 'var(--color-solar-400)',
     bgColor: 'rgba(245, 158, 11, 0.1)',
     borderColor: 'rgba(245, 158, 11, 0.2)',
@@ -83,7 +83,7 @@ const RISK_CONFIG = {
     priority: 2,
   },
   healthy: {
-    icon: CheckCircle,
+    icon: CircleCheckBig,
     color: 'var(--color-aurora-400)',
     bgColor: 'rgba(16, 185, 129, 0.1)',
     borderColor: 'rgba(16, 185, 129, 0.2)',
@@ -292,7 +292,7 @@ export const ChurnRiskSegments: Component<ChurnRiskSegmentsProps> = props => {
             class="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
             style={{ background: RISK_CONFIG.healthy.bgColor }}
           >
-            <CheckCircle size={32} style={{ color: RISK_CONFIG.healthy.color }} />
+            <CircleCheckBig size={32} style={{ color: RISK_CONFIG.healthy.color }} />
           </div>
           <p class="text-nebula-200 text-lg font-bold">All Clear!</p>
           <p class="text-nebula-500 mt-1 text-sm">No churn risk detected</p>
@@ -439,7 +439,7 @@ export const ChurnRiskSegments: Component<ChurnRiskSegmentsProps> = props => {
               class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
               style={{ background: RISK_CONFIG.critical.gradient }}
             >
-              <AlertTriangle size={18} class="text-white" />
+              <TriangleAlert size={18} class="text-white" />
             </div>
             <div class="flex-1">
               <p class="text-nebula-100 text-sm font-semibold">

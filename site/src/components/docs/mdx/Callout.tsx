@@ -1,5 +1,5 @@
 import { type ParentProps, Match, Switch } from 'solid-js';
-import { Info, AlertTriangle, XCircle, Lightbulb, CheckCircle } from 'lucide-solid';
+import { Info, TriangleAlert, CircleX, Lightbulb, CircleCheckBig } from 'lucide-solid';
 
 type CalloutType = 'info' | 'warning' | 'danger' | 'tip' | 'success';
 
@@ -45,16 +45,16 @@ export function Callout(props: CalloutProps) {
               <Info size={20} />
             </Match>
             <Match when={type() === 'warning'}>
-              <AlertTriangle size={20} />
+              <TriangleAlert size={20} />
             </Match>
             <Match when={type() === 'danger'}>
-              <XCircle size={20} />
+              <CircleX size={20} />
             </Match>
             <Match when={type() === 'tip'}>
               <Lightbulb size={20} />
             </Match>
             <Match when={type() === 'success'}>
-              <CheckCircle size={20} />
+              <CircleCheckBig size={20} />
             </Match>
           </Switch>
         </span>

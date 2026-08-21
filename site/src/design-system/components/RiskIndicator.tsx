@@ -1,7 +1,14 @@
 import { type Component, Show, For, createMemo } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { AlertTriangle, AlertCircle, Info, CheckCircle, TrendingDown, Shield } from 'lucide-solid';
+import {
+  TriangleAlert,
+  CircleAlert,
+  Info,
+  CircleCheckBig,
+  TrendingDown,
+  Shield,
+} from 'lucide-solid';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -22,7 +29,7 @@ interface RiskIndicatorProps {
 type RiskConfig = {
   [K in RiskLevel]: {
     label: string;
-    icon: typeof AlertTriangle;
+    icon: typeof TriangleAlert;
     color: string;
     bg: string;
     border: string;
@@ -35,7 +42,7 @@ type RiskConfig = {
 const riskConfig: RiskConfig = {
   critical: {
     label: 'Critical Risk',
-    icon: AlertTriangle,
+    icon: TriangleAlert,
     color: 'text-flare-400',
     bg: 'bg-flare-500/10',
     border: 'border-flare-500/25',
@@ -45,7 +52,7 @@ const riskConfig: RiskConfig = {
   },
   high: {
     label: 'High Risk',
-    icon: AlertCircle,
+    icon: CircleAlert,
     color: 'text-orange-400',
     bg: 'bg-orange-500/10',
     border: 'border-orange-500/25',
@@ -75,7 +82,7 @@ const riskConfig: RiskConfig = {
   },
   healthy: {
     label: 'Healthy',
-    icon: CheckCircle,
+    icon: CircleCheckBig,
     color: 'text-aurora-400',
     bg: 'bg-aurora-500/10',
     border: 'border-aurora-500/25',

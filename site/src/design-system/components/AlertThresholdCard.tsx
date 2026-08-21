@@ -5,10 +5,10 @@ import { twMerge } from 'tailwind-merge';
 import {
   Bell,
   BellOff,
-  AlertTriangle,
-  AlertOctagon,
+  TriangleAlert,
+  OctagonAlert,
   Settings,
-  Slack,
+  MessageSquare,
   Mail,
   Check,
   ChevronDown,
@@ -157,8 +157,8 @@ const ChannelSelector: Component<{
     }
   };
 
-  const channels: { id: NotificationChannel; label: string; icon: typeof Slack }[] = [
-    { id: 'slack', label: 'Slack', icon: Slack },
+  const channels: { id: NotificationChannel; label: string; icon: typeof MessageSquare }[] = [
+    { id: 'slack', label: 'Slack', icon: MessageSquare },
     { id: 'email', label: 'Email', icon: Mail },
   ];
 
@@ -455,10 +455,10 @@ export const AlertThresholdCard: Component<AlertThresholdCardProps> = props => {
               <h3 class="font-display flex items-center gap-2 font-bold text-white">
                 {props.metricName}
                 <Show when={zone() === 'critical' && props.config.enabled}>
-                  <AlertOctagon size={16} class="text-flare-500" />
+                  <OctagonAlert size={16} class="text-flare-500" />
                 </Show>
                 <Show when={zone() === 'warning' && props.config.enabled}>
-                  <AlertTriangle size={16} class="text-solar-500" />
+                  <TriangleAlert size={16} class="text-solar-500" />
                 </Show>
               </h3>
               <Show when={props.metricDescription}>

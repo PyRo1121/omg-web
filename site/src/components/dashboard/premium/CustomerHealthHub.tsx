@@ -5,7 +5,7 @@ import type { CustomerHealth, LifecycleStage } from './types';
 import {
   TrendingUp,
   TrendingDown,
-  AlertTriangle,
+  TriangleAlert,
   Zap,
   Target,
   Shield,
@@ -14,7 +14,7 @@ import {
   Sparkles,
   Rocket,
   Crown,
-  XCircle,
+  CircleX,
   RefreshCw,
 } from 'lucide-solid';
 import { HealthScore } from '../../../design-system';
@@ -52,9 +52,9 @@ const LIFECYCLE_CONFIG: LifecycleConfig = {
   activated: { icon: Zap, label: 'Activated', color: 'text-electric-400', bg: 'bg-electric-500' },
   engaged: { icon: Activity, label: 'Engaged', color: 'text-indigo-400', bg: 'bg-indigo-500' },
   power_user: { icon: Crown, label: 'Power User', color: 'text-solar-400', bg: 'bg-solar-500' },
-  at_risk: { icon: AlertTriangle, label: 'At Risk', color: 'text-flare-400', bg: 'bg-flare-500' },
+  at_risk: { icon: TriangleAlert, label: 'At Risk', color: 'text-flare-400', bg: 'bg-flare-500' },
   churning: { icon: TrendingDown, label: 'Churning', color: 'text-flare-500', bg: 'bg-flare-600' },
-  churned: { icon: XCircle, label: 'Churned', color: 'text-nebula-500', bg: 'bg-nebula-600' },
+  churned: { icon: CircleX, label: 'Churned', color: 'text-nebula-500', bg: 'bg-nebula-600' },
   reactivated: {
     icon: RefreshCw,
     label: 'Reactivated',
@@ -277,7 +277,7 @@ const LifecycleJourney: Component<LifecycleJourneyProps> = props => {
     <div class="relative">
       <Show when={isNegativeStage()}>
         <div class="border-flare-500/20 bg-flare-500/10 mb-4 flex items-center gap-2 rounded-xl border px-4 py-2">
-          <AlertTriangle size={16} class="text-flare-400" />
+          <TriangleAlert size={16} class="text-flare-400" />
           <span class="text-flare-400 text-sm font-bold">
             {LIFECYCLE_CONFIG[props.currentStage].label}
           </span>

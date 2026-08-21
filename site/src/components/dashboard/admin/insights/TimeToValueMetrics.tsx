@@ -1,6 +1,6 @@
 import type { Component } from 'solid-js';
 import { createSignal, createMemo, onMount, Show } from 'solid-js';
-import { Rocket, Clock, Award, TrendingUp, Target, Zap, CheckCircle } from 'lucide-solid';
+import { Rocket, Clock, Award, TrendingUp, Target, Zap, CircleCheckBig } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -80,7 +80,7 @@ const MetricCard: Component<MetricCardProps> = props => {
           {props.label}
         </span>
         <Show when={props.isGood !== undefined}>
-          <CheckCircle
+          <CircleCheckBig
             size={12}
             class={cn(
               'transition-colors duration-300',

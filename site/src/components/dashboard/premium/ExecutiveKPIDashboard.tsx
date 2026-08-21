@@ -14,15 +14,15 @@ import {
   DollarSign,
   TrendingDown,
   Users,
-  AlertTriangle,
+  TriangleAlert,
   Target,
   Activity,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
-  BarChart3,
+  ChartColumn,
   ChevronDown,
-  HelpCircle,
+  CircleQuestionMark,
 } from 'lucide-solid';
 import type { ExecutiveKPI, AdvancedMetrics } from './types';
 import { Sparkline } from '../../../design-system/components/Charts';
@@ -240,7 +240,7 @@ const KPICard: Component<KPICardProps> = props => {
               </span>
               <Show when={props.tooltip}>
                 <Tooltip content={props.tooltip} position="top">
-                  <HelpCircle
+                  <CircleQuestionMark
                     size={12}
                     class="text-nebula-600 hover:text-nebula-400 cursor-help transition-colors"
                   />
@@ -339,7 +339,7 @@ const KPICard: Component<KPICardProps> = props => {
 
         <Show when={props.forecast !== undefined}>
           <div class="mt-3 flex items-center gap-2 rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-1.5">
-            <BarChart3 size={12} class="text-indigo-400" />
+            <ChartColumn size={12} class="text-indigo-400" />
             <span class="text-2xs text-indigo-400">
               Forecast: {props.prefix}
               {props.forecast?.toLocaleString()}
@@ -561,7 +561,7 @@ const ChurnRiskOverview: Component<ChurnRiskOverviewProps> = props => {
       <div class="relative">
         <div class="mb-4 flex items-center gap-3">
           <div class="bg-flare-500/10 flex h-10 w-10 items-center justify-center rounded-xl">
-            <AlertTriangle size={20} class="text-flare-400" />
+            <TriangleAlert size={20} class="text-flare-400" />
           </div>
           <div>
             <h3 class="text-sm font-black tracking-wider text-white uppercase">Churn Risk</h3>

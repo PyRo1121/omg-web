@@ -14,8 +14,8 @@ import { valueForKey } from '../../../lib/lookup';
 import {
   Terminal,
   Globe,
-  AlertCircle,
-  CheckCircle,
+  CircleAlert,
+  CircleCheckBig,
   Search,
   Package,
   RefreshCw,
@@ -47,7 +47,7 @@ const EVENT_TYPE_CONFIG = {
     bg: 'bg-photon-500/10',
     label: 'RUNTIME',
   },
-  error: { icon: AlertCircle, color: 'text-flare-400', bg: 'bg-flare-500/10', label: 'ERROR' },
+  error: { icon: CircleAlert, color: 'text-flare-400', bg: 'bg-flare-500/10', label: 'ERROR' },
 } as const;
 
 const getEventTypeConfig = (eventType: string) =>
@@ -114,9 +114,9 @@ const CommandStreamItem: Component<{ event: FirehoseEvent; index: number }> = pr
 
       <Show when={props.event.success !== undefined}>
         {props.event.success ? (
-          <CheckCircle size={14} class="text-aurora-400 shrink-0" />
+          <CircleCheckBig size={14} class="text-aurora-400 shrink-0" />
         ) : (
-          <AlertCircle size={14} class="text-flare-400 shrink-0" />
+          <CircleAlert size={14} class="text-flare-400 shrink-0" />
         )}
       </Show>
     </div>

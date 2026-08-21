@@ -5,10 +5,10 @@ import {
   CreditCard,
   Key,
   Settings,
-  AlertTriangle,
+  TriangleAlert,
   ArrowLeft,
   ArrowRight,
-  Filter,
+  Funnel,
   Search,
   X,
 } from '../../ui/Icons';
@@ -23,7 +23,7 @@ const ACTION_ICONS = {
   'billing.portal_opened': CreditCard,
   'license.regenerated': Key,
   'admin.user_updated': Settings,
-  'admin.rate_limited': AlertTriangle,
+  'admin.rate_limited': TriangleAlert,
 } satisfies Record<string, typeof Shield>;
 
 const ACTION_COLORS = {
@@ -121,7 +121,7 @@ export const AuditLogTab: Component = () => {
                     : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <Filter size={16} />
+                <Funnel size={16} />
                 Filters
                 <Show when={hasActiveFilters()}>
                   <span class="rounded-full bg-indigo-500 px-1.5 py-0.5 text-[10px] font-black text-white">
@@ -149,7 +149,7 @@ export const AuditLogTab: Component = () => {
                   Action Type
                 </label>
                 <div class="relative">
-                  <Filter
+                  <Funnel
                     size={16}
                     class="absolute top-1/2 left-3 -translate-y-1/2 text-slate-500"
                   />

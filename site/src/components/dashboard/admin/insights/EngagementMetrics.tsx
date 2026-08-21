@@ -15,7 +15,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
-  BarChart3,
+  ChartColumn,
 } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -287,7 +287,7 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = props => {
             'box-shadow': '0 0 10px rgba(99, 102, 241, 0.3)',
           }}
         >
-          <BarChart3 size={16} class="text-white" />
+          <ChartColumn size={16} class="text-white" />
         </div>
         <h3 class="text-nebula-100 text-lg font-bold tracking-tight">User Engagement</h3>
       </div>

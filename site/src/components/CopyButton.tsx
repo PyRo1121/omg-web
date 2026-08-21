@@ -40,21 +40,8 @@ const CopyButton: Component<CopyButtonProps> = props => {
       await navigator.clipboard.writeText(props.text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      const textarea = document.createElement('textarea');
-      textarea.value = props.text;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch {
-        reportClientWarning('Copy to clipboard failed');
-      }
-      document.body.removeChild(textarea);
+    } catch (cause: unknown) {
+      reportClientWarning('Copy to clipboard failed', cause);
     }
   };
 

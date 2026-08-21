@@ -3,16 +3,16 @@ import { createSignal, onMount, onCleanup, Show, For } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import { Command } from 'cmdk-solid';
 import {
-  Home,
+  House,
   FileText,
   LayoutDashboard,
-  Github,
   Terminal,
   Copy,
   ExternalLink,
   Zap,
   Package,
 } from 'lucide-solid';
+import { GitHubIcon } from './ui/BrandIcons';
 
 interface CommandItem {
   id: string;
@@ -40,7 +40,7 @@ const CommandPalette: Component = () => {
     {
       id: 'home',
       label: 'Home',
-      icon: Home,
+      icon: House,
       shortcut: ['H'],
       action: () => {
         navigate('/');
@@ -93,7 +93,7 @@ const CommandPalette: Component = () => {
     {
       id: 'github',
       label: 'GitHub Repository',
-      icon: Github,
+      icon: GitHubIcon,
       shortcut: ['G', 'H'],
       action: () => {
         window.open('https://github.com/PyRo1121/omg', '_blank');

@@ -1,6 +1,6 @@
 import { For, Show, createMemo } from 'solid-js';
 import { A, useLocation } from '@solidjs/router';
-import { ChevronRight, Home } from 'lucide-solid';
+import { ChevronRight, House } from 'lucide-solid';
 
 interface BreadcrumbItem {
   label: string;
@@ -36,7 +36,7 @@ export function Breadcrumbs() {
     <Show when={breadcrumbs().length > 1}>
       <nav class="mb-6 flex items-center gap-1 text-sm">
         <A href="/" class="text-slate-500 transition-colors hover:text-slate-300">
-          <Home size={14} />
+          <House size={14} />
         </A>
 
         <For each={breadcrumbs()}>

@@ -1,6 +1,6 @@
 import type { Component, JSX } from 'solid-js';
 import { ErrorBoundary } from 'solid-js';
-import { AlertCircle, RefreshCw } from 'lucide-solid';
+import { CircleAlert, RefreshCw } from 'lucide-solid';
 
 interface TabErrorBoundaryProps {
   tab: string;
@@ -15,7 +15,7 @@ export const TabErrorBoundary: Component<TabErrorBoundaryProps> = props => {
           <div class="max-w-md text-center">
             <div class="mb-6 flex justify-center">
               <div class="rounded-2xl bg-red-500/10 p-4">
-                <AlertCircle class="h-16 w-16 text-red-400" />
+                <CircleAlert class="h-16 w-16 text-red-400" />
               </div>
             </div>
             <h3 class="mb-3 text-2xl font-black text-white">Failed to load {props.tab} tab</h3>

@@ -1,6 +1,6 @@
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, Show, For } from 'solid-js';
-import { LineChart, BarChart3, Globe, MousePointerClick, Zap, ExternalLink } from 'lucide-solid';
+import { ChartLine, ChartColumn, Globe, MousePointerClick, Zap, ExternalLink } from 'lucide-solid';
 import * as api from '../../../lib/api';
 
 function formatNumber(num: number) {
@@ -98,7 +98,7 @@ export const DocsAnalytics: Component = () => {
           <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div class="rounded-xl border border-white/10 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-6">
               <div class="mb-2 flex items-center gap-3">
-                <BarChart3 size={20} class="text-indigo-400" />
+                <ChartColumn size={20} class="text-indigo-400" />
                 <span class="text-sm text-slate-400">Total Pageviews</span>
               </div>
               <div class="text-3xl font-bold text-white">
@@ -118,7 +118,7 @@ export const DocsAnalytics: Component = () => {
 
             <div class="rounded-xl border border-white/10 bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-6">
               <div class="mb-2 flex items-center gap-3">
-                <LineChart size={20} class="text-purple-400" />
+                <ChartLine size={20} class="text-purple-400" />
                 <span class="text-sm text-slate-400">Pages/Session</span>
               </div>
               <div class="text-3xl font-bold text-white">
@@ -140,7 +140,7 @@ export const DocsAnalytics: Component = () => {
           {/* Top Pages */}
           <div class="rounded-xl border border-white/10 bg-white/5 p-6">
             <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
-              <BarChart3 size={20} class="text-indigo-400" />
+              <ChartColumn size={20} class="text-indigo-400" />
               Top Pages
             </h3>
             <div class="space-y-2">
@@ -201,7 +201,7 @@ export const DocsAnalytics: Component = () => {
             {/* UTM Campaigns */}
             <div class="rounded-xl border border-white/10 bg-white/5 p-6">
               <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
-                <LineChart size={20} class="text-purple-400" />
+                <ChartLine size={20} class="text-purple-400" />
                 UTM Campaigns
               </h3>
               <div class="space-y-2">

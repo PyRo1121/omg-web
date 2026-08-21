@@ -16,7 +16,7 @@ import {
   X,
   Users,
   ChevronDown,
-  Filter,
+  Funnel,
   Layers,
 } from 'lucide-solid';
 import { valueForKey } from '~/lib/lookup';
@@ -104,31 +104,31 @@ const FIELD_METADATA = {
   },
   engagement_score: {
     label: 'Engagement Score',
-    icon: Filter,
+    icon: Funnel,
     type: 'number',
     options: undefined,
   },
   last_active: {
     label: 'Last Active',
-    icon: Filter,
+    icon: Funnel,
     type: 'date',
     options: undefined,
   },
   total_commands: {
     label: 'Total Commands',
-    icon: Filter,
+    icon: Funnel,
     type: 'number',
     options: undefined,
   },
   machine_count: {
     label: 'Machine Count',
-    icon: Filter,
+    icon: Funnel,
     type: 'number',
     options: undefined,
   },
   created_at: {
     label: 'Created At',
-    icon: Filter,
+    icon: Funnel,
     type: 'date',
     options: undefined,
   },
@@ -757,7 +757,7 @@ export const SegmentBuilder: Component<SegmentBuilderProps> = props => {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="rounded-xl bg-indigo-500/10 p-2.5">
-            <Filter size={20} class="text-indigo-400" />
+            <Funnel size={20} class="text-indigo-400" />
           </div>
           <div>
             <h3 class="font-display text-lg font-bold text-white">Segment Builder</h3>

@@ -7,9 +7,9 @@ import {
   Zap,
   Activity,
   Crown,
-  AlertTriangle,
+  TriangleAlert,
   TrendingDown,
-  XCircle,
+  CircleX,
   RefreshCw,
   type LucideIcon,
 } from 'lucide-solid';
@@ -98,7 +98,7 @@ const stageConfig: StageConfigMap = {
     order: 5,
   },
   at_risk: {
-    icon: AlertTriangle,
+    icon: TriangleAlert,
     label: 'At Risk',
     color: 'text-flare-400',
     bg: 'bg-flare-500/10',
@@ -116,7 +116,7 @@ const stageConfig: StageConfigMap = {
     order: 7,
   },
   churned: {
-    icon: XCircle,
+    icon: CircleX,
     label: 'Churned',
     color: 'text-nebula-500',
     bg: 'bg-nebula-600/10',

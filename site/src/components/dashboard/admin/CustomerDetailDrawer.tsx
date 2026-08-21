@@ -4,7 +4,7 @@ import {
   Calendar,
   CreditCard,
   Monitor,
-  AlertTriangle,
+  TriangleAlert,
   Star,
   ExternalLink,
 } from '../../ui/Icons';
@@ -267,7 +267,7 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
                   </Show>
                   <Show when={detail()?.engagement.is_at_risk}>
                     <span class="flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-black text-rose-400 uppercase">
-                      <AlertTriangle size={10} />
+                      <TriangleAlert size={10} />
                       At Risk
                     </span>
                   </Show>
@@ -481,7 +481,7 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
                   <Show when={!detail()?.user.stripe_customer_id}>
                     <div class="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
                       <div class="flex items-center gap-2 text-sm text-amber-400">
-                        <AlertTriangle size={16} />
+                        <TriangleAlert size={16} />
                         <span class="font-bold">No Stripe account linked</span>
                       </div>
                       <p class="mt-2 text-xs text-slate-500">

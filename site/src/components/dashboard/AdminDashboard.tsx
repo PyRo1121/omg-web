@@ -4,13 +4,13 @@ import {
   Activity,
   Users,
   Download,
-  BarChart3,
+  ChartColumn,
   CreditCard,
-  History,
+  RotateCcwClock,
   ChevronDown,
   Lightbulb,
   Calendar,
-  Filter,
+  Funnel,
   GitCompare,
   Save,
   Layers,
@@ -564,7 +564,7 @@ export const AdminDashboard: Component = () => {
           </div>
 
           <div class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
-            <Filter size={14} class="text-nebula-500" />
+            <Funnel size={14} class="text-nebula-500" />
             <select
               value={store.filters.segment}
               onChange={e => actions.setSegment(e.currentTarget.value)}
@@ -627,7 +627,7 @@ export const AdminDashboard: Component = () => {
                   onClick={() => handleExport('usage')}
                   class="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm text-white transition-colors hover:bg-white/5"
                 >
-                  <BarChart3 size={16} class="text-cyan-400" />
+                  <ChartColumn size={16} class="text-cyan-400" />
                   <div>
                     <div class="font-medium">Usage ({store.filters.dateRange})</div>
                     <div class="text-xs text-slate-500">Export usage data as CSV</div>
@@ -637,7 +637,7 @@ export const AdminDashboard: Component = () => {
                   onClick={() => handleExport('audit')}
                   class="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm text-white transition-colors hover:bg-white/5"
                 >
-                  <History size={16} class="text-purple-400" />
+                  <RotateCcwClock size={16} class="text-purple-400" />
                   <div>
                     <div class="font-medium">Audit Log ({store.filters.dateRange})</div>
                     <div class="text-xs text-slate-500">Export audit log as CSV</div>
@@ -692,7 +692,7 @@ export const AdminDashboard: Component = () => {
       >
         <TabButton id="overview" icon={Activity} label="Overview" />
         <TabButton id="crm" icon={Users} label="CRM" count={tabCounts().crm} />
-        <TabButton id="analytics" icon={BarChart3} label="Analytics" />
+        <TabButton id="analytics" icon={ChartColumn} label="Analytics" />
         <TabButton id="insights" icon={Lightbulb} label="Insights" count={tabCounts().insights} />
         <TabButton id="segments" icon={Layers} label="Segments" />
         <TabButton
@@ -702,7 +702,7 @@ export const AdminDashboard: Component = () => {
           count={tabCounts().predictions}
         />
         <TabButton id="revenue" icon={CreditCard} label="Revenue" />
-        <TabButton id="audit" icon={History} label="Audit Log" />
+        <TabButton id="audit" icon={RotateCcwClock} label="Audit Log" />
       </div>
 
       <Show when={dashboardQuery.isLoading || advancedMetricsQuery.isLoading}>

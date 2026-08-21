@@ -1,4 +1,4 @@
-import { type Component, createMemo, Show, For, splitProps } from 'solid-js';
+import { type Component, createMemo, createUniqueId, Show, For, splitProps } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -160,7 +160,7 @@ export const MetricRing: Component<MetricRingProps> = props => {
   const circumference = createMemo(() => 2 * Math.PI * radius());
   const offset = createMemo(() => circumference() - (normalizedValue() / 100) * circumference());
 
-  const gradientId = `metric-ring-gradient-${Math.random().toString(36).substr(2, 9)}`;
+  const gradientId = `metric-ring-gradient-${createUniqueId()}`;
 
   return (
     <div
@@ -271,6 +271,7 @@ export const NestedMetricRings: Component<NestedMetricRingsProps> = props => {
   const strokeWidth = createMemo(() => sizeConfig[local.size || 'lg'].strokeWidth);
 
   const ringGap = 4;
+  const ringGroupId = createUniqueId();
 
   return (
     <div
@@ -293,7 +294,7 @@ export const NestedMetricRings: Component<NestedMetricRingsProps> = props => {
               () => circumference() - (normalizedValue() / 100) * circumference()
             );
             const color = createMemo(() => getScoreColor(normalizedValue(), ring.color));
-            const gradientId = `nested-ring-${index()}-${Math.random().toString(36).substr(2, 9)}`;
+            const gradientId = `nested-ring-${ringGroupId}-${index()}`;
 
             return (
               <>

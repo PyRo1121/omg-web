@@ -1,6 +1,16 @@
 import { type Component, For, Show, createSignal } from 'solid-js';
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
-import { Plus, Edit, Trash2, Star, Mail, Zap, User, CheckCircle, FileText } from '../../ui/Icons';
+import {
+  Plus,
+  SquarePen,
+  Trash2,
+  Star,
+  Mail,
+  Zap,
+  User,
+  CircleCheckBig,
+  FileText,
+} from '../../ui/Icons';
 import {
   createAdminNote,
   deleteAdminNote,
@@ -32,9 +42,9 @@ const NOTE_TYPE_ICONS = {
   call: Zap,
   email: Mail,
   meeting: User,
-  support: CheckCircle,
+  support: CircleCheckBig,
   sales: Star,
-  success: CheckCircle,
+  success: CircleCheckBig,
 } as const;
 
 const NOTE_TYPES = {
@@ -259,7 +269,7 @@ export const NotesPanel: Component<NotesPanelProps> = props => {
                           }}
                           class="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-white/5 hover:text-white"
                         >
-                          <Edit size={12} />
+                          <SquarePen size={12} />
                         </button>
                         <button
                           type="button"

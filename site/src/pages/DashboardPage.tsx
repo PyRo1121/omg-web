@@ -6,17 +6,15 @@ import {
   LogOut,
   Shield,
   Clock,
-  CheckCircle,
-  Github,
-  Chrome,
+  CircleCheckBig,
   Mail,
   Terminal,
   Package,
   Zap,
   Activity,
   Award,
-  BarChart3,
-  AlertCircle,
+  ChartColumn,
+  CircleAlert,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -48,6 +46,7 @@ import { signOutBrowserSessions } from '~/lib/auth-client';
 import { createDashboardView } from '~/lib/state/dashboard-view';
 import AdminDashboard from '~/components/dashboard/AdminDashboard';
 import BackgroundMesh from '~/components/3d/BackgroundMesh';
+import { GitHubIcon, GoogleIcon } from '~/components/ui/BrandIcons';
 
 interface BetterAuthSession {
   user: {
@@ -89,9 +88,9 @@ function formatShortDate(dateStr: string) {
 function getProviderIcon(provider: string) {
   switch (provider) {
     case 'github':
-      return Github;
+      return GitHubIcon;
     case 'google':
-      return Chrome;
+      return GoogleIcon;
     case 'credential':
       return Mail;
     default:
@@ -304,7 +303,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
     const baseTabs: Array<{ id: TabType; label: string; icon: typeof LayoutDashboard }> = [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-      { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+      { id: 'analytics', label: 'Analytics', icon: ChartColumn },
       { id: 'achievements', label: 'Achievements', icon: Award },
       { id: 'machines', label: 'Machines', icon: Monitor },
       { id: 'settings', label: 'Settings', icon: Settings },
@@ -453,7 +452,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
             <Show when={telemetryError()}>
               <div class={`${glassPanel} mb-6 p-6`}>
                 <div class="flex items-start gap-3">
-                  <AlertCircle class="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-400" />
+                  <CircleAlert class="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-400" />
                   <div>
                     <h3 class="mb-2 font-medium text-white">Telemetry Data Unavailable</h3>
                     <p class="mb-3 text-sm text-slate-400">{telemetryError()}</p>
@@ -752,14 +751,14 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                         <StatCard
                           title="Vulnerabilities"
                           value={data().usage.total_vulnerabilities_found.toLocaleString()}
-                          icon={AlertCircle}
+                          icon={CircleAlert}
                           color="red"
                           sub="Security issues found"
                         />
                         <StatCard
                           title="Packages Searched"
                           value={data().usage.total_packages_searched.toLocaleString()}
-                          icon={BarChart3}
+                          icon={ChartColumn}
                           color="cyan"
                           sub="Search queries"
                         />
@@ -932,7 +931,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                   <div class="mb-1 flex items-center gap-2 font-medium text-white">
                                     {achievement.name}
                                     <Show when={achievement.unlocked}>
-                                      <CheckCircle class="h-4 w-4 flex-shrink-0 text-emerald-400" />
+                                      <CircleCheckBig class="h-4 w-4 flex-shrink-0 text-emerald-400" />
                                     </Show>
                                   </div>
                                   <div class="text-sm text-slate-400">
@@ -1215,7 +1214,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                             <For each={license().features}>
                               {feature => (
                                 <div class="flex items-center gap-2">
-                                  <CheckCircle class="h-4 w-4 text-emerald-400" />
+                                  <CircleCheckBig class="h-4 w-4 text-emerald-400" />
                                   <span class="text-sm text-slate-300">{feature}</span>
                                 </div>
                               )}

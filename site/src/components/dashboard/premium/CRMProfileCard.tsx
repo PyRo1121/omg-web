@@ -7,12 +7,12 @@ import {
   Mail,
   Phone,
   MessageSquare,
-  MoreHorizontal,
+  Ellipsis,
   Eye,
-  Edit,
+  SquarePen,
   TrendingUp,
   TrendingDown,
-  AlertTriangle,
+  TriangleAlert,
   Star,
 } from 'lucide-solid';
 import { HealthScore, TierBadge } from '../../../design-system';
@@ -211,7 +211,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
 
             <Show when={isAtRisk()}>
               <div class="bg-flare-500 absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full">
-                <AlertTriangle size={10} class="text-white" />
+                <TriangleAlert size={10} class="text-white" />
               </div>
             </Show>
           </div>
@@ -259,7 +259,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
               onClick={() => setShowActions(!showActions())}
               class="text-nebula-500 rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
             >
-              <MoreHorizontal size={16} />
+              <Ellipsis size={16} />
             </button>
           </div>
         </div>
@@ -359,7 +359,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
               onClick={() => props.onQuickAction?.('edit', props.customer.id)}
               class="text-nebula-400 flex items-center justify-center gap-2 rounded-xl bg-white/5 py-2 text-xs font-bold transition-all hover:bg-white/10 hover:text-white"
             >
-              <Edit size={14} />
+              <SquarePen size={14} />
               Edit
             </button>
             <button
@@ -375,7 +375,7 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
               onClick={() => props.onQuickAction?.('suspend', props.customer.id)}
               class="bg-flare-500/10 text-flare-400 hover:bg-flare-500/20 flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition-all"
             >
-              <AlertTriangle size={14} />
+              <TriangleAlert size={14} />
               Suspend
             </button>
           </div>

@@ -1,4 +1,4 @@
-import { AlertCircle, RefreshCw } from 'lucide-solid';
+import { CircleAlert, RefreshCw } from 'lucide-solid';
 
 interface ErrorCardProps {
   title?: string;
@@ -17,7 +17,7 @@ export default function ErrorCard(props: ErrorCardProps) {
       class={`flex flex-col items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/5 p-8 ${props.className || ''}`}
     >
       <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
-        <AlertCircle size={24} class="text-red-400" />
+        <CircleAlert size={24} class="text-red-400" />
       </div>
 
       <h3 class="font-display mb-2 text-lg font-black tracking-tight text-red-400">{title()}</h3>
