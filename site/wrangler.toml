@@ -1,9 +1,23 @@
 name = "omg-site"
-compatibility_date = "2024-11-25"
+compatibility_date = "2026-08-21"
 
 # Cloudflare Pages configuration
 pages_build_output_dir = "dist"
 compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.05
+persist = true
 
 # D1 Database for Better Auth
 [[d1_databases]]

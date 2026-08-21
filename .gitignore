@@ -31,9 +31,7 @@ Thumbs.db
 AGENTS.md
 tasks/
 
-# Logs
+# Logs and local profiles
 *.log
+*.cpuprofile
 npm-debug.log*
-
-# Generated Cloudflare types
-workers/router/worker-configuration.d.ts

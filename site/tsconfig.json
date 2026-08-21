@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
-    "types": ["vite/client", "@cloudflare/workers-types", "@types/node"],
+    "types": ["vite/client", "@types/node"],
     "noEmit": true,
     "isolatedModules": true,
     "noUnusedLocals": false,
@@ -26,6 +26,13 @@
       "~/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "shared/**/*", "e2e/**/*", "playwright.config.ts"],
+  "include": [
+    "worker-configuration.d.ts",
+    "../workers/worker-runtime.d.ts",
+    "src/**/*",
+    "shared/**/*",
+    "e2e/**/*",
+    "playwright.config.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,6 +1,6 @@
 name = "omg-saas"
 main = "src/worker.ts"
-compatibility_date = "2026-01-17"
+compatibility_date = "2026-08-21"
 compatibility_flags = ["nodejs_compat"] # Required for Sentry SDK
 
 # Custom domain routes
@@ -39,9 +39,23 @@ name = "API_RATE_LIMITER"
 namespace_id = "1003"
 simple = { limit = 100, period = 60 }
 
-# Secrets are set via: bunx wrangler secret put <NAME>
+# Secrets are set via: npx wrangler secret put <NAME>
 # Required: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, JWT_SECRET, ADMIN_USER_ID, RESEND_API_KEY, META_API_KEY
 # Optional: TURNSTILE_SECRET_KEY, SENTRY_DSN
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.05
+persist = true
 
 [placement]
 mode = "smart"

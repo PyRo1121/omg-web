@@ -4,7 +4,7 @@
   "description": "OMG Package Manager - Marketing Site",
   "type": "module",
   "scripts": {
-    "audit": "bunx better-npm-audit audit",
+    "audit": "npm audit",
     "build": "npm run build:site",
     "build:check": "npm run build:site && npm run check:bundle-budget",
     "build:site": "vinxi build",
@@ -23,7 +23,7 @@
     "test:e2e:anonymous": "playwright test e2e/anonymous.spec.ts",
     "test:e2e:staging": "playwright test e2e/staging-auth.spec.ts",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "wrangler types worker-configuration.d.ts --include-runtime=false --check && tsc --noEmit"
   },
   "dependencies": {
     "@kobalte/core": "0.13.13",
@@ -55,7 +55,6 @@
     "vinxi": "0.5.11"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20260821.1",
     "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.13.3",
@@ -70,6 +69,7 @@
     "wrangler": "4.125.0"
   },
   "overrides": {
+    "dax-sh": "npm:dax@0.44.2",
     "follow-redirects": "1.16.0",
     "h3": "1.15.11",
     "minimatch": "10.2.4",

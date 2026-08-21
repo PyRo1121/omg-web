@@ -23,9 +23,11 @@ jobs:
             package-lock.json
             site/package-lock.json
             site/workers/package-lock.json
+            workers/router/package-lock.json
       - run: npm ci
       - run: npm ci --prefix site
       - run: npm ci --prefix site/workers
+      - run: npm ci --prefix workers/router
       - run: npm run check
       - run: npm run build:check --prefix site
 
