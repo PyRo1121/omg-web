@@ -225,7 +225,7 @@ export default Sentry.withSentry(
             return denied ?? handleGetAnalyticsOverview(request, env);
           }
           case '/api/github-stats':
-            return handleGitHubProxy(request, env, ctx);
+            return handleGitHubProxy(request, ctx);
           case '/api/internal/site-session':
             return handleCreateSiteSession(request, env);
           case '/api/dashboard':
@@ -327,7 +327,6 @@ export default Sentry.withSentry(
           case '/api/badge/installs':
             return handleInstallsBadge(env);
         }
-        return errorResponse('Not found', 404);
       } catch (error: unknown) {
         Sentry.captureException(error);
         return errorResponse('Internal server error', 500);

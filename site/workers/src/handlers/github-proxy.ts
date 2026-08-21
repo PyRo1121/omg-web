@@ -1,17 +1,16 @@
-import { type Env, errorResponse, getCorsHeaders } from '../api';
-
-interface GitHubCommitActivity {
-  days: number[];
-  total: number;
-  week: number;
-}
+import { Effect, Exit } from 'effect';
+import { Schema } from '@effect/schema';
+import { errorResponse, getCorsHeaders } from '../api';
+import {
+  GitHubCommitActivityResponseSchema,
+  type GitHubCommitActivityResponse,
+} from '../contracts/provider-boundaries';
 
 const CACHE_TTL = 120;
 const STALE_TTL = 3600;
 
 export async function handleGitHubProxy(
   request: Request,
-  env: Env,
   ctx: ExecutionContext
 ): Promise<Response> {
   if (request.method === 'OPTIONS') {
@@ -51,7 +50,7 @@ export async function handleGitHubProxy(
     if (age < STALE_TTL) {
       // Never let background refresh failures bubble as uncaught Worker exceptions.
       ctx.waitUntil(
-        refreshCache(env, cache, cacheKey, request.headers.get('Origin')).catch(error => {
+        refreshCache(cache, cacheKey, request.headers.get('Origin')).catch(error => {
           console.error('GitHub cache background refresh failed:', error);
         })
       );
@@ -67,11 +66,10 @@ export async function handleGitHubProxy(
     }
   }
 
-  return await refreshCache(env, cache, cacheKey, request.headers.get('Origin'));
+  return refreshCache(cache, cacheKey, request.headers.get('Origin'));
 }
 
 async function refreshCache(
-  env: Env,
   cache: Cache,
   cacheKey: Request,
   origin: string | null
@@ -118,7 +116,17 @@ async function refreshCache(
     return errorResponse(`GitHub API error: ${ghResponse.status}`, ghResponse.status);
   }
 
-  const data: GitHubCommitActivity[] = await ghResponse.json();
+  const decodedData = await Effect.runPromiseExit(
+    Effect.tryPromise({
+      try: () => ghResponse.json(),
+      catch: cause => new Error('GitHub response body was not valid JSON', { cause }),
+    }).pipe(Effect.flatMap(Schema.decodeUnknown(GitHubCommitActivityResponseSchema)))
+  );
+  if (Exit.isFailure(decodedData)) {
+    console.error('GitHub API returned an invalid commit activity payload');
+    return errorResponse('GitHub API returned invalid data', 502);
+  }
+  const data: GitHubCommitActivityResponse = decodedData.value;
   const responseBody = JSON.stringify(data);
 
   const response = new Response(responseBody, {

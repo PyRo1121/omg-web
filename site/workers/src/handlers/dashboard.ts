@@ -69,7 +69,9 @@ export async function handleUpdateProfile(request: Request, env: Env): Promise<R
       .run();
   }
 
-  await logAudit(env.DB, user.id, 'user.profile_updated', 'customer', user.id, request);
+  await Effect.runPromise(
+    logAudit(env.DB, user.id, 'user.profile_updated', 'customer', user.id, request)
+  );
 
   return jsonResponse({ success: true });
 }
@@ -130,7 +132,9 @@ export async function handleRegenerateLicense(request: Request, env: Env): Promi
     .bind(license.id)
     .run();
 
-  await logAudit(env.DB, user.id, 'license.regenerated', 'license', license.id, request);
+  await Effect.runPromise(
+    logAudit(env.DB, user.id, 'license.regenerated', 'license', license.id, request)
+  );
 
   return jsonResponse({
     success: true,
@@ -193,7 +197,9 @@ export async function handleRevokeMachine(request: Request, env: Env): Promise<R
     return errorResponse('Machine not found', 404);
   }
 
-  await logAudit(env.DB, user.id, 'machine.revoked', 'machine', body.machine_id, request);
+  await Effect.runPromise(
+    logAudit(env.DB, user.id, 'machine.revoked', 'machine', body.machine_id, request)
+  );
 
   return jsonResponse({ success: true });
 }
@@ -267,7 +273,9 @@ export async function handleRevokeSession(request: Request, env: Env): Promise<R
     .bind(body.session_id, auth.user.id)
     .run();
 
-  await logAudit(env.DB, auth.user.id, 'session.revoked', 'session', body.session_id, request);
+  await Effect.runPromise(
+    logAudit(env.DB, auth.user.id, 'session.revoked', 'session', body.session_id, request)
+  );
 
   return jsonResponse({ success: true });
 }
@@ -569,7 +577,9 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
     return errorResponse('Machine not found', 404);
   }
 
-  await logAudit(env.DB, auth.user.id, 'team.member_revoked', 'machine', body.machine_id, request);
+  await Effect.runPromise(
+    logAudit(env.DB, auth.user.id, 'team.member_revoked', 'machine', body.machine_id, request)
+  );
 
   return jsonResponse({ success: true });
 }

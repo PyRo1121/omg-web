@@ -1,11 +1,14 @@
 // API Types and Utilities for OMG Dashboard
 // All authenticated endpoints require a valid session token
 
+import { Effect } from 'effect';
+import { Schema } from '@effect/schema';
 import {
   ExtraRowParseError,
   readOptionalExtraRow,
   SessionJoinRowSchema,
 } from './contracts/d1-extras';
+import { TurnstileSiteverifySchema } from './contracts/provider-boundaries';
 
 /** Workers AI binding used by smart insights. The result is Schema-decoded at the call site. */
 export interface WorkersAiBinding {
@@ -241,11 +244,6 @@ export const TIER_FEATURES = {
 };
 
 // CORS headers - Allow main site and docs site
-interface TurnstileResponse {
-  success: boolean;
-  'error-codes'?: string[];
-}
-
 export const corsHeaders = {
   'Access-Control-Allow-Origin': 'https://pyro1121.com',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -364,8 +362,19 @@ export function getAuthToken(request: Request): string | null {
   return null;
 }
 
-// Audit log helper
-export async function logAudit<TMetadata extends object>(
+/** A best-effort audit write failed after the primary operation completed. */
+class AuditLogWriteError extends Error {
+  readonly _tag = 'AuditLogWriteError';
+  constructor(override readonly cause?: unknown) {
+    super('Audit log write failed');
+  }
+}
+
+/**
+ * Record an audit event without making the primary operation depend on observability storage.
+ * Privacy deletion receipts use their own atomic transaction and do not use this helper.
+ */
+export function logAudit<TMetadata extends object>(
   db: D1Database,
   customerId: string | null | undefined,
   action: string,
@@ -373,65 +382,91 @@ export async function logAudit<TMetadata extends object>(
   resourceId?: string | null,
   request?: Request,
   metadata?: TMetadata
-): Promise<void> {
-  try {
-    await db
-      .prepare(
-        `
+): Effect.Effect<void> {
+  return Effect.tryPromise({
+    try: () =>
+      db
+        .prepare(
+          `
       INSERT INTO audit_log (id, customer_id, action, resource_type, resource_id, ip_address, user_agent, metadata)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `
-      )
-      .bind(
-        generateId(),
-        customerId ?? null,
-        action,
-        resourceType ?? null,
-        resourceId ?? null,
-        request?.headers.get('CF-Connecting-IP') ?? null,
-        request?.headers.get('User-Agent') ?? null,
-        metadata ? JSON.stringify(metadata) : null
-      )
-      .run();
-  } catch (error: unknown) {
-    console.error('Audit log error:', error);
+        )
+        .bind(
+          generateId(),
+          customerId ?? null,
+          action,
+          resourceType ?? null,
+          resourceId ?? null,
+          request?.headers.get('CF-Connecting-IP') ?? null,
+          request?.headers.get('User-Agent') ?? null,
+          metadata ? JSON.stringify(metadata) : null
+        )
+        .run(),
+    catch: cause => new AuditLogWriteError(cause),
+  }).pipe(
+    Effect.asVoid,
+    Effect.catchAll(error => Effect.logError('Best-effort audit write failed', error))
+  );
+}
+
+/** Cloudflare Turnstile could not be reached or returned an invalid payload. */
+export class TurnstileVerificationUnavailable extends Error {
+  readonly _tag = 'TurnstileVerificationUnavailable';
+  constructor(override readonly cause?: unknown) {
+    super('Security verification service unavailable');
   }
 }
 
-// Verify Cloudflare Turnstile token
-export async function verifyTurnstile(
+/** Fetch seam for provider-boundary behavior tests. */
+export type ProviderFetch = (
+  input: string | URL | Request,
+  init?: RequestInit
+) => Promise<Response>;
+
+/** Verify a token at Cloudflare's Siteverify boundary and decode its response. */
+export function verifyTurnstile(
   token: string,
   secretKey: string,
-  ip?: string | null
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const formData = new URLSearchParams();
-    formData.append('secret', secretKey);
-    formData.append('response', token);
-    if (ip) {
-      formData.append('remoteip', ip);
-    }
+  ip?: string | null,
+  providerFetch: ProviderFetch = fetch
+): Effect.Effect<
+  { readonly success: true } | { readonly success: false; readonly error: string },
+  TurnstileVerificationUnavailable
+> {
+  const formData = new URLSearchParams();
+  formData.append('secret', secretKey);
+  formData.append('response', token);
+  if (ip) {
+    formData.append('remoteip', ip);
+  }
 
-    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData,
+  return Effect.gen(function* () {
+    const response = yield* Effect.tryPromise({
+      try: () =>
+        providerFetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData,
+        }),
+      catch: cause => new TurnstileVerificationUnavailable(cause),
     });
-
-    const result = await response.json<TurnstileResponse>();
+    const payload = yield* Effect.tryPromise({
+      try: () => response.json(),
+      catch: cause => new TurnstileVerificationUnavailable(cause),
+    });
+    const result = yield* Schema.decodeUnknown(TurnstileSiteverifySchema)(payload).pipe(
+      Effect.mapError(cause => new TurnstileVerificationUnavailable(cause))
+    );
 
     if (!result.success) {
       return {
-        success: false,
-        error: result['error-codes']?.join(', ') || 'Verification failed',
+        success: false as const,
+        error: result['error-codes']?.join(', ') ?? 'Verification failed',
       };
     }
-
-    return { success: true };
-  } catch (error: unknown) {
-    console.error('Turnstile verification error:', error);
-    return { success: false, error: 'Verification service unavailable' };
-  }
+    return { success: true as const };
+  });
 }
 
 // Helper to send emails via Resend

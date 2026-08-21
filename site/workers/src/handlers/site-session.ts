@@ -29,8 +29,7 @@ export class CustomerStoreUnavailable extends Error {
       | 'insertLicense'
       | 'syncRole'
       | 'findSession'
-      | 'insertSession'
-      | 'audit',
+      | 'insertSession',
     override readonly cause?: unknown
   ) {
     super(`Customer store unavailable during ${operation}`);
@@ -97,10 +96,7 @@ function provisionSiteCustomer(
           .run(),
       catch: cause => new CustomerStoreUnavailable('insertLicense', cause),
     });
-    yield* Effect.tryPromise({
-      try: () => logAudit(db, customerId, 'site.session_created', 'customer', customerId, request),
-      catch: cause => new CustomerStoreUnavailable('audit', cause),
-    });
+    yield* logAudit(db, customerId, 'site.session_created', 'customer', customerId, request);
     return { id: customerId, email: body.email, admin };
   });
 }
@@ -169,10 +165,7 @@ function insertSession(
           .run(),
       catch: cause => new CustomerStoreUnavailable('insertSession', cause),
     });
-    yield* Effect.tryPromise({
-      try: () => logAudit(db, customerId, 'site.session_created', 'session', sessionId, request),
-      catch: cause => new CustomerStoreUnavailable('audit', cause),
-    });
+    yield* logAudit(db, customerId, 'site.session_created', 'session', sessionId, request);
     return { token, expiresAt, customerId };
   });
 }

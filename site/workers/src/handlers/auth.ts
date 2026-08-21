@@ -10,6 +10,7 @@ import {
   validateSession,
   logAudit,
   verifyTurnstile,
+  TurnstileVerificationUnavailable,
   type User,
 } from '../api';
 import {
@@ -101,6 +102,7 @@ type SendCodeError =
   | AuthRateLimitedError
   | TurnstileRequiredError
   | TurnstileFailedError
+  | TurnstileVerificationUnavailable
   | EmailServiceUnconfigured
   | EmailDeliveryFailed
   | AuthCryptoUnavailable
@@ -200,7 +202,10 @@ function requireTurnstile(
   env: Env,
   token: string | undefined,
   email: EmailAddress
-): Effect.Effect<void, TurnstileRequiredError | TurnstileFailedError | AuthStoreUnavailable> {
+): Effect.Effect<
+  void,
+  TurnstileRequiredError | TurnstileFailedError | TurnstileVerificationUnavailable
+> {
   if (env.TURNSTILE_SECRET_KEY === undefined || env.TURNSTILE_SECRET_KEY.length === 0) {
     return Effect.void;
   }
@@ -208,20 +213,15 @@ function requireTurnstile(
     return Effect.fail(new TurnstileRequiredError());
   }
   const secret = env.TURNSTILE_SECRET_KEY;
-  return Effect.tryPromise({
-    try: () => verifyTurnstile(token, secret, request.headers.get('CF-Connecting-IP')),
-    catch: cause => new AuthStoreUnavailable('verifyTurnstile', cause),
-  }).pipe(
+  return verifyTurnstile(token, secret, request.headers.get('CF-Connecting-IP')).pipe(
     Effect.flatMap(result => {
       if (result.success) {
         return Effect.void;
       }
-      return Effect.promise(() =>
-        logAudit(env.DB, null, 'auth.turnstile_failed', 'auth_code', null, request, {
-          email,
-          error: result.error,
-        })
-      ).pipe(Effect.zipRight(Effect.fail(new TurnstileFailedError())));
+      return logAudit(env.DB, null, 'auth.turnstile_failed', 'auth_code', null, request, {
+        email,
+        error: result.error,
+      }).pipe(Effect.zipRight(Effect.fail(new TurnstileFailedError())));
     })
   );
 }
@@ -282,9 +282,9 @@ export function sendVerificationCode(
         ]),
       catch: cause => new AuthStoreUnavailable('replaceCode', cause),
     });
-    yield* Effect.promise(() =>
-      logAudit(env.DB, null, 'auth.code_sent', 'auth_code', null, request, { email: body.email })
-    );
+    yield* logAudit(env.DB, null, 'auth.code_sent', 'auth_code', null, request, {
+      email: body.email,
+    });
     return { success: true as const, message: 'Verification code sent' };
   });
 }
@@ -332,9 +332,7 @@ function findOrCreateCustomer(
           .run(),
       catch: cause => new AuthStoreUnavailable('insertLicense', cause),
     });
-    yield* Effect.promise(() =>
-      logAudit(db, customerId, 'user.created', 'customer', customerId, request)
-    );
+    yield* logAudit(db, customerId, 'user.created', 'customer', customerId, request);
     return { id: customerId, email, company: null };
   });
 }
@@ -396,11 +394,9 @@ export function verifyCode(
             .run(),
         catch: cause => new AuthStoreUnavailable('recordInvalidCode', cause),
       });
-      yield* Effect.promise(() =>
-        logAudit(env.DB, null, 'auth.code_invalid', 'auth_code', null, request, {
-          email: body.email,
-        })
-      );
+      yield* logAudit(env.DB, null, 'auth.code_invalid', 'auth_code', null, request, {
+        email: body.email,
+      });
       return yield* Effect.fail(new InvalidOtpError());
     }
     yield* Effect.tryPromise({
@@ -441,9 +437,7 @@ export function verifyCode(
           .run(),
       catch: cause => new AuthStoreUnavailable('pruneSessions', cause),
     });
-    yield* Effect.promise(() =>
-      logAudit(env.DB, customer.id, 'auth.login', 'session', null, request)
-    );
+    yield* logAudit(env.DB, customer.id, 'auth.login', 'session', null, request);
     const company = customer.company;
     return {
       success: true as const,
@@ -492,6 +486,8 @@ function httpStatusForSend(error: SendCodeError): number {
       return 403;
     case 'AuthRateLimitedError':
       return 429;
+    case 'TurnstileVerificationUnavailable':
+      return 503;
     case 'EmailServiceUnconfigured':
     case 'EmailDeliveryFailed':
     case 'AuthCryptoUnavailable':
@@ -620,7 +616,9 @@ export async function handleLogout(request: Request, env: Env): Promise<Response
     const result = await validateSession(env.DB, token);
     if (result !== null) {
       await env.DB.prepare(`DELETE FROM sessions WHERE token = ?`).bind(token).run();
-      await logAudit(env.DB, result.user.id, 'auth.logout', 'session', null, request);
+      await Effect.runPromise(
+        logAudit(env.DB, result.user.id, 'auth.logout', 'session', null, request)
+      );
     }
   }
   return jsonResponse({ success: true });

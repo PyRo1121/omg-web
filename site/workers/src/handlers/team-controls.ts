@@ -143,11 +143,13 @@ export async function handleCreatePolicy(request: Request, env: Env): Promise<Re
     .bind(policyId, license.id, scope, rule, value, enforced ? 1 : 0)
     .run();
 
-  await logAudit(env.DB, auth.user.id, 'policy.create', 'policy', policyId, request, {
-    scope,
-    rule,
-    value,
-  });
+  await Effect.runPromise(
+    logAudit(env.DB, auth.user.id, 'policy.create', 'policy', policyId, request, {
+      scope,
+      rule,
+      value,
+    })
+  );
 
   return jsonResponse({ success: true, policy: { id: policyId, scope, rule, value, enforced } });
 }
@@ -198,7 +200,9 @@ export async function handleUpdatePolicy(request: Request, env: Env): Promise<Re
     .bind(...values, id, license.id)
     .run();
 
-  await logAudit(env.DB, auth.user.id, 'policy.update', 'policy', id, request, { value, enforced });
+  await Effect.runPromise(
+    logAudit(env.DB, auth.user.id, 'policy.update', 'policy', id, request, { value, enforced })
+  );
 
   return jsonResponse({ success: true });
 }
@@ -229,7 +233,7 @@ export async function handleDeletePolicy(request: Request, env: Env): Promise<Re
     .bind(id, license.id)
     .run();
 
-  await logAudit(env.DB, auth.user.id, 'policy.delete', 'policy', id, request);
+  await Effect.runPromise(logAudit(env.DB, auth.user.id, 'policy.delete', 'policy', id, request));
 
   return jsonResponse({ success: true });
 }
@@ -348,7 +352,9 @@ export async function handleUpdateNotificationSettings(
       .run();
   }
 
-  await logAudit(env.DB, auth.user.id, 'notifications.update', 'settings', null, request);
+  await Effect.runPromise(
+    logAudit(env.DB, auth.user.id, 'notifications.update', 'settings', null, request)
+  );
 
   return jsonResponse({ success: true });
 }
@@ -400,9 +406,11 @@ export async function handleRevokeMember(request: Request, env: Env): Promise<Re
     .bind(license.id)
     .run();
 
-  await logAudit(env.DB, auth.user.id, 'member.revoke', 'machine', machine_id, request, {
-    hostname: machine.hostname,
-  });
+  await Effect.runPromise(
+    logAudit(env.DB, auth.user.id, 'member.revoke', 'machine', machine_id, request, {
+      hostname: machine.hostname,
+    })
+  );
 
   return jsonResponse({ success: true, message: 'Machine access revoked' });
 }
@@ -598,9 +606,11 @@ export async function handleUpdateAlertThreshold(request: Request, env: Env): Pr
     .bind(crypto.randomUUID(), license.id, threshold_type, value, value)
     .run();
 
-  await logAudit(env.DB, auth.user.id, 'threshold.update', 'alert', threshold_type, request, {
-    value,
-  });
+  await Effect.runPromise(
+    logAudit(env.DB, auth.user.id, 'threshold.update', 'alert', threshold_type, request, {
+      value,
+    })
+  );
 
   return jsonResponse({ success: true });
 }

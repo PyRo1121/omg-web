@@ -310,8 +310,13 @@ function registerOrTouchMachine(
       [generateId(), license.id, machineId, body.userName, body.userEmail],
       'insertMachine'
     );
-    yield* Effect.promise(() =>
-      logAudit(env.DB, license.customer_id, 'machine.registered', 'machine', machineId, request)
+    yield* logAudit(
+      env.DB,
+      license.customer_id,
+      'machine.registered',
+      'machine',
+      machineId,
+      request
     );
     return null;
   });

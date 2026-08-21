@@ -135,7 +135,7 @@ npx wrangler pages deploy build --project-name=omg-docs
 
 ### 6. Verify End-to-End
 
-1. Visit deployed docs: https://omg-docs.pages.dev
+1. Visit deployed docs: <https://omg-docs.pages.dev>
 2. Navigate to 2-3 pages
 3. Click a copy button
 4. Wait 5 seconds (batch flush interval)
@@ -286,8 +286,8 @@ bunx wrangler tail --format=pretty
 bunx wrangler d1 execute omg-licensing --remote --command="SELECT COUNT(*) FROM docs_analytics_pageviews_daily;"
 ```
 
-2. **Check date range**: Ensure events exist for requested period
-3. **Manual aggregation**: Run aggregation SQL manually (see above)
+1. **Check date range**: Ensure events exist for requested period
+2. **Manual aggregation**: Run aggregation SQL manually (see above)
 
 ### High latency
 

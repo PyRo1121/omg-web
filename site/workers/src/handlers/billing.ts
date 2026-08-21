@@ -283,14 +283,10 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     return errorResponse('Failed to create checkout session', 500);
   }
 
-  await logAudit(
-    env.DB,
-    auth.user.id,
-    'billing.checkout_created',
-    'checkout',
-    session.id,
-    request,
-    { offer }
+  await Effect.runPromise(
+    logAudit(env.DB, auth.user.id, 'billing.checkout_created', 'checkout', session.id, request, {
+      offer,
+    })
   );
 
   return jsonResponse({ sessionId: session.id, url: session.url });
@@ -361,7 +357,9 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
     return errorResponse(session.error?.message || 'Failed to create portal session');
   }
 
-  await logAudit(env.DB, auth.user.id, 'billing.portal_opened', 'portal', null, request);
+  await Effect.runPromise(
+    logAudit(env.DB, auth.user.id, 'billing.portal_opened', 'portal', null, request)
+  );
 
   return jsonResponse({ success: true, url: session.url });
 }
@@ -783,7 +781,9 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
     results.errors.push(`Sync error: ${decodeThrownMessage(error) || 'unknown error'}`);
   }
 
-  await logAudit(env.DB, auth.user.id, 'admin.stripe_sync', 'stripe', null, request, results);
+  await Effect.runPromise(
+    logAudit(env.DB, auth.user.id, 'admin.stripe_sync', 'stripe', null, request, results)
+  );
 
   return jsonResponse(results);
 }
