@@ -2,7 +2,11 @@ import { reportError } from '../observability';
 import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse, generateId } from '../api';
 import { decodeJsonBody } from '../body';
-import { TrackingBatch, TrackingBatchSchema, optionalStringField } from '../contracts/http-bodies';
+import {
+  type TrackingBatch,
+  TrackingBatchSchema,
+  optionalStringField,
+} from '../contracts/http-bodies';
 import {
   AnalyticsSaltRowSchema,
   CliGeoRowSchema,
