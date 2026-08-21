@@ -3,23 +3,16 @@ main = "src/worker.ts"
 compatibility_date = "2026-08-21"
 compatibility_flags = ["nodejs_compat"] # Required for Sentry SDK
 
-# Custom domain routes
-routes = [{ pattern = "api.pyro1121.com/*", zone_name = "pyro1121.com" }]
+# Keep the Worker on its workers.dev hostname until DNS ownership is restored.
+workers_dev = true
 
-# D1 Databases
+# The site and SaaS Worker share the final D1 slot available on the Free plan.
+# Better Auth owns user/session/account/verification; this Worker owns all other tables.
 [[d1_databases]]
 binding = "DB"
-database_name = "omg-licensing"
-database_id = "bcaf7781-a747-4637-92d9-94782e4fa1db"
+database_name = "omg-platform"
+database_id = "fee8ddab-fb4a-4be4-b8d2-8abb7c2db188"
 migrations_dir = "migrations"
-
-# R2 Buckets
-[[r2_buckets]]
-binding = "ASSETS"
-bucket_name = "omg-assets"
-
-[ai]
-binding = "AI"
 
 # Rate limiting for admin API (100 requests per minute per user)
 [[ratelimits]]
@@ -40,7 +33,8 @@ namespace_id = "1003"
 simple = { limit = 100, period = 60 }
 
 # Secrets are set via: npx wrangler secret put <NAME>
-# Required: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, JWT_SECRET, ADMIN_USER_ID, RESEND_API_KEY, META_API_KEY
+# Required before billing/email cutover: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+# JWT_SECRET, ADMIN_USER_ID, RESEND_API_KEY, and ADMIN_API_SECRET.
 # Optional: TURNSTILE_SECRET_KEY, SENTRY_DSN
 
 [observability]
@@ -54,7 +48,7 @@ persist = true
 
 [observability.traces]
 enabled = true
-head_sampling_rate = 0.05
+head_sampling_rate = 0.01
 persist = true
 
 [placement]

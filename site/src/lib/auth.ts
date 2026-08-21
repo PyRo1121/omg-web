@@ -30,11 +30,13 @@ export function createAuth(env: CloudflareEnv) {
   const db = drizzle(env.DB, { schema });
   const socialProviders: SocialProviders = {};
 
+  const baseUrl = new URL(env.BETTER_AUTH_URL).origin;
+
   if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
     socialProviders.github = {
       clientId: env.GITHUB_CLIENT_ID,
       clientSecret: env.GITHUB_CLIENT_SECRET,
-      redirectURI: 'https://pyro1121.com/api/auth/callback/github',
+      redirectURI: `${baseUrl}/api/auth/callback/github`,
     };
   }
 
@@ -42,7 +44,7 @@ export function createAuth(env: CloudflareEnv) {
     socialProviders.google = {
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
-      redirectURI: 'https://pyro1121.com/api/auth/callback/google',
+      redirectURI: `${baseUrl}/api/auth/callback/google`,
     };
   }
 
@@ -52,8 +54,8 @@ export function createAuth(env: CloudflareEnv) {
       usePlural: false,
     }),
     secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
-    trustedOrigins: ['https://pyro1121.com'],
+    baseURL: baseUrl,
+    trustedOrigins: [baseUrl],
     emailAndPassword: {
       enabled: true,
     },

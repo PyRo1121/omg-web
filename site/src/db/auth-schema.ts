@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 
-export const user = sqliteTable('user', {
+export const user = sqliteTable('auth_user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
@@ -19,7 +19,7 @@ export const user = sqliteTable('user', {
 });
 
 export const session = sqliteTable(
-  'session',
+  'auth_session',
   {
     id: text('id').primaryKey(),
     expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
@@ -40,7 +40,7 @@ export const session = sqliteTable(
 );
 
 export const account = sqliteTable(
-  'account',
+  'auth_account',
   {
     id: text('id').primaryKey(),
     accountId: text('account_id').notNull(),
@@ -70,7 +70,7 @@ export const account = sqliteTable(
 );
 
 export const verification = sqliteTable(
-  'verification',
+  'auth_verification',
   {
     id: text('id').primaryKey(),
     identifier: text('identifier').notNull(),

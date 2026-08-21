@@ -11,21 +11,9 @@ import {
 } from './contracts/d1-extras';
 import { TurnstileSiteverifySchema } from './contracts/provider-boundaries';
 
-/** Workers AI binding used by smart insights. The result is Schema-decoded at the call site. */
-export interface WorkersAiBinding {
-  run(
-    model: string,
-    input: {
-      readonly messages: ReadonlyArray<{ readonly role: string; readonly content: string }>;
-      readonly max_tokens: number;
-    }
-  ): Promise<{ readonly response?: string }>;
-}
-
-type GeneratedBindings = Pick<Cloudflare.Env, 'DB' | 'ASSETS'>;
+type GeneratedBindings = Pick<Cloudflare.Env, 'DB'>;
 
 export interface Env extends GeneratedBindings {
-  AI: WorkersAiBinding;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;
@@ -35,7 +23,6 @@ export interface Env extends GeneratedBindings {
   STRIPE_PRO_PRICE_ID?: string;
   STRIPE_TEAM_PRICE_ID?: string;
   STRIPE_ENT_PRICE_ID?: string;
-  META_API_KEY?: string;
   ADMIN_RATE_LIMITER?: RateLimit;
   AUTH_RATE_LIMITER?: RateLimit;
   API_RATE_LIMITER?: RateLimit;

@@ -1,9 +1,16 @@
 name = "omg-site"
+main = "dist/_worker.js/index.js"
 compatibility_date = "2026-08-21"
-
-# Cloudflare Pages configuration
-pages_build_output_dir = "dist"
 compatibility_flags = ["nodejs_compat"]
+
+# Workers Static Assets replaces the retired Pages project. Static asset
+# requests are free; only SSR/API requests invoke the paid Worker script.
+# dist/_headers and dist/_redirects are honored by Workers Static Assets.
+workers_dev = true
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
 
 [observability]
 enabled = true
@@ -16,14 +23,14 @@ persist = true
 
 [observability.traces]
 enabled = true
-head_sampling_rate = 0.05
+head_sampling_rate = 0.01
 persist = true
 
-# D1 Database for Better Auth
+# Shared physical D1 database. Better Auth owns only its four auth tables.
 [[d1_databases]]
 binding = "DB"
-database_name = "omg-auth-db"
-database_id = "871b70ca-79f7-4bb0-bfba-0f9f9aca4de9"
+database_name = "omg-platform"
+database_id = "fee8ddab-fb4a-4be4-b8d2-8abb7c2db188"
 
 # Private licensing API calls from the same-origin BFF
 [[services]]

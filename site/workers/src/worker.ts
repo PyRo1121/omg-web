@@ -53,7 +53,6 @@ import {
   handleAdminGetCustomerHealth,
   handleAdminAdvancedMetrics,
 } from './handlers/admin';
-import { handleGetSmartInsights } from './handlers/insights';
 import { handleGetFirehose } from './handlers/firehose';
 import {
   handleCreateCheckout,
@@ -68,8 +67,6 @@ import {
   cleanupDocsAnalytics,
 } from './handlers/docs-analytics';
 import { handleGitHubProxy } from './handlers/github-proxy';
-import { handleBinaryDownload } from './handlers/downloads';
-import { handleImageOptimization } from './handlers/images';
 import { handleGetDashboard } from './handlers/account-dashboard';
 import { handleCreateSiteSession } from './handlers/site-session';
 import {
@@ -194,13 +191,6 @@ export default Sentry.withSentry(
       try {
         const url = new URL(request.url);
         const path = normalizeLicensingPath(url.pathname);
-
-        if (path.startsWith('/download/') && request.method === 'GET') {
-          return handleBinaryDownload(request, env);
-        }
-        if (path.startsWith('/img/') && request.method === 'GET') {
-          return handleImageOptimization(request, env);
-        }
 
         const route = resolveLicensingRoute(request.method, path);
         if (route === undefined) {
@@ -328,8 +318,6 @@ export default Sentry.withSentry(
             return handleAdminAdvancedMetrics(request, env);
           case '/api/admin/firehose':
             return handleGetFirehose(request, env);
-          case '/api/insights':
-            return handleGetSmartInsights(request, env);
           case '/api/stripe/webhook':
             return handleStripeWebhook(request, env);
           case '/api/billing/portal':

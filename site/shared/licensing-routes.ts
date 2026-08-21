@@ -386,12 +386,6 @@ export const LicensingRoutes = {
     authentication: 'admin-session',
     transport: 'site-bff',
   },
-  insights: {
-    method: 'GET',
-    path: '/api/insights',
-    authentication: 'session',
-    transport: 'site-bff',
-  },
   stripeWebhook: {
     method: 'POST',
     path: '/api/stripe/webhook',

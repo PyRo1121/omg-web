@@ -250,6 +250,9 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   }
   const priceId = priceExit.value;
   const email = auth.user.email;
+  if (!env.STRIPE_SECRET_KEY) {
+    return errorResponse('Billing is not configured', 503);
+  }
 
   const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
@@ -332,6 +335,9 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
     return errorResponse('No billing account found for this email', 404);
   }
   const stripeCustomerId = stripeCustomerLookup.value.stripe_customer_id;
+  if (!env.STRIPE_SECRET_KEY) {
+    return errorResponse('Billing is not configured', 503);
+  }
 
   const portalResponse = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
     method: 'POST',
@@ -574,6 +580,9 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
   if (!(await customerIsAdmin(adminCheck))) {
     return errorResponse('Unauthorized', 403);
   }
+  if (!env.STRIPE_SECRET_KEY) {
+    return errorResponse('Billing is not configured', 503);
+  }
 
   const errors: string[] = [];
   const results = {
@@ -809,6 +818,9 @@ export async function handleAdminStripeMetrics(request: Request, env: Env): Prom
 
   if (!(await customerIsAdmin(adminCheck))) {
     return errorResponse('Unauthorized', 403);
+  }
+  if (!env.STRIPE_SECRET_KEY) {
+    return errorResponse('Billing is not configured', 503);
   }
 
   // Fetch active subscriptions from Stripe for accurate MRR

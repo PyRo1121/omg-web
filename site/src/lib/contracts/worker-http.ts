@@ -712,12 +712,6 @@ export const AdminStripeSyncResultSchema = Schema.Struct({
   errors: decodeNumArray(Schema.String),
 });
 
-export const SmartInsightSchema = Schema.Struct({
-  insight: Schema.String,
-  timestamp: Schema.String,
-  generated_by: Schema.String,
-});
-
 /**
  * Decode an untrusted Worker JSON response.
  *

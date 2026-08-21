@@ -573,22 +573,6 @@ export async function getDocsAnalytics(days = 30): Promise<DocsAnalyticsDashboar
 }
 
 // ============================================
-// AI Insights API
-// ============================================
-
-export type SmartInsight = WorkerBody<typeof Http.SmartInsightSchema>;
-
-export async function getSmartInsights(
-  target: 'user' | 'team' | 'admin' = 'user'
-): Promise<SmartInsight | null> {
-  try {
-    return apiRequest(Http.SmartInsightSchema, `${LicensingRoutes.insights.path}?target=${target}`);
-  } catch {
-    return null;
-  }
-}
-
-// ============================================
 // Site Analytics API
 // ============================================
 

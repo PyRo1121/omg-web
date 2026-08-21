@@ -32,6 +32,7 @@ describe('canonical D1 migrations', () => {
       '0000_current_baseline.sql',
       '011_stripe_event_inbox.sql',
       '012_secure_otp.sql',
+      '013_better_auth.sql',
     ]);
   });
 
@@ -41,6 +42,18 @@ describe('canonical D1 migrations', () => {
     );
     expect(await tableColumns('stripe_events')).toEqual(
       expect.arrayContaining(['status', 'attempt_count', 'processing_started_at', 'last_error'])
+    );
+    expect(await tableColumns('auth_user')).toEqual(
+      expect.arrayContaining(['id', 'email', 'email_verified', 'role'])
+    );
+    expect(await tableColumns('auth_session')).toEqual(
+      expect.arrayContaining(['id', 'token', 'expires_at', 'user_id'])
+    );
+    expect(await tableColumns('auth_account')).toEqual(
+      expect.arrayContaining(['id', 'account_id', 'provider_id', 'user_id'])
+    );
+    expect(await tableColumns('auth_verification')).toEqual(
+      expect.arrayContaining(['id', 'identifier', 'value', 'expires_at'])
     );
   });
 });

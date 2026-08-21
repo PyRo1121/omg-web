@@ -1,75 +1,70 @@
 # Cloudflare environment readiness
 
-**Last read-only inventory:** 2026-08-21
+**Last inventory/provisioning pass:** 2026-08-21
 
-**Deployment status:** blocked
+**Deployment status:** staging topology live on workers.dev; production DNS pending
 
-This document records the production resources required by the repository and the procedure for verifying them. It does not authorize creating, replacing, migrating, or deleting remote resources.
+This document records the deployed Cloudflare topology, the free-tier usage ceilings it must never exceed, and the remaining steps to restore the custom domains.
 
-## Required topology
+## Deployed topology (free plan)
 
-| Kind            | Required resource                                        | Repository authority                             |
-| --------------- | -------------------------------------------------------- | ------------------------------------------------ |
-| Worker          | `omg-saas`                                               | `site/workers/wrangler.toml`                     |
-| Worker          | `omg-router`                                             | `workers/router/wrangler.toml`                   |
-| Worker          | `omg-releases`                                           | `workers/releases/wrangler.toml`                 |
-| Pages project   | `omg-site`                                               | `site/wrangler.toml` and the site build pipeline |
-| D1              | `omg-licensing` / `bcaf7781-a747-4637-92d9-94782e4fa1db` | `site/workers/wrangler.toml`                     |
-| D1              | `omg-auth-db` / `871b70ca-79f7-4bb0-bfba-0f9f9aca4de9`   | `site/wrangler.toml`                             |
-| D1              | `omg-analytics` / `e11296b5-1c01-437a-9d22-2e3786c20932` | `workers/releases/wrangler.toml`                 |
-| R2              | `omg-assets`                                             | `site/workers/wrangler.toml`                     |
-| R2              | `omg-releases`                                           | `workers/releases/wrangler.toml`                 |
-| R2              | `omg-releases-preview`                                   | `workers/releases/wrangler.toml`                 |
-| Service binding | site `LICENSING_API` → `omg-saas`                        | `site/wrangler.toml`                             |
+| Kind                        | Resource                                                | Repository authority         | Public URL                            |
+| --------------------------- | ------------------------------------------------------- | ---------------------------- | ------------------------------------- |
+| Worker                      | `omg-saas`                                              | `site/workers/wrangler.toml` | `https://omg-saas.latham.workers.dev` |
+| Worker + static assets      | `omg-site`                                              | `site/wrangler.toml`         | `https://omg-site.latham.workers.dev` |
+| D1 (single shared database) | `omg-platform` / `fee8ddab-fb4a-4be4-b8d2-8abb7c2db188` | both wrangler configs        | n/a                                   |
 
-The externally hosted `omg-docs.pages.dev` project is not treated as an owned resource until its source repository and Cloudflare account ownership are established.
+Deliberately **not provisioned** (free-tier and ownership constraints):
 
-## Inventory result
+- `omg-router` and `omg-releases` Workers: `/docs` is served by external Docusaurus once DNS is restored, and release artifacts are delivered from GitHub Releases by `install.sh`.
+- All R2 buckets (`omg-assets`, `omg-releases`, `omg-releases-preview`): metered storage/operations can exceed the free allowance, so binary downloads stay on GitHub Releases.
+- Workers AI binding: removed with the AI insights feature; inference is a paid metered product.
+- Separate auth/analytics D1 databases: the Free plan allows 10 databases per account and this account already holds nine unrelated databases. One physical database is used with strict table-level ownership instead.
 
-The 2026-08-21 inventory used Wrangler 4.125.0 and the authenticated `PyRo1121` account. It made only list/get requests.
+### Shared-database ownership contract
 
-- The account contained no `omg-*` Workers.
-- `wrangler pages project list --json` returned no Pages projects.
-- All three configured D1 UUIDs returned Cloudflare error `7404` (database not found).
-- The account contained only the unrelated `tcg-vault-images` R2 bucket.
-- Both checked production R2 buckets returned Cloudflare error `10006` (bucket does not exist).
-- Contemporaneous DNS resolution failed for `pyro1121.com`, `api.pyro1121.com`, `releases.pyro1121.com`, `omg-site-4gd.pages.dev`, and `omg-docs.pages.dev`. Search indexes still contain historical page snapshots, but those are not evidence of a live deployment.
+`omg-platform` is one physical D1 database with two owners:
 
-Therefore a successful local dry run proves only that bundles and configuration syntax are valid. It does **not** prove that the configured remote resources or service bindings exist.
+- Better Auth owns exactly `auth_user`, `auth_session`, `auth_account`, and `auth_verification` (`migrations/013_better_auth.sql`, mirrored in `site/src/db/auth-schema.ts`). The SaaS Worker must not write them.
+- The SaaS Worker owns every other table created by migrations `0000`–`012`. The site must not write licensing/telemetry tables directly.
 
-## Repeat the read-only gate
+The canonical migration sequence lives only in `site/workers/migrations/`; integrity is enforced by `migrations.sha256`. Migrations were applied remotely on 2026-08-21 via `wrangler d1 migrations apply DB --remote`.
 
-Authenticate Wrangler to the intended production account, then run:
+### Secrets (server-only, set via `wrangler secret put`)
+
+- `omg-saas`: `JWT_SECRET`, `ADMIN_API_SECRET`
+- `omg-site`: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=https://omg-site.latham.workers.dev`, `ADMIN_API_SECRET` (same value as `omg-saas`)
+- Optional, unset until their features are enabled: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `TURNSTILE_SECRET_KEY`, `SENTRY_DSN`, OAuth client credentials. Billing routes return `503` until `STRIPE_SECRET_KEY` exists.
+
+## Free-tier ceilings that gate this design
+
+| Service              | Free allowance                       | How this deployment stays under it                                                                 |
+| -------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Workers requests     | 100,000/day; 10 ms CPU               | Static asset requests are free; only SSR/API invokes a Worker. Rate limiters bound abusive routes. |
+| D1 rows read/written | 5M read / 100k written per day       | Single indexed database; telemetry retention jobs prune daily.                                     |
+| D1 storage           | 5 GB account total; 500 MB/database  | One platform database; analytics tables are prunable.                                              |
+| Workers Logs/Traces  | ~200k events/day, 3-day retention    | Logs at 100%, traces sampled at 1%.                                                                |
+| R2 / Workers AI      | metered beyond small free allowances | Not used at all.                                                                                   |
+
+If sustained traffic approaches any ceiling, the correct response is a capacity decision, not silent overage: reduce ingestion, tighten sampling, or upgrade the plan explicitly.
+
+## Verification gate
+
+Authenticate Wrangler to the intended account, then run:
 
 ```bash
 npm run check:cloudflare:remote
 ```
 
-The command performs only read operations and exits nonzero if any required Worker, Pages project, D1 database UUID, or R2 bucket is absent or inaccessible. It is intentionally excluded from the default CI gate because CI does not receive production Cloudflare credentials.
+It performs only read operations and exits nonzero if `omg-saas`, `omg-site`, or the `omg-platform` D1 UUID is absent or inaccessible.
 
-## Recovery decision before provisioning
+## Remaining production steps
 
-Do not create empty replacements under the existing names until ownership and recovery have been decided. The configured UUIDs may refer to deleted resources, another Cloudflare account, or historical production data that must be restored.
-
-The owner must explicitly choose one path:
-
-1. **Recover existing production:** locate the prior account, database exports/backups, Worker deployment history, R2 artifacts, DNS routes, Pages project, and secrets.
-2. **Provision a new empty production environment:** accept that no historical production state is being recovered, create new resources, update every generated identifier in version control, and apply migrations through the normal reviewed deployment process.
-
-Use a separate staging environment first. Staging must have isolated D1 databases, R2 buckets, OAuth credentials, Better Auth secrets, Stripe test-mode resources, and routes. Never point mutation-enabled browser characterization at production.
-
-## Required validation after recovery or provisioning
-
-1. Run `npm run check:cloudflare:remote` until every resource is accessible.
-2. Inventory `d1_migrations` and `sqlite_schema` before applying any D1 migration.
-3. For a genuinely empty `omg-licensing` database, apply the immutable migration sequence in `site/workers/migrations/`; do not rewrite it.
-4. Confirm the site database contains only Better Auth identity/session data and no mutable licensing mirror.
-5. Configure the private `LICENSING_API` service binding for production and preview.
-6. Configure server-only secrets through Cloudflare; never commit secret values or copy them into client-visible variables.
-7. Verify custom-domain routes and DNS ownership for `pyro1121.com`, `api.pyro1121.com`, and `releases.pyro1121.com`.
-8. Verify Stripe products, allowlisted prices, webhook destination/signing secret, and sandbox separation.
-9. Run authenticated staging Playwright characterization before production cutover.
-10. Deploy through the reviewed pipeline, inspect Workers observability, and retain a tested rollback target.
+1. Restore `pyro1121.com` DNS in this Cloudflare account, then move both Workers from `workers.dev` onto their configured custom routes (`api.pyro1121.com/*`, and the site's apex route) and update `BETTER_AUTH_URL` plus Better Auth provider callback URLs.
+2. Point the docs hostname at Docusaurus and re-enable the router path only if that product returns.
+3. Configure Stripe products/prices/webhook secret in test mode first; billing stays `503` until then.
+4. Run authenticated Playwright characterization against the workers.dev staging URL.
+5. Verify Workers observability after first real traffic and confirm rollback via `wrangler deployments list`.
 
 See also:
 
