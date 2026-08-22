@@ -10,6 +10,27 @@ import {
 const CACHE_TTL = 120;
 const STALE_TTL = 3600;
 
+/**
+ * Copy cached response headers and override cache/CORS metadata without ever
+ * emitting duplicate header values: spreading raw cached header records next
+ * to capitalized overrides lets the Headers constructor append same-name
+ * entries (e.g. two Access-Control-Allow-Origin values), which browsers reject.
+ */
+function withCacheOverrides(
+  cachedHeaders: Headers,
+  cacheState: 'HIT' | 'STALE',
+  age: number,
+  cors: ReturnType<typeof getCorsHeaders>
+): Headers {
+  const headers = new Headers(cachedHeaders);
+  for (const [name, value] of Object.entries(cors)) {
+    headers.set(name, value);
+  }
+  headers.set('X-Cache', cacheState);
+  headers.set('X-Cache-Age', age.toString());
+  return headers;
+}
+
 export async function handleGitHubProxy(
   request: Request,
   ctx: ExecutionContext
@@ -39,12 +60,12 @@ export async function handleGitHubProxy(
 
     if (age < CACHE_TTL) {
       return new Response(cachedResponse.body, {
-        headers: {
-          ...Object.fromEntries(cachedResponse.headers),
-          'X-Cache': 'HIT',
-          'X-Cache-Age': age.toString(),
-          ...getCorsHeaders(request.headers.get('Origin')),
-        },
+        headers: withCacheOverrides(
+          cachedResponse.headers,
+          'HIT',
+          age,
+          getCorsHeaders(request.headers.get('Origin'))
+        ),
       });
     }
 
@@ -57,12 +78,12 @@ export async function handleGitHubProxy(
       );
 
       return new Response(cachedResponse.body, {
-        headers: {
-          ...Object.fromEntries(cachedResponse.headers),
-          'X-Cache': 'STALE',
-          'X-Cache-Age': age.toString(),
-          ...getCorsHeaders(request.headers.get('Origin')),
-        },
+        headers: withCacheOverrides(
+          cachedResponse.headers,
+          'STALE',
+          age,
+          getCorsHeaders(request.headers.get('Origin'))
+        ),
       });
     }
   }
