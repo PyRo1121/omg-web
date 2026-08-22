@@ -31,8 +31,15 @@ export default {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       mainRequestInit.body = request.body;
     }
-    const mainRequest = new Request(mainUrl, mainRequestInit);
-    return fetch(mainRequest);
+    try {
+      return await fetch(new Request(mainUrl, mainRequestInit));
+    } catch {
+      // Origin fetch failures must not surface as an opaque Worker exception (1101).
+      return new Response('Main site temporarily unavailable', {
+        status: 502,
+        headers: { 'Content-Type': 'text/plain', 'Retry-After': '30' },
+      });
+    }
   },
 } satisfies ExportedHandler<Env>;
 
