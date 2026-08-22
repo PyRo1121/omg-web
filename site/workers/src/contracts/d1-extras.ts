@@ -579,7 +579,7 @@ export const SiteAnalyticsTotalsRowSchema = Schema.Struct({
 });
 export type SiteAnalyticsTotalsRow = Schema.Schema.Type<typeof SiteAnalyticsTotalsRowSchema>;
 
-/** Active license id and tier used for team-controls authorization. */
+/** Active license id and tier. */
 export const LicenseIdTierRowSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),
   tier: Schema.String,

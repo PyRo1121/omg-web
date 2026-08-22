@@ -140,10 +140,13 @@ export default function SignupPage() {
 
             <form onSubmit={handleSignup} class="space-y-4">
               <div>
-                <label class="mb-2 ml-1 block text-sm font-medium text-slate-300">Full Name</label>
+                <label for="signup-name" class="mb-2 ml-1 block text-sm font-medium text-slate-300">
+                  Full Name
+                </label>
                 <div class="relative">
                   <User class="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-slate-500" />
                   <input
+                    id="signup-name"
                     type="text"
                     value={name()}
                     onInput={e => setName(e.currentTarget.value)}
@@ -155,12 +158,16 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label class="mb-2 ml-1 block text-sm font-medium text-slate-300">
+                <label
+                  for="signup-email"
+                  class="mb-2 ml-1 block text-sm font-medium text-slate-300"
+                >
                   Email Address
                 </label>
                 <div class="relative">
                   <Mail class="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-slate-500" />
                   <input
+                    id="signup-email"
                     type="email"
                     value={email()}
                     onInput={e => setEmail(e.currentTarget.value)}
@@ -172,8 +179,14 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label class="mb-2 ml-1 block text-sm font-medium text-slate-300">Password</label>
+                <label
+                  for="signup-password"
+                  class="mb-2 ml-1 block text-sm font-medium text-slate-300"
+                >
+                  Password
+                </label>
                 <input
+                  id="signup-password"
                   type="password"
                   value={password()}
                   onInput={e => setPassword(e.currentTarget.value)}
@@ -185,10 +198,14 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label class="mb-2 ml-1 block text-sm font-medium text-slate-300">
+                <label
+                  for="signup-confirm-password"
+                  class="mb-2 ml-1 block text-sm font-medium text-slate-300"
+                >
                   Confirm Password
                 </label>
                 <input
+                  id="signup-confirm-password"
                   type="password"
                   value={confirmPassword()}
                   onInput={e => setConfirmPassword(e.currentTarget.value)}

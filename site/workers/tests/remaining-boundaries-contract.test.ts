@@ -6,12 +6,6 @@ import {
   StripeCheckoutSessionSchema,
   StripeCustomerListSchema,
 } from '../src/contracts/stripe';
-import {
-  CreatePolicyBodySchema,
-  decodeStoredStringArray,
-  decodeTeamControlsRowArray,
-  NotificationSettingRowSchema,
-} from '../src/contracts/team-controls';
 import { SingleTelemetryRequestSchema } from '../src/contracts/cli-telemetry';
 import { decodeJsonBody } from '../src/body';
 import { MachineIdBodySchema, TrackingBatchSchema } from '../src/contracts/http-bodies';
@@ -127,47 +121,6 @@ describe('Stripe JSON decode', () => {
     }
     const available = exit.value.available.reduce((sum, funds) => sum + funds.amount, 0);
     expect(available).toBe(100);
-  });
-});
-
-describe('team-controls JSON decode', () => {
-  it('decodes a create-policy body', async () => {
-    const request = new Request('https://omg-api.latham.cloud/api/policies', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        scope: 'runtime',
-        rule: 'allow',
-        value: 'node',
-        enforced: true,
-      }),
-    });
-    const exit = await Effect.runPromiseExit(decodeJsonBody(request, CreatePolicyBodySchema));
-    expect(isSuccess(exit)).toBe(true);
-  });
-
-  it('rejects stored channels JSON that is corrupt', async () => {
-    const exit = await Effect.runPromiseExit(decodeStoredStringArray('{', ['email']));
-    expect(Exit.isFailure(exit)).toBe(true);
-  });
-
-  it('uses the fallback when stored channels are missing', async () => {
-    const channels = await Effect.runPromise(decodeStoredStringArray(undefined, ['email']));
-    expect(channels).toEqual(['email']);
-  });
-
-  it('decodes notification setting rows and rejects a non-array result', async () => {
-    const rows = await Effect.runPromise(
-      decodeTeamControlsRowArray(NotificationSettingRowSchema, 'settings', [
-        { type: 'member_inactive', enabled: 1, threshold: 7, channels: '["email"]' },
-      ])
-    );
-    expect(rows[0]?.type).toBe('member_inactive');
-
-    const invalid = await Effect.runPromiseExit(
-      decodeTeamControlsRowArray(NotificationSettingRowSchema, 'settings', { nope: true })
-    );
-    expect(Exit.isFailure(invalid)).toBe(true);
   });
 });
 
