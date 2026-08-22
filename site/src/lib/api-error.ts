@@ -9,15 +9,3 @@ export function storedDataErrorResponse(): Response {
     headers: { 'Content-Type': 'application/json' },
   });
 }
-
-/**
- * HTTP 500 for unexpected handler failures.
- *
- * @returns A JSON 500 response that does not leak internal error details.
- */
-export function internalErrorResponse(): Response {
-  return new Response(JSON.stringify({ error: 'Internal server error' }), {
-    status: 500,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}

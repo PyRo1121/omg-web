@@ -9,7 +9,6 @@ import { LicensingRoutes } from '../../shared/licensing-routes';
 
 type WorkerBody<S extends Schema.Schema.AnyNoContext> = Schema.Schema.Type<S>;
 
-const PUBLIC_WORKER_BASE = 'https://omg-api.latham.cloud';
 const LICENSING_BFF_BASE = '/api/licensing';
 
 // Authenticated same-origin BFF request with Schema decode at the boundary
@@ -88,121 +87,8 @@ function unwrapWorkerApi<A>(exit: Exit.Exit<A, WorkerApiError>): A {
 }
 
 // ============================================
-// Dashboard API
+// Account API
 // ============================================
-
-export interface User {
-  id: string;
-  email: string;
-  name: string | null;
-  avatar_url: string | null;
-  created_at: string;
-}
-
-export interface License {
-  id: string;
-  license_key: string;
-  tier: 'free' | 'pro' | 'team' | 'enterprise';
-  status: 'active' | 'suspended' | 'cancelled' | 'expired';
-  max_machines: number;
-  expires_at: string | null;
-  features: string[];
-}
-
-export interface Machine {
-  id: string;
-  machine_id: string;
-  hostname: string | null;
-  os: string | null;
-  arch: string | null;
-  omg_version: string | null;
-  last_seen_at: string;
-  first_seen_at: string;
-  is_active: number;
-}
-
-export interface UsageStats {
-  total_commands: number;
-  total_packages_installed: number;
-  total_packages_searched: number;
-  total_runtimes_switched: number;
-  total_sbom_generated: number;
-  total_vulnerabilities_found: number;
-  total_time_saved_ms: number;
-  current_streak: number;
-  longest_streak: number;
-  daily: Array<{
-    date: string;
-    commands_run: number;
-    time_saved_ms: number;
-  }>;
-}
-
-export interface Achievement {
-  id: string;
-  emoji: string;
-  name: string;
-  description: string;
-  unlocked: boolean;
-  unlocked_at?: string;
-}
-
-export interface Subscription {
-  status: string;
-  current_period_end: string;
-  cancel_at_period_end: number;
-}
-
-export interface Invoice {
-  id: string;
-  amount_cents: number;
-  currency: string;
-  status: string;
-  invoice_url: string | null;
-  invoice_pdf: string | null;
-  period_start: string;
-  period_end: string;
-  created_at: string;
-}
-
-export type Session = WorkerBody<typeof Http.SessionsResponseSchema>['sessions'][number];
-
-export type AuditLogEntry = WorkerBody<typeof Http.AuditLogResponseSchema>['logs'][number];
-
-export interface DashboardData {
-  user: User;
-  license: License;
-  machines: Machine[];
-  usage: UsageStats;
-  achievements: Achievement[];
-  subscription: Subscription | null;
-  invoices: Invoice[];
-  is_admin?: boolean;
-  global_stats?: {
-    top_package: string;
-    top_runtime: string;
-    percentile: number;
-  };
-  leaderboard?: Array<{
-    user: string;
-    time_saved: number;
-  }>;
-}
-
-export async function updateProfile(name: string): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, LicensingRoutes.updateProfile.path, {
-    method: 'PUT',
-    body: JSON.stringify({ name }),
-  });
-}
-
-export async function regenerateLicense(): Promise<
-  WorkerBody<typeof Http.RegeneratedLicenseSchema>
-> {
-  return apiRequest(Http.RegeneratedLicenseSchema, LicensingRoutes.regenerateLicense.path, {
-    method: 'POST',
-  });
-}
 
 export async function revokeMachine(machineId: string): Promise<{ success: boolean }> {
   return apiRequest(Http.SuccessSchema, LicensingRoutes.revokeMachine.path, {
@@ -211,37 +97,14 @@ export async function revokeMachine(machineId: string): Promise<{ success: boole
   });
 }
 
-export async function getSessions(): Promise<WorkerBody<typeof Http.SessionsResponseSchema>> {
-  return apiRequest(Http.SessionsResponseSchema, LicensingRoutes.sessions.path);
-}
-
-export async function revokeSession(sessionId: string): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, LicensingRoutes.revokeSession.path, {
-    method: 'POST',
-    body: JSON.stringify({ session_id: sessionId }),
-  });
-}
-
-export async function getAuditLog(): Promise<WorkerBody<typeof Http.AuditLogResponseSchema>> {
-  return apiRequest(Http.AuditLogResponseSchema, LicensingRoutes.auditLog.path);
-}
-
 // ============================================
 // Team Management API (Team+ tiers only)
 // ============================================
 
 export type TeamData = WorkerBody<typeof Http.TeamDataSchema>;
-export type TeamMember = TeamData['members'][number];
 
 export async function getTeamMembers(): Promise<TeamData> {
   return apiRequest(Http.TeamDataSchema, LicensingRoutes.teamMembers.path);
-}
-
-export async function revokeTeamMember(machineId: string): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, LicensingRoutes.revokeTeamMember.path, {
-    method: 'POST',
-    body: JSON.stringify({ machine_id: machineId }),
-  });
 }
 
 /** Public subscription offers accepted by the billing Worker. */
@@ -251,13 +114,6 @@ export async function createCheckout(offer: BillingOffer): Promise<{ url: string
   return apiRequest(Http.CheckoutUrlSchema, LicensingRoutes.billingCheckout.path, {
     method: 'POST',
     body: JSON.stringify({ offer }),
-  });
-}
-
-export async function openBillingPortal(email: string): Promise<{ success: boolean; url: string }> {
-  return apiRequest(Http.PortalUrlSchema, LicensingRoutes.billingPortal.path, {
-    method: 'POST',
-    body: JSON.stringify({ email }),
   });
 }
 
@@ -311,8 +167,6 @@ export type AdminOverview = WorkerBody<typeof Http.AdminOverviewSchema>;
 export type AdminUsersResponse = WorkerBody<typeof Http.AdminUsersResponseSchema>;
 export type AdminUser = AdminUsersResponse['users'][number];
 export type AdminActivityResponse = WorkerBody<typeof Http.AdminActivityResponseSchema>;
-export type AdminActivity = AdminActivityResponse['activity'][number];
-export type AdminHealth = WorkerBody<typeof Http.AdminHealthSchema>;
 export type AdminAnalytics = WorkerBody<typeof Http.AdminAnalyticsSchema>;
 export type FirehoseResponse = WorkerBody<typeof Http.FirehoseResponseSchema>;
 export type AdminFirehoseEvent = FirehoseResponse['events'][number];
@@ -362,26 +216,8 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
   );
 }
 
-export async function updateAdminUser(
-  userId: string,
-  updates: { tier?: string; max_seats?: number; status?: string }
-): Promise<{ success: boolean }> {
-  return apiRequest(Http.SuccessSchema, LicensingRoutes.adminUserUpdate.path, {
-    method: 'PUT',
-    body: JSON.stringify({
-      userId,
-      tier: updates.tier,
-      status: updates.status,
-    }),
-  });
-}
-
 export async function getAdminActivity(): Promise<AdminActivityResponse> {
   return apiRequest(Http.AdminActivityResponseSchema, LicensingRoutes.adminActivity.path);
-}
-
-export async function getAdminHealth(): Promise<AdminHealth> {
-  return apiRequest(Http.AdminHealthSchema, LicensingRoutes.adminHealth.path);
 }
 
 export async function getAdminCohorts(): Promise<AdminCohorts> {
@@ -599,31 +435,6 @@ export async function getSiteAnalyticsOverview(days = 30): Promise<SiteAnalytics
   );
 }
 
-export async function trackSiteEvent(
-  events: Array<{
-    event_type: 'pageview' | 'click' | 'form' | 'error' | 'performance';
-    event_name: string;
-    properties: Readonly<Record<string, string | number | boolean | null>>;
-    session_id: string;
-    duration_ms?: number;
-  }>
-): Promise<WorkerBody<typeof Http.TrackedEventsSchema>> {
-  const exit = await Effect.runPromiseExit(
-    requestDecodedJson(
-      browserWorkerFetcher,
-      `${PUBLIC_WORKER_BASE}${LicensingRoutes.siteAnalyticsTrack.path}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ events }),
-      },
-      Http.TrackedEventsSchema,
-      'Site analytics response has an invalid shape'
-    )
-  );
-  return unwrapWorkerApi(exit);
-}
-
 // ============================================
 // Helpers
 // ============================================
@@ -702,17 +513,6 @@ export function getTierBadgeColor(tier: string): string {
     default:
       return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
   }
-}
-
-export type AdminStripeMetrics = WorkerBody<typeof Http.AdminStripeMetricsSchema>;
-export type AdminStripeSyncResult = WorkerBody<typeof Http.AdminStripeSyncResultSchema>;
-
-export async function getAdminStripeMetrics(): Promise<AdminStripeMetrics> {
-  return get(Http.AdminStripeMetricsSchema, LicensingRoutes.adminStripeMetrics.path);
-}
-
-export async function syncAdminStripeData(): Promise<AdminStripeSyncResult> {
-  return post(Http.AdminStripeSyncResultSchema, LicensingRoutes.adminStripeSync.path);
 }
 
 export async function openAdminBillingPortal(

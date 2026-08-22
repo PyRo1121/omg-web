@@ -155,16 +155,16 @@ function mapPriority(value: string): 'low' | 'medium' | 'high' | 'urgent' {
 }
 
 interface RawFirehoseEvent {
-  id?: string;
-  event_name?: string;
-  action?: string;
-  machine_id?: string;
-  hostname?: string;
-  platform?: string;
-  timestamp?: string;
-  created_at?: string;
-  duration_ms?: number;
-  success?: boolean;
+  id?: string | undefined;
+  event_name?: string | undefined;
+  action?: string | undefined;
+  machine_id?: string | undefined;
+  hostname?: string | undefined;
+  platform?: string | undefined;
+  timestamp?: string | undefined;
+  created_at?: string | undefined;
+  duration_ms?: number | undefined;
+  success?: boolean | undefined;
   metadata?: {
     hostname?: string;
     platform?: string;
@@ -214,7 +214,8 @@ export function transformGeoDistribution(
   }));
 }
 
-function getCountryName(code: string): string {
+/** Map an ISO-3166 alpha-2 code to its display name, falling back to the code. */
+export function getCountryName(code: string): string {
   switch (code) {
     case 'US':
       return 'United States';

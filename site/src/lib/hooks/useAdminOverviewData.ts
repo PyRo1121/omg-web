@@ -6,12 +6,12 @@ import {
   useSiteGeoAnalytics,
   useSiteRealtimeAnalytics,
 } from '../api-hooks';
-import { valueForKey } from '../lookup';
 import {
   transformToExecutiveKPI,
   transformToAdvancedMetrics,
   transformFirehoseEvents,
   transformGeoDistribution,
+  getCountryName,
 } from '../transforms/admin';
 import type {
   ExecutiveKPI,
@@ -36,13 +36,9 @@ export function useAdminOverviewData() {
     transformToAdvancedMetrics(advancedMetricsQuery.data)
   );
 
-  const firehoseEvents = createMemo<FirehoseEvent[]>(() => {
-    const events = (firehoseQuery.data?.events || []).map(event => ({
-      ...event,
-      duration_ms: event.duration_ms ?? 0,
-    }));
-    return transformFirehoseEvents(events);
-  });
+  const firehoseEvents = createMemo<FirehoseEvent[]>(() =>
+    transformFirehoseEvents(firehoseQuery.data?.events || [])
+  );
 
   const geoDistribution = createMemo<GeoDistribution[]>(() => {
     const geoData = siteGeoQuery.data?.geo_distribution || [];
@@ -92,24 +88,4 @@ export function useAdminOverviewData() {
     refetchAll,
     refetchFirehose: () => firehoseQuery.refetch(),
   };
-}
-
-function getCountryName(code: string): string {
-  const countries = {
-    US: 'United States',
-    DE: 'Germany',
-    GB: 'United Kingdom',
-    FR: 'France',
-    CA: 'Canada',
-    JP: 'Japan',
-    AU: 'Australia',
-    BR: 'Brazil',
-    IN: 'India',
-    NL: 'Netherlands',
-    SE: 'Sweden',
-    ES: 'Spain',
-    IT: 'Italy',
-    KR: 'South Korea',
-  } as const;
-  return valueForKey(Object.entries(countries), code) ?? (code || 'Unknown');
 }

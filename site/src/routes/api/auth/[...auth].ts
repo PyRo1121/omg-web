@@ -1,4 +1,5 @@
 import type { APIEvent } from '@solidjs/start/server';
+import * as Sentry from '@sentry/solid';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 
 function getEnv(event: APIEvent): CloudflareEnv {
@@ -47,7 +48,9 @@ async function handleAuth(event: APIEvent): Promise<Response> {
       statusText: response.statusText,
       headers: newHeaders,
     });
-  } catch {
+  } catch (cause) {
+    // The client response stays generic, but the failure must remain diagnosable.
+    Sentry.captureException(cause);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

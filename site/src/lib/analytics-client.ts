@@ -84,7 +84,6 @@ let maxScrollDepth = 0;
 let isInitialized = false;
 let vitalsReported = false;
 let clsValue = 0;
-let clsEntries: PerformanceEntry[] = [];
 
 /**
  * Generate a simple page view ID for session-less correlation
@@ -217,10 +216,10 @@ function flushEvents(): void {
     const success = navigator.sendBeacon(ANALYTICS_ENDPOINT, payload);
     if (!success) {
       // Beacon failed, try fetch as fallback
-      sendWithFetch(payload, events);
+      void sendWithFetch(payload, events);
     }
   } else {
-    sendWithFetch(payload, events);
+    void sendWithFetch(payload, events);
   }
 }
 
@@ -262,7 +261,6 @@ export function trackPageView(): void {
   maxScrollDepth = 0;
   vitalsReported = false;
   clsValue = 0;
-  clsEntries = [];
 
   const viewport = {
     width: window.innerWidth,
@@ -321,13 +319,6 @@ export function trackCtaClick(ctaType: CtaType, ctaLabel?: string): void {
     cta_type: ctaType,
     cta_label: ctaLabel || ctaType,
   });
-}
-
-/**
- * Track custom engagement events
- */
-export function trackEngagement(action: string, properties?: AnalyticsProperties): void {
-  queueEvent('engagement', action, properties || {});
 }
 
 /**
@@ -492,7 +483,6 @@ function observeLayoutShift(metrics: WebVitalsMetrics): void {
         const delta = layoutShiftDelta(entry);
         if (delta !== undefined) {
           clsValue += delta;
-          clsEntries.push(entry);
         }
       }
       metrics.cls = clsValue;
@@ -653,13 +643,3 @@ export function initAnalytics(): void {
     flushEvents();
   });
 }
-
-export default {
-  init: initAnalytics,
-  trackPageView,
-  trackScrollDepth,
-  trackTimeOnPage,
-  trackCtaClick,
-  trackEngagement,
-  reportWebVitals,
-};

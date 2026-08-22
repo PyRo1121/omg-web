@@ -8,13 +8,3 @@
 export function casesHandled(unexpectedCase: never): never {
   throw new Error(`Unhandled case: ${String(unexpectedCase)}`);
 }
-
-/**
- * Abort on a violated internal invariant.
- *
- * @param msg - Optional description of the invariant that failed.
- * @returns Never returns.
- */
-export function shouldNeverHappen(msg?: string): never {
-  throw new Error(msg ?? 'This should never happen');
-}
