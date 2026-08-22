@@ -33,6 +33,12 @@ interface ParsedUserAgent {
   os: string;
 }
 
+/** Clamp the `days` query parameter to a valid 1–90-day reporting window. */
+function parseReportingDays(raw: string | null): number {
+  const parsed = Number.parseInt(raw ?? '', 10);
+  return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 90) : 30;
+}
+
 async function getCurrentSalt(db: D1Database): Promise<Uint8Array> {
   const result = await db
     .prepare(
@@ -280,7 +286,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
 export async function handleGetGeoAnalytics(request: Request, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const days = Math.min(parseInt(url.searchParams.get('days') || '30', 10), 90);
+    const days = parseReportingDays(url.searchParams.get('days'));
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString().slice(0, 10);
@@ -310,11 +316,13 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
         `SELECT json_extract(metadata, '$.country') as country_code, COUNT(*) as count
          FROM audit_log
          WHERE action = 'machine.registered' 
-           AND created_at >= datetime('now', '-${days} days')
+           AND created_at >= datetime('now', '-' || ? || ' days')
            AND json_extract(metadata, '$.country') IS NOT NULL
          GROUP BY json_extract(metadata, '$.country')
          ORDER BY count DESC`
-      ).all(),
+      )
+        .bind(days)
+        .all(),
     ]);
 
     const combined = new Map<
@@ -527,7 +535,7 @@ export async function handleGetRealtimeAnalytics(_request: Request, env: Env): P
 export async function handleGetAnalyticsOverview(request: Request, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const days = Math.min(parseInt(url.searchParams.get('days') || '30', 10), 90);
+    const days = parseReportingDays(url.searchParams.get('days'));
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString().slice(0, 10);

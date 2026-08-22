@@ -96,6 +96,12 @@ interface AdminContext {
   timestamp: string;
 }
 
+/** Parse a positive-integer query parameter, falling back when absent or malformed. */
+function parsePaginationParam(raw: string | null, fallback: number): number {
+  const parsed = Number.parseInt(raw ?? '', 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : fallback;
+}
+
 async function validateAdmin(
   request: Request,
   env: Env
@@ -432,8 +438,8 @@ export async function handleAdminCRMUsers(request: Request, env: Env): Promise<R
   if (url === null) {
     return errorResponse('Invalid request URL', 400);
   }
-  const page = parseInt(url.searchParams.get('page') || '1', 10);
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 100);
+  const page = parsePaginationParam(url.searchParams.get('page'), 1);
+  const limit = Math.min(parsePaginationParam(url.searchParams.get('limit'), 50), 100);
   const offset = (page - 1) * limit;
   const search = url.searchParams.get('search') || '';
 
@@ -1060,8 +1066,8 @@ export async function handleAdminAuditLog(request: Request, env: Env): Promise<R
   if (url === null) {
     return errorResponse('Invalid request URL', 400);
   }
-  const page = parseInt(url.searchParams.get('page') || '1', 10);
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 100);
+  const page = parsePaginationParam(url.searchParams.get('page'), 1);
+  const limit = Math.min(parsePaginationParam(url.searchParams.get('limit'), 50), 100);
   const logs = await env.DB.prepare(
     `SELECT a.id, a.customer_id, c.email as user_email, a.action, a.ip_address, a.metadata, a.created_at FROM audit_log a LEFT JOIN customers c ON a.customer_id = c.id ORDER BY a.created_at DESC LIMIT ? OFFSET ?`
   )

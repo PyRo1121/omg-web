@@ -72,7 +72,7 @@ const StripeSubscriptionItemSchema = Schema.Struct({
   price: Schema.Struct({
     id: Schema.String.pipe(Schema.minLength(1)),
   }),
-  quantity: Schema.optional(Schema.Number),
+  quantity: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
 });
 
 /** Current subscription record used for entitlement reconciliation and admin sync. */
@@ -104,7 +104,7 @@ export type StripeInvoice = Schema.Schema.Type<typeof StripeInvoiceSchema>;
 
 const StripeMetricsItemSchema = Schema.Struct({
   price: Schema.Struct({
-    unit_amount: Schema.optional(Schema.Number),
+    unit_amount: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
     recurring: Schema.optional(
       Schema.Struct({
         interval: Schema.optional(Schema.String),

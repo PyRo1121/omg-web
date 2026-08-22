@@ -42,13 +42,6 @@ export const FirehoseEventRowSchema = Schema.Struct({
 });
 export type FirehoseEventRow = Schema.Schema.Type<typeof FirehoseEventRowSchema>;
 
-/** Insights error aggregate row. */
-export const InsightsErrorRowSchema = Schema.Struct({
-  error_message: Schema.String,
-  occurrences: D1Number,
-});
-export type InsightsErrorRow = Schema.Schema.Type<typeof InsightsErrorRowSchema>;
-
 /** Privacy export license row. */
 export const PrivacyLicenseRowSchema = Schema.Struct({
   tier: Schema.String,
@@ -309,28 +302,6 @@ export const AuditCsvRowSchema = Schema.Struct({
   ip_address: Schema.optional(NullableString),
 });
 export type AuditCsvRow = Schema.Schema.Type<typeof AuditCsvRowSchema>;
-
-/** Meta.com chat completion. */
-export const MetaChatCompletionSchema = Schema.Struct({
-  choices: Schema.optional(
-    Schema.Array(
-      Schema.Struct({
-        message: Schema.optional(
-          Schema.Struct({
-            content: Schema.optional(Schema.String),
-          })
-        ),
-      })
-    )
-  ),
-});
-export type MetaChatCompletion = Schema.Schema.Type<typeof MetaChatCompletionSchema>;
-
-/** Workers AI text response for the Llama instruct model. */
-export const WorkersAiTextSchema = Schema.Struct({
-  response: Schema.optional(Schema.String),
-});
-export type WorkersAiText = Schema.Schema.Type<typeof WorkersAiTextSchema>;
 
 /** COUNT(*) / COUNT(DISTINCT ...) aggregate. */
 export const CountRowSchema = Schema.Struct({
@@ -984,21 +955,6 @@ export const InsightsStatsRowSchema = Schema.Struct({
   version_drift_count: D1Number,
 });
 export type InsightsStatsRow = Schema.Schema.Type<typeof InsightsStatsRowSchema>;
-
-/** Team-insights usage SUMs. */
-export const InsightsUsageRowSchema = Schema.Struct({
-  cmds: D1Number,
-  time: D1Number,
-});
-export type InsightsUsageRow = Schema.Schema.Type<typeof InsightsUsageRowSchema>;
-
-/** Team-insights product SUMs. */
-export const InsightsProductRowSchema = Schema.Struct({
-  searches: D1Number,
-  installs: D1Number,
-  runtime_switches: D1Number,
-});
-export type InsightsProductRow = Schema.Schema.Type<typeof InsightsProductRowSchema>;
 
 /**
  * Decode stored firehose properties JSON.

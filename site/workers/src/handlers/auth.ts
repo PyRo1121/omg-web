@@ -27,6 +27,7 @@ import {
   type VerifyCodeResponse,
 } from '../contracts/otp-auth';
 import { generateOtpCode, hashOtpCode } from '../otp';
+import { reportError } from '../observability';
 import { casesHandled } from '../prelude';
 
 /** Too many OTP requests were made for this email. */
@@ -612,12 +613,18 @@ export async function handleLogout(request: Request, env: Env): Promise<Response
   }
   const token = exit.value.token;
   if (token !== undefined) {
-    const result = await validateSession(env.DB, token);
-    if (result !== null) {
-      await env.DB.prepare(`DELETE FROM sessions WHERE token = ?`).bind(token).run();
-      await Effect.runPromise(
-        logAudit(env.DB, result.user.id, 'auth.logout', 'session', null, request)
-      );
+    try {
+      const result = await validateSession(env.DB, token);
+      if (result !== null) {
+        await env.DB.prepare(`DELETE FROM sessions WHERE token = ?`).bind(token).run();
+        // logAudit is best-effort and cannot fail; failures are logged internally.
+        await Effect.runPromise(
+          logAudit(env.DB, result.user.id, 'auth.logout', 'session', null, request)
+        );
+      }
+    } catch (error: unknown) {
+      reportError('Logout session cleanup failed:', error);
+      return errorResponse('Internal server error', 500);
     }
   }
   return jsonResponse({ success: true });

@@ -22,6 +22,12 @@ import {
   DocsUtmRowSchema,
 } from '../contracts/d1-extras';
 
+/** Clamp the `days` query parameter to a valid 1–90-day reporting window. */
+function parseReportingDays(raw: string | null): number {
+  const parsed = Number.parseInt(raw ?? '', 10);
+  return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 90) : 30;
+}
+
 /**
  * POST /api/docs/analytics
  * Accept batch analytics events from docs site
@@ -165,10 +171,10 @@ export async function handleDocsAnalytics(
 export async function handleDocsAnalyticsDashboard(request: Request, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const days = parseInt(url.searchParams.get('days') || '30', 10);
+    const days = parseReportingDays(url.searchParams.get('days'));
 
     // Limit to 90 days max
-    const limitDays = Math.min(days, 90);
+    const limitDays = days;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - limitDays);
     const startDateStr = startDate.toISOString().slice(0, 10);

@@ -42,9 +42,7 @@ function validateContentLength(request: Request, maxBytes: number): ContentLengt
     return { valid: false, error: errorResponse('Invalid Content-Length header', 400) };
   }
   if (bytes > maxBytes) {
-    const response = errorResponse('Payload too large', 413);
-    response.headers.set('Content-Type', 'application/json');
-    return { valid: false, error: response };
+    return { valid: false, error: errorResponse('Payload too large', 413) };
   }
 
   return { valid: true };

@@ -26,20 +26,17 @@ export const SendCodeRequestSchema = Schema.Struct({
   email: EmailAddress,
   turnstileToken: Schema.optional(Schema.String),
 });
-export type SendCodeRequest = Schema.Schema.Type<typeof SendCodeRequestSchema>;
 
 /** Body posted to verify an OTP. */
 export const VerifyCodeRequestSchema = Schema.Struct({
   email: EmailAddress,
   code: OtpCode,
 });
-export type VerifyCodeRequest = Schema.Schema.Type<typeof VerifyCodeRequestSchema>;
 
 /** Body posted with a session token. */
 export const SessionTokenRequestSchema = Schema.Struct({
   token: SessionToken,
 });
-export type SessionTokenRequest = Schema.Schema.Type<typeof SessionTokenRequestSchema>;
 
 /** Payload returned after sending an OTP. */
 export const SendCodeResponseSchema = Schema.Struct({
@@ -83,34 +80,6 @@ export type AuthCustomerRow = Schema.Schema.Type<typeof AuthCustomerRowSchema>;
 
 function mapParseError(reason: string) {
   return (cause: unknown): AuthParseError => new AuthParseError(reason, cause);
-}
-
-/**
- * Decode an untrusted send-code request body.
- *
- * @param value - Raw JSON posted to the Worker.
- * @returns The typed request, or `AuthParseError`.
- */
-export function decodeSendCodeRequest(
-  value: Schema.Schema.Encoded<Schema.Schema.Any>
-): Effect.Effect<SendCodeRequest, AuthParseError> {
-  return Schema.decodeUnknown(SendCodeRequestSchema)(value).pipe(
-    Effect.mapError(mapParseError('Send-code request has an invalid shape'))
-  );
-}
-
-/**
- * Decode an untrusted verify-code request body.
- *
- * @param value - Raw JSON posted to the Worker.
- * @returns The typed request, or `AuthParseError`.
- */
-export function decodeVerifyCodeRequest(
-  value: Schema.Schema.Encoded<Schema.Schema.Any>
-): Effect.Effect<VerifyCodeRequest, AuthParseError> {
-  return Schema.decodeUnknown(VerifyCodeRequestSchema)(value).pipe(
-    Effect.mapError(mapParseError('Verify-code request has an invalid shape'))
-  );
 }
 
 /**

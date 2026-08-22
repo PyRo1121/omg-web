@@ -33,7 +33,10 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
     if (url === null) {
       return errorResponse('Invalid request URL', 400);
     }
-    const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 100);
+    // Clamp to [1, 100] — SQLite treats a non-positive LIMIT as unbounded.
+    const requestedLimit = Number.parseInt(url.searchParams.get('limit') ?? '', 10);
+    const limit =
+      Number.isFinite(requestedLimit) && requestedLimit >= 1 ? Math.min(requestedLimit, 100) : 50;
     const since = url.searchParams.get('since'); // ISO timestamp
     let query = `
       SELECT
