@@ -39,7 +39,13 @@ test.describe('staging authenticated user', () => {
     await page.goto('/admin', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/dashboard$/);
 
-    await page.getByRole('button', { name: 'Sign Out' }).click();
+    // The /admin -> /dashboard client redirect can update the URL before Solid
+    // renders/hydrates the lazy dashboard and its click handlers; the header
+    // Sign Out button stays disabled until hydration completes, so requiring
+    // it to be enabled guarantees the click reaches a live handler.
+    const signOutButton = page.getByRole('banner').getByRole('button', { name: 'Sign Out' });
+    await expect(signOutButton).toBeEnabled();
+    await signOutButton.click();
     // Sign-out intentionally returns to the marketing home page.
     await expect(page).toHaveURL(/\/$/);
 

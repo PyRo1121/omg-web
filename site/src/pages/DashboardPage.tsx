@@ -171,8 +171,14 @@ const DashboardPage: Component<DashboardPageProps> = props => {
   const [copiedLicense, setCopiedLicense] = createSignal(false);
   const [dateRange, setDateRange] = createSignal<'7d' | '14d' | '30d' | '90d'>('30d');
   const [activeTab, setActiveTab] = createSignal<TabType>('overview');
+  // onMount only runs on the client (deferred until hydration completes during
+  // SSR), so this flag is the observable signal that event handlers are live.
+  const [isInteractive, setIsInteractive] = createSignal(false);
 
-  onMount(() => loadAll());
+  onMount(() => {
+    setIsInteractive(true);
+    loadAll();
+  });
 
   const handleSignOut = async (): Promise<void> => {
     const result = await signOutBrowserSessions();
@@ -389,7 +395,13 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                     <RefreshCw class="h-4 w-4" />
                   </button>
                 </Show>
-                <button onClick={handleSignOut} class="btn-secondary px-4 py-2 text-sm">
+                {/* Disabled until hydration so a click can never be silently
+                    dropped before Solid attaches the delegated listener. */}
+                <button
+                  onClick={handleSignOut}
+                  disabled={!isInteractive()}
+                  class="btn-secondary px-4 py-2 text-sm"
+                >
                   <LogOut class="h-4 w-4" />
                   Sign Out
                 </button>
@@ -524,7 +536,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
                   <div class={`${glassPanel} p-6 lg:col-span-2`}>
                     <h3 class="gradient-text mb-4 text-lg font-bold">Quick Stats</h3>
-                    <Show when={!telemetryLoading() ? telemetryData() : undefined}>
+                    <Show when={telemetryLoading() ? undefined : telemetryData()}>
                       {data => (
                         <div class="grid grid-cols-2 gap-4">
                           <StatCard
@@ -599,7 +611,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                   </div>
                 </Show>
 
-                <Show when={!telemetryLoading() ? telemetryData() : undefined}>
+                <Show when={telemetryLoading() ? undefined : telemetryData()}>
                   {data => (
                     <Show when={data().daily.length > 0}>
                       <div class={`${glassPanel} p-6`}>
@@ -704,7 +716,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                   </div>
                 </div>
 
-                <Show when={!telemetryLoading() ? telemetryData() : undefined}>
+                <Show when={telemetryLoading() ? undefined : telemetryData()}>
                   {data => (
                     <>
                       <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -889,7 +901,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
               <div class="animate-fade-in-up space-y-6">
                 <div class="mb-4 flex items-center justify-between">
                   <h2 class="gradient-text text-2xl font-bold">Achievements</h2>
-                  <Show when={!telemetryLoading() ? telemetryData() : undefined}>
+                  <Show when={telemetryLoading() ? undefined : telemetryData()}>
                     {data => (
                       <div class="text-sm text-slate-400">
                         <span class="font-bold text-white">
@@ -903,7 +915,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                   </Show>
                 </div>
 
-                <Show when={!telemetryLoading() ? telemetryData() : undefined}>
+                <Show when={telemetryLoading() ? undefined : telemetryData()}>
                   {data => (
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                       <For each={data().achievements}>
@@ -984,7 +996,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
               <div class="animate-fade-in-up space-y-6">
                 <div class="mb-4 flex items-center justify-between">
                   <h2 class="gradient-text text-2xl font-bold">Machines</h2>
-                  <Show when={!telemetryLoading() ? telemetryData() : undefined}>
+                  <Show when={telemetryLoading() ? undefined : telemetryData()}>
                     {data => (
                       <div class="text-sm text-slate-400">
                         <span class="font-bold text-white">
@@ -998,7 +1010,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                   </Show>
                 </div>
 
-                <Show when={!telemetryLoading() ? telemetryData() : undefined}>
+                <Show when={telemetryLoading() ? undefined : telemetryData()}>
                   {data => (
                     <Show
                       when={data().machines.length > 0}
