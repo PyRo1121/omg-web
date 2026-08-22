@@ -88,32 +88,3 @@ export interface AdminUser {
   total_commands?: number;
   machine_count?: number;
 }
-
-export interface AdminFirehose {
-  events: Array<{
-    id?: string;
-    event_name?: string;
-    action?: string;
-    machine_id?: string;
-    hostname?: string;
-    platform?: string;
-    timestamp?: string;
-    created_at?: string;
-    duration_ms?: number;
-    success?: boolean;
-    metadata?: {
-      hostname?: string;
-      platform?: string;
-    };
-  }>;
-}
-
-export interface AdminCRMResponse {
-  users: AdminUser[];
-  pagination: {
-    total: number;
-    pages: number;
-    page: number;
-    limit: number;
-  };
-}

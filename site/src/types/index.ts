@@ -1,10 +1,4 @@
-export type {
-  AdminOverview,
-  AdminAdvancedMetrics,
-  AdminUser,
-  AdminFirehose,
-  AdminCRMResponse,
-} from './api/admin';
+export type { AdminOverview, AdminAdvancedMetrics, AdminUser } from './api/admin';
 export type {
   SiteAnalyticsOverview,
   SiteGeoAnalytics,
@@ -18,4 +12,4 @@ export type {
   CommandHealth,
 } from './domain/metrics';
 export type { CustomerHealth, CRMCustomer } from './domain/customer';
-export type { DateRange, AdminTab, SavedView, DashboardFilters } from './ui/filters';
+export type { DateRange, AdminTab, SavedView } from './ui/filters';

@@ -6,19 +6,19 @@ This repository treats Wrangler configuration as the source of truth for Cloudfl
 
 The following deployed applications enable persistent Workers Logs and traces:
 
-- `site/wrangler.toml` — SolidStart Pages Functions
-- `site/workers/wrangler.toml` — licensing and telemetry API
-- `workers/router/wrangler.toml` — documentation router
-- `workers/releases/wrangler.toml` — release downloads
+- `site/wrangler.toml` — SolidStart site served through Workers Static Assets (`omg-site`)
+- `site/workers/wrangler.toml` — licensing and telemetry API (`omg-saas`)
+
+`workers/router/wrangler.toml` and `workers/releases/wrangler.toml` carry observability blocks too, but those Workers are kept in the repository only and are deliberately not deployed.
 
 Local Worker tests use `site/workers/wrangler.test.toml` and intentionally omit production observability and Workers AI bindings.
 
 ## Sampling
 
-Production configuration persists:
+Production configuration for both deployed Workers persists:
 
 - Logs and invocation logs at `head_sampling_rate = 1`.
-- Traces at `head_sampling_rate = 0.05`.
+- Traces at `head_sampling_rate = 0.01`.
 
 Logs remain unsampled so operational failures and security events are not silently discarded. Traces are sampled because a trace can contain several spans and Cloudflare tracing becomes billable on October 1, 2026. Review traffic and observability-event volume monthly. Change sampling in version control, validate it with the installed Wrangler version, and deploy through the normal release process.
 

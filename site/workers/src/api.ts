@@ -1,4 +1,3 @@
-import { reportError } from './observability';
 // API Types and Utilities for OMG Dashboard
 // All authenticated endpoints require a valid session token
 
@@ -42,42 +41,7 @@ export interface User {
 }
 
 // License from database
-export interface License {
-  id: string;
-  user_id: string;
-  license_key: string;
-  tier: 'free' | 'pro' | 'team' | 'enterprise';
-  status: 'active' | 'suspended' | 'cancelled' | 'expired';
-  max_machines: number;
-  expires_at: string | null;
-  created_at: string;
-}
-
 // Machine from database
-export interface Machine {
-  id: string;
-  license_id: string;
-  machine_id: string;
-  hostname: string | null;
-  os: string | null;
-  arch: string | null;
-  omg_version: string | null;
-  last_seen_at: string;
-  first_seen_at: string;
-  is_active: number;
-}
-
-// Usage stats
-export interface UsageStats {
-  commands_run: number;
-  packages_installed: number;
-  packages_searched: number;
-  runtimes_switched: number;
-  sbom_generated: number;
-  vulnerabilities_found: number;
-  time_saved_ms: number;
-}
-
 // Session from database
 export interface Session {
   id: string;
@@ -440,38 +404,4 @@ export function verifyTurnstile(
     }
     return { success: true as const };
   });
-}
-
-// Helper to send emails via Resend
-export async function sendEmail(
-  env: Env,
-  to: string,
-  subject: string,
-  html: string
-): Promise<boolean> {
-  if (!env.RESEND_API_KEY) {
-    reportError('RESEND_API_KEY not set');
-    return false;
-  }
-
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'OMG <noreply@latham.cloud>',
-        to,
-        subject,
-        html,
-      }),
-    });
-
-    return response.ok;
-  } catch (error: unknown) {
-    reportError('Email send error:', error);
-    return false;
-  }
 }

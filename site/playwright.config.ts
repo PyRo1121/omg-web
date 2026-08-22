@@ -23,6 +23,11 @@ export default defineConfig({
   forbidOnly: Boolean(process.env['CI']),
   retries: process.env['CI'] ? 2 : 0,
   reporter: process.env['CI'] ? [['github'], ['html', { open: 'never' }]] : 'list',
+  expect: {
+    // Local `vinxi dev` compiles routes lazily; first-hit assertions need more
+    // headroom than the 5s Playwright default before state is observable.
+    timeout: 15_000,
+  },
   use: {
     baseURL,
     trace: 'retain-on-failure',
@@ -32,7 +37,9 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      // --disable-dev-shm-usage keeps Chromium off /dev/shm, which exhausts and
+      // crashes tabs on constrained local machines mid-run.
+      use: { ...devices['Desktop Chrome'], launchOptions: { args: ['--disable-dev-shm-usage'] } },
     },
   ],
   ...localWebServer,

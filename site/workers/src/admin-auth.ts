@@ -12,7 +12,10 @@ import {
 /** The request has no valid Bearer session. */
 export class SessionUnauthorizedError extends Error {
   readonly _tag = 'SessionUnauthorizedError';
-  constructor(readonly reason: 'missing' | 'invalid' = 'missing') {
+  constructor(
+    readonly reason: 'missing' | 'invalid' = 'missing',
+    override readonly cause?: unknown
+  ) {
     super(reason === 'invalid' ? 'Invalid or expired session' : 'Authorization required');
   }
 }
@@ -20,7 +23,7 @@ export class SessionUnauthorizedError extends Error {
 /** The session belongs to a non-admin customer. */
 export class SessionForbiddenError extends Error {
   readonly _tag = 'SessionForbiddenError';
-  constructor() {
+  constructor(override readonly cause?: unknown) {
     super('Forbidden');
   }
 }
@@ -52,7 +55,7 @@ export function requireSession(
   }
   return Effect.tryPromise({
     try: () => validateSession(env.DB, token),
-    catch: () => new SessionUnauthorizedError('invalid'),
+    catch: cause => new SessionUnauthorizedError('invalid', cause),
   }).pipe(
     Effect.flatMap(auth =>
       auth === null
@@ -78,13 +81,13 @@ export function requireAdminSession(
     const row = yield* Effect.tryPromise({
       try: () =>
         env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`).bind(auth.user.id).first(),
-      catch: () => new SessionUnauthorizedError('invalid'),
+      catch: cause => new SessionUnauthorizedError('invalid', cause),
     });
     if (row === null) {
       return yield* Effect.fail(new SessionUnauthorizedError('invalid'));
     }
     const decoded = yield* Schema.decodeUnknown(AdminFlagRowSchema)(row).pipe(
-      Effect.mapError(() => new SessionForbiddenError())
+      Effect.mapError(cause => new SessionForbiddenError(cause))
     );
     if (decoded.admin !== 1) {
       yield* Effect.fail(new SessionForbiddenError());

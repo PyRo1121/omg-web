@@ -11,9 +11,3 @@ export interface SavedView {
   segment: string;
   compareEnabled: boolean;
 }
-
-export interface DashboardFilters {
-  dateRange: DateRange;
-  segment: string;
-  compareEnabled: boolean;
-}

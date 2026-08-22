@@ -10,16 +10,6 @@ export function casesHandled(unexpectedCase: never): never {
 }
 
 /**
- * Abort on a violated internal invariant.
- *
- * @param msg - Optional description of the invariant that failed.
- * @returns Never returns.
- */
-export function shouldNeverHappen(msg?: string): never {
-  throw new Error(msg ?? 'This should never happen');
-}
-
-/**
  * Compare two UTF-8 strings in constant time for the padded length.
  *
  * Length still affects the padded buffer size; the equality of the original

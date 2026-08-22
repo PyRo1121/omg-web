@@ -27,7 +27,7 @@ Deliberately **not provisioned** (free-tier and ownership constraints):
 
 `omg-platform` is one physical D1 database with two owners:
 
-- Better Auth owns exactly `auth_user`, `auth_session`, `auth_account`, and `auth_verification` (`migrations/013_better_auth.sql`, mirrored in `site/src/db/auth-schema.ts`). The SaaS Worker must not write them.
+- Better Auth owns exactly `auth_user`, `auth_session`, `auth_account`, and `auth_verification` (`migrations/013_better_auth.sql` plus the `014_better_auth_issuer.sql` column addition, mirrored in `site/src/db/auth-schema.ts`). The SaaS Worker must not write them.
 - The SaaS Worker owns every other table created by migrations `0000`–`012`. The site must not write licensing/telemetry tables directly.
 
 The canonical migration sequence lives only in `site/workers/migrations/`; integrity is enforced by `migrations.sha256`. Migrations were applied remotely on 2026-08-21 via `wrangler d1 migrations apply DB --remote`.
@@ -77,7 +77,7 @@ It performs only read operations and exits nonzero if `omg-saas`, `omg-site`, or
 ## Remaining production steps
 
 1. Configure OAuth provider callback URLs (`https://omg.latham.cloud/api/auth/callback/{github,google}`) in the GitHub/Google consoles when social sign-in is enabled.
-2. OTP email delivery requires either Workers Paid (Cloudflare Email Sending to arbitrary recipients is unavailable on the Free plan) or a third-party sender; until then OTP stays unavailable while email/password sign-up works fully.
+2. OTP stays unavailable by design: Workers Paid was declined, so Cloudflare Email Sending to arbitrary recipients is unavailable on the Free plan. A third-party sender would be required to enable it; until then email/password sign-up works fully without OTP.
 3. ~~Configure Stripe products/prices/webhook secret in test mode first~~ Done (2026-08-21, see the Stripe test-mode wiring section); finish the live webhook delivery verification (redeploy with the currency decode fix and confirm a signed test event is accepted). Update checkout success/return URLs only if the domain changes again.
 4. Verify Workers observability after first real traffic and confirm rollback via `wrangler deployments list`.
 

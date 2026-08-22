@@ -13,7 +13,7 @@ const Installation: Component = () => {
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(commands[activeTab()]);
+    void navigator.clipboard.writeText(commands[activeTab()]);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
