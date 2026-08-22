@@ -1,21 +1,14 @@
-import { expect, test, type Page } from '@playwright/test';
-import { HYDRATION_TOLERANT_TIMEOUT, suppressNativeFormSubmission } from './helpers';
-
-// TODO(a11y): signup inputs are not programmatically labeled (no htmlFor/id,
-// unlike /login), so accessible names currently fall back to placeholders.
-// Once the markup associates labels, switch these locators to getByLabel.
-function fullNameInput(page: Page) {
-  return page.getByRole('textbox', { name: 'John Doe' });
-}
+import { expect, test } from '@playwright/test';
+import { suppressNativeFormSubmission } from './helpers';
 
 test.describe('password signup surface', () => {
   test('renders the complete signup entry surface', async ({ page }) => {
     await page.goto('/signup', { waitUntil: 'domcontentloaded' });
 
     // Exact match keeps the main password field distinct from "Confirm Password".
-    await expect(page.getByRole('textbox', { name: 'At least 8 characters' })).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Confirm your password' })).toBeVisible();
-    await expect(fullNameInput(page)).toBeVisible();
+    await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Confirm Password')).toBeVisible();
+    await expect(page.getByLabel('Full Name')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sign up with GitHub' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sign up with Google' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
@@ -32,19 +25,13 @@ test.describe('password signup surface', () => {
     // soon as the validation error is observable.
     await expect(async () => {
       await suppressNativeFormSubmission(page);
-      await fullNameInput(page).fill('E2E User');
-      await page.getByRole('textbox', { name: 'dev@example.com' }).fill('e2e@example.com');
-      await page
-        .getByRole('textbox', { name: 'At least 8 characters' })
-        .fill('correct-horse-battery');
-      await page
-        .getByRole('textbox', { name: 'Confirm your password' })
-        .fill('correct-horse-battery-staple');
+      await page.getByLabel('Full Name').fill('E2E User');
+      await page.getByLabel('Email Address').fill('e2e@example.com');
+      await page.getByLabel('Password', { exact: true }).fill('correct-horse-battery');
+      await page.getByLabel('Confirm Password').fill('different-staple');
       await createAccount.click();
-      await expect(page.getByText('Passwords do not match')).toBeVisible();
-    }).toPass({ timeout: HYDRATION_TOLERANT_TIMEOUT });
-
-    // The mismatch gate fires before any auth request: the URL must be unchanged.
+      await expect(page.getByText(/passwords do not match/i)).toBeVisible();
+    }).toPass();
     await expect(page).toHaveURL(/\/signup\/?$/);
   });
 });
