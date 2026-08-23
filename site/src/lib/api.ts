@@ -143,15 +143,6 @@ export const createAdminNote = (
     body: JSON.stringify({ customerId, content, noteType }),
   });
 
-export const updateAdminNote = (
-  noteId: string,
-  updates: { content?: string | undefined; isPinned?: boolean | undefined }
-): Promise<{ success: boolean }> =>
-  apiRequest(Http.SuccessSchema, LicensingRoutes.adminNotesUpdate.path, {
-    method: 'PUT',
-    body: JSON.stringify({ noteId, ...updates }),
-  });
-
 export const deleteAdminNote = (noteId: string): Promise<{ success: boolean }> =>
   apiRequest(Http.SuccessSchema, `${LicensingRoutes.adminNotesDelete.path}?noteId=${noteId}`, {
     method: 'DELETE',
@@ -250,14 +241,6 @@ export function downloadCSV(data: string, filename: string): void {
 // ==== Docs Analytics API ====
 
 export type DocsAnalyticsDashboard = WorkerBody<typeof Http.DocsAnalyticsDashboardSchema>;
-export type DocsAnalyticsSummary = DocsAnalyticsDashboard['summary'];
-export type DocsPageview = DocsAnalyticsDashboard['pageviews_over_time'][number];
-export type DocsTopPage = DocsAnalyticsDashboard['top_pages'][number];
-export type DocsReferrer = DocsAnalyticsDashboard['top_referrers'][number];
-export type DocsUTMCampaign = DocsAnalyticsDashboard['utm_campaigns'][number];
-export type DocsGeo = DocsAnalyticsDashboard['geographic'][number];
-export type DocsInteraction = DocsAnalyticsDashboard['top_interactions'][number];
-export type DocsPerformance = DocsAnalyticsDashboard['performance'][number];
 
 export const getDocsAnalytics = (days = 30): Promise<DocsAnalyticsDashboard> =>
   apiRequest(
@@ -268,7 +251,6 @@ export const getDocsAnalytics = (days = 30): Promise<DocsAnalyticsDashboard> =>
 // ==== Site Analytics API ====
 
 export type SiteGeoAnalytics = WorkerBody<typeof Http.SiteGeoAnalyticsSchema>;
-export type SiteGeoData = SiteGeoAnalytics['geo_distribution'][number];
 export type SiteRealtimeAnalytics = WorkerBody<typeof Http.SiteRealtimeAnalyticsSchema>;
 export type SiteAnalyticsOverview = WorkerBody<typeof Http.SiteAnalyticsOverviewSchema>;
 

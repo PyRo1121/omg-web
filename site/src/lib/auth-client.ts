@@ -9,7 +9,7 @@ const getBaseURL = () => {
   return window.location.origin;
 };
 
-export const authClient = createAuthClient({
+const authClient = createAuthClient({
   baseURL: getBaseURL(),
 });
 

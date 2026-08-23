@@ -99,7 +99,6 @@ const TelemetryMessageSchema = Schema.Union(
 export type TelemetryMessage = Schema.Schema.Type<typeof TelemetryMessageSchema>;
 
 /** The event types the realtime feed can deliver. */
-export type TelemetryEventType = TelemetryMessage['type'];
 
 /** Parse a raw WebSocket payload into a typed telemetry message. */
 export function parseTelemetryMessage(value: TelemetryBoundaryInput): TelemetryMessage | null {
