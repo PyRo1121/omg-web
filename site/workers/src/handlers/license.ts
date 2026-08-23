@@ -588,88 +588,90 @@ function reportMachineUsage(
   today: string,
   body: ReportUsageRequest
 ): Effect.Effect<void, LicenseHandlerError> {
-  return Effect.gen(function* () {
-    const machineId = body.machine_id;
-    if (machineId !== undefined && machineId.length > 0) {
-      yield* runSql(
-        env.DB,
+  // Collect every per-machine, package, runtime, and achievement upsert into a
+  // single D1 batch: one network round trip instead of one per entry.
+  const statements: D1PreparedStatement[] = [];
+
+  const machineId = body.machine_id;
+  if (machineId !== undefined && machineId.length > 0) {
+    statements.push(
+      env.DB.prepare(
         `INSERT INTO usage_member_daily (id, license_id, machine_id, date, commands_run, packages_installed, runtimes_switched, time_saved_ms)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(license_id, machine_id, date) DO UPDATE SET
            commands_run = MAX(usage_member_daily.commands_run, excluded.commands_run),
            packages_installed = MAX(usage_member_daily.packages_installed, excluded.packages_installed),
            runtimes_switched = MAX(usage_member_daily.runtimes_switched, excluded.runtimes_switched),
-           time_saved_ms = MAX(usage_member_daily.time_saved_ms, excluded.time_saved_ms)`,
-        [
-          crypto.randomUUID(),
-          licenseId,
-          machineId,
-          today,
-          optionalNumber(body.commands_run),
-          optionalNumber(body.packages_installed),
-          optionalNumber(body.runtimes_switched),
-          optionalNumber(body.time_saved_ms),
-        ],
-        'upsertMemberUsage'
-      );
-      yield* runSql(
-        env.DB,
+           time_saved_ms = MAX(usage_member_daily.time_saved_ms, excluded.time_saved_ms)`
+      ).bind(
+        crypto.randomUUID(),
+        licenseId,
+        machineId,
+        today,
+        optionalNumber(body.commands_run),
+        optionalNumber(body.packages_installed),
+        optionalNumber(body.runtimes_switched),
+        optionalNumber(body.time_saved_ms)
+      )
+    );
+    statements.push(
+      env.DB.prepare(
         `UPDATE machines SET
            last_seen_at = CURRENT_TIMESTAMP,
            hostname = COALESCE(?, hostname),
            os = COALESCE(?, os),
            arch = COALESCE(?, arch),
            omg_version = COALESCE(?, omg_version)
-         WHERE license_id = ? AND machine_id = ?`,
-        [
-          optionalText(body.hostname),
-          optionalText(body.os),
-          optionalText(body.arch),
-          optionalText(body.omg_version),
-          licenseId,
-          machineId,
-        ],
-        'touchReportedMachine'
-      );
-    }
+         WHERE license_id = ? AND machine_id = ?`
+      ).bind(
+        optionalText(body.hostname),
+        optionalText(body.os),
+        optionalText(body.arch),
+        optionalText(body.omg_version),
+        licenseId,
+        machineId
+      )
+    );
+  }
 
-    const packages = body.installed_packages;
-    if (packages !== undefined) {
-      for (const [pkg, count] of Object.entries(packages)) {
-        yield* runSql(
-          env.DB,
+  const packages = body.installed_packages;
+  if (packages !== undefined) {
+    for (const [pkg, count] of Object.entries(packages)) {
+      statements.push(
+        env.DB.prepare(
           `INSERT INTO analytics_packages (package_name, install_count, last_seen_at)
            VALUES (?, ?, CURRENT_TIMESTAMP)
-           ON CONFLICT(package_name) DO UPDATE SET install_count = install_count + ?, last_seen_at = CURRENT_TIMESTAMP`,
-          [pkg, count, count],
-          'upsertPackageStat'
-        );
-      }
+           ON CONFLICT(package_name) DO UPDATE SET install_count = install_count + ?, last_seen_at = CURRENT_TIMESTAMP`
+        ).bind(pkg, count, count)
+      );
     }
+  }
 
-    const runtimes = body.runtime_usage_counts;
-    if (runtimes !== undefined) {
-      for (const [runtime, count] of Object.entries(runtimes)) {
-        yield* Effect.tryPromise({
-          try: () => incrementDailyMetric(env.DB, today, 'version', runtime, count).run(),
-          catch: cause => storeUnavailable('upsertRuntimeStat', cause),
-        });
-      }
+  const runtimes = body.runtime_usage_counts;
+  if (runtimes !== undefined) {
+    for (const [runtime, count] of Object.entries(runtimes)) {
+      statements.push(incrementDailyMetric(env.DB, today, 'version', runtime, count));
     }
+  }
 
-    const achievements = body.achievements;
-    if (achievements !== undefined) {
-      for (const achievement of achievements) {
-        yield* runSql(
-          env.DB,
-          `INSERT OR IGNORE INTO achievements (id, customer_id, achievement_id)
-           VALUES (?, ?, ?)`,
-          [crypto.randomUUID(), customerId, achievement],
-          'upsertAchievement'
-        );
-      }
+  const achievements = body.achievements;
+  if (achievements !== undefined) {
+    for (const achievement of achievements) {
+      statements.push(
+        env.DB.prepare(
+          `INSERT OR IGNORE INTO achievements (id, customer_id, achievement_id) VALUES (?, ?, ?)`
+        ).bind(crypto.randomUUID(), customerId, achievement)
+      );
     }
-  });
+  }
+
+  if (statements.length === 0) {
+    return Effect.void;
+  }
+  return Effect.tryPromise({
+    try: () => env.DB.batch(statements),
+    catch: cause => storeUnavailable('reportMachineUsageBatch', cause),
+  }).pipe(Effect.asVoid);
 }
 
 /**

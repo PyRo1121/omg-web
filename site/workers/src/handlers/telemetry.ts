@@ -270,6 +270,9 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
     if (!licenseKey) {
       return errorResponse('License key required', 401);
     }
+    if (events.some(event => event.license_key !== licenseKey)) {
+      return errorResponse('Batch events must use the same license key', 400);
+    }
 
     const authorization = await authorizeTelemetry(env, licenseKey);
     if (authorization._tag === 'rejected') {

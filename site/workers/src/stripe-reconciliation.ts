@@ -18,6 +18,17 @@ import {
   type StripeSubscription,
 } from './contracts/stripe';
 
+/**
+ * Terminal subscription states outrank transient ones so a stale concurrent
+ * snapshot can never resurrect a canceled subscription at equal period end.
+ */
+function statusRank(status: string): number {
+  if (status === 'canceled') return 3;
+  if (status === 'unpaid' || status === 'past_due' || status === 'incomplete_expired') return 2;
+  if (status === 'active' || status === 'trialing' || status === 'incomplete') return 1;
+  return 0;
+}
+
 export type StripeFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
 /** Current Stripe state or local projection could not be reconciled safely. */
@@ -142,20 +153,26 @@ export async function applyStripeSubscriptionProjection(
     db
       .prepare(
         `INSERT INTO subscriptions (
-           id, customer_id, stripe_subscription_id, status, current_period_end
-         ) VALUES (?, ?, ?, ?, datetime(?, 'unixepoch'))
+           id, customer_id, stripe_subscription_id, status, current_period_end, status_rank
+         ) VALUES (?, ?, ?, ?, datetime(?, 'unixepoch'), ?)
          ON CONFLICT(stripe_subscription_id) DO UPDATE SET
            customer_id = excluded.customer_id,
            status = excluded.status,
-           current_period_end = excluded.current_period_end
-           WHERE excluded.current_period_end >= subscriptions.current_period_end`
+           current_period_end = excluded.current_period_end,
+           status_rank = excluded.status_rank
+           WHERE excluded.current_period_end > subscriptions.current_period_end
+              OR (
+                excluded.current_period_end = subscriptions.current_period_end
+                AND excluded.status_rank >= subscriptions.status_rank
+              )`
       )
       .bind(
         crypto.randomUUID(),
         customerId,
         subscription.id,
         subscription.status,
-        subscription.current_period_end
+        subscription.current_period_end,
+        statusRank(subscription.status)
       ),
     db
       .prepare(`UPDATE customers SET tier = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)

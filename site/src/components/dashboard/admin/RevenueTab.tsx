@@ -55,6 +55,19 @@ export const RevenueTab: Component = () => {
         </div>
       </Show>
 
+      <Show when={revenueQuery.isError}>
+        <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
+          <p class="font-bold text-rose-400">Failed to load revenue data</p>
+          <p class="mt-2 text-sm text-slate-400">{revenueQuery.error?.message}</p>
+          <button
+            onClick={() => revenueQuery.refetch()}
+            class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
+          >
+            Try Again
+          </button>
+        </div>
+      </Show>
+
       <Show when={revenueQuery.isSuccess}>
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           <div class="group relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-8 shadow-2xl transition-all hover:border-emerald-500/40 hover:shadow-emerald-500/10">

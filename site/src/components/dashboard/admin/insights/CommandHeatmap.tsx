@@ -1,4 +1,4 @@
-import { type Component, For, createMemo, createSignal, Show, onMount } from 'solid-js';
+import { type Component, For, createMemo, createSignal, Show, onCleanup, onMount } from 'solid-js';
 import { Activity, Maximize2, Minimize2, Flame, Clock, Calendar } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -46,7 +46,8 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
   const [hoveredCell, setHoveredCell] = createSignal<{ day: number; hour: number } | null>(null);
 
   onMount(() => {
-    requestAnimationFrame(() => setMounted(true));
+    const animationFrame = requestAnimationFrame(() => setMounted(true));
+    onCleanup(() => cancelAnimationFrame(animationFrame));
   });
 
   const maxCount = createMemo(() => {
@@ -58,10 +59,18 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
 
   const totalEvents = createMemo(() => props.data.reduce((sum, d) => sum + d.event_count, 0));
 
-  const getCountForCell = (day: number, hour: number) => {
-    const cell = props.data.find(d => parseInt(d.day_of_week) === day && parseInt(d.hour) === hour);
-    return cell?.event_count || 0;
-  };
+  const cellCounts = createMemo(() => {
+    const counts = new Map<string, number>();
+    for (const cell of props.data) {
+      const key = `${parseInt(cell.day_of_week)}:${parseInt(cell.hour)}`;
+      if (!counts.has(key)) {
+        counts.set(key, cell.event_count);
+      }
+    }
+    return counts;
+  });
+
+  const getCountForCell = (day: number, hour: number) => cellCounts().get(`${day}:${hour}`) ?? 0;
 
   const getHeatmapLevel = (count: number): number => {
     if (count === 0) {

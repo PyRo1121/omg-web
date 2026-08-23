@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, createEffect, Show, For } from 'solid-js';
+import { createSignal, createEffect, onCleanup, Show, For } from 'solid-js';
 import { ChartLine, ChartColumn, Globe, MousePointerClick, Zap, ExternalLink } from 'lucide-solid';
 import * as api from '../../../lib/api';
 
@@ -23,17 +23,32 @@ export const DocsAnalytics: Component = () => {
   const [period, setPeriod] = createSignal(30);
   const [error, setError] = createSignal('');
 
-  createEffect(async () => {
+  createEffect(() => {
+    const days = period();
+    let isCurrent = true;
+    onCleanup(() => {
+      isCurrent = false;
+    });
+
     setLoading(true);
     setError('');
-    try {
-      const analytics = await api.getDocsAnalytics(period());
-      setData(analytics);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load docs analytics');
-    } finally {
-      setLoading(false);
-    }
+    void api
+      .getDocsAnalytics(days)
+      .then(analytics => {
+        if (isCurrent) {
+          setData(analytics);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (isCurrent) {
+          setError(cause instanceof Error ? cause.message : 'Failed to load docs analytics');
+        }
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setLoading(false);
+        }
+      });
   });
 
   return (

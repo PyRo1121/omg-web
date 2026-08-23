@@ -5,7 +5,7 @@ import * as Schema from 'effect/Schema';
 import { LicensingGlobalStatsSchema } from '../../../shared/licensing-dashboard';
 
 /** A failure decoding or encoding a telemetry dashboard payload. */
-class TelemetryDashboardParseError extends Error {
+export class TelemetryDashboardParseError extends Error {
   readonly _tag = 'TelemetryDashboardParseError';
   constructor(
     readonly reason: string,

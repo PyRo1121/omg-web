@@ -93,8 +93,6 @@ const QuickActionButton: Component<QuickActionButtonProps> = props => {
     danger: 'text-flare-400 hover:text-flare-300 hover:bg-flare-500/10',
   };
 
-  const IconComponent = props.icon;
-
   return (
     <button
       type="button"
@@ -105,7 +103,7 @@ const QuickActionButton: Component<QuickActionButtonProps> = props => {
       )}
       title={props.label}
     >
-      <IconComponent size={14} />
+      <props.icon size={14} />
       <span class="hidden sm:inline">{props.label}</span>
     </button>
   );

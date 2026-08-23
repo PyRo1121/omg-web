@@ -96,7 +96,10 @@ function badgeResponse(message: string): Response {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=60, must-revalidate',
+        // Install totals change slowly and tolerate brief staleness; SWR lets
+        // caches serve the previous count while revalidating instead of
+        // blocking on the D1 COUNT(DISTINCT) behind every expired entry.
+        'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
         ...corsHeaders,
       },
     }

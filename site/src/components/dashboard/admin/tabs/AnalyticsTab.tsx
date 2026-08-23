@@ -1,4 +1,4 @@
-import { type Component, Show, For } from 'solid-js';
+import { type Component, Show, For, createMemo } from 'solid-js';
 import {
   Globe,
   Eye,
@@ -235,12 +235,12 @@ const StatCard: Component<{
   color: string;
   period?: DateRange;
 }> = props => {
-  const c = getColorName(props.color);
+  const color = () => getColorName(props.color);
 
   return (
     <div class="group bg-void-850 shadow-card hover:shadow-card-hover relative overflow-hidden rounded-3xl border border-white/5 p-6 transition-all duration-300 hover:border-white/10">
       <div
-        class={`pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-${c}-500/20 opacity-70 blur-[40px] transition-opacity duration-500 group-hover:opacity-100`}
+        class={`pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-${color()}-500/20 opacity-70 blur-[40px] transition-opacity duration-500 group-hover:opacity-100`}
       />
       <div class="relative">
         <div class="flex items-center justify-between">
@@ -252,9 +252,9 @@ const StatCard: Component<{
             </Show>
           </div>
           <div
-            class={`flex h-10 w-10 items-center justify-center rounded-xl bg-${c}-500/10 transition-transform duration-300 group-hover:scale-110`}
+            class={`flex h-10 w-10 items-center justify-center rounded-xl bg-${color()}-500/10 transition-transform duration-300 group-hover:scale-110`}
           >
-            <props.icon size={18} class={`text-${c}-400`} />
+            <props.icon size={18} class={`text-${color()}-400`} />
           </div>
         </div>
         <div class="mt-3 flex items-baseline gap-1">
@@ -376,72 +376,77 @@ const TrafficSourcesCard: Component<{
 
 const DeviceBreakdownCard: Component<{
   devices: ReadonlyArray<{ device_type: string; visitors: number }> | undefined;
-}> = props => (
-  <div class="bg-void-850 shadow-card relative overflow-hidden rounded-3xl border border-white/5 p-6">
-    <div class="bg-electric-500/10 pointer-events-none absolute -top-16 -left-16 h-32 w-32 rounded-full blur-[60px]" />
-    <div class="relative mb-6 flex items-center gap-3">
-      <div class="bg-electric-500/10 flex h-10 w-10 items-center justify-center rounded-xl">
-        <Monitor size={20} class="text-electric-400" />
-      </div>
-      <div>
-        <h4 class="font-display text-sm font-black tracking-wider text-white uppercase">
-          Device Breakdown
-        </h4>
-        <p class="text-2xs text-nebula-500">Visitor distribution by device</p>
-      </div>
-    </div>
-    <Show
-      when={(props.devices?.length || 0) > 0}
-      fallback={
-        <div class="flex flex-col items-center justify-center py-8 text-center">
-          <Monitor size={32} class="text-nebula-600 mb-3" />
-          <p class="text-nebula-500 text-sm font-medium">No device data yet</p>
-        </div>
-      }
-    >
-      <div class="relative flex flex-wrap gap-6">
-        <For each={props.devices}>
-          {device => {
-            const total = props.devices?.reduce((sum, d) => sum + (d.visitors || 0), 0) || 1;
-            const percentage = ((device.visitors || 0) / total) * 100;
-            const DeviceIcon =
-              device.device_type === 'mobile'
-                ? Smartphone
-                : device.device_type === 'tablet'
-                  ? Tablet
-                  : Monitor;
-            const colorConfig = getDeviceColorConfig(device.device_type);
+}> = props => {
+  const totalVisitors = createMemo(
+    () => props.devices?.reduce((sum, device) => sum + (device.visitors || 0), 0) || 1
+  );
 
-            return (
-              <div class="group relative flex items-center gap-4 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.04]">
-                <div
-                  class="pointer-events-none absolute -top-4 -right-4 h-12 w-12 rounded-full opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
-                  classList={{ [colorConfig.glow]: true }}
-                />
-                <div class={`relative rounded-xl p-3 ${colorConfig.bg}`}>
-                  <DeviceIcon size={24} class={colorConfig.text} />
-                </div>
-                <div class="relative">
-                  <div class="flex items-baseline gap-2">
-                    <span class="font-display text-3xl font-black tracking-tight text-white tabular-nums">
-                      {device.visitors?.toLocaleString()}
-                    </span>
-                    <span class={`text-sm font-bold ${colorConfig.text}`}>
-                      ({percentage.toFixed(1)}%)
-                    </span>
-                  </div>
-                  <p class="text-nebula-500 mt-1 text-xs font-bold tracking-wider uppercase">
-                    {device.device_type || 'Desktop'}
-                  </p>
-                </div>
-              </div>
-            );
-          }}
-        </For>
+  return (
+    <div class="bg-void-850 shadow-card relative overflow-hidden rounded-3xl border border-white/5 p-6">
+      <div class="bg-electric-500/10 pointer-events-none absolute -top-16 -left-16 h-32 w-32 rounded-full blur-[60px]" />
+      <div class="relative mb-6 flex items-center gap-3">
+        <div class="bg-electric-500/10 flex h-10 w-10 items-center justify-center rounded-xl">
+          <Monitor size={20} class="text-electric-400" />
+        </div>
+        <div>
+          <h4 class="font-display text-sm font-black tracking-wider text-white uppercase">
+            Device Breakdown
+          </h4>
+          <p class="text-2xs text-nebula-500">Visitor distribution by device</p>
+        </div>
       </div>
-    </Show>
-  </div>
-);
+      <Show
+        when={(props.devices?.length || 0) > 0}
+        fallback={
+          <div class="flex flex-col items-center justify-center py-8 text-center">
+            <Monitor size={32} class="text-nebula-600 mb-3" />
+            <p class="text-nebula-500 text-sm font-medium">No device data yet</p>
+          </div>
+        }
+      >
+        <div class="relative flex flex-wrap gap-6">
+          <For each={props.devices}>
+            {device => {
+              const percentage = ((device.visitors || 0) / totalVisitors()) * 100;
+              let DeviceIcon = Monitor;
+              if (device.device_type === 'mobile') {
+                DeviceIcon = Smartphone;
+              } else if (device.device_type === 'tablet') {
+                DeviceIcon = Tablet;
+              }
+              const colorConfig = getDeviceColorConfig(device.device_type);
+
+              return (
+                <div class="group relative flex items-center gap-4 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.04]">
+                  <div
+                    class="pointer-events-none absolute -top-4 -right-4 h-12 w-12 rounded-full opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
+                    classList={{ [colorConfig.glow]: true }}
+                  />
+                  <div class={`relative rounded-xl p-3 ${colorConfig.bg}`}>
+                    <DeviceIcon size={24} class={colorConfig.text} />
+                  </div>
+                  <div class="relative">
+                    <div class="flex items-baseline gap-2">
+                      <span class="font-display text-3xl font-black tracking-tight text-white tabular-nums">
+                        {device.visitors?.toLocaleString()}
+                      </span>
+                      <span class={`text-sm font-bold ${colorConfig.text}`}>
+                        ({percentage.toFixed(1)}%)
+                      </span>
+                    </div>
+                    <p class="text-nebula-500 mt-1 text-xs font-bold tracking-wider uppercase">
+                      {device.device_type || 'Desktop'}
+                    </p>
+                  </div>
+                </div>
+              );
+            }}
+          </For>
+        </div>
+      </Show>
+    </div>
+  );
+};
 
 const GeoDistributionCard: Component<{
   geoData:

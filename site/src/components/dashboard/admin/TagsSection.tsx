@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, For, Show } from 'solid-js';
+import { createMemo, createSignal, For, Show } from 'solid-js';
 import { Tag, X, Plus, Check } from 'lucide-solid';
 
 interface CustomerTag {
@@ -39,10 +39,10 @@ export const TagsSection: Component<TagsSectionProps> = props => {
   const [newTagName, setNewTagName] = createSignal('');
   const [newTagColor, setNewTagColor] = createSignal(DEFAULT_TAG_COLOR);
 
-  const availableTags = () => {
+  const availableTags = createMemo(() => {
     const assignedIds = new Set(props.customerTags.map(t => t.id));
     return props.allTags.filter(t => !assignedIds.has(t.id));
-  };
+  });
 
   const handleAssignTag = (tagId: string) => {
     props.onAssignTag(tagId);

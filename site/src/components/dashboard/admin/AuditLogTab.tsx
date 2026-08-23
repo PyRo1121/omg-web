@@ -197,6 +197,19 @@ export const AuditLogTab: Component = () => {
           </div>
         </Show>
 
+        <Show when={auditQuery.isError}>
+          <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
+            <p class="font-bold text-rose-400">Failed to load audit logs</p>
+            <p class="mt-2 text-sm text-slate-400">{auditQuery.error?.message}</p>
+            <button
+              onClick={() => auditQuery.refetch()}
+              class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
+            >
+              Try Again
+            </button>
+          </div>
+        </Show>
+
         <Show when={auditQuery.isSuccess}>
           <div class="space-y-3">
             <For each={logs()}>

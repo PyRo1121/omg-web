@@ -1,6 +1,6 @@
 # Cloudflare environment readiness
 
-**Last inventory/provisioning pass:** 2026-08-21
+**Last inventory/provisioning pass:** 2026-08-23
 
 **Deployment status:** live on `omg.latham.cloud` and `omg-api.latham.cloud` (Workers Custom Domains)
 
@@ -21,7 +21,7 @@ Deliberately **not provisioned** (free-tier and ownership constraints):
 - `omg-router` and `omg-releases` Workers: `/docs` links point at the GitHub README until a docs product returns, and release artifacts are delivered from GitHub Releases by `install.sh` (with a `_redirects` fallback).
 - All R2 buckets (`omg-assets`, `omg-releases`, `omg-releases-preview`): metered storage/operations can exceed the free allowance, so binary downloads stay on GitHub Releases.
 - Workers AI binding: removed with the AI insights feature; inference is a paid metered product.
-- Separate auth/analytics D1 databases: the Free plan allows 10 databases per account and this account already holds nine unrelated databases. One physical database is used with strict table-level ownership instead.
+- Separate auth/analytics D1 databases: the Free plan allows 10 databases per account and this account already holds ten unrelated databases (11 total including `omg-platform`, re-counted 2026-08-23 via the D1 API). One physical database is used with strict table-level ownership instead.
 
 ### Shared-database ownership contract
 
@@ -36,7 +36,7 @@ The canonical migration sequence lives only in `site/workers/migrations/`; integ
 
 - `omg-saas`: `JWT_SECRET`, `ADMIN_API_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
 - `omg-site`: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=https://omg.latham.cloud`, `ADMIN_API_SECRET` (same value as `omg-saas`)
-- Optional, unset until their features are enabled: `RESEND_API_KEY`, `TURNSTILE_SECRET_KEY`, `SENTRY_DSN`, OAuth client credentials.
+- Optional, unset until their features are enabled: `TURNSTILE_SECRET_KEY`, `SENTRY_DSN`, `JWT_PRIVATE_KEY` (EdDSA license signing), OAuth client credentials. Note: `RESEND_API_KEY` is not read by any runtime code — OTP delivery uses the native `EMAIL` send binding and remains disabled per the remaining steps below.
 
 Stripe secrets are server-only on `omg-saas`; billing routes are unlocked and no longer return `503`.
 
@@ -79,7 +79,7 @@ It performs only read operations and exits nonzero if `omg-saas`, `omg-site`, or
 1. Configure OAuth provider callback URLs (`https://omg.latham.cloud/api/auth/callback/{github,google}`) in the GitHub/Google consoles when social sign-in is enabled.
 2. OTP stays unavailable by design: Workers Paid was declined, so Cloudflare Email Sending to arbitrary recipients is unavailable on the Free plan. A third-party sender would be required to enable it; until then email/password sign-up works fully without OTP.
 3. ~~Configure Stripe products/prices/webhook secret in test mode first~~ Done (2026-08-21, see the Stripe test-mode wiring section); finish the live webhook delivery verification (redeploy with the currency decode fix and confirm a signed test event is accepted). Update checkout success/return URLs only if the domain changes again.
-4. Verify Workers observability after first real traffic and confirm rollback via `wrangler deployments list`.
+4. Verify Workers observability after first real traffic and exercise the rollback path once: enumerate versions with `npx wrangler deployments list`, then revert with `npx wrangler rollback` (<https://developers.cloudflare.com/workers/wrangler/commands/#rollback>, <https://developers.cloudflare.com/workers/versioning/>).
 
 ## Authenticated characterization status
 

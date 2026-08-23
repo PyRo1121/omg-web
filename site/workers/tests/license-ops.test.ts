@@ -7,11 +7,15 @@ const TEST_EMAIL = 'report-usage@example.com';
 const TEST_KEY = 'lic-report-key';
 const TEST_CUSTOMER = 'report-cust';
 const TEST_LICENSE = 'report-lic';
+const GET_LICENSE_ATTACKER = 'get-license-attacker';
+const GET_LICENSE_ATTACKER_TOKEN = 'get-license-attacker-token';
 
 async function ensureSchema(): Promise<void> {
-  await env.DB.prepare(`ALTER TABLE licenses ADD COLUMN max_seats INTEGER DEFAULT 1`)
-    .run()
-    .catch(() => undefined);
+  try {
+    await env.DB.prepare(`ALTER TABLE licenses ADD COLUMN max_seats INTEGER DEFAULT 1`).run();
+  } catch {
+    // The isolated test database may already include this column.
+  }
   await env.DB.prepare(
     `CREATE TABLE IF NOT EXISTS usage_daily (
       id TEXT PRIMARY KEY,
@@ -117,8 +121,13 @@ describe('GET /api/get-license', () => {
   });
 
   afterEach(async () => {
+    await env.DB.prepare(`DELETE FROM sessions WHERE customer_id = ?`)
+      .bind(GET_LICENSE_ATTACKER)
+      .run();
     await env.DB.prepare(`DELETE FROM licenses WHERE id = ?`).bind(TEST_LICENSE).run();
-    await env.DB.prepare(`DELETE FROM customers WHERE id = ?`).bind(TEST_CUSTOMER).run();
+    await env.DB.prepare(`DELETE FROM customers WHERE id IN (?, ?)`)
+      .bind(TEST_CUSTOMER, GET_LICENSE_ATTACKER)
+      .run();
   });
 
   it('returns 401 without authentication', async () => {
@@ -149,6 +158,34 @@ describe('GET /api/get-license', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(401);
+  });
+
+  it('returns 403 when an authenticated customer requests another customer license', async () => {
+    await insertActiveLicense();
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, company, tier)
+       VALUES (?, 'get-license-attacker@example.com', 'Attacker', 'free')`
+    )
+      .bind(GET_LICENSE_ATTACKER)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO sessions (id, customer_id, token, expires_at)
+       VALUES ('get-license-attacker-session', ?, ?, datetime('now', '+1 hour'))`
+    )
+      .bind(GET_LICENSE_ATTACKER, GET_LICENSE_ATTACKER_TOKEN)
+      .run();
+
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      new Request(`http://localhost/api/get-license?email=${TEST_EMAIL}`, {
+        headers: { Authorization: `Bearer ${GET_LICENSE_ATTACKER_TOKEN}` },
+      }),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(403);
   });
 });
 

@@ -7,6 +7,7 @@ import {
   createMemo,
   onCleanup,
 } from 'solid-js';
+import { createQuery } from '@tanstack/solid-query';
 import {
   X,
   Calendar,
@@ -17,9 +18,6 @@ import {
   ExternalLink,
 } from '../../ui/Icons';
 import {
-  useAdminUserDetail,
-  useAdminNotes,
-  useAdminCustomerTags,
   useAdminTags,
   useCreateNote,
   useDeleteNote,
@@ -32,6 +30,9 @@ import {
   formatDate,
   formatTimeSaved,
   getTierBadgeColor,
+  getAdminCustomerTags,
+  getAdminNotes,
+  getAdminUserDetail,
   openAdminBillingPortal,
   getStripeCustomerUrl,
 } from '../../../lib/api';
@@ -47,6 +48,7 @@ interface CustomerDetailDrawerProps {
 
 export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props => {
   const [activeSection, setActiveSection] = createSignal<DrawerSection>('overview');
+  const [billingPortalError, setBillingPortalError] = createSignal('');
   let drawerRef: HTMLDivElement | undefined;
   let previousActiveElement: HTMLElement | null = null;
 
@@ -55,7 +57,7 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
       const active = document.activeElement;
       previousActiveElement = active instanceof HTMLElement ? active : null;
 
-      setTimeout(() => {
+      const focusTimer = setTimeout(() => {
         const closeButton = drawerRef?.querySelector('button');
         closeButton?.focus();
       }, 100);
@@ -86,6 +88,7 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
       document.addEventListener('keydown', handleKeyDown);
 
       onCleanup(() => {
+        clearTimeout(focusTimer);
         document.removeEventListener('keydown', handleKeyDown);
         if (previousActiveElement instanceof HTMLElement) {
           previousActiveElement.focus();
@@ -94,15 +97,27 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
     }
   });
 
-  const userDetailQuery = useAdminUserDetail(props.userId || '');
+  const userDetailQuery = createQuery(() => ({
+    queryKey: ['admin-user-detail', props.userId],
+    queryFn: () => getAdminUserDetail(props.userId ?? ''),
+    enabled: props.userId !== null,
+  }));
   const detail = () => userDetailQuery.data;
   const usageMaxCommands = createMemo(() =>
     Math.max(0, ...(detail()?.usage.daily?.map(day => day.commands_run) ?? []))
   );
 
   // CRM hooks
-  const notesQuery = useAdminNotes(props.userId || '');
-  const customerTagsQuery = useAdminCustomerTags(props.userId || '');
+  const notesQuery = createQuery(() => ({
+    queryKey: ['admin-notes', props.userId],
+    queryFn: () => getAdminNotes(props.userId ?? ''),
+    enabled: props.userId !== null,
+  }));
+  const customerTagsQuery = createQuery(() => ({
+    queryKey: ['admin-customer-tags', props.userId],
+    queryFn: () => getAdminCustomerTags(props.userId ?? ''),
+    enabled: props.userId !== null,
+  }));
   const allTagsQuery = useAdminTags();
 
   const createNoteMutation = useCreateNote();
@@ -137,6 +152,25 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
 
   const handleCreateTag = (name: string, color: string) => {
     createTagMutation.mutate({ name, color });
+  };
+
+  const handleOpenBillingPortal = async () => {
+    const email = detail()?.user.email;
+    if (!email) {
+      return;
+    }
+
+    setBillingPortalError('');
+    try {
+      const result = await openAdminBillingPortal(email);
+      if (result.url) {
+        window.open(result.url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (cause: unknown) {
+      setBillingPortalError(
+        cause instanceof Error ? cause.message : 'Unable to open the billing portal'
+      );
+    }
   };
 
   const SectionButton = (sectionProps: { id: DrawerSection; label: string }) => (
@@ -191,6 +225,19 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
               <div class="h-32 animate-pulse rounded-2xl bg-white/5" />
               <div class="h-48 animate-pulse rounded-2xl bg-white/5" />
               <div class="h-64 animate-pulse rounded-2xl bg-white/5" />
+            </div>
+          </Show>
+
+          <Show when={userDetailQuery.isError}>
+            <div class="m-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
+              <p class="font-bold text-rose-400">Failed to load customer details</p>
+              <p class="mt-2 text-sm text-slate-400">{userDetailQuery.error?.message}</p>
+              <button
+                onClick={() => userDetailQuery.refetch()}
+                class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
+              >
+                Try Again
+              </button>
             </div>
           </Show>
 
@@ -318,6 +365,31 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
 
               <Show when={activeSection() === 'crm'}>
                 <div class="space-y-6">
+                  <Show
+                    when={
+                      notesQuery.isError ||
+                      customerTagsQuery.isError ||
+                      allTagsQuery.isError ||
+                      createNoteMutation.isError ||
+                      deleteNoteMutation.isError ||
+                      assignTagMutation.isError ||
+                      removeTagMutation.isError ||
+                      createTagMutation.isError
+                    }
+                  >
+                    <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-400">
+                      {notesQuery.error?.message ||
+                        customerTagsQuery.error?.message ||
+                        allTagsQuery.error?.message ||
+                        createNoteMutation.error?.message ||
+                        deleteNoteMutation.error?.message ||
+                        assignTagMutation.error?.message ||
+                        removeTagMutation.error?.message ||
+                        createTagMutation.error?.message ||
+                        'Unable to update customer CRM data'}
+                    </div>
+                  </Show>
+
                   <NotesSection
                     customerId={props.userId || ''}
                     notes={notesQuery.data?.notes || []}
@@ -451,15 +523,7 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
                       </h4>
                       <div class="flex flex-wrap gap-3">
                         <button
-                          onClick={async () => {
-                            const email = detail()?.user.email;
-                            if (email) {
-                              const result = await openAdminBillingPortal(email);
-                              if (result.url) {
-                                window.open(result.url, '_blank');
-                              }
-                            }
-                          }}
+                          onClick={() => void handleOpenBillingPortal()}
                           class="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-indigo-500"
                         >
                           <CreditCard size={14} />
@@ -479,6 +543,9 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
                           )}
                         </Show>
                       </div>
+                      <Show when={billingPortalError()}>
+                        <p class="mt-3 text-sm text-rose-400">{billingPortalError()}</p>
+                      </Show>
                       <p class="mt-3 text-xs text-slate-500">
                         Customer ID: {detail()?.user.stripe_customer_id}
                       </p>

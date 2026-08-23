@@ -579,13 +579,28 @@ export const PredictiveInsights: Component = () => {
         </div>
       </Show>
 
+      <Show when={metricsQuery.isError || usersQuery.isError}>
+        <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
+          <p class="font-bold text-rose-400">Failed to load predictive insights</p>
+          <p class="mt-2 text-sm text-slate-400">
+            {metricsQuery.error?.message || usersQuery.error?.message}
+          </p>
+          <button
+            onClick={() => void Promise.all([metricsQuery.refetch(), usersQuery.refetch()])}
+            class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
+          >
+            Try Again
+          </button>
+        </div>
+      </Show>
+
       <Show when={metricsQuery.isSuccess && usersQuery.isSuccess}>
         <Show when={activeTab() === 'churn'}>
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <p class="text-nebula-400 text-sm">
-                <span class="text-flare-400 font-bold">{churnPredictions().length}</span> customers
-                predicted to churn based on current activity
+                <span class="text-flare-400 font-bold">{churnPredictions().length}</span> at-risk
+                segments detected from current activity
               </p>
               <p class="text-flare-400 font-mono text-sm font-bold">
                 $
@@ -603,7 +618,7 @@ export const PredictiveInsights: Component = () => {
                   <Shield size={32} class="text-aurora-400 mx-auto mb-3" />
                   <p class="text-aurora-400 font-bold">No High-Risk Churn Detected</p>
                   <p class="text-nebula-500 mt-2 text-sm">
-                    All customers appear healthy based on current activity
+                    No high-risk segments were detected in the current metrics
                   </p>
                 </div>
               }
@@ -705,7 +720,7 @@ export const PredictiveInsights: Component = () => {
                 .toLocaleString()}
             </p>
             <p class="text-nebula-500 mt-1 text-xs">
-              {churnPredictions().length} customers need attention
+              {churnPredictions().length} segments need attention
             </p>
           </div>
           <div class="bg-void-850/50 rounded-xl border border-white/5 p-4">

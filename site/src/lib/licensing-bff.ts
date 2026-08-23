@@ -51,7 +51,7 @@ export class LicensingSameOriginRequired extends Error {
 }
 
 /** A required identity or secret failed boundary validation. */
-class LicensingBffParseError extends Error {
+export class LicensingBffParseError extends Error {
   readonly _tag = 'LicensingBffParseError';
   constructor(
     readonly reason: string,
@@ -62,7 +62,7 @@ class LicensingBffParseError extends Error {
 }
 
 /** The service binding failed before returning a response. */
-class LicensingServiceUnavailable extends Error {
+export class LicensingServiceUnavailable extends Error {
   readonly _tag = 'LicensingServiceUnavailable';
   constructor(override readonly cause?: unknown) {
     super('Licensing service unavailable');
@@ -70,7 +70,7 @@ class LicensingServiceUnavailable extends Error {
 }
 
 /** The browser request exceeded the BFF's bounded body limit. */
-class LicensingBodyTooLarge extends Error {
+export class LicensingBodyTooLarge extends Error {
   readonly _tag = 'LicensingBodyTooLarge';
   constructor() {
     super('Licensing request body is too large');
@@ -78,7 +78,7 @@ class LicensingBodyTooLarge extends Error {
 }
 
 /** The browser request body could not be read for forwarding. */
-class LicensingBodyReadError extends Error {
+export class LicensingBodyReadError extends Error {
   readonly _tag = 'LicensingBodyReadError';
   constructor(override readonly cause?: unknown) {
     super('Licensing request body could not be read');
@@ -86,7 +86,7 @@ class LicensingBodyReadError extends Error {
 }
 
 /** The licensing Worker rejected session minting or the proxied request. */
-class LicensingWorkerRejected extends Error {
+export class LicensingWorkerRejected extends Error {
   readonly _tag = 'LicensingWorkerRejected';
   constructor(
     readonly operation: 'session',

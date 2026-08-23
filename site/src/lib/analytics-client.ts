@@ -57,7 +57,8 @@ interface AnalyticsEvent {
   properties: AnalyticsProperties;
 }
 
-interface WebVitalsMetrics {
+/** Browser performance metrics accepted by the analytics reporting boundary. */
+export interface WebVitalsMetrics {
   lcp?: number; // Largest Contentful Paint
   inp?: number; // Interaction to Next Paint (replaces FID)
   cls?: number; // Cumulative Layout Shift

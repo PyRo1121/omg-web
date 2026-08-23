@@ -191,6 +191,18 @@ export const InsightsTab: Component = () => {
             </Show>
 
             <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
+              <Show when={cohortsQuery.isError}>
+                <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
+                  <p class="font-bold text-rose-400">Failed to load cohort insights</p>
+                  <p class="mt-2 text-sm text-slate-400">{cohortsQuery.error?.message}</p>
+                  <button
+                    onClick={() => cohortsQuery.refetch()}
+                    class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </Show>
               <Show when={cohortsQuery.isSuccess ? cohortsQuery.data?.cohorts : undefined}>
                 {cohorts => (
                   <CohortRetentionHeatmap
@@ -206,6 +218,18 @@ export const InsightsTab: Component = () => {
             </Show>
 
             <Show when={activeCategory() === 'all' || activeCategory() === 'growth'}>
+              <Show when={dashboardQuery.isError}>
+                <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
+                  <p class="font-bold text-rose-400">Failed to load geographic insights</p>
+                  <p class="mt-2 text-sm text-slate-400">{dashboardQuery.error?.message}</p>
+                  <button
+                    onClick={() => dashboardQuery.refetch()}
+                    class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </Show>
               <Show
                 when={dashboardQuery.isSuccess ? dashboardQuery.data?.geo_distribution : undefined}
               >

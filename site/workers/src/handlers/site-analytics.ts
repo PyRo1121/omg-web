@@ -8,7 +8,6 @@ import {
   CliGeoRowSchema,
   CountRowSchema,
   decodeExtraRowArray,
-  ExtraRowParseError,
   isInvalidExtraRow,
   optionalRowValue,
   readOptionalExtraRow,
@@ -90,7 +89,8 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
       saltResult
     );
     if (saltLookup._tag === 'invalid') {
-      throw new ExtraRowParseError('Analytics salt row has an invalid shape');
+      reportError('Analytics salt row has an invalid shape');
+      return errorResponse('Failed to process events', 500);
     }
     const salt =
       saltLookup._tag === 'present'

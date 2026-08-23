@@ -6,8 +6,8 @@ const SITE_URL = 'https://omg.latham.cloud';
 /**
  * Generate robots.txt content
  *
- * This allows all crawlers access to the site while:
- * - Disallowing admin and API routes
+ * This allows crawlers to reach HTML pages (including pages with `noindex`) while:
+ * - Disallowing API and utility routes
  * - Referencing the sitemap for discovery
  * - Setting a reasonable crawl delay
  */
@@ -18,16 +18,8 @@ function generateRobotsTxt(): string {
 # Allow all crawlers
 User-agent: *
 
-# Disallow admin and private routes
-Disallow: /admin
-Disallow: /admin/
+# Disallow non-page routes
 Disallow: /api/
-Disallow: /dashboard
-Disallow: /dashboard/
-
-# Disallow authentication routes
-Disallow: /login
-Disallow: /signup
 
 # Disallow utility routes
 Disallow: /_

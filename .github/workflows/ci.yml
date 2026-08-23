@@ -28,8 +28,8 @@ jobs:
       - run: npm ci --prefix site
       - run: npm ci --prefix site/workers
       - run: npm ci --prefix workers/router
-      - run: npm run check
       - run: npm run build:check --prefix site
+      - run: npm run check
 
   e2e-anonymous:
     runs-on: ubuntu-latest

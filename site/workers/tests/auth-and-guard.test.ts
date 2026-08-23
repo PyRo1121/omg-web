@@ -16,6 +16,10 @@ const StoredAuthCodeSchema = Schema.Struct({
   attempt_count: Schema.Number,
   used: Schema.Number,
 });
+const VerifyCodeResponseSchema = Schema.Struct({
+  token: Schema.String,
+  success: Schema.Boolean,
+});
 
 async function ensureSchema(): Promise<void> {
   await env.DB.prepare(
@@ -246,7 +250,7 @@ describe('POST /api/auth/verify-code', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    const payload = await response.json<{ token: string; success: boolean }>();
+    const payload = Schema.decodeUnknownSync(VerifyCodeResponseSchema)(await response.json());
     expect(payload.success).toBe(true);
     expect(payload.token.length).toBeGreaterThan(0);
   });
@@ -309,6 +313,68 @@ describe('admin analytics endpoints require an admin session', () => {
     const response = await worker.fetch(getPath('/api/site/analytics/overview'), env, ctx);
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(401);
+  });
+});
+
+describe('admin handler authorization', () => {
+  const adminCustomerId = 'admin-gate-admin';
+  const userCustomerId = 'admin-gate-user';
+  const adminToken = 'admin-gate-admin-token';
+  const userToken = 'admin-gate-user-token';
+
+  beforeEach(async () => {
+    await ensureSchema();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO customers (id, email, company, tier, admin)
+         VALUES (?, 'admin-gate-admin@example.com', 'Admin', 'free', 1)`
+      ).bind(adminCustomerId),
+      env.DB.prepare(
+        `INSERT INTO customers (id, email, company, tier, admin)
+         VALUES (?, 'admin-gate-user@example.com', 'User', 'free', 0)`
+      ).bind(userCustomerId),
+      env.DB.prepare(
+        `INSERT INTO sessions (id, customer_id, token, expires_at)
+         VALUES ('admin-gate-admin-session', ?, ?, datetime('now', '+1 hour'))`
+      ).bind(adminCustomerId, adminToken),
+      env.DB.prepare(
+        `INSERT INTO sessions (id, customer_id, token, expires_at)
+         VALUES ('admin-gate-user-session', ?, ?, datetime('now', '+1 hour'))`
+      ).bind(userCustomerId, userToken),
+    ]);
+  });
+
+  afterEach(async () => {
+    await env.DB.prepare(`DELETE FROM audit_log WHERE customer_id IN (?, ?)`)
+      .bind(adminCustomerId, userCustomerId)
+      .run();
+    await env.DB.prepare(`DELETE FROM sessions WHERE customer_id IN (?, ?)`)
+      .bind(adminCustomerId, userCustomerId)
+      .run();
+    await env.DB.prepare(`DELETE FROM customers WHERE id IN (?, ?)`)
+      .bind(adminCustomerId, userCustomerId)
+      .run();
+  });
+
+  it('allows an admin session but denies an authenticated non-admin session', async () => {
+    const userContext = createExecutionContext();
+    const userResponse = await worker.fetch(
+      getPath('/api/admin/health', userToken),
+      env,
+      userContext
+    );
+    await waitOnExecutionContext(userContext);
+
+    const adminContext = createExecutionContext();
+    const adminResponse = await worker.fetch(
+      getPath('/api/admin/health', adminToken),
+      env,
+      adminContext
+    );
+    await waitOnExecutionContext(adminContext);
+
+    expect(userResponse.status).toBe(403);
+    expect(adminResponse.status).toBe(200);
   });
 });
 

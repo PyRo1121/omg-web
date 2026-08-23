@@ -22,8 +22,6 @@ import {
   IdRowSchema,
   isTeamOrEnterpriseTier,
   LicenseTeamAuthRowSchema,
-  MemberRecentUsageRowSchema,
-  MemberUsageRowSchema,
   optionalRowValue,
   isInvalidExtraRow,
   readOptionalExtraRow,
@@ -39,6 +37,16 @@ const SessionListRowSchema = Schema.Struct({
   user_agent: Schema.Union(Schema.Null, Schema.String),
   created_at: Schema.String,
   expires_at: Schema.String,
+});
+
+/** Lifetime per-machine usage totals with a trailing-7-day command column, decoded from one query. */
+const MemberUsageWithRecentRowSchema = Schema.Struct({
+  machine_id: Schema.String,
+  total_commands: Schema.Union(Schema.Null, Schema.Number),
+  total_packages: Schema.Union(Schema.Null, Schema.Number),
+  total_time_saved_ms: Schema.Union(Schema.Null, Schema.Number),
+  last_active: Schema.Union(Schema.Null, Schema.String),
+  commands_last_7d: Schema.Union(Schema.Null, Schema.Number),
 });
 
 /** Run a handler behind dashboard session validation. */
@@ -104,14 +112,13 @@ export async function handleRegenerateLicense(request: Request, env: Env): Promi
     }
 
     const newLicenseKey = crypto.randomUUID();
-    await db
-      .prepare(`UPDATE licenses SET license_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-      .bind(newLicenseKey, licenseId)
-      .run();
-    await db
-      .prepare(`UPDATE machines SET is_active = 0 WHERE license_id = ?`)
-      .bind(licenseId)
-      .run();
+    // One round trip: rotate the key and deactivate every machine atomically.
+    await db.batch([
+      db
+        .prepare(`UPDATE licenses SET license_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+        .bind(newLicenseKey, licenseId),
+      db.prepare(`UPDATE machines SET is_active = 0 WHERE license_id = ?`).bind(licenseId),
+    ]);
     await Effect.runPromise(
       logAudit(db, userId, 'license.regenerated', 'license', licenseId, request)
     );
@@ -295,7 +302,8 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       }
       const machines = machinesExit.value;
 
-      // Get real per-member usage stats
+      // Get real per-member usage stats: lifetime totals and trailing-7-day
+      // commands decoded from a single query (one D1 round trip instead of two).
       const memberUsageResult = await db
         .prepare(
           `
@@ -304,7 +312,8 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       SUM(commands_run) as total_commands,
       SUM(packages_installed) as total_packages,
       SUM(time_saved_ms) as total_time_saved_ms,
-      MAX(date) as last_active
+      MAX(date) as last_active,
+      SUM(CASE WHEN date >= date('now', '-7 days') THEN commands_run ELSE 0 END) as commands_last_7d
     FROM usage_member_daily
     WHERE license_id = ?
     GROUP BY machine_id
@@ -315,7 +324,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
 
       const memberUsageExit = await Effect.runPromiseExit(
         decodeExtraRowArray(
-          MemberUsageRowSchema,
+          MemberUsageWithRecentRowSchema,
           'Member usage rows have an invalid shape',
           memberUsageResult.results
         )
@@ -325,36 +334,6 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
       }
 
       const usageMap = new Map(memberUsageExit.value.map(row => [row.machine_id, row]));
-
-      // Get last 7 days usage
-      const recentUsageResult = await db
-        .prepare(
-          `
-    SELECT
-      machine_id,
-      SUM(commands_run) as commands_last_7d
-    FROM usage_member_daily
-    WHERE license_id = ? AND date >= date('now', '-7 days')
-    GROUP BY machine_id
-  `
-        )
-        .bind(license.id)
-        .all();
-
-      const recentUsageExit = await Effect.runPromiseExit(
-        decodeExtraRowArray(
-          MemberRecentUsageRowSchema,
-          'Recent member usage rows have an invalid shape',
-          recentUsageResult.results
-        )
-      );
-      if (Exit.isFailure(recentUsageExit)) {
-        return errorResponse('Failed to load team members', 500);
-      }
-
-      const recentMap = new Map(
-        recentUsageExit.value.map(row => [row.machine_id, row.commands_last_7d])
-      );
 
       const totalUsageRow = await db
         .prepare(
@@ -382,13 +361,12 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
 
       const membersWithUsage = machines.map(member => {
         const usage = usageMap.get(member.machine_id);
-        const recent = recentMap.get(member.machine_id) ?? 0;
         return {
           ...member,
           total_commands: usage?.total_commands ?? 0,
           total_packages: usage?.total_packages ?? 0,
           total_time_saved_ms: usage?.total_time_saved_ms ?? 0,
-          commands_last_7d: recent,
+          commands_last_7d: usage?.commands_last_7d ?? 0,
           last_active: usage?.last_active ?? member.last_seen_at,
         };
       });

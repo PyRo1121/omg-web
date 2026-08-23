@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 
 /** Better Auth cookie revocation failed during browser sign-out. */
-class BetterAuthSignOutError extends Error {
+export class BetterAuthSignOutError extends Error {
   readonly _tag = 'BetterAuthSignOutError';
   constructor(override readonly cause: unknown) {
     super('Better Auth sign-out failed');

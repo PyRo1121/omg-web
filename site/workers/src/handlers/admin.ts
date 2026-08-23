@@ -112,7 +112,9 @@ async function validateAdmin(
       action: 'admin.unauthorized_access',
       userId: auth.user.id,
       request,
-      metadata: { attempted_path: new URL(request.url).pathname },
+      metadata: {
+        attempted_path: (URL.parse(request.url)?.pathname ?? request.url).slice(0, 256),
+      },
       success: false,
     });
     return { error: errorResponse('Unauthorized', 403) };
@@ -139,7 +141,11 @@ async function withAdminQuery(
   env: Env,
   handler: (context: AdminContext, url: URL) => Promise<Response>
 ): Promise<Response> {
-  return withAdminContext(request, env, context => handler(context, new URL(request.url)));
+  const url = URL.parse(request.url);
+  if (url === null) {
+    return errorResponse('Invalid request URL', 400);
+  }
+  return withAdminContext(request, env, context => handler(context, url));
 }
 
 async function withAdminBody<S extends Schema.Schema.AnyNoContext>(

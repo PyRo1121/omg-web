@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { For, Show, createSignal } from 'solid-js';
+import { For, Show, createMemo, createSignal } from 'solid-js';
 import { createMutation, createQuery, useQueryClient } from '@tanstack/solid-query';
 import { Plus, X } from '../../ui/Icons';
 import { assignAdminTag, createAdminTag, getAdminTags, removeAdminTag } from '../../../lib/api';
@@ -42,8 +42,8 @@ export const TagsManager: Component<TagsManagerProps> = props => {
   }));
 
   const allTags = () => allTagsQuery.data?.tags || [];
-  const assignedTagIds = () => new Set(props.assignedTags.map(t => t.id));
-  const availableTags = () => allTags().filter(t => !assignedTagIds().has(t.id));
+  const assignedTagIds = createMemo(() => new Set(props.assignedTags.map(t => t.id)));
+  const availableTags = createMemo(() => allTags().filter(t => !assignedTagIds().has(t.id)));
 
   const createTagMutation = createMutation(() => ({
     mutationFn: async (data: { name: string; color: string }) => {
@@ -101,6 +101,23 @@ export const TagsManager: Component<TagsManagerProps> = props => {
           Create Tag
         </button>
       </div>
+
+      <Show
+        when={
+          allTagsQuery.isError ||
+          createTagMutation.isError ||
+          assignTagMutation.isError ||
+          removeTagMutation.isError
+        }
+      >
+        <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-400">
+          {allTagsQuery.error?.message ||
+            createTagMutation.error?.message ||
+            assignTagMutation.error?.message ||
+            removeTagMutation.error?.message ||
+            'Unable to update tags'}
+        </div>
+      </Show>
 
       <Show when={isAdding()}>
         <div class="animate-in fade-in slide-in-from-top-2 space-y-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4 duration-200">

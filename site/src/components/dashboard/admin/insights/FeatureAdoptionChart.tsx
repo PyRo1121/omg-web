@@ -1,4 +1,4 @@
-import { type Component, For } from 'solid-js';
+import { type Component, For, createMemo } from 'solid-js';
 import { Package, Search, Repeat, FileCode } from 'lucide-solid';
 
 interface FeatureAdoptionData {
@@ -50,7 +50,7 @@ function getColorClasses(color: string) {
 }
 
 export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props => {
-  const features = [
+  const features = createMemo(() => [
     {
       name: 'Package Install',
       icon: Package,
@@ -79,7 +79,7 @@ export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props 
       total_uses: props.data.total_sbom,
       color: 'emerald',
     },
-  ];
+  ]);
 
   const getAdoptionRate = (adopters: number): string => {
     const totalUsers = props.data.total_active_users ?? 0;
@@ -99,7 +99,7 @@ export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props 
       </div>
 
       <div class="space-y-4">
-        <For each={features}>
+        <For each={features()}>
           {feature => {
             const colors = getColorClasses(feature.color);
             const adoptionRate = parseFloat(getAdoptionRate(feature.adopters));

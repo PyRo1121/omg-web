@@ -200,10 +200,13 @@ export function jsonResponse<TResponse>(data: TResponse, status = 200): Response
     'Content-Type': 'application/json',
     ...corsHeaders,
     'CDN-Cache-Control': 'no-store',
+    // Every handler routed through here returns authenticated or
+    // personalized data. Without an explicit Cache-Control, a 200 would be
+    // heuristically cacheable by downstream shared caches (CDN-Cache-Control
+    // only binds Cloudflare itself), which web.dev flags as a cache-leak
+    // risk for credentialed responses.
+    'Cache-Control': 'private, no-store, no-cache, must-revalidate',
   });
-  if (status >= 400) {
-    headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-  }
   return new Response(JSON.stringify(data), { status, headers });
 }
 

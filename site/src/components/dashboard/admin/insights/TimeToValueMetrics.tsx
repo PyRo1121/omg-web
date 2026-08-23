@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, createMemo, onMount, Show } from 'solid-js';
+import { createSignal, createMemo, onCleanup, onMount, Show } from 'solid-js';
 import { Rocket, Clock, Award, TrendingUp, Target, Zap, CircleCheckBig } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -38,10 +38,8 @@ const MetricCard: Component<MetricCardProps> = props => {
 
   onMount(() => {
     const timer = setTimeout(() => setMounted(true), props.delay ?? 0);
-    return () => clearTimeout(timer);
+    onCleanup(() => clearTimeout(timer));
   });
-
-  const Icon = props.icon;
 
   return (
     <div
@@ -74,7 +72,7 @@ const MetricCard: Component<MetricCardProps> = props => {
             'box-shadow': hovered() ? `0 0 12px ${props.glow}` : `0 0 6px ${props.glow}`,
           }}
         >
-          <Icon size={14} class="text-white" />
+          <props.icon size={14} class="text-white" />
         </div>
         <span class="text-2xs text-nebula-500 font-bold tracking-wider uppercase">
           {props.label}
@@ -127,7 +125,8 @@ export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = props => {
   const [mounted, setMounted] = createSignal(false);
 
   onMount(() => {
-    requestAnimationFrame(() => setMounted(true));
+    const animationFrame = requestAnimationFrame(() => setMounted(true));
+    onCleanup(() => cancelAnimationFrame(animationFrame));
   });
 
   const activationDays = createMemo(() => props.data.avg_days_to_activation ?? 0);

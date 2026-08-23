@@ -26,9 +26,9 @@ function getRetentionColor(rate: number) {
   return 'bg-rose-500';
 }
 
-function getRetentionRate(cohortData: CohortData[], weekIndex: number) {
-  const weekData = cohortData.find(d => d.weeks_since_signup === weekIndex);
-  const week0Data = cohortData.find(d => d.weeks_since_signup === 0);
+function getRetentionRate(cohortData: ReadonlyMap<number, CohortData>, weekIndex: number) {
+  const weekData = cohortData.get(weekIndex);
+  const week0Data = cohortData.get(0);
 
   if (!weekData || !week0Data || week0Data.active_users === 0) {
     return null;
@@ -43,14 +43,14 @@ export const CohortAnalysis: Component = () => {
   // Group cohorts by cohort_week and calculate retention rates
   const cohortMap = createMemo(() => {
     const data = cohortsQuery.data?.cohorts || [];
-    const map = new Map<string, CohortData[]>();
+    const map = new Map<string, Map<number, CohortData>>();
 
     data.forEach(item => {
       const existing = map.get(item.cohort_week);
       if (existing === undefined) {
-        map.set(item.cohort_week, [item]);
+        map.set(item.cohort_week, new Map([[item.weeks_since_signup, item]]));
       } else {
-        existing.push(item);
+        existing.set(item.weeks_since_signup, item);
       }
     });
 
@@ -99,7 +99,7 @@ export const CohortAnalysis: Component = () => {
             <tbody>
               <For each={cohortMap()}>
                 {([cohortWeek, data]) => {
-                  const week0 = data.find(d => d.weeks_since_signup === 0);
+                  const week0 = data.get(0);
                   return (
                     <tr class="border-b border-white/5 transition-colors hover:bg-white/5">
                       <td class="sticky left-0 z-10 bg-[#0d0d0e] px-4 py-3 font-mono text-xs text-white">
@@ -118,7 +118,7 @@ export const CohortAnalysis: Component = () => {
                                 {cell => (
                                   <div
                                     class={`inline-block rounded px-2 py-1 text-xs font-bold text-white ${getRetentionColor(cell().value)}`}
-                                    title={`${cell().value}% retention (${data.find(d => d.weeks_since_signup === weekIndex)?.active_users || 0} users)`}
+                                    title={`${cell().value}% retention (${data.get(weekIndex)?.active_users || 0} users)`}
                                   >
                                     {cell().value}%
                                   </div>

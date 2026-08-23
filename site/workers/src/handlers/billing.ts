@@ -194,7 +194,7 @@ async function claimStripeEvent(
   db: D1Database,
   event: StripeWebhookEvent,
   eventData: string
-): Promise<'claimed' | 'processed' | 'busy' | 'invalid'> {
+): Promise<{ outcome: 'claimed' | 'processed' | 'busy' | 'invalid'; claimToken?: string }> {
   await db
     .prepare(
       `INSERT OR IGNORE INTO stripe_events (
@@ -204,20 +204,25 @@ async function claimStripeEvent(
     .bind(crypto.randomUUID(), event.id, event.type, eventData)
     .run();
 
-  const claim = await db
+  const claimToken = crypto.randomUUID();
+  // RETURNING makes the claim decision authoritative without relying on
+  // meta.changes, which is not populated by every D1 runtime.
+  const claimed = await db
     .prepare(
       `UPDATE stripe_events
        SET status = 'processing', attempt_count = attempt_count + 1,
-           processing_started_at = CURRENT_TIMESTAMP, last_error = NULL
+           processing_started_at = CURRENT_TIMESTAMP, last_error = NULL,
+           claim_token = ?
        WHERE stripe_event_id = ? AND (
          status IN ('received', 'failed') OR
          (status = 'processing' AND processing_started_at < datetime('now', '-5 minutes'))
-       )`
+       )
+       RETURNING stripe_event_id`
     )
-    .bind(event.id)
-    .run();
-  if (claim.meta.changes > 0) {
-    return 'claimed';
+    .bind(claimToken, event.id)
+    .first();
+  if (claimed !== null) {
+    return { outcome: 'claimed', claimToken };
   }
 
   const stateRow = await db
@@ -230,37 +235,43 @@ async function claimStripeEvent(
     stateRow
   );
   if (stateLookup._tag !== 'present') {
-    return 'invalid';
+    return { outcome: 'invalid' };
   }
-  return stateLookup.value.processed === 1 || stateLookup.value.status === 'processed'
-    ? 'processed'
-    : 'busy';
+  return {
+    outcome:
+      stateLookup.value.processed === 1 || stateLookup.value.status === 'processed'
+        ? 'processed'
+        : 'busy',
+  };
 }
 
-async function markStripeEventProcessed(db: D1Database, eventId: string): Promise<void> {
+async function markStripeEventProcessed(
+  db: D1Database,
+  eventId: string,
+  claimToken: string | undefined
+): Promise<void> {
   await db
     .prepare(
-      `UPDATE stripe_events
-       SET status = 'processed', processed = 1, processed_at = CURRENT_TIMESTAMP,
-           processing_started_at = NULL, last_error = NULL
-       WHERE stripe_event_id = ?`
+      `UPDATE stripe_events SET processed = 1, status = 'processed'
+       WHERE stripe_event_id = ? AND status = 'processing' AND claim_token IS ?`
     )
-    .bind(eventId)
+    .bind(eventId, claimToken ?? null)
     .run();
 }
 
 async function failedStripeEventResponse(
   db: D1Database,
   eventId: string,
-  detail: string
+  detail: string,
+  claimToken?: string
 ): Promise<Response> {
   await db
     .prepare(
       `UPDATE stripe_events
        SET status = 'failed', processed = 0, processing_started_at = NULL, last_error = ?
-       WHERE stripe_event_id = ?`
+       WHERE stripe_event_id = ? AND status = 'processing' AND claim_token IS ?`
     )
-    .bind(detail.slice(0, 1000), eventId)
+    .bind(detail.slice(0, 1000), eventId, claimToken ?? null)
     .run();
   return new Response('Stripe event reconciliation failed', { status: 500 });
 }
@@ -277,23 +288,35 @@ async function verifyStripeSignature(
   try {
     const encoder = new TextEncoder();
 
-    // Parse the Stripe signature header (format: t=timestamp,v1=signature)
-    const parts = new Map<string, string>();
+    // Parse the Stripe signature header (format: t=timestamp,v1=signature,...).
+    // Multiple v1 values are legitimate during signing-secret rotation; every
+    // one must be accepted candidate. https://docs.stripe.com/webhooks
+    const parts = new Map<string, string[]>();
     for (const part of signature.split(',')) {
-      const [key, value] = part.split('=');
-      if (key && value) parts.set(key, value);
+      const eq = part.indexOf('=');
+      if (eq <= 0) continue;
+      const key = part.slice(0, eq).trim();
+      const value = part.slice(eq + 1).trim();
+      const values = parts.get(key) ?? [];
+      values.push(value);
+      parts.set(key, values);
     }
 
-    const timestamp = parts.get('t');
-    const expectedSig = parts.get('v1');
+    const timestamp = parts.get('t')?.[0];
+    const candidates = parts.get('v1') ?? [];
 
-    if (!timestamp || !expectedSig) {
+    if (!timestamp || candidates.length === 0) {
       reportError('Stripe signature missing timestamp or v1 signature');
       return false;
     }
 
-    // Check timestamp to prevent replay attacks (5 minute tolerance)
-    const timestampNum = parseInt(timestamp, 10);
+    // Check timestamp to prevent replay attacks (5 minute tolerance).
+    // Strict numeric parse: NaN would bypass the age predicate.
+    const timestampNum = Number.parseInt(timestamp, 10);
+    if (!Number.isInteger(timestampNum) || /[^0-9]/.test(timestamp)) {
+      reportError('Stripe webhook timestamp malformed');
+      return false;
+    }
     const now = Math.floor(Date.now() / 1000);
     if (Math.abs(now - timestampNum) > 300) {
       reportError('Stripe webhook timestamp too old or in future');
@@ -317,17 +340,17 @@ async function verifyStripeSignature(
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
 
-    // Timing-safe comparison to prevent timing attacks
-    if (computedSig.length !== expectedSig.length) {
-      return false;
+    // Timing-safe comparison against EACH candidate v1 signature; any match
+    // validates the delivery (covers secret rotation windows).
+    for (const expectedSig of candidates) {
+      if (computedSig.length !== expectedSig.length) continue;
+      let result = 0;
+      for (let i = 0; i < computedSig.length; i++) {
+        result |= computedSig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
+      }
+      if (result === 0) return true;
     }
-
-    let result = 0;
-    for (let i = 0; i < computedSig.length; i++) {
-      result |= computedSig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
-    }
-
-    return result === 0;
+    return false;
   } catch (error: unknown) {
     reportError('Stripe signature verification error:', error);
     return false;
@@ -487,16 +510,17 @@ export async function handleStripeWebhook(
   }
   const event = decodedEvent.value;
   const claim = await claimStripeEvent(env.DB, event, body);
-  if (claim === 'processed') {
+  const claimToken = claim.claimToken;
+  if (claim.outcome === 'processed') {
     return new Response('OK');
   }
-  if (claim === 'busy') {
+  if (claim.outcome === 'busy') {
     return new Response('Event processing in progress', {
       status: 409,
       headers: { 'Retry-After': '5' },
     });
   }
-  if (claim === 'invalid') {
+  if (claim.outcome === 'invalid') {
     return new Response('Failed to load webhook inbox', { status: 500 });
   }
 
@@ -506,7 +530,12 @@ export async function handleStripeWebhook(
     case 'customer.subscription.deleted': {
       const subscriptionId = event.data.object.id;
       if (subscriptionId === undefined || subscriptionId.length === 0) {
-        return failedStripeEventResponse(env.DB, event.id, 'Subscription event has no object id');
+        return failedStripeEventResponse(
+          env.DB,
+          event.id,
+          'Subscription event has no object id',
+          claimToken
+        );
       }
 
       try {
@@ -521,7 +550,8 @@ export async function handleStripeWebhook(
         return failedStripeEventResponse(
           env.DB,
           event.id,
-          decodeThrownMessage(error) || 'Unknown subscription reconciliation failure'
+          decodeThrownMessage(error) || 'Unknown subscription reconciliation failure',
+          claimToken
         );
       }
       break;
@@ -543,7 +573,7 @@ export async function handleStripeWebhook(
         // the same row instead of inserting duplicates under fresh UUIDs.
         await env.DB.prepare(
           `INSERT INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
-           VALUES ((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), CURRENT_TIMESTAMP)
+           VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), CURRENT_TIMESTAMP)
            ON CONFLICT (id) DO UPDATE SET
              amount_cents = excluded.amount_cents,
              currency = excluded.currency,
@@ -623,7 +653,7 @@ export async function handleStripeWebhook(
       break;
   }
 
-  await markStripeEventProcessed(env.DB, event.id);
+  await markStripeEventProcessed(env.DB, event.id, claimToken);
   return new Response('OK');
 }
 

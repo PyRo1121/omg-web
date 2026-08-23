@@ -200,7 +200,6 @@ const accentClasses = {
 const KPICard: Component<KPICardProps> = props => {
   const [expanded, setExpanded] = createSignal(false);
   const accent = createMemo(() => accentClasses[props.accent]);
-  const IconComponent = props.icon;
 
   const targetProgress = createMemo(() => {
     if (!props.target || props.target === 0) {
@@ -288,7 +287,7 @@ const KPICard: Component<KPICardProps> = props => {
                 accent().iconBg
               )}
             >
-              <IconComponent size={22} class={accent().iconColor} />
+              <props.icon size={22} class={accent().iconColor} />
             </div>
 
             <Show

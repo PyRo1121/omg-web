@@ -7,6 +7,7 @@ import { env } from 'cloudflare:test';
 import { handleStripeWebhook } from '../src/handlers/billing';
 import type { StripeFetch } from '../src/stripe-reconciliation';
 import inboxMigration from '../migrations/011_stripe_event_inbox.sql?raw';
+import claimTokenMigration from '../migrations/018_stripe_event_claim_tokens.sql?raw';
 
 const WEBHOOK_SECRET = 'whsec_test_inbox';
 const InboxRowSchema = Schema.Struct({
@@ -22,6 +23,11 @@ const BillingProjectionRowSchema = Schema.Struct({
   subscription_status: Schema.String,
 });
 const SubscriptionStatusRowSchema = Schema.Struct({
+  status: Schema.String,
+});
+const InvoiceProjectionRowSchema = Schema.Struct({
+  row_count: Schema.Number,
+  amount_cents: Schema.Number,
   status: Schema.String,
 });
 
@@ -99,6 +105,39 @@ async function subscriptionWebhookRequest(
         status,
         current_period_end: Math.floor(Date.now() / 1000) + 86_400,
         items: { data: [{ price: { id: priceId }, quantity: 1 }] },
+      },
+    },
+  });
+  return new Request('http://localhost/api/webhooks/stripe', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'stripe-signature': await stripeSignature(payload),
+    },
+    body: payload,
+  });
+}
+
+async function invoicePaidWebhookRequest(
+  eventId: string,
+  customerId: string,
+  amountPaid: number,
+  status: string
+): Promise<Request> {
+  const payload = JSON.stringify({
+    id: eventId,
+    type: 'invoice.paid',
+    data: {
+      object: {
+        id: 'in_idempotent',
+        customer: customerId,
+        amount_paid: amountPaid,
+        currency: 'usd',
+        status,
+        hosted_invoice_url: 'https://example.com/invoice',
+        invoice_pdf: 'https://example.com/invoice.pdf',
+        period_start: 1_700_000_000,
+        period_end: 1_700_086_400,
       },
     },
   });
@@ -203,6 +242,8 @@ describe('Stripe webhook inbox', () => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`
     ).run();
+    // Apply the claim-token column on top of the base inbox DDL.
+    await env.DB.prepare(claimTokenMigration.trim()).run();
     const statements = inboxMigration
       .split(';')
       .map(statement => statement.trim())
@@ -213,6 +254,7 @@ describe('Stripe webhook inbox', () => {
   });
 
   afterEach(async () => {
+    await env.DB.prepare(`DELETE FROM invoices WHERE customer_id = 'billing-customer'`).run();
     await env.DB.prepare(`DELETE FROM subscriptions`).run();
     await env.DB.prepare(`DELETE FROM licenses WHERE customer_id = 'billing-customer'`).run();
     await env.DB.prepare(`DELETE FROM customers WHERE id = 'billing-customer'`).run();
@@ -230,6 +272,32 @@ describe('Stripe webhook inbox', () => {
       attempt_count: 1,
       processed: 1,
     });
+  });
+
+  it('stores one invoice projection when distinct deliveries repeat an invoice id', async () => {
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, tier, stripe_customer_id)
+       VALUES ('billing-customer', 'billing@example.com', 'free', 'cus_invoice')`
+    ).run();
+
+    const first = await handleStripeWebhook(
+      await invoicePaidWebhookRequest('evt_invoice_first', 'cus_invoice', 2_900, 'paid'),
+      env
+    );
+    const repeated = await handleStripeWebhook(
+      await invoicePaidWebhookRequest('evt_invoice_repeated', 'cus_invoice', 3_900, 'paid'),
+      env
+    );
+    const projection = Schema.decodeUnknownSync(InvoiceProjectionRowSchema)(
+      await env.DB.prepare(
+        `SELECT COUNT(*) AS row_count, MAX(amount_cents) AS amount_cents, MAX(status) AS status
+         FROM invoices WHERE stripe_invoice_id = 'in_idempotent'`
+      ).first()
+    );
+
+    expect(first.status).toBe(200);
+    expect(repeated.status).toBe(200);
+    expect(projection).toEqual({ row_count: 1, amount_cents: 3_900, status: 'paid' });
   });
 
   it('processes customer.created with a null-email real-world payload', async () => {

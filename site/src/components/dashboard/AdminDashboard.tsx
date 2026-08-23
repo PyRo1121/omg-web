@@ -1,6 +1,7 @@
 import { reportClientError } from '~/lib/observability';
 import type { AdminTab } from '~/types';
-import { type Component, createMemo, For, Show, Switch, Match } from 'solid-js';
+import { type Component, createMemo, For, Match, onCleanup, Show, Switch } from 'solid-js';
+import { createQuery } from '@tanstack/solid-query';
 import {
   Activity,
   Users,
@@ -22,11 +23,8 @@ import { valueForKey } from '../../lib/lookup';
 import {
   useAdminDashboard,
   useAdminFirehose,
-  useAdminCRMUsers,
   useAdminAdvancedMetrics,
-  useSiteGeoAnalytics,
   useSiteRealtimeAnalytics,
-  useSiteAnalyticsOverview,
 } from '../../lib/api-hooks';
 import { CardSkeleton } from '../ui/Skeleton';
 import { RevenueTab } from './admin/RevenueTab';
@@ -300,11 +298,22 @@ const AdminDashboard: Component = () => {
   const [store, actions] = createDashboardStore();
   const dashboardQuery = useAdminDashboard();
   const firehoseQuery = useAdminFirehose(100);
-  const crmUsersQuery = useAdminCRMUsers(store.crm.page, 25, store.crm.search);
+  const crmUsersQuery = createQuery(() => ({
+    queryKey: ['admin-crm-users', store.crm.page, 25, store.crm.search],
+    queryFn: () => api.getAdminUsers(store.crm.page, 25, store.crm.search),
+  }));
   const advancedMetricsQuery = useAdminAdvancedMetrics();
-  const siteGeoQuery = useSiteGeoAnalytics(DATE_RANGE_DAYS[store.filters.dateRange]);
+  const siteGeoQuery = createQuery(() => ({
+    queryKey: ['site-geo-analytics', DATE_RANGE_DAYS[store.filters.dateRange]],
+    queryFn: () => api.getSiteGeoAnalytics(DATE_RANGE_DAYS[store.filters.dateRange]),
+    staleTime: 60 * 1000,
+  }));
   const realtimeQuery = useSiteRealtimeAnalytics();
-  const siteOverviewQuery = useSiteAnalyticsOverview(DATE_RANGE_DAYS[store.filters.dateRange]);
+  const siteOverviewQuery = createQuery(() => ({
+    queryKey: ['site-analytics-overview', DATE_RANGE_DAYS[store.filters.dateRange]],
+    queryFn: () => api.getSiteAnalyticsOverview(DATE_RANGE_DAYS[store.filters.dateRange]),
+    staleTime: 60 * 1000,
+  }));
 
   const executiveKPI = createMemo(() =>
     transformToExecutiveKPI(dashboardQuery.data, advancedMetricsQuery.data)
@@ -396,6 +405,13 @@ const AdminDashboard: Component = () => {
     'audit',
   ];
 
+  let tabFocusTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => {
+    if (tabFocusTimer !== undefined) {
+      clearTimeout(tabFocusTimer);
+    }
+  });
+
   const handleTabKeyDown = (e: KeyboardEvent, tabId: AdminTab) => {
     const currentIndex = TABS_ORDER.indexOf(tabId);
     let nextIndex = currentIndex;
@@ -422,7 +438,11 @@ const AdminDashboard: Component = () => {
     }
     actions.setTab(nextTab);
 
-    setTimeout(() => {
+    if (tabFocusTimer !== undefined) {
+      clearTimeout(tabFocusTimer);
+    }
+    tabFocusTimer = setTimeout(() => {
+      tabFocusTimer = undefined;
       const nextButton = document.querySelector(
         `[role="tab"][aria-controls="tabpanel-${nextTab}"]`
       );

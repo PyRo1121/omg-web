@@ -4,7 +4,7 @@ import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 
 /** A failure decoding or encoding an account dashboard payload. */
-class DashboardDataParseError extends Error {
+export class DashboardDataParseError extends Error {
   readonly _tag = 'DashboardDataParseError';
   constructor(
     readonly reason: string,

@@ -1,4 +1,4 @@
-import { type Component, For, Show, createSignal, createMemo, onMount } from 'solid-js';
+import { type Component, For, Show, createSignal, createMemo, onCleanup, onMount } from 'solid-js';
 import { Repeat, Users, Activity, Clock, Zap, Trophy } from 'lucide-solid';
 import { cn } from '~/lib/prelude';
 
@@ -80,7 +80,8 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props 
   const [showAll, setShowAll] = createSignal(false);
 
   onMount(() => {
-    requestAnimationFrame(() => setMounted(true));
+    const animationFrame = requestAnimationFrame(() => setMounted(true));
+    onCleanup(() => cancelAnimationFrame(animationFrame));
   });
 
   const sortedRuntimes = createMemo(() =>

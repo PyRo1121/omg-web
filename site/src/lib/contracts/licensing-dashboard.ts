@@ -9,7 +9,7 @@ import {
 import { parseTelemetryDashboard, type TelemetryDashboard } from './telemetry-dashboard';
 
 /** Canonical licensing dashboard payload could not be decoded or projected. */
-class LicensingDashboardParseError extends Error {
+export class LicensingDashboardParseError extends Error {
   readonly _tag = 'LicensingDashboardParseError';
   constructor(
     readonly reason: string,

@@ -1,4 +1,4 @@
-import { type Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
+import { type Component, For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import { Globe, TrendingUp, ChevronDown, ChevronUp } from 'lucide-solid';
 import { cn } from '~/lib/prelude';
 
@@ -146,7 +146,8 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
   const [showAll, setShowAll] = createSignal(false);
 
   onMount(() => {
-    requestAnimationFrame(() => setMounted(true));
+    const animationFrame = requestAnimationFrame(() => setMounted(true));
+    onCleanup(() => cancelAnimationFrame(animationFrame));
   });
 
   const maxItems = () => props.maxItems || 10;

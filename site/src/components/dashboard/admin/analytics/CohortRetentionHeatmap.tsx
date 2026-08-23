@@ -1,4 +1,4 @@
-import { type Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
+import { type Component, For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import { Calendar, Users, TrendingUp, Info, Maximize2, Minimize2 } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -51,7 +51,8 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
   );
 
   onMount(() => {
-    requestAnimationFrame(() => setMounted(true));
+    const animationFrame = requestAnimationFrame(() => setMounted(true));
+    onCleanup(() => cancelAnimationFrame(animationFrame));
   });
 
   const maxMonths = () => props.maxMonths || 12;
@@ -73,14 +74,16 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
       .slice(0, 12);
   });
 
+  const cohortLookup = createMemo(() => new Map(cohortMap()));
+
   const getRetentionRate = (cohortMonth: string, monthIndex: number) => {
-    const cohort = cohortMap().find(([month]) => month === cohortMonth);
+    const cohort = cohortLookup().get(cohortMonth);
     if (!cohort) {
       return null;
     }
 
-    const monthData = cohort[1].get(monthIndex);
-    const baseData = cohort[1].get(0);
+    const monthData = cohort.get(monthIndex);
+    const baseData = cohort.get(0);
 
     if (!monthData || !baseData || baseData.active_users === 0) {
       return null;
@@ -92,19 +95,11 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
   };
 
   const getActiveUsers = (cohortMonth: string, monthIndex: number) => {
-    const cohort = cohortMap().find(([month]) => month === cohortMonth);
-    if (!cohort) {
-      return null;
-    }
-    return cohort[1].get(monthIndex)?.active_users ?? null;
+    return cohortLookup().get(cohortMonth)?.get(monthIndex)?.active_users ?? null;
   };
 
   const getBaseUsers = (cohortMonth: string) => {
-    const cohort = cohortMap().find(([month]) => month === cohortMonth);
-    if (!cohort) {
-      return 0;
-    }
-    return cohort[1].get(0)?.active_users ?? 0;
+    return cohortLookup().get(cohortMonth)?.get(0)?.active_users ?? 0;
   };
 
   const avgRetentionByMonth = createMemo(() => {

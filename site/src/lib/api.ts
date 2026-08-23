@@ -69,11 +69,13 @@ function withQuery(
   return `${path}?${searchParams}`;
 }
 
-// Custom error class
+/** A classified HTTP/API failure surfaced through TanStack Query. */
 export class ApiError extends Error {
+  readonly _tag = 'ApiError';
+
   constructor(
     message: string,
-    public status: number
+    public readonly status: number
   ) {
     super(message);
     this.name = 'ApiError';
@@ -175,7 +177,7 @@ export const getAdminAdvancedMetrics = (): Promise<AdminAdvancedMetrics> =>
 const fetchCsv = (pathWithQuery: string, failureMessage: string): Promise<string> =>
   window.fetch(`${LICENSING_BFF_BASE}${pathWithQuery}`).then(response => {
     if (!response.ok) {
-      throw new Error(failureMessage);
+      throw new ApiError(failureMessage, response.status);
     }
     return response.text();
   });

@@ -40,34 +40,37 @@ export type DashboardTab =
 export type DashboardDateRange = '7d' | '14d' | '30d' | '90d';
 
 /** An icon component rendered by the dashboard. */
-type DashboardIcon = Component<{ readonly class?: string }>;
+export type DashboardIcon = Component<{ readonly class?: string }>;
 
 /** A dashboard tab and its presentation metadata. */
-interface DashboardTabOption {
+export interface DashboardTabOption {
   readonly id: DashboardTab;
   readonly label: string;
   readonly icon: LucideIcon;
 }
 
 /** A supported telemetry export serialization. */
-type TelemetryExportFormat = 'csv' | 'json';
+export type TelemetryExportFormat = 'csv' | 'json';
 
 /** Presentation metadata for a stat-card trend. */
-interface TrendPresentation {
+export interface TrendPresentation {
   readonly icon: LucideIcon;
   readonly color: string;
 }
 
 /** Serialized telemetry ready for the browser download boundary. */
-interface TelemetryExport {
+export interface TelemetryExport {
   readonly content: string;
   readonly filename: string;
   readonly mimeType: 'application/json' | 'text/csv';
 }
 
-type DailyUsage = TelemetryDashboard['daily'][number];
-type Machine = TelemetryDashboard['machines'][number];
-type Achievement = TelemetryDashboard['achievements'][number];
+/** One parsed daily telemetry row rendered by dashboard charts. */
+export type DailyUsage = TelemetryDashboard['daily'][number];
+/** One parsed machine row rendered by the dashboard. */
+export type Machine = TelemetryDashboard['machines'][number];
+/** One parsed achievement row rendered by the dashboard. */
+export type Achievement = TelemetryDashboard['achievements'][number];
 
 const BASE_TABS: ReadonlyArray<DashboardTabOption> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },

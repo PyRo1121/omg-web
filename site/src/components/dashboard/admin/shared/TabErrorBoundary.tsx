@@ -21,7 +21,7 @@ export const TabErrorBoundary: Component<TabErrorBoundaryProps> = props => {
             <h3 class="mb-3 text-2xl font-black text-white">Failed to load {props.tab} tab</h3>
             <p class="mb-2 text-sm text-red-400">{err.message}</p>
             <p class="text-nebula-500 mb-6 text-xs">
-              The error has been logged. Try refreshing or contact support if the issue persists.
+              Try refreshing or contact support if the issue persists.
             </p>
             <button
               onClick={reset}

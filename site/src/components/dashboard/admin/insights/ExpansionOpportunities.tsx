@@ -1,4 +1,4 @@
-import { type Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
+import { type Component, For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import {
   TrendingUp,
   ArrowUpCircle,
@@ -167,7 +167,8 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = pr
   const [showAll, setShowAll] = createSignal(false);
 
   onMount(() => {
-    requestAnimationFrame(() => setMounted(true));
+    const animationFrame = requestAnimationFrame(() => setMounted(true));
+    onCleanup(() => cancelAnimationFrame(animationFrame));
   });
 
   const sortedOpportunities = createMemo(() =>

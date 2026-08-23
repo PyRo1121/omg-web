@@ -105,11 +105,10 @@ const MetricCard: Component<MetricCardProps> = props => {
 
   onMount(() => {
     const timer = setTimeout(() => setMounted(true), props.delay ?? 0);
-    return () => clearTimeout(timer);
+    onCleanup(() => clearTimeout(timer));
   });
 
   const config = () => accentConfig[props.accent];
-  const IconComponent = props.icon;
 
   return (
     <div
@@ -144,7 +143,7 @@ const MetricCard: Component<MetricCardProps> = props => {
               'box-shadow': hovered() ? `0 0 15px ${config().glow}` : `0 0 8px ${config().glow}`,
             }}
           >
-            <IconComponent size={18} class="text-white" />
+            <props.icon size={18} class="text-white" />
           </div>
           <div class="flex items-center gap-2">
             <span
@@ -206,7 +205,8 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = props => {
   const [hovered, setHovered] = createSignal(false);
 
   onMount(() => {
-    requestAnimationFrame(() => setMounted(true));
+    const animationFrame = requestAnimationFrame(() => setMounted(true));
+    onCleanup(() => cancelAnimationFrame(animationFrame));
   });
 
   const stickinessValue = createMemo(() => {

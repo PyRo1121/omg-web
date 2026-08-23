@@ -7,6 +7,18 @@ import { GitHubCommitActivityResponseSchema } from '../contracts/provider-bounda
 const CACHE_TTL = 120;
 const STALE_TTL = 3600;
 
+/** GitHub returned a response body that did not match the provider contract. */
+class GitHubProviderPayloadError extends Error {
+  readonly _tag = 'GitHubProviderPayloadError';
+
+  constructor(
+    readonly reason: string,
+    override readonly cause: unknown
+  ) {
+    super(reason);
+  }
+}
+
 export async function handleGitHubProxy(
   request: Request,
   ctx: ExecutionContext
@@ -116,8 +128,21 @@ async function refreshCache(
   const decodedData = await Effect.runPromiseExit(
     Effect.tryPromise({
       try: () => ghResponse.json(),
-      catch: cause => new Error('GitHub response body was not valid JSON', { cause }),
-    }).pipe(Effect.flatMap(Schema.decodeUnknown(GitHubCommitActivityResponseSchema)))
+      catch: cause =>
+        new GitHubProviderPayloadError('GitHub response body was not valid JSON', cause),
+    }).pipe(
+      Effect.flatMap(payload =>
+        Schema.decodeUnknown(GitHubCommitActivityResponseSchema)(payload).pipe(
+          Effect.mapError(
+            cause =>
+              new GitHubProviderPayloadError(
+                'GitHub commit activity payload had an invalid shape',
+                cause
+              )
+          )
+        )
+      )
+    )
   );
   if (Exit.isFailure(decodedData)) {
     reportError('GitHub API returned an invalid commit activity payload');

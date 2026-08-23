@@ -49,11 +49,9 @@ const DOC_PAGES: PageEntry[] = [
  */
 function generateUrlEntry(page: PageEntry, baseUrl: string): string {
   const loc = `${baseUrl}${page.path}`;
-  const lastmod = new Date().toISOString().split('T')[0];
 
   return `  <url>
     <loc>${escapeXml(loc)}</loc>
-    <lastmod>${lastmod}</lastmod>
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority.toFixed(1)}</priority>
   </url>`;
