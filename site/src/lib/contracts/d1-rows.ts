@@ -3,6 +3,8 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 
+import { D1Number } from '../../../shared/d1-rows';
+
 /** Raw value accepted only at a Schema-decoded D1 boundary. */
 type D1BoundaryInput = Schema.Schema.Encoded<Schema.Schema.Any>;
 
@@ -16,13 +18,6 @@ export class D1RowParseError extends Error {
     super(reason);
   }
 }
-
-const D1Number = Schema.Union(Schema.Number, Schema.Null).pipe(
-  Schema.transform(Schema.Number, {
-    decode: (fromA: number | null) => (fromA === null ? 0 : fromA),
-    encode: (toI: number) => toI,
-  })
-);
 
 const D1Boolean = Schema.Union(Schema.Boolean, Schema.Literal(0), Schema.Literal(1)).pipe(
   Schema.transform(Schema.Boolean, {
@@ -133,17 +128,9 @@ export function isInvalidD1Row(row: OptionalD1Row<unknown>): row is { readonly _
   return row._tag === 'invalid';
 }
 
-/** Existence-only identifier row. */
-export const IdRowSchema = Schema.Struct({
-  id: Schema.String.pipe(Schema.minLength(1)),
-});
-export type IdRow = Schema.Schema.Type<typeof IdRowSchema>;
-
-/** COUNT(*) aggregate. */
-export const CountRowSchema = Schema.Struct({
-  count: D1Number,
-});
-export type CountRow = Schema.Schema.Type<typeof CountRowSchema>;
+/** Existence-only identifier row and COUNT(*) aggregate (shared). */
+export { IdRowSchema, CountRowSchema } from '../../../shared/d1-rows';
+export type { IdRow, CountRow } from '../../../shared/d1-rows';
 
 /** Admin/user role flag used by SolidStart admin checks. */
 export const UserRoleRowSchema = Schema.Struct({

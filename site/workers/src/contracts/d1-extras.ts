@@ -3,6 +3,10 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 
+import { CountRowSchema, CountRow, D1Number, IdRowSchema, IdRow } from '../../../shared/d1-rows';
+
+export { CountRowSchema, CountRow, IdRowSchema, IdRow };
+
 /** A failure decoding a remaining D1 row or provider payload. */
 export class ExtraRowParseError extends Error {
   readonly _tag = 'ExtraRowParseError';
@@ -18,13 +22,6 @@ const NullableNumber = Schema.Union(Schema.Number, Schema.Null);
 const NullableString = Schema.Union(Schema.Null, Schema.String);
 const JsonAtom = Schema.Union(Schema.String, Schema.Number, Schema.Boolean, Schema.Null);
 const JsonObject = Schema.Record({ key: Schema.String, value: JsonAtom });
-
-const D1Number = Schema.Union(Schema.Number, Schema.Null).pipe(
-  Schema.transform(Schema.Number, {
-    decode: (fromA: number | null) => (fromA === null ? 0 : fromA),
-    encode: (toI: number) => toI,
-  })
-);
 
 const OptNullNum = Schema.optional(NullableNumber);
 const OptNullStr = Schema.optional(NullableString);
@@ -161,10 +158,6 @@ export const TeamControlMemberRowSchema = Schema.Struct({
   commands_last_7d: D1Number,
 });
 
-/** Id-only lookup row. */
-export const IdRowSchema = Schema.Struct({ id: NonEmptyStr });
-export type IdRow = Schema.Schema.Type<typeof IdRowSchema>;
-
 /** Docs analytics daily pageview totals. */
 export const DocsPageviewsRowSchema = Schema.Struct({
   date: Schema.optional(Schema.String),
@@ -275,8 +268,6 @@ export const AuditCsvRowSchema = Schema.Struct({
 });
 
 /** COUNT(*) / COUNT(DISTINCT ...) aggregate. */
-export const CountRowSchema = Schema.Struct({ count: D1Number });
-export type CountRow = Schema.Schema.Type<typeof CountRowSchema>;
 
 /** Admin overview COUNT aggregates. */
 export const AdminCountsRowSchema = Schema.Struct({
