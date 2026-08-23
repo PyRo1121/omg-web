@@ -33,10 +33,7 @@ export class CrmStoreError extends Error {
 const fail = (operation: string) => (cause: unknown) => new CrmStoreError(operation, cause);
 
 /** All notes for one customer, pinned first then newest. */
-export const listNotes = (
-  db: D1Database,
-  customerId: string
-): Effect.Effect<readonly AdminNoteRow[], CrmStoreError> =>
+export const listNotes = (db: D1Database, customerId: string) =>
   Effect.map(
     Effect.tryPromise({
       try: () =>
@@ -133,9 +130,7 @@ export const deleteNote = (db: D1Database, noteId: string): Effect.Effect<void, 
   });
 
 /** Full tag catalog with usage counts. */
-export const listTagCatalog = (
-  db: D1Database
-): Effect.Effect<readonly AdminTagCatalogRow[], CrmStoreError> =>
+export const listTagCatalog = (db: D1Database) =>
   Effect.map(
     Effect.tryPromise({
       try: () =>
@@ -163,10 +158,7 @@ export const listTagCatalog = (
   );
 
 /** Tags assigned to one customer. */
-export const listCustomerTags = (
-  db: D1Database,
-  customerId: string
-): Effect.Effect<readonly AdminCustomerTagRow[], CrmStoreError> =>
+export const listCustomerTags = (db: D1Database, customerId: string) =>
   Effect.map(
     Effect.tryPromise({
       try: () =>
