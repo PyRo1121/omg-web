@@ -2,7 +2,8 @@
  * CRM store: customer notes and tags persistence.
  *
  * All D1 access and row decoding for the admin CRM surface lives here so
- * handlers stay thin and store behavior is testable without HTTP.
+ * handlers stay thin HTTP adapters and store behavior is testable without
+ * HTTP or admin auth.
  */
 import type * as Schema from 'effect/Schema';
 import { Effect } from 'effect';

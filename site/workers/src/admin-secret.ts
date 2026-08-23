@@ -1,5 +1,5 @@
-import { Effect, Exit } from 'effect';
-import { type Env, errorResponse } from './api';
+import { Effect } from 'effect';
+
 import { timingSafeEqualUtf8 } from './prelude';
 
 /** The provided admin secret does not match the configured secret. */
@@ -30,24 +30,4 @@ export function requireAdminSecret(
     return Effect.fail(new AdminUnauthorizedError());
   }
   return Effect.void;
-}
-
-/**
- * Return a 401 response when the request is missing a valid admin secret.
- *
- * @param request - Incoming request that should carry `X-Admin-Secret`.
- * @param env - Worker bindings that include `ADMIN_API_SECRET`.
- * @returns A 401 response, or `null` when the secret is valid.
- */
-export function unauthorizedUnlessAdminSecret(
-  request: Request,
-  env: Pick<Env, 'ADMIN_API_SECRET'>
-): Response | null {
-  const exit = Effect.runSyncExit(
-    requireAdminSecret(request.headers.get('X-Admin-Secret'), env.ADMIN_API_SECRET)
-  );
-  if (Exit.isFailure(exit)) {
-    return errorResponse('Unauthorized', 401);
-  }
-  return null;
 }

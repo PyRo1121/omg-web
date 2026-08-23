@@ -80,14 +80,8 @@ export const PublicLicenseRowSchema = Schema.Struct({
   expires_at: Schema.Union(Schema.Null, Schema.String),
   max_machines: Schema.Union(Schema.Null, Schema.Number),
 });
-export type PublicLicenseRow = Schema.Schema.Type<typeof PublicLicenseRowSchema>;
 
 /** Active license id used while reporting usage. */
-export const ActiveLicenseIdRowSchema = Schema.Struct({
-  id: Schema.String.pipe(Schema.minLength(1)),
-  customer_id: Schema.String.pipe(Schema.minLength(1)),
-});
-export type ActiveLicenseIdRow = Schema.Schema.Type<typeof ActiveLicenseIdRowSchema>;
 
 /** COUNT(*) row. */
 export const CountRowSchema = Schema.Struct({

@@ -660,19 +660,3 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
     return errorResponse('Failed to load analytics overview', 500);
   }
 }
-
-export async function cleanupOldAnalytics(db: D1Database): Promise<void> {
-  try {
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const fortyEightHoursAgo = Date.now() - 48 * 60 * 60 * 1000;
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-
-    await db.batch([
-      db.prepare(`DELETE FROM site_analytics_events WHERE created_at < ?`).bind(sevenDaysAgo),
-      db.prepare(`DELETE FROM analytics_salts WHERE inserted_at < ?`).bind(fortyEightHoursAgo),
-      db.prepare(`DELETE FROM site_analytics_realtime WHERE last_seen_at < ?`).bind(fiveMinutesAgo),
-    ]);
-  } catch (error: unknown) {
-    reportError('Cleanup error:', error);
-  }
-}

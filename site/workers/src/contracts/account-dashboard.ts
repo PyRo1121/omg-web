@@ -26,7 +26,6 @@ export const D1Number = Schema.Union(Schema.Number, Schema.Null).pipe(
 export const AdminFlagRowSchema = Schema.Struct({
   admin: Schema.Number,
 });
-export type AdminFlagRow = Schema.Schema.Type<typeof AdminFlagRowSchema>;
 
 /** License columns required by the account dashboard. */
 export const DashboardLicenseRowSchema = Schema.Struct({
@@ -72,7 +71,6 @@ export const DailyUsageRowSchema = Schema.Struct({
   commands_run: D1Number,
   time_saved_ms: D1Number,
 });
-export type DailyUsageRow = Schema.Schema.Type<typeof DailyUsageRowSchema>;
 
 /** Unlocked achievement row. */
 export const AchievementUnlockRowSchema = Schema.Struct({
@@ -116,7 +114,6 @@ export const InvoiceRowSchema = Schema.Struct({
   period_end: Schema.Union(Schema.Null, Schema.String),
   created_at: Schema.String,
 });
-export type InvoiceRow = Schema.Schema.Type<typeof InvoiceRowSchema>;
 
 /** Leaderboard row. */
 export const LeaderboardRowSchema = Schema.Struct({
