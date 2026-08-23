@@ -105,9 +105,6 @@ export async function getAdminUsers(
 export const getAdminUserDetail = (userId: string): Promise<AdminUserDetail> =>
   apiRequest(Http.AdminUserDetailSchema, `${LicensingRoutes.adminUserGet.path}?id=${userId}`);
 
-export const getAdminActivity = (): Promise<AdminActivityResponse> =>
-  apiRequest(Http.AdminActivityResponseSchema, LicensingRoutes.adminActivity.path);
-
 export const getAdminCohorts = (): Promise<AdminCohorts> =>
   apiRequest(Http.AdminCohortsSchema, LicensingRoutes.adminCohorts.path);
 
@@ -192,23 +189,14 @@ export const removeAdminTag = (customerId: string, tagId: string): Promise<{ suc
     { method: 'DELETE' }
   );
 
-export async function getAdminCustomerHealth(customerId: string): Promise<CustomerHealthResponse> {
-  return apiRequest(
-    Http.CustomerHealthResponseSchema,
-    `${LicensingRoutes.adminCustomerHealth.path}?customerId=${customerId}`
-  );
-}
-
 export type AdminUser = AdminUsersResponse['users'][number];
 export type AdminUsersResponse = WorkerBody<typeof Http.AdminUsersResponseSchema>;
 export type AdminUserDetail = WorkerBody<typeof Http.AdminUserDetailSchema>;
-export type AdminActivityResponse = WorkerBody<typeof Http.AdminActivityResponseSchema>;
 export type AdminCohorts = WorkerBody<typeof Http.AdminCohortsSchema>;
 export type AdminRevenue = WorkerBody<typeof Http.AdminRevenueSchema>;
 export type AdminAuditLogResponse = WorkerBody<typeof Http.AdminAuditLogResponseSchema>;
 export type NotesResponse = WorkerBody<typeof Http.NotesResponseSchema>;
 export type TagsResponse = WorkerBody<typeof Http.TagsResponseSchema>;
-export type CustomerHealthResponse = WorkerBody<typeof Http.CustomerHealthResponseSchema>;
 
 export const getAdminFirehose = (limit = 50): Promise<FirehoseResponse> =>
   apiRequest(Http.FirehoseResponseSchema, `${LicensingRoutes.adminFirehose.path}?limit=${limit}`);
@@ -383,10 +371,6 @@ export const openAdminBillingPortal = (
   });
 
 /** Public subscription offers accepted by the billing Worker. */
-
-export type TeamData = WorkerBody<typeof Http.TeamDataSchema>;
-export type PoliciesResponse = WorkerBody<typeof Http.PoliciesResponseSchema>;
-export type NotificationsResponse = WorkerBody<typeof Http.NotificationsResponseSchema>;
 
 export type BillingOffer = 'pro' | 'team';
 

@@ -66,11 +66,6 @@ export const PortalUrlSchema = Schema.Struct({
 });
 
 /** License regeneration payload. */
-export const RegeneratedLicenseSchema = Schema.Struct({
-  success: Schema.Boolean,
-  license_key: Schema.String.pipe(Schema.minLength(1)),
-  message: Str,
-});
 
 /** Created note id. */
 export const CreatedNoteSchema = Schema.Struct({
@@ -85,132 +80,6 @@ export const CreatedTagSchema = Schema.Struct({
 });
 
 /** Site tracking acknowledgement. */
-export const TrackedEventsSchema = Schema.Struct({
-  success: Schema.Boolean,
-  processed: Num,
-});
-
-const SessionSchema = Schema.Struct({
-  id: Schema.String,
-  ip_address: NullableString,
-  user_agent: NullableString,
-  created_at: Schema.String,
-  expires_at: Schema.String,
-  is_current: Flag,
-});
-
-export const SessionsResponseSchema = Schema.Struct({
-  sessions: decodeNumArray(SessionSchema),
-});
-
-const AuditLogEntrySchema = Schema.Struct({
-  id: Schema.String,
-  action: Schema.String,
-  resource_type: NullableString,
-  resource_id: NullableString,
-  ip_address: NullableString,
-  created_at: Schema.String,
-});
-
-export const AuditLogResponseSchema = Schema.Struct({
-  logs: decodeNumArray(AuditLogEntrySchema),
-});
-
-const TeamMemberSchema = Schema.Struct({
-  id: Schema.String,
-  machine_id: Schema.String,
-  hostname: NullableString,
-  os: NullableString,
-  arch: NullableString,
-  omg_version: NullableString,
-  user_name: Schema.optional(NullableString),
-  user_email: Schema.optional(NullableString),
-  is_active: Flag,
-  first_seen_at: Str,
-  last_seen_at: Str,
-  total_commands: Num,
-  total_packages: Num,
-  total_time_saved_ms: Num,
-  commands_last_7d: Num,
-  last_active: Schema.optional(NullableString),
-});
-
-export const TeamDataSchema = Schema.Struct({
-  license: Schema.Struct({
-    tier: Str,
-    max_seats: Num,
-    status: Str,
-  }),
-  members: decodeNumArray(TeamMemberSchema),
-  daily_usage: decodeNumArray(
-    Schema.Struct({
-      date: Str,
-      machine_id: Str,
-      commands_run: Num,
-      time_saved_ms: Num,
-    })
-  ),
-  totals: Schema.Struct({
-    total_machines: Num,
-    active_machines: Num,
-    total_commands: Num,
-    total_time_saved_ms: Num,
-    total_time_saved_hours: Num,
-    total_value_usd: Num,
-  }),
-  fleet_health: Schema.Struct({
-    compliance_rate: Num,
-    latest_version: Str,
-    version_drift: Flag,
-  }),
-  productivity_score: Num,
-  insights: Schema.Struct({
-    engagement_rate: Num,
-    roi_multiplier: Str,
-  }),
-});
-
-const PolicySchema = Schema.Struct({
-  id: Schema.String,
-  scope: Schema.String,
-  rule: Schema.String,
-  value: Schema.String,
-  enforced: Flag,
-  created_at: Str,
-});
-
-export const PoliciesResponseSchema = Schema.Struct({
-  policies: decodeNumArray(PolicySchema),
-});
-
-const NotificationSettingSchema = Schema.Struct({
-  type: Str,
-  enabled: Flag,
-  threshold: Schema.optional(Schema.Number),
-  channels: decodeNumArray(Schema.String),
-});
-
-export const NotificationsResponseSchema = Schema.Struct({
-  settings: decodeNumArray(NotificationSettingSchema),
-});
-
-const TeamAuditLogEntrySchema = Schema.Struct({
-  id: Schema.String,
-  action: Schema.String,
-  resource_type: NullableString,
-  resource_id: NullableString,
-  ip_address: NullableString,
-  user_agent: NullableString,
-  metadata: NullableString,
-  created_at: Schema.String,
-});
-
-export const TeamAuditLogsResponseSchema = Schema.Struct({
-  logs: decodeNumArray(TeamAuditLogEntrySchema),
-  total: Num,
-  limit: Num,
-  offset: Num,
-});
 
 export const AdminOverviewSchema = Schema.Struct({
   overview: Schema.Struct({
@@ -244,39 +113,6 @@ export const AdminOverviewSchema = Schema.Struct({
   installs_by_version: decodeNumArray(Schema.Struct({ version: Str, count: Num })),
   subscriptions: decodeNumArray(Schema.Struct({ status: Str, count: Num })),
   geo_distribution: decodeNumArray(Schema.Struct({ dimension: Str, count: Num })),
-});
-
-export const AdminAnalyticsSchema = Schema.Struct({
-  request_id: Str,
-  dau: Num,
-  wau: Num,
-  mau: Num,
-  events_today: Num,
-  retention_rate: Num,
-  commands_by_type: decodeNumArray(Schema.Struct({ command: Str, count: Num })),
-  errors_by_type: decodeNumArray(Schema.Struct({ error_type: Str, count: Num })),
-  growth: Schema.optionalWith(
-    Schema.Struct({
-      new_users_7d: Num,
-      new_paid_7d: Num,
-      growth_rate: Num,
-    }),
-    { default: () => ({ new_users_7d: 0, new_paid_7d: 0, growth_rate: 0 }) }
-  ),
-  time_saved: Schema.optionalWith(Schema.Struct({ total_hours: Num }), {
-    default: () => ({ total_hours: 0 }),
-  }),
-  funnel: Schema.optionalWith(
-    Schema.Struct({
-      installs: Num,
-      activated: Num,
-      power_users: Num,
-    }),
-    { default: () => ({ installs: 0, activated: 0, power_users: 0 }) }
-  ),
-  churn_risk: Schema.optionalWith(Schema.Struct({ at_risk_users: Num }), {
-    default: () => ({ at_risk_users: 0 }),
-  }),
 });
 
 const FirehoseEventSchema = Schema.Struct({
@@ -402,33 +238,6 @@ export const AdminUserDetailSchema = Schema.Struct({
   }),
 });
 
-const AdminActivitySchema = Schema.Struct({
-  id: Schema.String,
-  type: Str,
-  description: Str,
-  user_id: Str,
-  user_email: Schema.optional(Schema.String),
-  email: Schema.optional(Schema.String),
-  hostname: Schema.optional(Schema.String),
-  platform: Schema.optional(Schema.String),
-  version: Schema.optional(Schema.String),
-  timestamp: Str,
-  created_at: Str,
-});
-
-export const AdminActivityResponseSchema = Schema.Struct({
-  activity: decodeNumArray(AdminActivitySchema),
-});
-
-export const AdminHealthSchema = Schema.Struct({
-  active_users_today: Num,
-  active_users_week: Num,
-  commands_today: Num,
-  new_users_today: Num,
-  installs_today: Num,
-  timestamp: Str,
-});
-
 export const AdminCohortsSchema = Schema.Struct({
   request_id: Str,
   cohorts: decodeNumArray(
@@ -497,19 +306,6 @@ const CustomerTagSchema = Schema.Struct({
 
 export const TagsResponseSchema = Schema.Struct({
   tags: decodeNumArray(CustomerTagSchema),
-});
-
-export const CustomerHealthResponseSchema = Schema.Struct({
-  health: Schema.Struct({
-    customer_id: Schema.String,
-    overall_score: Num,
-    engagement_score: Num,
-    activation_score: Num,
-    growth_score: Num,
-    risk_score: Num,
-    lifecycle_stage: Str,
-    updated_at: NullableString,
-  }),
 });
 
 export const AdminAdvancedMetricsSchema = Schema.Struct({
@@ -696,29 +492,6 @@ export const SiteAnalyticsOverviewSchema = Schema.Struct({
     Schema.Struct({ referrer_domain: Str, visitors: Num, pageviews: Num })
   ),
   device_breakdown: decodeNumArray(Schema.Struct({ device_type: Str, visitors: Num })),
-});
-
-export const AdminStripeMetricsSchema = Schema.Struct({
-  mrr: Num,
-  arr: Num,
-  active_subscriptions: Num,
-  tier_breakdown: Schema.Struct({
-    pro: Num,
-    team: Num,
-    enterprise: Num,
-  }),
-  balance: Schema.Struct({
-    available: Num,
-    pending: Num,
-    currency: Str,
-  }),
-});
-
-export const AdminStripeSyncResultSchema = Schema.Struct({
-  customers_synced: Num,
-  subscriptions_synced: Num,
-  invoices_synced: Num,
-  errors: decodeNumArray(Schema.String),
 });
 
 /**
