@@ -20,7 +20,7 @@ import { AdminUnauthorizedError, requireAdminSecret } from '../admin-secret';
 import { casesHandled } from '../prelude';
 
 /** D1 was unavailable or returned an unreadable row during site-session minting. */
-export class CustomerStoreUnavailable extends Error {
+class CustomerStoreUnavailable extends Error {
   readonly _tag = 'CustomerStoreUnavailable';
   constructor(
     readonly operation:
@@ -176,7 +176,7 @@ function insertSession(
  * @param env - Worker bindings, including D1 and `ADMIN_API_SECRET`.
  * @returns The session wire payload, or a tagged site-session error.
  */
-export function mintSiteSession(
+function mintSiteSession(
   request: Request,
   env: Env
 ): Effect.Effect<SiteSessionWorkerResponse, SiteSessionError> {

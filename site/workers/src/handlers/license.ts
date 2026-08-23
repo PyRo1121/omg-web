@@ -48,7 +48,7 @@ const maskKey = (key: string) => {
 };
 
 /** The posted license key is missing or inactive. */
-export class InvalidLicenseError extends Error {
+class InvalidLicenseError extends Error {
   readonly _tag = 'InvalidLicenseError';
   constructor() {
     super('Invalid license');
@@ -56,7 +56,7 @@ export class InvalidLicenseError extends Error {
 }
 
 /** Email is required for public license lookup. */
-export class EmailRequiredError extends Error {
+class EmailRequiredError extends Error {
   readonly _tag = 'EmailRequiredError';
   constructor() {
     super('Email required');
@@ -64,7 +64,7 @@ export class EmailRequiredError extends Error {
 }
 
 /** The request URL could not be parsed. */
-export class InvalidRequestUrlError extends Error {
+class InvalidRequestUrlError extends Error {
   readonly _tag = 'InvalidRequestUrlError';
   constructor() {
     super('Invalid request URL');
@@ -72,7 +72,7 @@ export class InvalidRequestUrlError extends Error {
 }
 
 /** Neither `key` nor `license_key` was provided. */
-export class LicenseKeyRequiredError extends Error {
+class LicenseKeyRequiredError extends Error {
   readonly _tag = 'LicenseKeyRequiredError';
   constructor() {
     super('License key required');
@@ -80,7 +80,7 @@ export class LicenseKeyRequiredError extends Error {
 }
 
 /** D1 was unavailable while validating a license. */
-export class ValidateLicenseStoreUnavailable extends Error {
+class ValidateLicenseStoreUnavailable extends Error {
   readonly _tag = 'ValidateLicenseStoreUnavailable';
   constructor(
     readonly operation: string,
@@ -91,7 +91,7 @@ export class ValidateLicenseStoreUnavailable extends Error {
 }
 
 /** JWT signing is not configured or failed. */
-export class LicenseJwtError extends Error {
+class LicenseJwtError extends Error {
   readonly _tag = 'LicenseJwtError';
   constructor(override readonly cause?: unknown) {
     super('Internal server error');
@@ -339,7 +339,7 @@ function registerOrTouchMachine(
  * @param env - Worker bindings.
  * @returns A validation payload, or a tagged validate-license error.
  */
-export function validateLicense(
+function validateLicense(
   request: Request,
   env: Env
 ): Effect.Effect<ValidateLicensePayload, ValidateLicenseError> {

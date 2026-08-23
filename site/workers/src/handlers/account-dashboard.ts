@@ -38,7 +38,7 @@ import {
 } from '../contracts/account-dashboard';
 
 /** The customer has no license row. */
-export class LicenseNotFoundError extends Error {
+class LicenseNotFoundError extends Error {
   readonly _tag = 'LicenseNotFoundError';
   constructor() {
     super('License not found');
@@ -46,7 +46,7 @@ export class LicenseNotFoundError extends Error {
 }
 
 /** D1 was unavailable while loading the account dashboard. */
-export class DashboardStoreUnavailable extends Error {
+class DashboardStoreUnavailable extends Error {
   readonly _tag = 'DashboardStoreUnavailable';
   constructor(
     readonly operation: string,
@@ -155,7 +155,7 @@ function emptyUsage(): UsageStatsRow {
  * @param env - Worker bindings.
  * @returns The dashboard payload, or a tagged dashboard error.
  */
-export function getAccountDashboard(
+function getAccountDashboard(
   request: Request,
   env: Env
 ): Effect.Effect<LicensingDashboard, DashboardError> {

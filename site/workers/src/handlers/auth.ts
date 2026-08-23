@@ -31,7 +31,7 @@ import { reportError } from '../observability';
 import { casesHandled } from '../prelude';
 
 /** Too many OTP requests were made for this email. */
-export class AuthRateLimitedError extends Error {
+class AuthRateLimitedError extends Error {
   readonly _tag = 'AuthRateLimitedError';
   constructor() {
     super('Too many requests. Please wait a few minutes.');
@@ -39,7 +39,7 @@ export class AuthRateLimitedError extends Error {
 }
 
 /** Turnstile verification is required but was not provided. */
-export class TurnstileRequiredError extends Error {
+class TurnstileRequiredError extends Error {
   readonly _tag = 'TurnstileRequiredError';
   constructor() {
     super('Security verification required');
@@ -47,7 +47,7 @@ export class TurnstileRequiredError extends Error {
 }
 
 /** Turnstile rejected the token. */
-export class TurnstileFailedError extends Error {
+class TurnstileFailedError extends Error {
   readonly _tag = 'TurnstileFailedError';
   constructor() {
     super('Security verification failed. Please try again.');
@@ -55,7 +55,7 @@ export class TurnstileFailedError extends Error {
 }
 
 /** Resend is not configured on this Worker. */
-export class EmailServiceUnconfigured extends Error {
+class EmailServiceUnconfigured extends Error {
   readonly _tag = 'EmailServiceUnconfigured';
   constructor() {
     super('Email service not configured');
@@ -63,7 +63,7 @@ export class EmailServiceUnconfigured extends Error {
 }
 
 /** The OTP email could not be delivered. */
-export class EmailDeliveryFailed extends Error {
+class EmailDeliveryFailed extends Error {
   readonly _tag = 'EmailDeliveryFailed';
   constructor(override readonly cause?: unknown) {
     super('Failed to send email');
@@ -71,7 +71,7 @@ export class EmailDeliveryFailed extends Error {
 }
 
 /** The OTP is missing, used, or expired. */
-export class InvalidOtpError extends Error {
+class InvalidOtpError extends Error {
   readonly _tag = 'InvalidOtpError';
   constructor() {
     super('Invalid or expired code');
@@ -79,7 +79,7 @@ export class InvalidOtpError extends Error {
 }
 
 /** Web Crypto could not create or verify an OTP digest. */
-export class AuthCryptoUnavailable extends Error {
+class AuthCryptoUnavailable extends Error {
   readonly _tag = 'AuthCryptoUnavailable';
   constructor(override readonly cause?: unknown) {
     super('Authentication cryptography unavailable');
@@ -87,7 +87,7 @@ export class AuthCryptoUnavailable extends Error {
 }
 
 /** D1 was unavailable or returned an unreadable row during OTP auth. */
-export class AuthStoreUnavailable extends Error {
+class AuthStoreUnavailable extends Error {
   readonly _tag = 'AuthStoreUnavailable';
   constructor(
     readonly operation: string,
@@ -127,7 +127,7 @@ function digestOtpCode(
 }
 
 /** Creates the plaintext OTP delivered to the user. */
-export type OtpCodeGenerator = () => string;
+type OtpCodeGenerator = () => string;
 
 /** Sends a generated OTP to an email address. */
 export type OtpMailer = (
@@ -148,7 +148,7 @@ function brandGeneratedId<S extends Schema.Schema.AnyNoContext>(
  * @param env - Worker bindings with the `EMAIL` send_email binding.
  * @returns An OTP mailer.
  */
-export function cloudflareMailer(env: Env): OtpMailer {
+function cloudflareMailer(env: Env): OtpMailer {
   return (email, code) => {
     return Effect.tryPromise({
       try: async () => {
@@ -326,7 +326,7 @@ function findOrCreateCustomer(
  * @param env - Worker bindings.
  * @returns A session payload, or a tagged verify-code error.
  */
-export function verifyCode(
+function verifyCode(
   request: Request,
   env: Env
 ): Effect.Effect<VerifyCodeResponse, VerifyCodeError> {
