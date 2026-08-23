@@ -4,7 +4,7 @@ import * as Schema from 'effect/Schema';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import worker from '../src/worker';
-import { decodeSiteSessionWorkerResponse } from '../src/contracts/site-session';
+import { decodeSiteSessionWorkerResponse } from '../../shared/site-session';
 
 const TEST_SECRET = 'test-admin-secret';
 const TEST_EMAIL = 'site-session-admin@example.com';

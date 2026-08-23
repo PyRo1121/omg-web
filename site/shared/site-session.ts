@@ -1,4 +1,6 @@
-// Boundary parser internals decode untrusted JSON and D1 rows into branded site-session types.
+// Boundary parsers decode untrusted JSON and D1 rows into branded
+// site-session types. Shared by the licensing Worker (minting) and the site
+// BFF (consuming) so the wire contract cannot drift between them.
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
@@ -28,7 +30,7 @@ export const EmailAddress = Schema.String.pipe(
 );
 export type EmailAddress = Schema.Schema.Type<typeof EmailAddress>;
 
-/** An opaque Worker session token. */
+/** An opaque Worker session token that never crosses the BFF/browser boundary. */
 export const SessionToken = Schema.String.pipe(Schema.minLength(1), Schema.brand('SessionToken'));
 export type SessionToken = Schema.Schema.Type<typeof SessionToken>;
 

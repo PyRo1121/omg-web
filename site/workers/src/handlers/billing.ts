@@ -10,7 +10,7 @@ import {
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import { decodeJsonBody } from '../body';
-import { EmailAddress } from '../contracts/site-session';
+import { EmailAddress } from '../../../shared/site-session';
 import { forbiddenUnlessAdminSession } from '../admin-auth';
 import { decodeThrownMessage } from '../contracts/http-bodies';
 import {

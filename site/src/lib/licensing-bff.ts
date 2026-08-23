@@ -5,7 +5,7 @@ import {
   decodeSiteSessionWorkerResponse,
   EmailAddress,
   type SiteSessionWorkerResponse,
-} from './contracts/site-session';
+} from '../../shared/site-session';
 
 const INTERNAL_WORKER_ORIGIN = 'https://omg-saas.internal';
 const BFF_PATH_PREFIX = '/api/licensing';

@@ -5,7 +5,7 @@ import {
   decodeSiteSessionWorkerResponse,
   decodeCustomerRow,
   decodeSessionRow,
-} from '../src/contracts/site-session';
+} from '../../shared/site-session';
 
 /** Keep in sync with `site/src/lib/contracts/site-session.test.ts`. */
 const validRequest = {

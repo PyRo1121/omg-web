@@ -15,7 +15,7 @@ import {
   type EmailAddress,
   type SessionToken as SessionTokenBrand,
   type SiteSessionRole,
-} from '../contracts/site-session';
+} from '../../../shared/site-session';
 import { AdminUnauthorizedError, requireAdminSecret } from '../admin-secret';
 import { casesHandled } from '../prelude';
 
