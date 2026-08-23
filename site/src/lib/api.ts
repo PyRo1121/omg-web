@@ -86,94 +86,6 @@ function unwrapWorkerApi<A>(exit: Exit.Exit<A, WorkerApiError>): A {
 
 // ==== Account API ====
 
-export const revokeMachine = (machineId: string): Promise<{ success: boolean }> =>
-  apiRequest(Http.SuccessSchema, LicensingRoutes.revokeMachine.path, {
-    method: 'POST',
-    body: JSON.stringify({ machine_id: machineId }),
-  });
-
-// ==== Team Management API (Team+ tiers only) ====
-
-export type TeamData = WorkerBody<typeof Http.TeamDataSchema>;
-
-/** Fetches the caller's team member list. */
-export const getTeamMembers = (): Promise<TeamData> =>
-  apiRequest(Http.TeamDataSchema, LicensingRoutes.teamMembers.path);
-
-/** Public subscription offers accepted by the billing Worker. */
-export type BillingOffer = 'pro' | 'team';
-
-export const createCheckout = (offer: BillingOffer): Promise<{ url: string }> =>
-  apiRequest(Http.CheckoutUrlSchema, LicensingRoutes.billingCheckout.path, {
-    method: 'POST',
-    body: JSON.stringify({ offer }),
-  });
-
-// ==== Team Controls API (Team/Enterprise tiers) ====
-
-export type PoliciesResponse = WorkerBody<typeof Http.PoliciesResponseSchema>;
-export type NotificationsResponse = WorkerBody<typeof Http.NotificationsResponseSchema>;
-export type TeamAuditLogsResponse = WorkerBody<typeof Http.TeamAuditLogsResponseSchema>;
-export type TeamAuditLogEntry = TeamAuditLogsResponse['logs'][number];
-
-export const getTeamPolicies = (): Promise<PoliciesResponse> =>
-  apiRequest(Http.PoliciesResponseSchema, LicensingRoutes.teamPolicies.path);
-
-export const getNotificationSettings = (): Promise<NotificationsResponse> =>
-  apiRequest(Http.NotificationsResponseSchema, LicensingRoutes.teamNotifications.path);
-
-export async function getTeamAuditLogs(params?: {
-  limit?: number;
-  offset?: number;
-  action?: string;
-  resource_type?: string;
-}): Promise<TeamAuditLogsResponse> {
-  return apiRequest(
-    Http.TeamAuditLogsResponseSchema,
-    withQuery(
-      LicensingRoutes.teamAuditLogs.path,
-      params?.limit ? ['limit', params.limit.toString()] : undefined,
-      params?.offset ? ['offset', params.offset.toString()] : undefined,
-      params?.action ? ['action', params.action] : undefined,
-      params?.resource_type ? ['resource_type', params.resource_type] : undefined
-    )
-  );
-}
-
-// ==== Admin API (only accessible to admin user) ====
-
-export type AdminOverview = WorkerBody<typeof Http.AdminOverviewSchema>;
-export type AdminUsersResponse = WorkerBody<typeof Http.AdminUsersResponseSchema>;
-export type AdminUser = AdminUsersResponse['users'][number];
-export type AdminActivityResponse = WorkerBody<typeof Http.AdminActivityResponseSchema>;
-export type AdminAnalytics = WorkerBody<typeof Http.AdminAnalyticsSchema>;
-export type FirehoseResponse = WorkerBody<typeof Http.FirehoseResponseSchema>;
-export type AdminFirehoseEvent = FirehoseResponse['events'][number];
-export type AdminUserDetail = WorkerBody<typeof Http.AdminUserDetailSchema>;
-export type AdminCohorts = WorkerBody<typeof Http.AdminCohortsSchema>;
-export type AdminRevenue = WorkerBody<typeof Http.AdminRevenueSchema>;
-export type AdminAuditLogResponse = WorkerBody<typeof Http.AdminAuditLogResponseSchema>;
-export type NotesResponse = WorkerBody<typeof Http.NotesResponseSchema>;
-export type CustomerNote = NotesResponse['notes'][number];
-export type TagsResponse = WorkerBody<typeof Http.TagsResponseSchema>;
-export type CustomerTag = TagsResponse['tags'][number];
-export type CustomerHealthResponse = WorkerBody<typeof Http.CustomerHealthResponseSchema>;
-export type CustomerHealth = CustomerHealthResponse['health'];
-export type AdminAdvancedMetrics = WorkerBody<typeof Http.AdminAdvancedMetricsSchema>;
-
-export const getAdminDashboard = (): Promise<AdminOverview> =>
-  apiRequest(Http.AdminOverviewSchema, LicensingRoutes.adminDashboard.path);
-
-export const getAdminAnalytics = (): Promise<AdminAnalytics> =>
-  apiRequest(Http.AdminAnalyticsSchema, LicensingRoutes.adminAnalytics.path);
-
-export async function getAdminFirehose(limit = 50): Promise<FirehoseResponse> {
-  return apiRequest(
-    Http.FirehoseResponseSchema,
-    `${LicensingRoutes.adminFirehose.path}?limit=${limit}`
-  );
-}
-
 export async function getAdminUsers(
   page = 1,
   limit = 50,
@@ -286,6 +198,22 @@ export async function getAdminCustomerHealth(customerId: string): Promise<Custom
     `${LicensingRoutes.adminCustomerHealth.path}?customerId=${customerId}`
   );
 }
+
+export type AdminUser = AdminUsersResponse['users'][number];
+export type AdminUsersResponse = WorkerBody<typeof Http.AdminUsersResponseSchema>;
+export type AdminUserDetail = WorkerBody<typeof Http.AdminUserDetailSchema>;
+export type AdminActivityResponse = WorkerBody<typeof Http.AdminActivityResponseSchema>;
+export type AdminCohorts = WorkerBody<typeof Http.AdminCohortsSchema>;
+export type AdminRevenue = WorkerBody<typeof Http.AdminRevenueSchema>;
+export type AdminAuditLogResponse = WorkerBody<typeof Http.AdminAuditLogResponseSchema>;
+export type NotesResponse = WorkerBody<typeof Http.NotesResponseSchema>;
+export type TagsResponse = WorkerBody<typeof Http.TagsResponseSchema>;
+export type CustomerHealthResponse = WorkerBody<typeof Http.CustomerHealthResponseSchema>;
+
+export const getAdminFirehose = (limit = 50): Promise<FirehoseResponse> =>
+  apiRequest(Http.FirehoseResponseSchema, `${LicensingRoutes.adminFirehose.path}?limit=${limit}`);
+
+export type FirehoseResponse = WorkerBody<typeof Http.FirehoseResponseSchema>;
 
 // Advanced Metrics API
 export const getAdminAdvancedMetrics = (): Promise<AdminAdvancedMetrics> =>
@@ -453,6 +381,26 @@ export const openAdminBillingPortal = (
     method: 'POST',
     body: JSON.stringify({ email }),
   });
+
+/** Public subscription offers accepted by the billing Worker. */
+
+export type TeamData = WorkerBody<typeof Http.TeamDataSchema>;
+export type PoliciesResponse = WorkerBody<typeof Http.PoliciesResponseSchema>;
+export type NotificationsResponse = WorkerBody<typeof Http.NotificationsResponseSchema>;
+
+export type BillingOffer = 'pro' | 'team';
+
+export const createCheckout = (offer: BillingOffer): Promise<{ url: string }> =>
+  apiRequest(Http.CheckoutUrlSchema, LicensingRoutes.billingCheckout.path, {
+    method: 'POST',
+    body: JSON.stringify({ offer }),
+  });
+
+export type AdminOverview = WorkerBody<typeof Http.AdminOverviewSchema>;
+export type AdminAdvancedMetrics = WorkerBody<typeof Http.AdminAdvancedMetricsSchema>;
+
+export const getAdminDashboard = (): Promise<AdminOverview> =>
+  apiRequest(Http.AdminOverviewSchema, LicensingRoutes.adminDashboard.path);
 
 export function getStripeCustomerUrl(stripeCustomerId: string): string {
   return `https://dashboard.stripe.com/customers/${stripeCustomerId}`;

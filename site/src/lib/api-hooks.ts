@@ -36,17 +36,6 @@ function invalidatingMutation<TData, TVariables>(
 }
 
 // Reusable Query Hooks
-export const useTeamData = () => apiQuery(['team-data'], api.getTeamMembers);
-
-export const useTeamPolicies = () => apiQuery(['team-policies'], api.getTeamPolicies);
-
-export const useNotificationSettings = () =>
-  apiQuery(['notification-settings'], api.getNotificationSettings);
-
-export const useTeamAuditLogs = (params?: { limit?: number; offset?: number }) =>
-  apiQuery(['team-audit-logs', params], () => api.getTeamAuditLogs(params));
-
-export const useAdminEvents = () => apiQuery(['admin-events'], api.getAdminActivity);
 
 export const useAdminDashboard = () => apiQuery(['admin-dashboard'], api.getAdminDashboard);
 
@@ -56,15 +45,8 @@ export const useAdminFirehose = (limit = 50) =>
   });
 
 // Mutations
-export const useRevokeMachine = () =>
-  invalidatingMutation(
-    (machineId: string) => api.revokeMachine(machineId),
-    () => [['team-data'], ['dashboard']]
-  );
 
 export const useAdminRevenue = () => apiQuery(['admin-revenue'], api.getAdminRevenue);
-
-export const useAdminAnalytics = () => apiQuery(['admin-analytics'], api.getAdminAnalytics);
 
 export const useAdminAuditLog = (page = 1, limit = 50, action = '') =>
   apiQuery(['admin-audit-log', page, limit, action], () =>
@@ -90,13 +72,6 @@ export const useCreateNote = () =>
   invalidatingMutation(
     (params: { customerId: string; content: string; noteType?: string }) =>
       api.createAdminNote(params.customerId, params.content, params.noteType),
-    params => [['admin-notes', params.customerId]]
-  );
-
-export const useUpdateNote = () =>
-  invalidatingMutation(
-    (params: { noteId: string; customerId: string; content?: string; isPinned?: boolean }) =>
-      api.updateAdminNote(params.noteId, { content: params.content, isPinned: params.isPinned }),
     params => [['admin-notes', params.customerId]]
   );
 
@@ -133,11 +108,6 @@ export const useRemoveTag = () =>
       api.removeAdminTag(params.customerId, params.tagId),
     params => [['admin-customer-tags', params.customerId], ['admin-tags']]
   );
-
-export const useAdminCustomerHealth = (customerId: string) =>
-  apiQuery(['admin-customer-health', customerId], () => api.getAdminCustomerHealth(customerId), {
-    enabled: Boolean(customerId),
-  });
 
 export const useAdminAdvancedMetrics = () =>
   apiQuery(['admin-advanced-metrics'], api.getAdminAdvancedMetrics, {
