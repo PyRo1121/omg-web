@@ -7,12 +7,22 @@ import { type Env, jsonResponse, errorResponse, validateSession, getAuthToken } 
 import { Effect, Exit, type Schema } from 'effect';
 import { decodeJsonBody } from '../body';
 import {
+  assignTag,
+  createNote,
+  createTag,
+  deleteNote,
+  listCustomerTags,
+  listNotes,
+  listTagCatalog,
+  removeTag,
+  updateNote,
+} from '../store/crm';
+import {
   AdminAssignTagBodySchema,
   AdminCreateNoteBodySchema,
   AdminCreateTagBodySchema,
   AdminUpdateNoteBodySchema,
   AdminUpdateUserBodySchema,
-  decodeThrownMessage,
 } from '../contracts/http-bodies';
 import {
   AdminActivityRowSchema,
@@ -21,7 +31,6 @@ import {
   AdminCommandCountRowSchema,
   AdminCountsRowSchema,
   AdminCustomerDetailRowSchema,
-  AdminCustomerTagRowSchema,
   AdminChurnRiskSegmentRowSchema,
   AdminCommandHeatmapRowSchema,
   AdminDailyActiveRowSchema,
@@ -34,14 +43,12 @@ import {
   AdminLtvByTierRowSchema,
   AdminMachineRowSchema,
   AdminMonthlyRevenueRowSchema,
-  AdminNoteRowSchema,
   AdminPlatformCountRowSchema,
   AdminRetentionCohortRowSchema,
   AdminRevenueByTierRowSchema,
   AdminRuntimeAdoptionRowSchema,
   AdminRuntimeUsageRowSchema,
   AdminStatusCountRowSchema,
-  AdminTagCatalogRowSchema,
   AdminUsageDailyRowSchema,
   AdminUsageTotalsRowSchema,
   AdminUsersExportRowSchema,
@@ -1396,30 +1403,8 @@ export async function handleAdminGetNotes(request: Request, env: Env): Promise<R
     if (!customerId) {
       return errorResponse('Customer ID required', 400);
     }
-
-    const notes = await env.DB.prepare(
-      `SELECT n.id, n.customer_id, n.author_id, n.note_type, n.content, n.is_pinned, n.created_at, n.updated_at, c.email as author_email
-     FROM customer_notes n
-     LEFT JOIN customers c ON n.author_id = c.id
-     WHERE n.customer_id = ?
-     ORDER BY n.is_pinned DESC, n.created_at DESC`
-    )
-      .bind(customerId)
-      .all();
-
-    const decodedNotes = await decodeRows(
-      AdminNoteRowSchema,
-      'Admin note row has an invalid shape',
-      notes.results
-    );
-    if (decodedNotes === null) {
-      return errorResponse('Failed to load notes', 500);
-    }
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      notes: decodedNotes,
-    });
+    const notes = await Effect.runPromise(listNotes(env.DB, customerId));
+    return secureJsonResponse({ request_id: context.requestId, notes });
   });
 }
 
@@ -1429,31 +1414,23 @@ export async function handleAdminCreateNote(request: Request, env: Env): Promise
     if (body === null) {
       return errorResponse('Invalid JSON body', 400);
     }
-
-    const noteId = crypto.randomUUID();
-    const noteType = body.noteType || 'general';
-
-    await env.DB.prepare(
-      `INSERT INTO customer_notes (id, customer_id, content, note_type, author_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-    )
-      .bind(noteId, body.customerId, body.content, noteType, context.user.id)
-      .run();
-
+    const noteId = await Effect.runPromise(
+      createNote(env.DB, {
+        customerId: body.customerId,
+        content: body.content,
+        noteType: body.noteType || 'general',
+        authorId: context.user.id,
+      })
+    );
     await logAdminAudit(env.DB, {
       action: 'admin.note_created',
       userId: context.user.id,
       request,
       resourceType: 'customer_note',
       resourceId: noteId,
-      metadata: { customer_id: body.customerId, note_type: noteType },
+      metadata: { customer_id: body.customerId, note_type: body.noteType || 'general' },
     });
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      success: true,
-      note_id: noteId,
-    });
+    return secureJsonResponse({ request_id: context.requestId, success: true, note_id: noteId });
   });
 }
 
@@ -1463,25 +1440,13 @@ export async function handleAdminUpdateNote(request: Request, env: Env): Promise
     if (body === null) {
       return errorResponse('Invalid JSON body', 400);
     }
-
-    // Build dynamic update query
-    const updates: string[] = ['updated_at = CURRENT_TIMESTAMP'];
-    const params: (string | number)[] = [];
-
-    if (body.content !== undefined) {
-      updates.push('content = ?');
-      params.push(body.content);
-    }
-    if (body.isPinned !== undefined) {
-      updates.push('is_pinned = ?');
-      params.push(body.isPinned ? 1 : 0);
-    }
-
-    params.push(body.noteId);
-
-    await env.DB.prepare(`UPDATE customer_notes SET ${updates.join(', ')} WHERE id = ?`)
-      .bind(...params)
-      .run();
+    await Effect.runPromise(
+      updateNote(env.DB, {
+        noteId: body.noteId,
+        ...(body.content !== undefined && { content: body.content }),
+        ...(body.isPinned !== undefined && { isPinned: body.isPinned }),
+      })
+    );
 
     await logAdminAudit(env.DB, {
       action: 'admin.note_updated',
@@ -1505,8 +1470,7 @@ export async function handleAdminDeleteNote(request: Request, env: Env): Promise
     if (!noteId) {
       return errorResponse('Note ID required', 400);
     }
-
-    await env.DB.prepare(`DELETE FROM customer_notes WHERE id = ?`).bind(noteId).run();
+    await Effect.runPromise(deleteNote(env.DB, noteId));
 
     await logAdminAudit(env.DB, {
       action: 'admin.note_deleted',
@@ -1529,28 +1493,8 @@ export async function handleAdminDeleteNote(request: Request, env: Env): Promise
 
 export async function handleAdminGetTags(request: Request, env: Env): Promise<Response> {
   return withAdminContext(request, env, async context => {
-    // Get all available tags with usage counts
-    const tags = await env.DB.prepare(
-      `SELECT t.id, t.name, t.color, t.description, t.created_by, t.created_at, COUNT(cta.customer_id) as usage_count
-     FROM customer_tags t
-     LEFT JOIN customer_tag_assignments cta ON t.id = cta.tag_id
-     GROUP BY t.id
-     ORDER BY t.name ASC`
-    ).all();
-
-    const decodedTags = await decodeRows(
-      AdminTagCatalogRowSchema,
-      'Admin tag catalog row has an invalid shape',
-      tags.results
-    );
-    if (decodedTags === null) {
-      return errorResponse('Failed to load tags', 500);
-    }
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      tags: decodedTags,
-    });
+    const tags = await Effect.runPromise(listTagCatalog(env.DB));
+    return secureJsonResponse({ request_id: context.requestId, tags });
   });
 }
 
@@ -1560,29 +1504,8 @@ export async function handleAdminGetCustomerTags(request: Request, env: Env): Pr
     if (!customerId) {
       return errorResponse('Customer ID required', 400);
     }
-
-    const tags = await env.DB.prepare(
-      `SELECT t.id, t.name, t.color, t.description, t.created_by, t.created_at FROM customer_tags t
-     JOIN customer_tag_assignments cta ON t.id = cta.tag_id
-     WHERE cta.customer_id = ?
-     ORDER BY t.name ASC`
-    )
-      .bind(customerId)
-      .all();
-
-    const decodedTags = await decodeRows(
-      AdminCustomerTagRowSchema,
-      'Admin customer tag row has an invalid shape',
-      tags.results
-    );
-    if (decodedTags === null) {
-      return errorResponse('Failed to load customer tags', 500);
-    }
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      tags: decodedTags,
-    });
+    const tags = await Effect.runPromise(listCustomerTags(env.DB, customerId));
+    return secureJsonResponse({ request_id: context.requestId, tags });
   });
 }
 
@@ -1592,24 +1515,20 @@ export async function handleAdminCreateTag(request: Request, env: Env): Promise<
     if (body === null) {
       return errorResponse('Invalid JSON body', 400);
     }
-
-    const tagId = crypto.randomUUID();
-    const color = body.color || '#6366f1'; // Default indigo
-
-    await env.DB.prepare(
-      `INSERT INTO customer_tags (id, name, color, description, created_at)
-     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
-    )
-      .bind(tagId, body.name, color, body.description || null)
-      .run();
-
+    const tagId = await Effect.runPromise(
+      createTag(env.DB, {
+        name: body.name,
+        ...(body.color !== undefined && { color: body.color }),
+        ...(body.description !== undefined && { description: body.description }),
+      })
+    );
     await logAdminAudit(env.DB, {
       action: 'admin.tag_created',
       userId: context.user.id,
       request,
       resourceType: 'customer_tag',
       resourceId: tagId,
-      metadata: { name: body.name, color },
+      metadata: { name: body.name, color: body.color ?? '#6366f1' },
     });
 
     return secureJsonResponse({
@@ -1626,26 +1545,20 @@ export async function handleAdminAssignTag(request: Request, env: Env): Promise<
     if (body === null) {
       return errorResponse('Invalid JSON body', 400);
     }
-
-    try {
-      await env.DB.prepare(
-        `INSERT INTO customer_tag_assignments (customer_id, tag_id, assigned_by, assigned_at)
-       VALUES (?, ?, ?, CURRENT_TIMESTAMP)`
-      )
-        .bind(body.customerId, body.tagId, context.user.id)
-        .run();
-    } catch (error: unknown) {
-      const message = decodeThrownMessage(error);
-      if (message.includes('UNIQUE constraint') || message.includes('PRIMARY KEY')) {
-        return secureJsonResponse({
-          request_id: context.requestId,
-          success: true,
-          message: 'Tag already assigned',
-        });
-      }
-      throw error;
+    const assignment = await Effect.runPromise(
+      assignTag(env.DB, {
+        customerId: body.customerId,
+        tagId: body.tagId,
+        assignedBy: context.user.id,
+      })
+    );
+    if (assignment === 'already-assigned') {
+      return secureJsonResponse({
+        request_id: context.requestId,
+        success: true,
+        message: 'Tag already assigned',
+      });
     }
-
     await logAdminAudit(env.DB, {
       action: 'admin.tag_assigned',
       userId: context.user.id,
@@ -1669,12 +1582,7 @@ export async function handleAdminRemoveTag(request: Request, env: Env): Promise<
     if (!customerId || !tagId) {
       return errorResponse('Customer ID and Tag ID required', 400);
     }
-
-    await env.DB.prepare(
-      `DELETE FROM customer_tag_assignments WHERE customer_id = ? AND tag_id = ?`
-    )
-      .bind(customerId, tagId)
-      .run();
+    await Effect.runPromise(removeTag(env.DB, customerId, tagId));
 
     await logAdminAudit(env.DB, {
       action: 'admin.tag_removed',
