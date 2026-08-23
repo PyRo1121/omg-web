@@ -169,6 +169,7 @@ function mintWorkerSession(
         headers: {
           'Content-Type': 'application/json',
           'X-Admin-Secret': parsedSecret,
+          'X-Internal-Call': 'service-binding',
         },
         body: JSON.stringify({
           email: parsedIdentity.email,

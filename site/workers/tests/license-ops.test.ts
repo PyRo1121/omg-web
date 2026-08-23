@@ -121,14 +121,14 @@ describe('GET /api/get-license', () => {
     await env.DB.prepare(`DELETE FROM customers WHERE id = ?`).bind(TEST_CUSTOMER).run();
   });
 
-  it('returns 400 when email is missing', async () => {
+  it('returns 401 without authentication', async () => {
     const ctx = createExecutionContext();
     const response = await worker.fetch(new Request('http://localhost/api/get-license'), env, ctx);
     await waitOnExecutionContext(ctx);
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(401);
   });
 
-  it('returns found:false for an unknown email', async () => {
+  it('returns 401 without authentication for unknown email lookup', async () => {
     const ctx = createExecutionContext();
     const response = await worker.fetch(
       new Request('http://localhost/api/get-license?email=nobody@example.com'),
@@ -136,12 +136,10 @@ describe('GET /api/get-license', () => {
       ctx
     );
     await waitOnExecutionContext(ctx);
-    expect(response.status).toBe(200);
-    const payload = await response.json<{ found: boolean }>();
-    expect(payload.found).toBe(false);
+    expect(response.status).toBe(401);
   });
 
-  it('masks the license key for a known email', async () => {
+  it('returns 401 without authentication for known email lookup', async () => {
     await insertActiveLicense();
     const ctx = createExecutionContext();
     const response = await worker.fetch(
@@ -150,11 +148,7 @@ describe('GET /api/get-license', () => {
       ctx
     );
     await waitOnExecutionContext(ctx);
-    expect(response.status).toBe(200);
-    const payload = await response.json<{ found: boolean; license_key: string }>();
-    expect(payload.found).toBe(true);
-    expect(payload.license_key).not.toBe(TEST_KEY);
-    expect(payload.license_key.includes('•') || payload.license_key.includes('*')).toBe(true);
+    expect(response.status).toBe(401);
   });
 });
 
@@ -203,7 +197,8 @@ describe('POST /api/analytics', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    const payload = await response.json<{ success: boolean; processed: number }>();
+    // SAFETY: response is a known JSON shape from our own handler
+    const payload = (await response.json()) as { success: boolean; processed: number };
     expect(payload.processed).toBe(0);
   });
 

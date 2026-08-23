@@ -181,7 +181,8 @@ export async function applyStripeSubscriptionProjection(
          ON CONFLICT(stripe_subscription_id) DO UPDATE SET
            customer_id = excluded.customer_id,
            status = excluded.status,
-           current_period_end = excluded.current_period_end`
+           current_period_end = excluded.current_period_end
+           WHERE excluded.current_period_end >= subscriptions.current_period_end`
       )
       .bind(
         crypto.randomUUID(),

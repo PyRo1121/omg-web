@@ -635,10 +635,11 @@ export async function handleStripeWebhook(
           )
           .run();
       } else if (!existing.stripe_customer_id) {
-        // Link existing customer to Stripe
-        await env.DB.prepare(`UPDATE customers SET stripe_customer_id = ? WHERE email = ?`)
-          .bind(stripeCustomer.id, stripeCustomer.email)
-          .run();
+        // Do NOT auto-link by bare email match — an attacker who knows the
+        // victim's signup email could create their own Stripe customer with
+        // that email and hijack the billing relationship. Linking happens
+        // exclusively via invoice.paid (proves actual payment).
+        break;
       }
       break;
     }

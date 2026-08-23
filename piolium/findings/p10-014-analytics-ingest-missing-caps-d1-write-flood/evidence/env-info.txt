@@ -1,0 +1,27 @@
+# Environment details — p10-014 PoC run
+
+- Date: 2026-08-23 (UTC)
+- Repository: PyRo1121/omg-web @ 6eb3c8eb5877fd1ab3b2a640ea4fa667555d7e86 (main)
+- Runtime: Cloudflare Workers via `wrangler dev` (workerd), wrangler 4.125.0
+- Port: http://127.0.0.1:8814
+- D1: omg-platform, local sqlite persistence, migrations applied (`0000_current_baseline.sql` et al.)
+- Route exercised: POST /api/analytics -> handleAnalytics -> ingestAnalytics
+  (site/workers/src/handlers/license.ts:883-1005)
+- Auth: none required; all requests sent without license_key or credentials
+  (anonymous ingestion branch, license.ts:905-908)
+
+## Controls observed absent on /api/analytics (present on sibling routes)
+
+| Control | Sibling behavior | /api/analytics observed |
+|---|---|---|
+| Batch size | /api/docs/analytics + /api/site/analytics/track cap at 50 events | 120-event batch accepted, processed=120 |
+| Payload size | /api/cli/batch rejects bodies > 1 MiB | ~2 MiB body accepted, stored verbatim |
+| Rate limit | siblings call API_RATE_LIMITER per-IP/per-license | 5 rapid batches from one IP: zero 429s |
+| String truncation | telemetry.ts truncateString | 2,097,163-byte properties string persisted |
+
+## Measured D1 impact (single unauthenticated request of 120 command events)
+
+- analytics_events rows written: 121 (120 flood + 1 fat payload)
+- analytics_daily distinct rows created (attacker-chosen event_name dimension): 120
+- Total statements in one env.DB.batch() fan-out: ~605 (120 inserts + 480 daily upserts + fat event)
+- Largest single stored TEXT value: 2,097,163 bytes

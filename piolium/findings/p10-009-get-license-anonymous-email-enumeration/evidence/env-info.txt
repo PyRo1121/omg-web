@@ -1,0 +1,15 @@
+=== Environment details ===
+v26.7.0
+4.124.0
+Docker version 29.7.2, build a7dcaa6fdb
+Linux omarchy 7.1.8-arch1-3 #1 SMP PREEMPT_DYNAMIC Tue, 11 Aug 2026 09:16:08 +0000 x86_64 GNU/Linux
+
+--- target ---
+Local production Worker via 'wrangler dev' (workererd runtime), site/workers/wrangler.toml (omg-saas)
+D1 local database omg-platform with repo migrations applied (site/workers/migrations)
+Dev log: /tmp/wrangler-dev-p10-009.log
+[wrangler:info] GET /api/get-license 200 OK (55ms)
+[wrangler:info] GET /api/get-license 200 OK (24ms)
+[wrangler:info] GET /api/get-license 200 OK (12ms)
+[wrangler:info] GET /health 200 OK (3ms)
+[wrangler:info] GET /api/get-license 400 Bad Request (5ms)

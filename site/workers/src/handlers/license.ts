@@ -2,13 +2,22 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import { decodeJsonBody, InvalidJsonBodyError } from '../body';
-import { type Env, errorResponse, logAudit, respondFromEffect, TIER_FEATURES } from '../api';
+import {
+  type Env,
+  jsonResponse,
+  errorResponse,
+  logAudit,
+  respondFromEffect,
+  TIER_FEATURES,
+  getAuthToken,
+  validateSession,
+} from '../api';
 import { casesHandled } from '../prelude';
 import {
   ActiveMachineRowSchema,
   ExistingMachineRowSchema,
-  LicenseUsageRowSchema,
   MachineCountRowSchema,
+  LicenseUsageRowSchema,
   ValidateLicenseFieldsSchema,
   type ValidateLicenseParseError,
   ValidateLicenseRowSchema,
@@ -252,7 +261,7 @@ function registerOrTouchMachine(
   return Effect.gen(function* () {
     const existingRow = yield* queryFirst(
       env.DB,
-      `SELECT id FROM machines WHERE license_id = ? AND machine_id = ?`,
+      `SELECT id FROM machines WHERE license_id = ? AND machine_id = ? AND is_active = 1`,
       [license.id, machineId],
       'findMachine'
     );
@@ -283,26 +292,25 @@ function registerOrTouchMachine(
       return null;
     }
 
+    const maxMachines = maxMachinesFor(license);
     const countRow = yield* queryFirst(
       env.DB,
       `SELECT COUNT(*) as count FROM machines WHERE license_id = ? AND is_active = 1`,
       [license.id],
       'countMachines'
     );
-    const count =
-      countRow === null
-        ? 0
-        : (yield* decodeRow(
-            MachineCountRowSchema,
-            'Machine count row has an invalid shape',
-            countRow
-          )).count;
-    const maxMachines = maxMachinesFor(license);
-    if (count >= maxMachines) {
-      return {
-        valid: false as const,
-        error: `Machine limit reached (${maxMachines}). Revoke a machine in your dashboard or upgrade.`,
-      };
+    if (countRow !== null) {
+      const count = (yield* decodeRow(
+        MachineCountRowSchema,
+        'Machine count row has an invalid shape',
+        countRow
+      )).count;
+      if (count >= maxMachines) {
+        return {
+          valid: false as const,
+          error: `Machine limit reached (${maxMachines}). Revoke a machine in your dashboard or upgrade.`,
+        };
+      }
     }
 
     yield* runSql(
@@ -570,6 +578,15 @@ function lookupPublicLicense(
  * @returns A masked public license payload, or a mapped error response.
  */
 export async function handleGetLicense(request: Request, env: Env): Promise<Response> {
+  // Require a valid session to prevent anonymous email-keyed enumeration.
+  const token = getAuthToken(request);
+  if (!token) {
+    return errorResponse('Unauthorized', 401);
+  }
+  const auth = await validateSession(env.DB, token);
+  if (!auth) {
+    return errorResponse('Unauthorized', 401);
+  }
   return respondFromEffect(lookupPublicLicense(request, env), error =>
     errorResponse(
       error.message,
@@ -767,12 +784,20 @@ const InstallPingBodySchema = Schema.Struct({
  * @returns JSON success payload or a mapped error response.
  */
 export async function handleInstallPing(request: Request, env: Env): Promise<Response> {
+  if (env.API_RATE_LIMITER) {
+    const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+    const { success } = await env.API_RATE_LIMITER.limit({ key: `install_ping:${ip}` });
+    if (!success) {
+      return jsonResponse({ success: true as const, message: 'Install recorded' });
+    }
+  }
+
   return respondFromEffect(
     Effect.gen(function* () {
       const body = yield* decodeJsonBody(request, InstallPingBodySchema);
-      const version = body.version === undefined ? 'unknown' : body.version;
-      const platform = body.platform === undefined ? 'unknown' : body.platform;
-      const backend = body.backend === undefined ? 'unknown' : body.backend;
+      const version = (body.version === undefined ? 'unknown' : body.version).slice(0, 64);
+      const platform = (body.platform === undefined ? 'unknown' : body.platform).slice(0, 64);
+      const backend = (body.backend === undefined ? 'unknown' : body.backend).slice(0, 64);
       yield* Effect.tryPromise({
         try: () =>
           env.DB.prepare(
@@ -890,9 +915,25 @@ function ingestAnalytics(
   InvalidJsonBodyError | ValidateLicenseStoreUnavailable
 > {
   return Effect.gen(function* () {
+    if (env.API_RATE_LIMITER) {
+      const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+      const rl = yield* Effect.tryPromise({
+        try: () => env.API_RATE_LIMITER!.limit({ key: `analytics:${ip}` }),
+        catch: () => new ValidateLicenseStoreUnavailable('analyticsRateLimit', null),
+      });
+      if (!rl.success) {
+        return { success: true as const, processed: 0 };
+      }
+    }
+
+    const contentLength = Number(request.headers.get('Content-Length') ?? '0');
+    if (contentLength > 1024 * 1024) {
+      return { success: true as const, processed: 0 };
+    }
+
     const body = yield* decodeJsonBody(request, AnalyticsBatchSchema);
     const requestedEvents = body.events === undefined ? [] : body.events;
-    if (requestedEvents.length === 0) {
+    if (requestedEvents.length === 0 || requestedEvents.length > 50) {
       return { success: true as const, processed: 0 };
     }
 

@@ -20,7 +20,10 @@ async function ensureSchema(): Promise<void> {
 }
 
 function createSessionRequest(secret: string | null, serializedBody: string): Request {
-  const headers = new Headers({ 'Content-Type': 'application/json' });
+  const headers = new Headers({
+    'Content-Type': 'application/json',
+    'X-Internal-Call': 'service-binding',
+  });
   if (secret !== null) {
     headers.set('X-Admin-Secret', secret);
   }

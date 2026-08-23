@@ -1,0 +1,4 @@
+repo_root: /home/pyro1121/Documents/omg-web
+worker: site/workers/src/worker.ts via @cloudflare/vitest pool (workerd)
+d1: local miniflare D1 'omg-licensing-test', production migrations applied
+config: TURNSTILE_SECRET_KEY unset (default posture), EMAIL binding stubbed 1:1 with delivery

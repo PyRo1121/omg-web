@@ -1,0 +1,9 @@
+P10-001-RESULT A_status=200
+P10-001-RESULT A_success=true
+P10-001-RESULT A_otp_row_issued=true
+P10-001-RESULT B_status=200
+P10-001-RESULT C_control_status=400
+P10-001-RESULT C_control_error="Security verification required"
+P10-001-RESULT D_statuses=200,200,200,200,200
+P10-001-RESULT D_delivered=5/5
+P10-001-RESULT D_otp_rows=5

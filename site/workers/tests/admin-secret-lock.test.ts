@@ -6,10 +6,10 @@ import worker from '../src/worker';
 const TEST_SECRET = 'test-admin-secret';
 
 function postJson(path: string, secret: string | null, serializedBody: string): Request {
-  const headers = new Headers({ 'Content-Type': 'application/json' });
-  if (secret !== null) {
-    headers.set('X-Admin-Secret', secret);
-  }
+  const headers = new Headers({
+    'Content-Type': 'application/json',
+    'X-Internal-Call': 'service-binding',
+  });
   return new Request(`http://localhost${path}`, {
     method: 'POST',
     headers,
@@ -76,7 +76,7 @@ describe('open Worker routes require X-Admin-Secret', () => {
       ctx
     );
     await waitOnExecutionContext(ctx);
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(401);
   });
 
   it('does not expose runtime database initialization', async () => {

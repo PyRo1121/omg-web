@@ -1,0 +1,11 @@
+Environment: local workerd via `wrangler dev` (wrangler 4.125.0)
+Worker:      site/workers (omg-saas) — production source, no modifications
+Database:    D1 "omg-platform" (local/miniflare persist), migrations applied from
+             site/workers/migrations (includes install_stats table, baseline SQL line 452)
+Port:        127.0.0.1:8915
+Vars:        JWT_SECRET=poc-test-secret-0123456789abcdef (irrelevant to this route;
+             /api/install-ping requires no secrets, auth, or Turnstile)
+Date:        2026-08-23
+Notes:       The vulnerability is the absence of a rate limiter / length caps in the
+             shipped handler (license.ts handleInstallPing), so a stock wrangler-dev
+             environment is fully representative of production behavior.

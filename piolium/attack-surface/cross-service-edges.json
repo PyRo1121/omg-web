@@ -1,0 +1,215 @@
+{
+  "services": [
+    {
+      "name": "omg-site",
+      "root": "site/ (SolidStart SSR, deployed from dist/_worker.js)",
+      "language": "typescript",
+      "frameworks": ["@solidjs/start", "better-auth", "drizzle-orm"],
+      "domain": "omg.latham.cloud (+ *.workers.dev, workers_dev=true)"
+    },
+    {
+      "name": "omg-saas",
+      "root": "site/workers/src/",
+      "language": "typescript",
+      "frameworks": ["workerd plain fetch handler", "effect Schema", "drizzle-free D1 prepare()"],
+      "domain": "omg-api.latham.cloud"
+    },
+    {
+      "name": "router",
+      "root": "workers/router/",
+      "language": "typescript",
+      "frameworks": ["workerd plain fetch handler"],
+      "latent": true,
+      "note": "in-repo only, not deployed (P3 recon)"
+    },
+    {
+      "name": "releases",
+      "root": "workers/releases/",
+      "language": "typescript",
+      "frameworks": ["workerd plain fetch handler", "R2"],
+      "latent": true,
+      "note": "in-repo only, not deployed; no package.json"
+    }
+  ],
+  "edges": [
+    {
+      "id": "E001",
+      "channel": "http",
+      "producer": {
+        "service": "internet-browser",
+        "file": "(external)",
+        "line": 0,
+        "pattern": "fetch('https://omg.latham.cloud/api/licensing/<route>', {method, body, headers})"
+      },
+      "consumer": {
+        "service": "omg-site",
+        "file": "site/src/routes/api/licensing/[...path].ts",
+        "line": 130,
+        "pattern": "export function GET/POST/PUT/PATCH/DELETE -> proxyFromEvent(event)"
+      },
+      "data_shape": "arbitrary method/path under /api/licensing/*, raw body <=1MiB, query string, Origin header",
+      "sanitization_at_boundary": "Better Auth session required (auth.api.getSession); same-origin enforced for non-GET ([...path].ts requireSameOrigin via licensing-bff.ts:118-127); route allowlisted downstream at licensing-bff.ts:96-99",
+      "trust_tagged": "none"
+    },
+    {
+      "id": "E002",
+      "channel": "service-binding:http",
+      "producer": {
+        "service": "omg-site",
+        "file": "site/src/lib/licensing-bff.ts",
+        "line": 281,
+        "pattern": "new Request(target, {method, headers:{Content-Type, Accept, Authorization: Bearer <minted token>}, body}); service.fetch(outbound)  // LICENSING_API binding"
+      },
+      "consumer": {
+        "service": "omg-saas",
+        "file": "site/workers/src/worker.ts",
+        "line": 190,
+        "pattern": "exact method+path switch over LicensingRoutes registry -> per-handler guards"
+      },
+      "data_shape": "browser-controlled raw body bytes (<=1MiB) + full query string (target.search = source.search, licensing-bff.ts:101) forwarded verbatim to allowlisted 'site-bff' routes (~24 routes)",
+      "sanitization_at_boundary": "route exact-match allowlist after normalization (site/shared/licensing-routes.ts:438-449); body size cap 1MiB (licensing-bff.ts:14, MAX_PROXY_BODY_BYTES); response header stripping Set-Cookie/ACAO/ACAC (licensing-bff.ts:234-245); cookie auth replaced by server-minted bearer token (licensing-bff.ts:272)",
+      "trust_tagged": "identity re-derived server-side per request ([...path].ts:63-105 reads auth_user.role fresh from D1); NOT attacker-tagged"
+    },
+    {
+      "id": "E003",
+      "channel": "service-binding:http",
+      "producer": {
+        "service": "omg-site",
+        "file": "site/src/lib/licensing-bff.ts",
+        "line": 167,
+        "pattern": "new Request(`${INTERNAL_WORKER_ORIGIN}/api/internal/site-session`, {method:'POST', headers:{'X-Admin-Secret': parsedSecret}, body: JSON.stringify({email, name, betterAuthUserId, role})})"
+      },
+      "consumer": {
+        "service": "omg-saas",
+        "file": "site/workers/src/handlers/site-session.ts",
+        "line": 179,
+        "pattern": "mintSiteSession(): requireAdminSecret(X-Admin-Secret, env.ADMIN_API_SECRET) -> decodeJsonBody(SiteSessionRequestSchema) -> findCustomerByEmail/provisionSiteCustomer/syncCustomerRole/insertSession"
+      },
+      "data_shape": "JSON {email, name, betterAuthUserId, role:'admin'|'user'} projected from Better Auth session + auth_user.role column read",
+      "sanitization_at_boundary": "shared-secret bearer gate ADMIN_API_SECRET, timing-safe compare, fail-closed when unset (site/workers/src/admin-secret.ts:22-32); Effect Schema validation of body shape",
+      "trust_tagged": "role value trusted as authoritative projection of Better Auth identity; endpoint ALSO publicly reachable on https://omg-api.latham.cloud/api/internal/site-session (same worker serves every path; no ingress restriction) — secret is the only gate (see Origin-Finding p4-005/p5-001)"
+    },
+    {
+      "id": "E004",
+      "channel": "db-table:d1 omg-platform (fee8ddab-…)",
+      "producer": {
+        "service": "omg-site",
+        "file": "site/src/lib/auth.ts + site/src/db/auth-schema.ts:4",
+        "line": 4,
+        "pattern": "Better Auth owns auth_user/session/account/verification tables; role column written by auth plugin surface (no plugins configured); BFF re-reads role at [...path].ts:88-97"
+      },
+      "consumer": {
+        "service": "omg-saas",
+        "file": "site/workers/src/handlers/site-session.ts",
+        "line": 103,
+        "pattern": "syncCustomerRole(db, customer, body.role): UPDATE customers SET admin=? WHERE id=?  -- role crosses E003 then becomes durable admin flag"
+      },
+      "data_shape": "auth_user.role ('admin'|'user') -> customers.admin (0|1)",
+      "sanitization_at_boundary": "Literal-typed at both ends (Schema.Literal('admin','user') at BFF; SiteSessionRole at worker); no independent re-derivation on consumer side — consumer trusts producer's projection",
+      "trust_tagged": "yes — the role/admin flag is a false-trust marker carried across the boundary; escalation requires a primitive that writes auth_user.role (P6 verified none exists in-repo today)"
+    },
+    {
+      "id": "E005",
+      "channel": "db-table:d1 omg-platform",
+      "producer": {
+        "service": "omg-saas",
+        "file": "site/workers/src/handlers/site-session.ts",
+        "line": 66,
+        "pattern": "provisionSiteCustomer(): INSERT INTO customers (id,email,company,tier,admin) VALUES (?,body.email,body.name,…,?) ; INSERT INTO licenses …"
+      },
+      "consumer": {
+        "service": "omg-site",
+        "file": "site/src/db/auth-schema.ts",
+        "line": 93,
+        "pattern": "auth-schema.ts declares sqliteTable for license/machine/usageDaily/userAchievement (lines 93-226) — full D1 read/write capability over worker-owned tables by convention; today no site/src code queries them directly (grep), but schema capability exists"
+      },
+      "data_shape": "customers.email/company (=Better Auth name/email, attacker-controlled own values) readable by either worker; sessions/licenses/machines/telemetry tables nominally omg-saas-owned",
+      "sanitization_at_boundary": "none — one physical D1 database bound to both workers (identical database_id in site/wrangler.toml and site/workers/wrangler.toml); D1 has no per-binding permission model; ownership is comment-level convention ('Better Auth owns only its four auth tables')",
+      "trust_tagged": "n/a (storage-plane trust boundary #4 in KB)"
+    },
+    {
+      "id": "E006",
+      "channel": "db-table:d1 omg-platform (unversioned VIEW)",
+      "producer": {
+        "service": "omg-site",
+        "file": "site/src/db/auth-schema.ts",
+        "line": 4,
+        "pattern": "auth_user rows (email, name, createdAt — attacker-chosen strings at signup)"
+      },
+      "consumer": {
+        "service": "omg-saas",
+        "file": "site/workers/src/handlers/admin.ts",
+        "line": 653,
+        "pattern": "SELECT * , engagement/lifecycle CASE… FROM user_stats  (also user_cohorts at admin.ts:1032) — view defined in NO migration in repo (migrations/, migrations-legacy/, site/drizzle/migrations/)"
+      },
+      "data_shape": "presumed join of auth_user identity columns with worker telemetry aggregates; actual column list unknowable in-repo",
+      "sanitization_at_boundary": "unknown — view definition absent from repository; AdminUsersListRowSchema decodes output",
+      "trust_tagged": "n/a"
+    },
+    {
+      "id": "E007",
+      "channel": "http (reverse proxy)",
+      "producer": {
+        "service": "router",
+        "file": "workers/router/src/index.ts",
+        "line": 35,
+        "pattern": "fetch(new Request(URL.parse(path+search, env.MAIN_SITE)), {headers: prepareOriginHeaders(...)}) ; docs -> `${env.DOCS_SITE}${docsPath}${url.search}` (index.ts:130)"
+      },
+      "consumer": {
+        "service": "external origins (MAIN_SITE / DOCS_SITE env)",
+        "file": "(external)",
+        "line": 0,
+        "pattern": "origin servers"
+      },
+      "data_shape": "full client request (method, body, rewritten Host headers, client X-Forwarded-* per P4 SLICE-ROUTER-HEADERS)",
+      "sanitization_at_boundary": "origins are env-fixed constants (not attacker URLs); header rewriting present",
+      "trust_tagged": "LATENT — router not deployed per P3 recon; edge recorded for deployment-gate review only"
+    },
+    {
+      "id": "E008",
+      "channel": "r2",
+      "producer": {
+        "service": "releases",
+        "file": "workers/releases/src/index.ts",
+        "line": 6,
+        "pattern": "env.BUCKET.get(key) — R2 release artifact serving"
+      },
+      "consumer": {
+        "service": "external CLI consumers",
+        "file": "(external)",
+        "line": 0,
+        "pattern": "artifact download"
+      },
+      "data_shape": "release metadata/artifacts",
+      "sanitization_at_boundary": "key validated non-empty (in-file comment)",
+      "trust_tagged": "LATENT — not deployed; no package.json (SBOM gap)"
+    }
+  ],
+  "coverage_gaps": [
+    {
+      "reason": "unversioned database object",
+      "location": "site/workers/src/handlers/admin.ts:653,1032",
+      "expression": "FROM user_stats / FROM user_cohorts — CREATE VIEW absent from every migration directory in repo (verified by grep across migrations/, migrations-legacy/, site/drizzle/migrations/)"
+    },
+    {
+      "reason": "latent service not deployed",
+      "location": "workers/router/, workers/releases/",
+      "expression": "edges E007/E088 recorded but unreachable until deployment; P4 triaged router X-Forwarded-* forwarding as Low/env"
+    },
+    {
+      "reason": "out-of-repo protocol peer",
+      "location": "PyRo1121/omg Rust CLI (external)",
+      "expression": "license-JWT verification, alg selection and key handling happen entirely outside this repository"
+    },
+    {
+      "reason": "generated surface",
+      "location": "site/src/routes/dashboard.tsx, admin.tsx ('use server')",
+      "expression": "nitro server-fns manifest endpoints exist only post-build; enumerated best-effort from source markers"
+    }
+  ],
+  "deduped_against_existing_drafts": [
+    {"edge": "E003", "existing_drafts": ["p4-005", "p5-001"], "note": "public reachability + shared-secret design of /api/internal/site-session already filed; not duplicated"},
+    {"edge": "E001/E002", "existing_drafts": ["p5-004"], "note": "registry-vs-handler guard drift already filed"},
+    {"edge": "E004", "existing_drafts": ["p5-001"], "note": "role-mint channel overlap noted; p9-001 covers the storage-plane aspect only"}
+  ]
+}

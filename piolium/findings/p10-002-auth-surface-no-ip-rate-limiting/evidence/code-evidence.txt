@@ -1,0 +1,10 @@
+AUTH_RATE_LIMITER / ADMIN_RATE_LIMITER references in src/ (expect type decls only, zero .limit() calls):
+site/workers/src/api.ts:25:  ADMIN_RATE_LIMITER?: RateLimit;
+site/workers/src/api.ts:26:  AUTH_RATE_LIMITER?: RateLimit;
+
+wrangler.toml declared bindings:
+# Rate limiting for auth API (10 requests per minute per IP - brute force protection)
+[[ratelimits]]
+name = "AUTH_RATE_LIMITER"
+namespace_id = "1002"
+simple = { limit = 10, period = 60 }

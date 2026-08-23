@@ -18,8 +18,8 @@ async function requireAuth() {
 
   const env: CloudflareEnv = {
     DB: cf.DB,
-    BETTER_AUTH_SECRET: cf.BETTER_AUTH_SECRET || 'dev-secret-change-me',
-    BETTER_AUTH_URL: cf.BETTER_AUTH_URL || 'http://localhost:3000',
+    BETTER_AUTH_SECRET: cf.BETTER_AUTH_SECRET,
+    BETTER_AUTH_URL: cf.BETTER_AUTH_URL,
     GITHUB_CLIENT_ID: cf.GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET: cf.GITHUB_CLIENT_SECRET,
     GOOGLE_CLIENT_ID: cf.GOOGLE_CLIENT_ID,

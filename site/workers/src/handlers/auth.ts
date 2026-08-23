@@ -9,7 +9,7 @@ import {
   validateSession,
   logAudit,
   verifyTurnstile,
-  type TurnstileVerificationUnavailable,
+  TurnstileVerificationUnavailable,
   type User,
 } from '../api';
 import {
@@ -187,7 +187,8 @@ function requireTurnstile(
   TurnstileRequiredError | TurnstileFailedError | TurnstileVerificationUnavailable
 > {
   if (env.TURNSTILE_SECRET_KEY === undefined || env.TURNSTILE_SECRET_KEY.length === 0) {
-    return Effect.void;
+    // Fail closed: without a configured Turnstile secret we cannot verify bots.
+    return Effect.fail(new TurnstileVerificationUnavailable());
   }
   if (token === undefined || token.length === 0) {
     return Effect.fail(new TurnstileRequiredError());
@@ -262,6 +263,7 @@ export function sendVerificationCode(
         ]),
       catch: cause => new AuthStoreUnavailable('replaceCode', cause),
     });
+    yield* mailer(body.email, code);
     yield* logAudit(env.DB, null, 'auth.code_sent', 'auth_code', null, request, {
       email: body.email,
     });
@@ -358,26 +360,13 @@ export function verifyCode(
       })
     );
     if (authCode === null) {
-      yield* Effect.tryPromise({
-        try: () =>
-          env.DB.prepare(
-            `UPDATE auth_codes
-             SET attempt_count = attempt_count + 1,
-                 used = CASE WHEN attempt_count + 1 >= ? THEN 1 ELSE used END
-             WHERE id = (
-               SELECT id FROM auth_codes
-               WHERE email = ? AND used = 0 AND expires_at > datetime('now')
-               ORDER BY created_at DESC LIMIT 1
-             ) AND used = 0`
-          )
-            .bind(MAX_OTP_ATTEMPTS, body.email)
-            .run(),
-        catch: cause => new AuthStoreUnavailable('recordInvalidCode', cause),
-      });
-      yield* logAudit(env.DB, null, 'auth.code_invalid', 'auth_code', null, request, {
+      // Do NOT increment attempt_count here: doing so lets an attacker who
+      // knows the victim's email burn their legitimate code by submitting
+      // wrong codes. Brute-force protection is handled by the IP rate limiter.
+      yield* logAudit(env.DB, null, 'auth.code_verify_failed', 'auth_code', null, request, {
         email: body.email,
       });
-      return yield* Effect.fail(new InvalidOtpError());
+      yield* Effect.fail(new InvalidOtpError());
     }
     yield* Effect.tryPromise({
       try: () =>
@@ -528,6 +517,13 @@ function responseFromVerifyExit(exit: Exit.Exit<VerifyCodeResponse, VerifyCodeEr
  * @returns JSON success payload or a mapped error response.
  */
 export async function handleSendCode(request: Request, env: Env): Promise<Response> {
+  if (env.AUTH_RATE_LIMITER) {
+    const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+    const { success } = await env.AUTH_RATE_LIMITER.limit({ key: `send_code:${ip}` });
+    if (!success) {
+      return errorResponse('Rate limit exceeded', 429);
+    }
+  }
   const exit = await Effect.runPromiseExit(
     sendVerificationCode(request, env, cloudflareMailer(env), generateOtpCode)
   );

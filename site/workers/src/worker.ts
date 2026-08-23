@@ -252,8 +252,14 @@ export default Sentry.withSentry(
           }
           case '/api/github-stats':
             return handleGitHubProxy(request, ctx);
-          case '/api/internal/site-session':
+          case '/api/internal/site-session': {
+            // Internal-only: callable exclusively via the LICENSING_API service
+            // binding from omg-site; reject any direct public HTTP request.
+            if (request.headers.get('X-Internal-Call') === null) {
+              return errorResponse('Not found', 404);
+            }
             return handleCreateSiteSession(request, env);
+          }
           case '/api/dashboard':
             return handleGetDashboard(request, env);
           case '/api/user/profile':

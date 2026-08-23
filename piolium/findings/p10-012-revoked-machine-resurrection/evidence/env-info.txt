@@ -1,0 +1,6 @@
+repo_root: /home/pyro1121/Documents/omg-web
+worker: site/workers/src/worker.ts via @cloudflare/vitest pool (workerd)
+d1: local miniflare D1, production migrations applied
+auth: dashboard session seeded in sessions table so the REAL
+  POST /api/machines/revoke handler (dashboard.ts:191) performs the revocation
+config: JWT_SECRET set (HS256 mint path); license seeded pro/max_machines=1

@@ -1,0 +1,6 @@
+Environment: local workerd via wrangler 4.125.0 (wrangler dev --port 8799)
+Worker: site/workers/src/worker.ts (production source, exact-switch dispatcher)
+D1: omg-platform local database, migrations applied from site/workers/migrations
+Bindings: ADMIN_API_SECRET=poc-admin-secret-3f9a1c (--var), JWT_SECRET set, EMAIL stubbed by dev defaults
+Date: 2026-08-23T07:51:17Z
+Host: Linux 7.1.8-arch1-3, node v26.7.0

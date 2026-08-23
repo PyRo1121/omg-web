@@ -1,0 +1,5 @@
+target: local workerd via wrangler dev 4.125.0 (production Worker source, site/workers)
+runtime: Cloudflare workerd, compatibility_date=2026-08-21, nodejs_compat
+bindings: DB=D1(local migrations 0000..014 applied), EMAIL=send_email(simulated), AUTH_RATE_LIMITER declared in wrangler.toml but never referenced in src/
+posture: TURNSTILE_SECRET_KEY unset (shipped default); JWT_SECRET test value
+date: 2026-08-23T07:42:31Z

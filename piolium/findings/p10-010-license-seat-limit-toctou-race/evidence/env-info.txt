@@ -1,0 +1,6 @@
+repo_root: /home/pyro1121/Documents/omg-web
+worker: site/workers/src/worker.ts via @cloudflare/vitest pool (workerd)
+d1: local miniflare D1, production migrations applied
+  (machines table has UNIQUE(license_id, machine_id) — irrelevant here:
+   every racing request uses a DISTINCT machine_id)
+config: JWT_SECRET set (HS256 mint path); license seeded pro/max_machines=2

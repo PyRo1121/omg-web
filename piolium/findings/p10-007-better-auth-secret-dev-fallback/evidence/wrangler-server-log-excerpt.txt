@@ -1,0 +1,8 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m2026-08-23T08:09:51.477Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.[0m
+[wrangler:info] GET /dashboard 200 OK (101ms)
+[wrangler:info] POST /api/auth/sign-up/email 200 OK (126ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m2026-08-23T08:09:58.090Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.[0m
+[wrangler:info] GET /dashboard 200 OK (10ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m2026-08-23T08:09:58.111Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.[0m
+[wrangler:info] GET /dashboard 200 OK (6ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m2026-08-23T08:09:58.134Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.[0m

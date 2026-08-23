@@ -1,0 +1,10 @@
+Environment: local workerd via wrangler 4.125.0 (production build of omg-site)
+Repo commit: 6eb3c8eb5877fd1ab3b2a640ea4fa667555d7e86 (branch main)
+Build: site/ npm run build:site (vinxi build + prepare-worker-assets) -> dist/_worker.js
+Runtime command: npx wrangler dev --config site/wrangler.toml --port 8807 --persist-to /tmp/p10-007-state --var "BETTER_AUTH_URL:http://127.0.0.1:8807"
+Bindings: DB = local D1 (omg-platform; workers/migrations applied incl. 013_better_auth.sql, 014_better_auth_issuer.sql), ASSETS static
+BETTER_AUTH_SECRET: deliberately UNSET (misconfiguration under test; nothing in-repo enforces it — site/wrangler.toml declares no vars/secrets)
+BETTER_AUTH_URL: set to local origin (realistic; URL binding would survive a secret-binding loss)
+better-auth version: 1.7.1
+OS: Linux 7.1.8-arch1-3; Node v26.7.0
+Date: 2026-08-23T08:11:48Z

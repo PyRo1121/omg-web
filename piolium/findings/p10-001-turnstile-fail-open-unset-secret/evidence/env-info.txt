@@ -1,0 +1,4 @@
+repo: PyRo1121/omg-web @ 6eb3c8eb5877fd1ab3b2a640ea4fa667555d7e86
+worker runtime: workerd via @cloudflare/vitest-pool-workers (miniflare), local D1
+migrations applied: site/workers/migrations (production baseline, via applyD1Migrations in tests/setup.ts)
+config simulated: default production posture per docs/operations/cloudflare-environment-readiness.md — TURNSTILE_SECRET_KEY optional/unset; JWT_SECRET + EMAIL binding stubbed as non-essential to the finding

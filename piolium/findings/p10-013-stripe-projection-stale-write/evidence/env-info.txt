@@ -1,0 +1,9 @@
+== node/npm ==
+v26.7.0
+11.19.0
+== key deps installed at pinned vulnerable versions ==
+wrangler: 4.125.0
+@cloudflare/vitest-plugin: 1.0.0
+vitest: 4.1.11
+effect: 3.22.1
+@cloudflare/vitest-plugin: installed at /home/pyro1121/Documents/omg-web/site/workers/node_modules/@cloudflare/vitest-plugin

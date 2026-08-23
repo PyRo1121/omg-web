@@ -1,0 +1,635 @@
+{
+  "target": "PyRo1121/omg-web",
+  "generated_at": "2026-08-23T00:00:00Z",
+  "components": [
+    {
+      "name": "node",
+      "category": "runtime",
+      "ecosystem": null,
+      "version": ">=24",
+      "relationship": "direct",
+      "purpose": "Build/test runtime",
+      "evidence": [
+        "package.json engines",
+        "workers/router/package.json engines"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "npm",
+      "category": "runtime",
+      "ecosystem": null,
+      "version": "12.0.2",
+      "relationship": "direct",
+      "purpose": "Package manager (packageManager pin)",
+      "evidence": [
+        "package.json packageManager"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "workerd",
+      "category": "runtime",
+      "ecosystem": null,
+      "version": "1.20260820.1",
+      "relationship": "direct",
+      "purpose": "Cloudflare Workers runtime (allowScripts)",
+      "evidence": [
+        "package.json allowScripts"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "@solidjs/start",
+      "category": "framework",
+      "ecosystem": "npm",
+      "version": "1.3.2",
+      "relationship": "direct",
+      "purpose": "SolidStart SSR meta-framework for marketing/app surface",
+      "evidence": [
+        "site/package.json",
+        "site/src/routes"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "solid-js",
+      "category": "framework",
+      "ecosystem": "npm",
+      "version": "1.9.15",
+      "relationship": "direct",
+      "purpose": "UI rendering library (history: JSX XSS CVE-2025-27109)",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "vinxi",
+      "category": "framework",
+      "ecosystem": "npm",
+      "version": "0.5.11",
+      "relationship": "direct",
+      "purpose": "Nitro-based bundler layer under SolidStart",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "tailwindcss",
+      "category": "framework",
+      "ecosystem": "npm",
+      "version": "4.3.3",
+      "relationship": "direct",
+      "purpose": "Styling framework",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "better-auth",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "1.7.1",
+      "relationship": "direct",
+      "purpose": "Authentication server (sessions, OAuth, OTP, magic links) \u2014 highest advisory density",
+      "evidence": [
+        "site/package.json",
+        "site/workers/migrations/013_better_auth.sql"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "drizzle-orm",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "0.45.2",
+      "relationship": "direct",
+      "purpose": "SQL ORM over D1 (identifier-escaping SQLi history CVE-2026-39356)",
+      "evidence": [
+        "site/package.json",
+        "site/drizzle/migrations/"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "effect",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "3.22.1",
+      "relationship": "direct",
+      "purpose": "Effect-TS runtime used for schema boundary parsing and fiber context",
+      "evidence": [
+        "site/package.json",
+        "site/workers/package.json"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "@sentry/solid",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "10.70.0",
+      "relationship": "direct",
+      "purpose": "Client/SSR error monitoring",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@sentry/cloudflare",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "10.70.0",
+      "relationship": "direct",
+      "purpose": "Worker error monitoring",
+      "evidence": [
+        "site/workers/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@kobalte/core",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "0.13.13",
+      "relationship": "direct",
+      "purpose": "Accessible Solid UI primitives",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@tanstack/solid-query",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "5.101.4",
+      "relationship": "direct",
+      "purpose": "Client data fetching/cache",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@solidjs/router",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "0.16.3",
+      "relationship": "direct",
+      "purpose": "Client routing",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@solidjs/meta",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "0.29.4",
+      "relationship": "direct",
+      "purpose": "Document head management",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@solid-primitives/keyboard",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "1.3.7",
+      "relationship": "direct",
+      "purpose": "Keyboard primitives",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@solid-primitives/scheduled",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "1.5.3",
+      "relationship": "direct",
+      "purpose": "Scheduling primitives",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "clsx",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "2.1.1",
+      "relationship": "direct",
+      "purpose": "Class name utility",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "cmdk-solid",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "1.1.2",
+      "relationship": "direct",
+      "purpose": "Command palette UI",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "lucide-solid",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "1.33.0",
+      "relationship": "direct",
+      "purpose": "Icon set",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "shiki",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "4.4.3",
+      "relationship": "direct",
+      "purpose": "Syntax highlighting of docs/code samples",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "simple-icons",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "16.28.0",
+      "relationship": "direct",
+      "purpose": "Brand icons",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "tailwind-merge",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "3.6.0",
+      "relationship": "direct",
+      "purpose": "Tailwind class dedup",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "vite",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "6.4.3",
+      "relationship": "direct",
+      "purpose": "Dev server/bundler under vinxi \u2014 most-advised dependency (22 advisories)",
+      "evidence": [
+        "site/package.json devDependencies"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "vitest",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "4.1.11",
+      "relationship": "direct",
+      "purpose": "Unit tests incl. @cloudflare/vitest-plugin pool (RCE history)",
+      "evidence": [
+        "site/package.json",
+        "site/workers/package.json"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "wrangler",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "4.125.0",
+      "relationship": "direct",
+      "purpose": "Cloudflare Workers CLI: deploy, D1 migrate, dev server (RCE/dir-traversal history)",
+      "evidence": [
+        "package.json",
+        "all workspace package.json"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "postcss",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "8.5.26",
+      "relationship": "direct",
+      "purpose": "CSS transform pipeline (source-map file-read history)",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "@tailwindcss/postcss",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "4.3.3",
+      "relationship": "direct",
+      "purpose": "Tailwind PostCSS integration",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "autoprefixer",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "10.5.4",
+      "relationship": "direct",
+      "purpose": "CSS vendor prefixes",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@playwright/test",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "1.62.1",
+      "relationship": "direct",
+      "purpose": "E2E browser tests against staging/prod surfaces",
+      "evidence": [
+        "site/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@cloudflare/vitest-plugin",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "1.0.0",
+      "relationship": "direct",
+      "purpose": "Runs worker tests inside workerd",
+      "evidence": [
+        "site/workers/package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "typescript",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "7.0.2",
+      "relationship": "direct",
+      "purpose": "Type checking",
+      "evidence": [
+        "package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "prettier",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "3.9.6",
+      "relationship": "direct",
+      "purpose": "Formatting",
+      "evidence": [
+        "package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "prettier-plugin-tailwindcss",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "0.8.1",
+      "relationship": "direct",
+      "purpose": "Tailwind class sorting",
+      "evidence": [
+        "package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "oxlint",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "1.79.0",
+      "relationship": "direct",
+      "purpose": "Linter incl. custom anti-slop plugin",
+      "evidence": [
+        "package.json",
+        "oxlint.config.ts"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@oxlint/plugins",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "1.79.0",
+      "relationship": "direct",
+      "purpose": "Oxlint plugin host",
+      "evidence": [
+        "package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "@types/node",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "24.13.3",
+      "relationship": "direct",
+      "purpose": "Node type definitions",
+      "evidence": [
+        "package.json"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "cloudflare-d1",
+      "category": "datastore",
+      "ecosystem": null,
+      "version": "unknown",
+      "relationship": "direct",
+      "purpose": "Serverless SQLite ('omg-platform') shared by site SSR worker and SaaS worker; hosts Better Auth tables + licensing/analytics/OTP/stripe inbox",
+      "evidence": [
+        "site/wrangler.toml [[d1_databases]]",
+        "site/workers/migrations/"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "stripe",
+      "category": "external-service",
+      "ecosystem": null,
+      "version": "unknown",
+      "relationship": "direct",
+      "purpose": "Billing: checkout, webhooks (signature-verified event inbox), STRIPE_SECRET_KEY/WEBHOOK_SECRET",
+      "evidence": [
+        "site/workers/src/stripe-reconciliation.ts",
+        "[vars] STRIPE_*_PRICE_ID"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "cloudflare-email-sending",
+      "category": "external-service",
+      "ecosystem": null,
+      "version": "native-binding",
+      "relationship": "direct",
+      "purpose": "send_email binding EMAIL used for OTP delivery (replaced Resend)",
+      "evidence": [
+        "site/workers/wrangler.toml send_email",
+        "commit 6eb3c8e"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "resend",
+      "category": "external-service",
+      "ecosystem": null,
+      "version": "legacy/being-removed",
+      "relationship": "direct",
+      "purpose": "RESEND_API_KEY referenced for OTP email prior to native email sending",
+      "evidence": [
+        "site/workers/wrangler.toml comments"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "turnstile",
+      "category": "external-service",
+      "ecosystem": null,
+      "version": "optional",
+      "relationship": "direct",
+      "purpose": "Bot protection; TURNSTILE_SECRET_KEY optional",
+      "evidence": [
+        "site/workers/wrangler.toml",
+        "handlers"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "sentry-saas",
+      "category": "external-service",
+      "ecosystem": null,
+      "version": "unknown",
+      "relationship": "direct",
+      "purpose": "SENTRY_DSN ingest endpoint",
+      "evidence": [
+        "site/workers/wrangler.toml secrets list"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "actions/checkout",
+      "category": "build-ci",
+      "ecosystem": "github-actions",
+      "version": "v4 (pinned SHA 11d5960)",
+      "relationship": "direct",
+      "purpose": "CI checkout",
+      "evidence": [
+        ".github/workflows/ci.yml"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "actions/setup-node",
+      "category": "build-ci",
+      "ecosystem": "github-actions",
+      "version": "v4 (pinned SHA 49933ea)",
+      "relationship": "direct",
+      "purpose": "CI Node setup",
+      "evidence": [
+        ".github/workflows/ci.yml"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "actions/upload-artifact",
+      "category": "build-ci",
+      "ecosystem": "github-actions",
+      "version": "v4 (pinned SHA ea165f8)",
+      "relationship": "direct",
+      "purpose": "CI artifact upload",
+      "evidence": [
+        ".github/workflows/ci.yml"
+      ],
+      "security_relevant": false
+    },
+    {
+      "name": "renovate",
+      "category": "build-ci",
+      "ecosystem": null,
+      "version": "configured",
+      "relationship": "direct",
+      "purpose": "Automated dependency updates incl. vulnerability-driven branches",
+      "evidence": [
+        "renovate.json",
+        "git history PRs #12,#21,#32,#34,#42,#43"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "wrangler-cli",
+      "category": "binary",
+      "ecosystem": null,
+      "version": "4.125.0",
+      "relationship": "direct",
+      "purpose": "Shelled out via npm scripts for deploy/dry-run/D1 migrations/types",
+      "evidence": [
+        "package.json scripts check:deploy, db:migrate:*"
+      ],
+      "security_relevant": true
+    },
+    {
+      "name": "transitive-dependency-overrides",
+      "category": "package",
+      "ecosystem": "npm",
+      "version": "see values",
+      "relationship": "direct",
+      "purpose": "Security overrides pinning vulnerable transitive deps: h3=1.15.11 (request smuggling), tar=7.5.22 (arbitrary file write), minimatch=10.2.4 (ReDoS), follow-redirects=1.16.0 (SSRF/open-redirect), node-forge=1.4.0 (signature forgery family), serialize-javascript=7.1.0 (XSS), nitropack=2.13.4, picomatch pins (ReDoS), dax-sh->dax",
+      "evidence": [
+        "site/package.json 'overrides'",
+        "commit 90daa79 fix(security): resolve 3 high-severity dependency vulnerabilities"
+      ],
+      "security_relevant": true
+    }
+  ],
+  "categories_covered": [
+    "runtime",
+    "package",
+    "framework",
+    "datastore",
+    "external-service",
+    "build-ci",
+    "binary"
+  ],
+  "coverage_gaps": [
+    "no Dockerfile or devcontainer found \u2014 container-os category not enumerated",
+    "no vendored/third_party code detected \u2014 vendored category empty",
+    "workers/releases has tsconfig+src but no package.json manifest \u2014 its dependencies (if any) unresolved",
+    "transitive dependency tree skipped by scope; security posture of transitive deps inferred only via npm audit results (0 vulnerabilities across all 4 workspaces) and historical overrides"
+  ]
+}
