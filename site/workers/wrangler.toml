@@ -3,6 +3,9 @@ main = "src/worker.ts"
 compatibility_date = "2026-08-21"
 compatibility_flags = ["nodejs_compat"] # Required for Sentry SDK
 
+# Cloudflare Email Sending - native binding, no API key needed.
+send_email = [{ name = "EMAIL" }]
+
 # Custom domain (DNS record is created automatically by Workers Custom Domains).
 routes = [{ pattern = "omg-api.latham.cloud", custom_domain = true }]
 

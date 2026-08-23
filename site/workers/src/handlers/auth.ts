@@ -142,59 +142,39 @@ function brandGeneratedId<S extends Schema.Schema.AnyNoContext>(
   return Schema.decodeUnknownSync(schema)(value);
 }
 
-async function sendOTPEmail(email: string, code: string, apiKey: string): Promise<void> {
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: 'OMG <noreply@latham.cloud>',
-      to: [email],
-      subject: 'Your OMG verification code',
-      html: `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #1a1a2e; margin: 0; font-size: 28px;">🚀 OMG</h1>
-              <p style="color: #666; margin: 5px 0 0;">Package Manager</p>
-            </div>
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 30px; text-align: center;">
-              <p style="color: rgba(255,255,255,0.9); margin: 0 0 15px; font-size: 16px;">Your verification code is:</p>
-              <div style="background: rgba(255,255,255,0.95); border-radius: 12px; padding: 20px; margin: 0 auto; max-width: 200px;">
-                <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1a1a2e;">${code}</span>
-              </div>
-              <p style="color: rgba(255,255,255,0.8); margin: 20px 0 0; font-size: 14px;">This code expires in 10 minutes.</p>
-            </div>
-            <p style="color: #999; font-size: 13px; text-align: center; margin-top: 30px;">
-              If you didn't request this code, you can safely ignore this email.
-            </p>
-          </div>
-        `,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error('Email send failed');
-  }
-}
-
 /**
- * Deliver OTP mail through Resend when `RESEND_API_KEY` is configured.
+ * Deliver OTP mail through the Cloudflare Email Sending binding.
  *
- * @param env - Worker bindings that may include `RESEND_API_KEY`.
+ * @param env - Worker bindings with the `EMAIL` send_email binding.
  * @returns An OTP mailer.
  */
-export function resendMailer(env: Env): OtpMailer {
+export function cloudflareMailer(env: Env): OtpMailer {
   return (email, code) => {
-    if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY.length === 0) {
-      return Effect.fail(new EmailServiceUnconfigured());
-    }
-    const apiKey = env.RESEND_API_KEY;
     return Effect.tryPromise({
-      try: () => sendOTPEmail(email, code, apiKey),
+      try: async () => {
+        await env.EMAIL.send({
+          to: email,
+          from: 'OMG <noreply@latham.cloud>',
+          subject: 'Your OMG verification code',
+          html: otpEmailHtml(code),
+          text: `Your OMG verification code is ${code}. It expires in 10 minutes.`,
+        });
+      },
       catch: cause => new EmailDeliveryFailed(cause),
     });
   };
+}
+
+function otpEmailHtml(code: string): string {
+  return [
+    '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;padding:40px 20px">',
+    '<div style="text-align:center;margin-bottom:30px"><h1 style="color:#1a1a2e;font-size:28px">🚀 OMG</h1><p style="color:#666;margin:5px 0 0">Package Manager</p></div>',
+    '<div style="background:linear-gradient(135deg,#667eea,#764ba2);border-radius:16px;padding:30px;text-align:center">',
+    '<p style="color:rgba(255,255,255,.9);margin:0 0 15px;font-size:16px">Your verification code is:</p>',
+    `<div style="background:rgba(255,255,255,.95);border-radius:12px;padding:20px;max-width:200px;margin:0 auto"><span style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#1a1a2e">${code}</span></div>`,
+    '<p style="color:rgba(255,255,255,.8);margin:20px 0 0;font-size:14px">This code expires in 10 minutes.</p>',
+    '</div><p style="color:#999;font-size:13px;text-align:center;margin-top:30px">If you didn\'t request this code, ignore this email.</p></div>',
+  ].join('');
 }
 
 function requireTurnstile(
@@ -549,7 +529,7 @@ function responseFromVerifyExit(exit: Exit.Exit<VerifyCodeResponse, VerifyCodeEr
  */
 export async function handleSendCode(request: Request, env: Env): Promise<Response> {
   const exit = await Effect.runPromiseExit(
-    sendVerificationCode(request, env, resendMailer(env), generateOtpCode)
+    sendVerificationCode(request, env, cloudflareMailer(env), generateOtpCode)
   );
   return responseFromSendExit(exit);
 }

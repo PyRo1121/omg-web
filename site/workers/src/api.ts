@@ -16,7 +16,7 @@ export interface Env extends GeneratedBindings {
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;
-  RESEND_API_KEY?: string;
+  EMAIL: SendEmail;
   JWT_PRIVATE_KEY?: string;
   ADMIN_USER_ID?: string;
   STRIPE_PRO_PRICE_ID?: string;
