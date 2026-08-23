@@ -91,11 +91,11 @@ export const TrackingBatchSchema = Schema.Struct({
 export type TrackingBatch = Schema.Schema.Type<typeof TrackingBatchSchema>;
 
 const DocsAnalyticsEventSchema = Schema.Struct({
-  event_type: Schema.String,
-  event_name: Schema.String,
+  event_type: Schema.String.pipe(Schema.maxLength(64)),
+  event_name: Schema.String.pipe(Schema.maxLength(128)),
   properties: JsonObject,
-  timestamp: Schema.String,
-  session_id: Schema.String,
+  timestamp: Schema.String.pipe(Schema.maxLength(40)),
+  session_id: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
   duration_ms: OptionalNumber,
 });
 

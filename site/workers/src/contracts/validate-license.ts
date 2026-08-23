@@ -28,12 +28,17 @@ const D1Number = Schema.Union(Schema.Number, Schema.Null).pipe(
 );
 
 /** Untrusted GET query or POST JSON fields for license validation. */
+const Capped = (max: number) => Schema.NullOr(Schema.String.pipe(Schema.maxLength(max)));
+const NullableEmail = Schema.NullOr(
+  Schema.String.pipe(Schema.pattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/))
+);
+
 export const ValidateLicenseFieldsSchema = Schema.Struct({
-  key: Schema.optional(NullableString),
-  license_key: Schema.optional(NullableString),
-  machine_id: Schema.optional(NullableString),
-  user_name: Schema.optional(NullableString),
-  user_email: Schema.optional(NullableString),
+  key: Schema.optional(Capped(128)),
+  license_key: Schema.optional(Capped(64)),
+  machine_id: Schema.optional(Capped(128)),
+  user_name: Schema.optional(Capped(128)),
+  user_email: Schema.optional(NullableEmail),
 });
 export type ValidateLicenseFields = Schema.Schema.Type<typeof ValidateLicenseFieldsSchema>;
 

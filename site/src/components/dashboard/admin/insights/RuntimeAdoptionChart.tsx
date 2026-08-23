@@ -172,7 +172,7 @@ export const RuntimeAdoptionChart: Component<RuntimeAdoptionChartProps> = props 
       <div class="space-y-2">
         <For each={displayedRuntimes()}>
           {(runtime, index) => {
-            const percentage = (runtime.unique_users / maxUsers()) * 100;
+            const percentage = ((runtime.unique_users ?? 0) / maxUsers()) * 100;
             const colors = getColorForRuntime(runtime.runtime);
             const isHovered = () => hoveredIndex() === index();
             const isTop3 = () => index() < 3;

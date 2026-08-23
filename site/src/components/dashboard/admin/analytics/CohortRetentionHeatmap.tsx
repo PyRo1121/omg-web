@@ -86,11 +86,9 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
       return null;
     }
 
-    if (monthData.retention_rate !== undefined) {
-      return monthData.retention_rate;
-    }
-
-    return Math.round((monthData.active_users / baseData.active_users) * 100);
+    const retentionRate =
+      monthData.retention_rate ?? (monthData.active_users / baseData.active_users) * 100;
+    return Math.round(retentionRate);
   };
 
   const getActiveUsers = (cohortMonth: string, monthIndex: number) => {

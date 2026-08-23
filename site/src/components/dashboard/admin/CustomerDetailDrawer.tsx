@@ -1,4 +1,12 @@
-import { type Component, Show, For, createSignal, createEffect, onCleanup } from 'solid-js';
+import {
+  type Component,
+  Show,
+  For,
+  createSignal,
+  createEffect,
+  createMemo,
+  onCleanup,
+} from 'solid-js';
 import {
   X,
   Calendar,
@@ -88,6 +96,9 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
 
   const userDetailQuery = useAdminUserDetail(props.userId || '');
   const detail = () => userDetailQuery.data;
+  const usageMaxCommands = createMemo(() =>
+    Math.max(0, ...(detail()?.usage.daily?.map(day => day.commands_run) ?? []))
+  );
 
   // CRM hooks
   const notesQuery = useAdminNotes(props.userId || '');
@@ -375,10 +386,9 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
                   <div class="flex h-32 items-end gap-1">
                     <For each={detail()?.usage.daily?.slice(-30) || []}>
                       {day => {
-                        const maxCmd = Math.max(
-                          ...(detail()?.usage.daily?.map(d => d.commands_run) || [1])
-                        );
-                        const height = (day.commands_run / maxCmd) * 100;
+                        const maxCommands = usageMaxCommands();
+                        const height =
+                          maxCommands === 0 ? 0 : (day.commands_run / maxCommands) * 100;
                         return (
                           <div class="group relative flex-1">
                             <div
@@ -455,10 +465,10 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
                           <CreditCard size={14} />
                           Open Billing Portal
                         </button>
-                        <Show when={detail()?.user.stripe_customer_id}>
-                          {customerId => (
+                        <Show when={getStripeCustomerUrl(detail()?.user.stripe_customer_id ?? '')}>
+                          {customerUrl => (
                             <a
-                              href={getStripeCustomerUrl(customerId())}
+                              href={customerUrl()}
                               target="_blank"
                               rel="noopener noreferrer"
                               class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-white/10"

@@ -423,12 +423,10 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
  */
 export async function cleanupDocsAnalytics(db: D1Database): Promise<void> {
   try {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 7);
-
+    // Compare in the same format CURRENT_TIMESTAMP writes (YYYY-MM-DD HH:MM:SS);
+    // an ISO string cutoff deletes up to a day early due to ' ' vs 'T' ordering.
     const result = await db
-      .prepare(`DELETE FROM docs_analytics_events WHERE created_at < ?`)
-      .bind(cutoffDate.toISOString())
+      .prepare(`DELETE FROM docs_analytics_events WHERE created_at < datetime('now', '-7 days')`)
       .run();
 
     reportInfo(`Cleaned up ${result.meta.changes} old docs analytics events`);

@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { For, Show, createMemo, createSignal } from 'solid-js';
+import { For, Show, createMemo, createSignal, createUniqueId } from 'solid-js';
 import { cn } from '~/lib/prelude';
 
 interface HeatmapCell {
@@ -173,14 +173,17 @@ export const Sparkline: Component<SparklineProps> = props => {
   const width = () => props.width || 120;
   const height = () => props.height || 32;
   const color = () => props.color || '#6366f1';
+  const gradientIdSuffix = createUniqueId();
+  const gradientId = () => `sparkline-grad-${color().replace('#', '')}-${gradientIdSuffix}`;
 
   const maxValue = createMemo(() => Math.max(...props.data, 1));
   const minValue = createMemo(() => Math.min(...props.data, 0));
   const range = createMemo(() => maxValue() - minValue() || 1);
 
   const points = createMemo(() => {
+    const isSinglePoint = props.data.length === 1;
     return props.data.map((value, i) => ({
-      x: (i / (props.data.length - 1)) * width(),
+      x: isSinglePoint ? width() / 2 : (i / (props.data.length - 1)) * width(),
       y: height() - ((value - minValue()) / range()) * height(),
       value,
     }));
@@ -215,13 +218,7 @@ export const Sparkline: Component<SparklineProps> = props => {
       viewBox={`0 0 ${width()} ${height()}`}
     >
       <defs>
-        <linearGradient
-          id={`sparkline-grad-${color().replace('#', '')}`}
-          x1="0%"
-          y1="0%"
-          x2="0%"
-          y2="100%"
-        >
+        <linearGradient id={gradientId()} x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color={color()} stop-opacity="0.4" />
           <stop offset="100%" stop-color={color()} stop-opacity="0" />
         </linearGradient>
@@ -230,7 +227,7 @@ export const Sparkline: Component<SparklineProps> = props => {
       <Show when={props.showArea}>
         <path
           d={areaPath()}
-          fill={`url(#sparkline-grad-${color().replace('#', '')})`}
+          fill={`url(#${gradientId()})`}
           class={props.animated ? 'animate-fade-up' : ''}
         />
       </Show>

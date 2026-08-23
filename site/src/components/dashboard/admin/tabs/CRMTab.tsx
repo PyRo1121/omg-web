@@ -1,4 +1,4 @@
-import { type Component, createSignal, Show, For } from 'solid-js';
+import { type Component, createMemo, createSignal, onCleanup, onMount, Show, For } from 'solid-js';
 import { Search, Users } from 'lucide-solid';
 import { debounce } from '@solid-primitives/scheduled';
 import { CardSkeleton } from '../../../ui/Skeleton';
@@ -18,23 +18,21 @@ interface CRMTabProps {
   onRetry?: () => void;
 }
 
-function isMobile() {
-  if (!('window' in globalThis)) {
-    return false;
-  }
-  return globalThis.window.innerWidth < 768;
-}
-
 export const CRMTab: Component<CRMTabProps> = props => {
   const [viewMode, setViewMode] = createSignal<'table' | 'cards'>('cards');
   const [search, setSearch] = createSignal('');
+  const [isMobile, setIsMobile] = createSignal(false);
 
-  const effectiveViewMode = () => {
-    if (isMobile()) {
-      return 'cards';
-    }
-    return viewMode();
-  };
+  onMount(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+
+    updateIsMobile();
+    mediaQuery.addEventListener('change', updateIsMobile);
+    onCleanup(() => mediaQuery.removeEventListener('change', updateIsMobile));
+  });
+
+  const effectiveViewMode = createMemo(() => (isMobile() ? 'cards' : viewMode()));
 
   const debouncedSearch = debounce((value: string) => {
     props.onSearchChange(value);

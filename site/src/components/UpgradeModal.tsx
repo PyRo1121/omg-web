@@ -1,4 +1,4 @@
-import { type Component, createSignal, Show, For } from 'solid-js';
+import { type Component, createEffect, createSignal, onCleanup, Show, For } from 'solid-js';
 import { ApiError, createCheckout } from '../lib/api';
 
 interface UpgradeModalProps {
@@ -40,6 +40,31 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
   const [selectedTier, setSelectedTier] = createSignal<'pro' | 'team'>(props.initialTier || 'pro');
   const [error, setError] = createSignal<string | null>(null);
   const [isLoading, setIsLoading] = createSignal(false);
+  let redirectTimeout: ReturnType<typeof setTimeout> | undefined;
+  let checkoutAttempt = 0;
+
+  const cancelPendingRedirect = (): void => {
+    if (redirectTimeout !== undefined) {
+      clearTimeout(redirectTimeout);
+      redirectTimeout = undefined;
+    }
+  };
+
+  const cancelCheckout = (): void => {
+    checkoutAttempt += 1;
+    cancelPendingRedirect();
+  };
+
+  createEffect(() => {
+    const initialTier = props.initialTier ?? 'pro';
+    if (props.isOpen) {
+      setSelectedTier(initialTier);
+    } else {
+      cancelCheckout();
+    }
+  });
+
+  onCleanup(cancelCheckout);
 
   const handleTierSelect = (tier: 'pro' | 'team') => {
     setSelectedTier(tier);
@@ -47,6 +72,9 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
   };
 
   const handleCheckout = async (): Promise<void> => {
+    const currentAttempt = checkoutAttempt + 1;
+    checkoutAttempt = currentAttempt;
+    cancelPendingRedirect();
     setError(null);
     setIsLoading(true);
     setStep('processing');
@@ -68,7 +96,15 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
         return;
       }
 
-      setTimeout(() => {
+      if (!props.isOpen || currentAttempt !== checkoutAttempt) {
+        return;
+      }
+
+      redirectTimeout = setTimeout(() => {
+        redirectTimeout = undefined;
+        if (!props.isOpen || currentAttempt !== checkoutAttempt) {
+          return;
+        }
         const redirectLink = document.createElement('a');
         redirectLink.href = checkoutUrl.toString();
         redirectLink.rel = 'noopener noreferrer';
@@ -87,6 +123,7 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
   };
 
   const handleClose = () => {
+    cancelCheckout();
     setStep('select');
     setError(null);
     props.onClose();

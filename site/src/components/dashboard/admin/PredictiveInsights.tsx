@@ -10,15 +10,11 @@ import {
   Shield,
   Bell,
   ChevronRight,
-  ArrowUpRight,
   Brain,
   Activity,
-  Mail,
-  MessageSquare,
   RefreshCw,
 } from 'lucide-solid';
 import { useAdminAdvancedMetrics, useAdminCRMUsers } from '../../../lib/api-hooks';
-import { valueForKey } from '../../../lib/lookup';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ProgressRing } from '../../../design-system/components/Charts';
 
@@ -27,13 +23,6 @@ function cn(...inputs: ClassValue[]) {
 }
 
 type PredictionType = 'churn' | 'expansion' | 'anomaly' | 'health';
-type TimeHorizon = '30d' | '60d' | '90d';
-
-const TIME_HORIZONS = {
-  '30d': '30d',
-  '60d': '60d',
-  '90d': '90d',
-} as const satisfies Record<TimeHorizon, TimeHorizon>;
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
 function priorityFromProbability(probability: number): Priority {
@@ -117,7 +106,6 @@ const PriorityBadge: Component<{ priority: Priority }> = props => {
 
 const ChurnPredictionCard: Component<{
   prediction: ChurnPrediction;
-  onAction: (action: string) => void;
 }> = props => {
   const riskLevel = createMemo(() => priorityFromProbability(props.prediction.probability));
 
@@ -182,23 +170,6 @@ const ChurnPredictionCard: Component<{
             </div>
           </div>
         </div>
-
-        <div class="mt-4 flex gap-2">
-          <button
-            onClick={() => props.onAction('email')}
-            class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 py-2 text-xs font-bold text-white transition-all hover:bg-white/10"
-          >
-            <Mail size={14} />
-            Reach Out
-          </button>
-          <button
-            onClick={() => props.onAction('call')}
-            class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 py-2 text-xs font-bold text-white transition-all hover:bg-white/10"
-          >
-            <MessageSquare size={14} />
-            Schedule Call
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -206,7 +177,6 @@ const ChurnPredictionCard: Component<{
 
 const ExpansionOpportunityCard: Component<{
   prediction: ExpansionPrediction;
-  onAction: (action: string) => void;
 }> = props => {
   const opportunityLevel = createMemo(() => priorityFromProbability(props.prediction.probability));
 
@@ -274,16 +244,6 @@ const ExpansionOpportunityCard: Component<{
             </div>
           </div>
         </div>
-
-        <div class="mt-4 flex gap-2">
-          <button
-            onClick={() => props.onAction('demo')}
-            class="bg-aurora-500 hover:bg-aurora-600 flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold text-white transition-all"
-          >
-            <ArrowUpRight size={14} />
-            Start Upgrade
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -291,8 +251,6 @@ const ExpansionOpportunityCard: Component<{
 
 const AnomalyAlertCard: Component<{
   alert: AnomalyAlert;
-  onAcknowledge: () => void;
-  onResolve: () => void;
 }> = props => {
   const severityConfig = {
     critical: { color: 'text-flare-400', bg: 'bg-flare-500/10', icon: TriangleAlert },
@@ -336,23 +294,6 @@ const AnomalyAlertCard: Component<{
             {props.alert.affectedUsers.toLocaleString()} users affected
           </p>
         </div>
-
-        <Show when={props.alert.status === 'active'}>
-          <div class="flex gap-1">
-            <button
-              onClick={props.onAcknowledge}
-              class="text-2xs rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 font-bold text-white transition-all hover:bg-white/10"
-            >
-              Acknowledge
-            </button>
-            <button
-              onClick={props.onResolve}
-              class="bg-aurora-500 text-2xs hover:bg-aurora-600 rounded-lg px-3 py-1.5 font-bold text-white transition-all"
-            >
-              Resolve
-            </button>
-          </div>
-        </Show>
       </div>
     </div>
   );
@@ -405,11 +346,8 @@ const HealthTrendCard: Component<{ trend: HealthTrend }> = props => {
   );
 };
 
-function handleAction(_action: string) {}
-
 export const PredictiveInsights: Component = () => {
   const [activeTab, setActiveTab] = createSignal<PredictionType>('churn');
-  const [timeHorizon, setTimeHorizon] = createSignal<TimeHorizon>('30d');
 
   const metricsQuery = useAdminAdvancedMetrics();
   const usersQuery = useAdminCRMUsers(1, 100, '');
@@ -588,20 +526,6 @@ export const PredictiveInsights: Component = () => {
         </div>
 
         <div class="flex items-center gap-3">
-          <select
-            value={timeHorizon()}
-            onChange={e =>
-              setTimeHorizon(
-                valueForKey(Object.entries(TIME_HORIZONS), e.currentTarget.value) ?? '30d'
-              )
-            }
-            class="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white transition-all focus:outline-none"
-          >
-            <option value="30d">Next 30 Days</option>
-            <option value="60d">Next 60 Days</option>
-            <option value="90d">Next 90 Days</option>
-          </select>
-
           <button
             onClick={async () => {
               await Promise.all([metricsQuery.refetch(), usersQuery.refetch()]);
@@ -661,7 +585,7 @@ export const PredictiveInsights: Component = () => {
             <div class="flex items-center justify-between">
               <p class="text-nebula-400 text-sm">
                 <span class="text-flare-400 font-bold">{churnPredictions().length}</span> customers
-                predicted to churn within {timeHorizon()}
+                predicted to churn based on current activity
               </p>
               <p class="text-flare-400 font-mono text-sm font-bold">
                 $
@@ -679,16 +603,14 @@ export const PredictiveInsights: Component = () => {
                   <Shield size={32} class="text-aurora-400 mx-auto mb-3" />
                   <p class="text-aurora-400 font-bold">No High-Risk Churn Detected</p>
                   <p class="text-nebula-500 mt-2 text-sm">
-                    All customers appear healthy within the selected timeframe
+                    All customers appear healthy based on current activity
                   </p>
                 </div>
               }
             >
               <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <For each={churnPredictions()}>
-                  {prediction => (
-                    <ChurnPredictionCard prediction={prediction} onAction={handleAction} />
-                  )}
+                  {prediction => <ChurnPredictionCard prediction={prediction} />}
                 </For>
               </div>
             </Show>
@@ -725,9 +647,7 @@ export const PredictiveInsights: Component = () => {
             >
               <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <For each={expansionPredictions()}>
-                  {prediction => (
-                    <ExpansionOpportunityCard prediction={prediction} onAction={handleAction} />
-                  )}
+                  {prediction => <ExpansionOpportunityCard prediction={prediction} />}
                 </For>
               </div>
             </Show>
@@ -749,11 +669,7 @@ export const PredictiveInsights: Component = () => {
               }
             >
               <div class="space-y-3">
-                <For each={anomalyAlerts()}>
-                  {alert => (
-                    <AnomalyAlertCard alert={alert} onAcknowledge={() => {}} onResolve={() => {}} />
-                  )}
-                </For>
+                <For each={anomalyAlerts()}>{alert => <AnomalyAlertCard alert={alert} />}</For>
               </div>
             </Show>
           </div>
@@ -762,7 +678,7 @@ export const PredictiveInsights: Component = () => {
         <Show when={activeTab() === 'health'}>
           <div class="space-y-4">
             <p class="text-nebula-400 text-sm">
-              Predicted health score changes for the next {timeHorizon()}
+              Predicted health score changes based on current activity
             </p>
 
             <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">

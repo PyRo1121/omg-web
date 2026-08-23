@@ -51,16 +51,20 @@ const AnalyticsPropertyValue = Schema.Union(
 );
 
 /** A single CLI analytics event. */
+// Length caps bound the upsert-key cardinality of analytics_daily /
+// analytics_errors: without them every request mints new aggregate rows.
+const CappedKey = (max: number) => Schema.String.pipe(Schema.minLength(1), Schema.maxLength(max));
+
 export const AnalyticsEventSchema = Schema.Struct({
-  event_type: Schema.String.pipe(Schema.minLength(1)),
-  event_name: Schema.String.pipe(Schema.minLength(1)),
-  properties: Schema.optional(Schema.Record({ key: Schema.String, value: AnalyticsPropertyValue })),
-  timestamp: Schema.String.pipe(Schema.minLength(1)),
-  session_id: Schema.String.pipe(Schema.minLength(1)),
-  machine_id: Schema.String.pipe(Schema.minLength(1)),
+  event_type: CappedKey(32),
+  event_name: CappedKey(128),
+  properties: Schema.optional(Schema.Record({ key: CappedKey(64), value: AnalyticsPropertyValue })),
+  timestamp: Schema.String.pipe(Schema.maxLength(40)),
+  session_id: CappedKey(64),
+  machine_id: CappedKey(128),
   license_key: OptionalString,
-  version: Schema.String.pipe(Schema.minLength(1)),
-  platform: Schema.String.pipe(Schema.minLength(1)),
+  version: CappedKey(32),
+  platform: CappedKey(32),
   duration_ms: OptionalNumber,
 });
 

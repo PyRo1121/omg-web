@@ -1,16 +1,15 @@
 import { Effect } from 'effect';
 import { type Env, errorResponse, logAudit, respondFromEffect } from '../api';
-import { decodeJsonBody, InvalidJsonBodyError } from '../body';
+import { decodeJsonBody, type InvalidJsonBodyError } from '../body';
 import * as Schema from 'effect/Schema';
 import {
-  CustomerId,
   decodeCustomerRow,
   decodeSessionRow,
   SessionToken,
   SiteSessionRequestSchema,
   type SiteSessionWorkerResponse,
 } from '../../../shared/site-session';
-import { AdminUnauthorizedError, requireAdminSecret } from '../admin-secret';
+import { type AdminUnauthorizedError, requireAdminSecret } from '../admin-secret';
 import { casesHandled } from '../prelude';
 
 /** D1 was unavailable or returned an unreadable row during site-session minting. */
@@ -22,6 +21,7 @@ class CustomerStoreUnavailable extends Error {
       | 'insertCustomer'
       | 'insertLicense'
       | 'syncRole'
+      | 'findLicenseByCustomer'
       | 'findSession'
       | 'insertSession',
     override readonly cause?: unknown
@@ -71,25 +71,54 @@ function mintSiteSession(
 
     const admin = body.role === 'admin' ? 1 : 0;
     if (customer === null) {
-      const customerId = Schema.decodeUnknownSync(CustomerId)(crypto.randomUUID());
+      // Unique constraint on email + ON CONFLICT DO NOTHING closes the
+      // find-then-insert race. Note: miniflare/D1 .run() meta may not carry
+      // `changes`, so success is determined by re-selecting, never by meta.
       yield* storeOperation('insertCustomer', () =>
         env.DB.prepare(
-          `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', ?)`
+          `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', ?)
+           ON CONFLICT (email) DO NOTHING`
         )
-          .bind(customerId, body.email, body.name ?? null, admin)
+          .bind(crypto.randomUUID(), body.email, body.name ?? null, admin)
           .run()
       );
-      yield* storeOperation('insertLicense', () =>
-        env.DB.prepare(
-          `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
-           VALUES (?, ?, ?, 'free', 'active', 1)`
-        )
-          .bind(crypto.randomUUID(), customerId, crypto.randomUUID())
-          .run()
+      const adoptedRow = yield* storeOperation('findByEmail', () =>
+        env.DB.prepare(`SELECT id, email, admin FROM customers WHERE email = ?`)
+          .bind(body.email)
+          .first()
       );
-      yield* logAudit(env.DB, customerId, 'site.session_created', 'customer', customerId, request);
-      customer = { id: customerId, email: body.email, admin };
-    } else if (customer.admin !== admin) {
+      if (adoptedRow === null) {
+        return yield* Effect.fail(new CustomerStoreUnavailable('findByEmail'));
+      }
+      const adopted = yield* decodeCustomerRow(adoptedRow).pipe(
+        Effect.mapError(cause => new CustomerStoreUnavailable('findByEmail', cause))
+      );
+      customer = adopted;
+      // Provision the free license only when the customer has none yet.
+      const licenseRow = yield* storeOperation('findLicenseByCustomer', () =>
+        env.DB.prepare(`SELECT id FROM licenses WHERE customer_id = ?`).bind(adopted.id).first()
+      );
+      if (licenseRow === null) {
+        yield* storeOperation('insertLicense', () =>
+          env.DB.prepare(
+            `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
+             VALUES (?, ?, ?, 'free', 'active', 1)`
+          )
+            .bind(crypto.randomUUID(), adopted.id, crypto.randomUUID())
+            .run()
+        );
+        yield* logAudit(
+          env.DB,
+          adopted.id,
+          'site.session_created',
+          'customer',
+          adopted.id,
+          request
+        );
+      }
+    }
+
+    if (customer.admin !== admin) {
       const customerId = customer.id;
       yield* storeOperation('syncRole', () =>
         env.DB.prepare(`UPDATE customers SET admin = ? WHERE id = ?`).bind(admin, customerId).run()
@@ -135,7 +164,12 @@ function mintSiteSession(
  * @param env - Worker bindings.
  * @returns JSON session payload or a mapped error response.
  */
-export function handleCreateSiteSession(request: Request, env: Env): Promise<Response> {
+export async function handleCreateSiteSession(request: Request, env: Env): Promise<Response> {
+  // Defense-in-depth: this route is publicly reachable; only the BFF service
+  // binding should ever call it.
+  if (request.headers.get('X-Internal-Call') !== 'service-binding') {
+    return errorResponse('Not found', 404);
+  }
   return respondFromEffect(mintSiteSession(request, env), error => {
     switch (error._tag) {
       case 'AdminUnauthorizedError':

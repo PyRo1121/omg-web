@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { For, Show, createSignal } from 'solid-js';
+import { For, Show, createMemo, createSignal } from 'solid-js';
 import {
   TrendingUp,
   TrendingDown,
@@ -22,16 +22,27 @@ const formatCompactCurrency = (value: number) => {
   return `$${value}`;
 };
 
+const PERIOD_MONTH_COUNTS = {
+  '7d': 1,
+  '30d': 1,
+  '90d': 3,
+  '1y': 12,
+} as const;
+
+type RevenuePeriod = keyof typeof PERIOD_MONTH_COUNTS;
+
 export const RevenueTab: Component = () => {
   const revenueQuery = useAdminRevenue();
-  const [selectedPeriod, setSelectedPeriod] = createSignal<'7d' | '30d' | '90d' | '1y'>('30d');
+  const [selectedPeriod, setSelectedPeriod] = createSignal<RevenuePeriod>('30d');
 
   const revenue = () => revenueQuery.data;
-
-  const maxMonthlyRevenue = () => {
-    const monthly = revenue()?.monthly_revenue || [];
-    return Math.max(...monthly.map(m => m.revenue), 1);
-  };
+  const monthlyRevenue = () => revenue()?.monthly_revenue ?? [];
+  const selectedMonthlyRevenue = createMemo(() =>
+    monthlyRevenue().slice(-PERIOD_MONTH_COUNTS[selectedPeriod()])
+  );
+  const latestMonth = () => monthlyRevenue().at(-1);
+  const maxMonthlyRevenue = () =>
+    Math.max(...selectedMonthlyRevenue().map(month => month.revenue), 1);
 
   return (
     <div class="animate-in fade-in slide-in-from-bottom-4 space-y-8 duration-500">
@@ -98,8 +109,7 @@ export const RevenueTab: Component = () => {
               <p class="mt-2 text-4xl font-black tracking-tight text-white">
                 $
                 {Math.round(
-                  (revenue()?.monthly_revenue?.[0]?.revenue || 0) /
-                    Math.max(1, revenue()?.monthly_revenue?.[0]?.transactions || 1)
+                  (latestMonth()?.revenue ?? 0) / Math.max(1, latestMonth()?.transactions ?? 1)
                 )}
               </p>
             </div>
@@ -114,7 +124,7 @@ export const RevenueTab: Component = () => {
                 </div>
               </div>
               <p class="text-[10px] font-black tracking-widest text-violet-400/60 uppercase">
-                Paying Customers
+                Transactions
               </p>
               <p class="mt-2 text-4xl font-black tracking-tight text-white">
                 {(
@@ -131,7 +141,7 @@ export const RevenueTab: Component = () => {
               <div>
                 <h3 class="text-xl font-black tracking-tight text-white">Revenue Trend</h3>
                 <p class="mt-1 text-xs font-medium text-slate-500">
-                  Monthly revenue over the past 12 months
+                  Monthly revenue for the selected period
                 </p>
               </div>
               <div class="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.02] p-1">
@@ -153,10 +163,10 @@ export const RevenueTab: Component = () => {
             </div>
 
             <div class="flex h-64 items-end gap-2">
-              <For each={revenue()?.monthly_revenue?.slice(-12) || []}>
+              <For each={selectedMonthlyRevenue()}>
                 {(month, index) => {
                   const height = (month.revenue / maxMonthlyRevenue()) * 100;
-                  const isLast = index() === (revenue()?.monthly_revenue?.length || 0) - 1;
+                  const isLast = index() === selectedMonthlyRevenue().length - 1;
                   return (
                     <div class="group flex flex-1 flex-col items-center gap-2">
                       <div class="relative w-full">
@@ -247,9 +257,9 @@ export const RevenueTab: Component = () => {
         </div>
 
         <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
-          <h3 class="mb-2 text-xl font-black tracking-tight text-white">Recent Transactions</h3>
+          <h3 class="mb-2 text-xl font-black tracking-tight text-white">Monthly Transactions</h3>
           <p class="mb-6 text-xs font-medium text-slate-500">
-            Latest subscription payments and upgrades
+            Revenue and transaction summaries for the selected period
           </p>
 
           <div class="overflow-x-auto">
@@ -264,11 +274,11 @@ export const RevenueTab: Component = () => {
                 </tr>
               </thead>
               <tbody class="divide-y divide-white/5">
-                <For each={revenue()?.monthly_revenue?.slice(-6).toReversed() || []}>
+                <For each={selectedMonthlyRevenue().toReversed()}>
                   {(month, index) => {
-                    const monthlyRevenue = revenue()?.monthly_revenue || [];
-                    const prevIndex = monthlyRevenue.length - 2 - index();
-                    const prev = prevIndex >= 0 ? monthlyRevenue[prevIndex] : undefined;
+                    const allMonthlyRevenue = monthlyRevenue();
+                    const prevIndex = allMonthlyRevenue.length - 2 - index();
+                    const prev = prevIndex >= 0 ? allMonthlyRevenue[prevIndex] : undefined;
                     const trend = prev ? ((month.revenue - prev.revenue) / prev.revenue) * 100 : 0;
                     return (
                       <tr class="group transition-colors hover:bg-white/[0.02]">

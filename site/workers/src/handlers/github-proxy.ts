@@ -29,7 +29,13 @@ export async function handleGitHubProxy(
   }
 
   const cache = caches.default;
-  const cacheKey = new Request(request.url, request);
+  // Cache key ignores the query string: arbitrary attacker-controlled query
+  // params would otherwise fragment the cache and multiply upstream calls.
+  const originUrl = new URL(request.url);
+  const cacheKey = new Request(originUrl.origin + originUrl.pathname, {
+    method: 'GET',
+    headers: request.headers,
+  });
 
   const cachedResponse = await cache.match(cacheKey);
 

@@ -112,7 +112,7 @@ const QuickActionButton: Component<QuickActionButtonProps> = props => {
 };
 
 const handleEmail = (email: string) => {
-  window.location.href = `mailto:${email}`;
+  window.location.href = `mailto:${encodeURIComponent(email)}`;
 };
 
 export const CRMProfileCard: Component<CRMProfileCardProps> = props => {

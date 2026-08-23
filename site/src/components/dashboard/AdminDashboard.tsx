@@ -79,6 +79,13 @@ const SEGMENTS = [
   { id: 'new_users', name: 'New Users (30d)' },
 ];
 
+const DATE_RANGE_DAYS = {
+  '7d': 7,
+  '30d': 30,
+  '90d': 90,
+  custom: 30,
+} as const;
+
 function transformToExecutiveKPI(
   dashboard: api.AdminOverview | undefined,
   metrics: api.AdminAdvancedMetrics | undefined
@@ -295,13 +302,9 @@ const AdminDashboard: Component = () => {
   const firehoseQuery = useAdminFirehose(100);
   const crmUsersQuery = useAdminCRMUsers(store.crm.page, 25, store.crm.search);
   const advancedMetricsQuery = useAdminAdvancedMetrics();
-  const siteGeoQuery = useSiteGeoAnalytics(
-    store.filters.dateRange === '7d' ? 7 : store.filters.dateRange === '90d' ? 90 : 30
-  );
+  const siteGeoQuery = useSiteGeoAnalytics(DATE_RANGE_DAYS[store.filters.dateRange]);
   const realtimeQuery = useSiteRealtimeAnalytics();
-  const siteOverviewQuery = useSiteAnalyticsOverview(
-    store.filters.dateRange === '7d' ? 7 : store.filters.dateRange === '90d' ? 90 : 30
-  );
+  const siteOverviewQuery = useSiteAnalyticsOverview(DATE_RANGE_DAYS[store.filters.dateRange]);
 
   const executiveKPI = createMemo(() =>
     transformToExecutiveKPI(dashboardQuery.data, advancedMetricsQuery.data)
@@ -357,11 +360,11 @@ const AdminDashboard: Component = () => {
           filename = `omg-users-${new Date().toISOString().split('T')[0]}.csv`;
           break;
         case 'usage':
-          data = await api.exportAdminUsage(30);
+          data = await api.exportAdminUsage(DATE_RANGE_DAYS[store.filters.dateRange]);
           filename = `omg-usage-${new Date().toISOString().split('T')[0]}.csv`;
           break;
         case 'audit':
-          data = await api.exportAdminAudit(30);
+          data = await api.exportAdminAudit(DATE_RANGE_DAYS[store.filters.dateRange]);
           filename = `omg-audit-${new Date().toISOString().split('T')[0]}.csv`;
           break;
       }
@@ -439,6 +442,7 @@ const AdminDashboard: Component = () => {
 
     return (
       <button
+        id={`tab-${props.id}`}
         role="tab"
         aria-selected={isActive()}
         aria-controls={`tabpanel-${props.id}`}
@@ -592,12 +596,7 @@ const AdminDashboard: Component = () => {
         <div class="flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3">
           <GitCompare size={18} class="text-indigo-400" />
           <span class="text-sm font-medium text-indigo-300">
-            Comparing current period with previous{' '}
-            {store.filters.dateRange === '7d'
-              ? '7 days'
-              : store.filters.dateRange === '30d'
-                ? '30 days'
-                : '90 days'}
+            Comparing current period with previous {DATE_RANGE_DAYS[store.filters.dateRange]} days
           </span>
           <button
             onClick={() => actions.toggleCompare()}

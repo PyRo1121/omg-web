@@ -539,11 +539,18 @@ export async function handleStripeWebhook(
       }
 
       if (event.type === 'invoice.paid') {
+        // Idempotent by stripe_invoice_id: repeated webhook deliveries update
+        // the same row instead of inserting duplicates under fresh UUIDs.
         await env.DB.prepare(
-          `INSERT OR REPLACE INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), CURRENT_TIMESTAMP)`
+          `INSERT INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
+           VALUES ((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), CURRENT_TIMESTAMP)
+           ON CONFLICT (id) DO UPDATE SET
+             amount_cents = excluded.amount_cents,
+             currency = excluded.currency,
+             status = excluded.status`
         )
           .bind(
+            invoice.id,
             crypto.randomUUID(),
             resolved.customerId,
             invoice.id,

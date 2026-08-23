@@ -130,6 +130,14 @@ export const AnalyticsTab: Component<AnalyticsTabProps> = props => {
           />
         </Show>
 
+        <Show when={props.isRealtimeError}>
+          <ErrorCard
+            title="Failed to Load Realtime Analytics"
+            message="Unable to fetch live visitor data. Please try again."
+            onRetry={props.onRetryRealtime}
+          />
+        </Show>
+
         <Show when={props.isOverviewSuccess || props.isRealtimeSuccess}>
           <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard

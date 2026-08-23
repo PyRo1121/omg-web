@@ -1,4 +1,4 @@
-import { type Component, type JSX, Show, createSignal } from 'solid-js';
+import { type Component, type JSX, Show, createSignal, onCleanup } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
 interface TooltipProps {
@@ -14,6 +14,15 @@ export const Tooltip: Component<TooltipProps> = props => {
   let timeoutId: number | undefined;
 
   const delay = () => props.delay || 200;
+
+  const clearShowTimeout = () => {
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId);
+      timeoutId = undefined;
+    }
+  };
+
+  onCleanup(clearShowTimeout);
 
   const handleMouseEnter = (e: MouseEvent) => {
     const target = e.currentTarget;
@@ -48,14 +57,13 @@ export const Tooltip: Component<TooltipProps> = props => {
     setTooltipPos({ x, y });
 
     timeoutId = window.setTimeout(() => {
+      timeoutId = undefined;
       setIsVisible(true);
     }, delay());
   };
 
   const handleMouseLeave = () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
+    clearShowTimeout();
     setIsVisible(false);
   };
 

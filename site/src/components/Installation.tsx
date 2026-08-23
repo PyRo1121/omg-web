@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, For } from 'solid-js';
+import { createSignal, For, onCleanup } from 'solid-js';
 
 const INSTALL_TABS = [
   { id: 'curl', label: 'Linux/macOS' },
@@ -13,6 +13,7 @@ type InstallTabId = (typeof INSTALL_TABS)[number]['id'];
 const Installation: Component = () => {
   const [copied, setCopied] = createSignal(false);
   const [activeTab, setActiveTab] = createSignal<InstallTabId>('curl');
+  let copiedResetTimeoutId: number | undefined;
 
   const commands = {
     curl: 'curl -fsSL https://omg.latham.cloud/install.sh | bash',
@@ -24,8 +25,20 @@ const Installation: Component = () => {
   const copyToClipboard = () => {
     void navigator.clipboard.writeText(commands[activeTab()]);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copiedResetTimeoutId !== undefined) {
+      window.clearTimeout(copiedResetTimeoutId);
+    }
+    copiedResetTimeoutId = window.setTimeout(() => {
+      copiedResetTimeoutId = undefined;
+      setCopied(false);
+    }, 2000);
   };
+
+  onCleanup(() => {
+    if (copiedResetTimeoutId !== undefined) {
+      window.clearTimeout(copiedResetTimeoutId);
+    }
+  });
 
   return (
     <section id="install" class="relative px-6 py-32">

@@ -38,6 +38,7 @@ export const LicenseSuccessModal: Component = () => {
   const [copied, setCopied] = createSignal(false);
   const [confetti, setConfetti] = createSignal<ConfettiPiece[]>([]);
   const [notFound, setNotFound] = createSignal(false);
+  const [lookupError, setLookupError] = createSignal<string | null>(null);
   const [retryCount, setRetryCount] = createSignal(0);
 
   onMount(() => {
@@ -58,11 +59,21 @@ export const LicenseSuccessModal: Component = () => {
 
     setLoading(true);
     setNotFound(false);
+    setLookupError(null);
 
     try {
       const res = await fetch(
         `${LICENSE_API_BASE}/api/get-license?email=${encodeURIComponent(userEmail)}`
       );
+      if (res.status === 404) {
+        setNotFound(true);
+        setRetryCount(count => count + 1);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`License lookup failed with status ${res.status}`);
+      }
+
       const parsed = parseLicenseLookup(await res.json());
       if (!parsed.ok) {
         throw new Error(parsed.error);
@@ -77,9 +88,10 @@ export const LicenseSuccessModal: Component = () => {
       }
     } catch (e) {
       reportClientError('Unhandled client operation failed', e);
-      setNotFound(true);
+      setLookupError('Unable to retrieve your license. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const copyToClipboard = (text: string): void => {
@@ -94,6 +106,7 @@ export const LicenseSuccessModal: Component = () => {
     setTier(null);
     setEmail('');
     setNotFound(false);
+    setLookupError(null);
     setRetryCount(0);
   };
 
@@ -174,6 +187,10 @@ export const LicenseSuccessModal: Component = () => {
                     License not found yet. It may take a moment to process.
                     {retryCount() > 0 && ` (Attempt ${retryCount()})`}
                   </p>
+                </Show>
+
+                <Show when={lookupError()}>
+                  <p class="mb-4 text-sm text-red-400">{lookupError()}</p>
                 </Show>
 
                 <button

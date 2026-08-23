@@ -203,6 +203,7 @@ function csvResponse(
       headers: {
         'Content-Type': 'text/csv',
         'Content-Disposition': `attachment; filename="${filename}"`,
+        'Cache-Control': 'no-store',
         ...extraHeaders,
       },
     }
@@ -326,8 +327,20 @@ export async function handleAdminActivity(request: Request, env: Env): Promise<R
   );
 }
 
-export async function handleAdminHealth(_request: Request, _env: Env): Promise<Response> {
-  return secureJsonResponse({ status: 'ok', db: 'connected', version: '1.0.0' });
+export async function handleAdminHealth(request: Request, env: Env): Promise<Response> {
+  return withAdminContext(request, env, async () => {
+    let db: 'connected' | 'unavailable' = 'connected';
+    try {
+      await env.DB.prepare('SELECT 1').first();
+    } catch {
+      db = 'unavailable';
+    }
+    return secureJsonResponse({
+      status: db === 'connected' ? 'ok' : 'degraded',
+      db,
+      version: '1.0.0',
+    });
+  });
 }
 
 export async function handleAdminExportUsage(request: Request, env: Env): Promise<Response> {

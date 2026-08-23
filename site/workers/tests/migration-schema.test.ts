@@ -35,6 +35,7 @@ describe('canonical D1 migrations', () => {
       '013_better_auth.sql',
       '014_better_auth_issuer.sql',
       '015_customers_email_unique.sql',
+      '016_customers_email_unique_enforced.sql',
     ]);
   });
 

@@ -15,16 +15,7 @@ import { CommandHeatmap } from './CommandHeatmap';
 import { RuntimeAdoptionChart } from './RuntimeAdoptionChart';
 import { CohortRetentionHeatmap } from '../analytics/CohortRetentionHeatmap';
 import { GeoDistribution } from '../analytics/GeoDistribution';
-import {
-  Lightbulb,
-  RefreshCw,
-  Bookmark,
-  Share2,
-  Download,
-  MessageSquare,
-  Sparkles,
-  Search,
-} from 'lucide-solid';
+import { Lightbulb, RefreshCw, Bookmark } from 'lucide-solid';
 
 type InsightCategory = 'all' | 'engagement' | 'revenue' | 'risk' | 'growth';
 
@@ -36,20 +27,12 @@ const INSIGHT_CATEGORIES: { id: InsightCategory; label: string }[] = [
   { id: 'growth', label: 'Growth' },
 ];
 
-function exportInsight(format: 'pdf' | 'png') {
-  const a = document.createElement('a');
-  a.download = `insights-${Date.now()}.${format}`;
-  a.click();
-}
-
 export const InsightsTab: Component = () => {
   const metricsQuery = useAdminAdvancedMetrics();
   const cohortsQuery = useAdminCohorts();
   const dashboardQuery = useAdminDashboard();
   const [activeCategory, setActiveCategory] = createSignal<InsightCategory>('all');
   const [bookmarkedInsights, setBookmarkedInsights] = createSignal<string[]>([]);
-  const [aiQuery, setAiQuery] = createSignal('');
-  const [showAiPanel, setShowAiPanel] = createSignal(false);
 
   const toggleBookmark = (insightId: string) => {
     setBookmarkedInsights(prev =>
@@ -72,26 +55,6 @@ export const InsightsTab: Component = () => {
 
         <div class="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => setShowAiPanel(!showAiPanel())}
-            class={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
-              showAiPanel()
-                ? 'border-photon-500/50 bg-photon-500/10 text-photon-400'
-                : 'border-white/10 bg-white/5 text-white hover:bg-white/10'
-            }`}
-          >
-            <Sparkles size={16} />
-            Ask AI
-          </button>
-
-          <button
-            onClick={() => exportInsight('pdf')}
-            class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-white/10"
-          >
-            <Download size={16} />
-            Export
-          </button>
-
-          <button
             onClick={() => metricsQuery.refetch()}
             disabled={metricsQuery.isRefetching}
             class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
@@ -101,43 +64,6 @@ export const InsightsTab: Component = () => {
           </button>
         </div>
       </div>
-
-      <Show when={showAiPanel()}>
-        <div class="border-photon-500/30 bg-photon-500/5 rounded-2xl border p-6">
-          <div class="flex items-start gap-4">
-            <div class="bg-photon-500/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
-              <Sparkles size={20} class="text-photon-400" />
-            </div>
-            <div class="flex-1">
-              <h3 class="mb-2 font-bold text-white">Ask AI about your data</h3>
-              <div class="relative">
-                <Search
-                  size={16}
-                  class="text-nebula-500 absolute top-1/2 left-4 -translate-y-1/2"
-                />
-                <input
-                  type="text"
-                  value={aiQuery()}
-                  onInput={e => setAiQuery(e.currentTarget.value)}
-                  placeholder="e.g., Why is churn higher this month? Which segments are growing fastest?"
-                  class="bg-void-850 placeholder-nebula-500 focus:ring-photon-500/20 w-full rounded-xl border border-white/10 py-3 pr-4 pl-12 text-white focus:ring-2 focus:outline-none"
-                />
-              </div>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <button class="text-nebula-400 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs transition-all hover:bg-white/10 hover:text-white">
-                  Top churn reasons
-                </button>
-                <button class="text-nebula-400 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs transition-all hover:bg-white/10 hover:text-white">
-                  Revenue forecast
-                </button>
-                <button class="text-nebula-400 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs transition-all hover:bg-white/10 hover:text-white">
-                  Fastest growing segment
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Show>
 
       <div class="flex items-center gap-2 overflow-x-auto rounded-xl border border-white/5 bg-white/[0.02] p-1">
         <For each={INSIGHT_CATEGORIES}>
@@ -162,10 +88,6 @@ export const InsightsTab: Component = () => {
           <span class="text-solar-400 text-sm">
             {bookmarkedInsights().length} insights bookmarked
           </span>
-          <button class="bg-solar-500/20 text-solar-400 hover:bg-solar-500/30 ml-auto flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-bold">
-            <Share2 size={12} />
-            Share
-          </button>
         </div>
       </Show>
 
@@ -208,9 +130,6 @@ export const InsightsTab: Component = () => {
                         }`}
                       >
                         <Bookmark size={14} />
-                      </button>
-                      <button class="bg-void-800 text-nebula-400 rounded-lg p-2 transition-all hover:text-white">
-                        <MessageSquare size={14} />
                       </button>
                     </div>
                     <EngagementMetrics data={engagement()} />
@@ -303,25 +222,7 @@ export const InsightsTab: Component = () => {
             </Show>
 
             <div class="rounded-3xl border border-white/5 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 p-8">
-              <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-xl font-bold text-white">Key Insights Summary</h3>
-                <div class="flex gap-2">
-                  <button
-                    onClick={() => exportInsight('pdf')}
-                    class="flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10"
-                  >
-                    <Download size={12} />
-                    PDF
-                  </button>
-                  <button
-                    onClick={() => exportInsight('png')}
-                    class="flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10"
-                  >
-                    <Download size={12} />
-                    PNG
-                  </button>
-                </div>
-              </div>
+              <h3 class="mb-4 text-xl font-bold text-white">Key Insights Summary</h3>
               <div class="grid gap-4 md:grid-cols-3">
                 <div class="rounded-xl border border-white/10 bg-white/5 p-4">
                   <p class="text-xs text-slate-400">Current MRR</p>

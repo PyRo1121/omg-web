@@ -233,7 +233,6 @@ export function sendVerificationCode(
     const code = generateCode();
     const digest = yield* digestOtpCode(body.email, code, env.JWT_SECRET);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    yield* mailer(body.email, code);
     yield* Effect.tryPromise({
       try: () =>
         env.DB.batch([

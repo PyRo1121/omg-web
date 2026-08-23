@@ -399,18 +399,13 @@ export const updateUser = (
 ): Effect.Effect<void, AdminStoreError> =>
   Effect.tryPromise({
     try: async () => {
-      if (input.tier !== undefined) {
-        await db
-          .prepare('UPDATE licenses SET tier = ? WHERE customer_id = ?')
-          .bind(input.tier, input.userId)
-          .run();
-      }
-      if (input.status !== undefined) {
-        await db
-          .prepare('UPDATE licenses SET status = ? WHERE customer_id = ?')
-          .bind(input.status, input.userId)
-          .run();
-      }
+      // One statement: a mid-flight failure cannot leave tier/status half-updated.
+      await db
+        .prepare(
+          'UPDATE licenses SET tier = COALESCE(?, tier), status = COALESCE(?, status) WHERE customer_id = ?'
+        )
+        .bind(input.tier ?? null, input.status ?? null, input.userId)
+        .run();
     },
     catch: fail('updateUser'),
   });
@@ -574,7 +569,7 @@ export const exportUsers = (db: D1Database) =>
     db,
     AdminUsersExportRowSchema,
     'Admin users export row has an invalid shape',
-    'SELECT c.id, c.email, c.company, c.created_at, l.tier, l.status, (SELECT COUNT(*) FROM machines m WHERE m.license_id = l.id AND m.is_active = 1) as active_machines, (SELECT SUM(commands_run) FROM usage_daily u WHERE u.license_id = l.id) as total_commands FROM customers c LEFT JOIN licenses l ON c.id = l.customer_id ORDER BY c.created_at DESC'
+    'SELECT c.id, c.email, c.company, c.created_at, l.tier, l.status, (SELECT COUNT(*) FROM machines m WHERE m.license_id = l.id AND m.is_active = 1) as active_machines, (SELECT SUM(commands_run) FROM usage_daily u WHERE u.license_id = l.id) as total_commands FROM customers c LEFT JOIN licenses l ON c.id = l.customer_id ORDER BY c.created_at DESC LIMIT 1000'
   );
 
 /** Load one page of enriched audit events. */

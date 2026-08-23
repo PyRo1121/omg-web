@@ -14,6 +14,8 @@ interface HealthScoreProps {
   class?: string;
 }
 
+const clampScore = (score: number): number => Math.min(100, Math.max(0, score));
+
 const getHealthLevel = (score: number): HealthLevel => {
   if (score <= 20) {
     return 'critical';
@@ -269,8 +271,8 @@ const HealthScoreGauge: Component<HealthScoreProps> = props => {
 
   const width = createMemo(() => sizeValues().ring * 1.5);
   const height = createMemo(() => sizeValues().ring);
-  const strokeWidth = sizeValues().stroke + 2;
-  const radius = createMemo(() => height() - strokeWidth);
+  const strokeWidth = createMemo(() => sizeValues().stroke + 2);
+  const radius = createMemo(() => height() - strokeWidth());
   const circumference = createMemo(() => Math.PI * radius());
   const offset = createMemo(() => circumference() - (props.score / 100) * circumference());
 
@@ -278,18 +280,18 @@ const HealthScoreGauge: Component<HealthScoreProps> = props => {
     <div class={cn('relative inline-flex flex-col items-center', props.class)}>
       <svg width={width()} height={height() + 10} class="overflow-visible">
         <path
-          d={`M ${strokeWidth} ${height()} A ${radius()} ${radius()} 0 0 1 ${width() - strokeWidth} ${height()}`}
+          d={`M ${strokeWidth()} ${height()} A ${radius()} ${radius()} 0 0 1 ${width() - strokeWidth()} ${height()}`}
           fill="none"
           stroke="currentColor"
-          stroke-width={strokeWidth}
+          stroke-width={strokeWidth()}
           stroke-linecap="round"
           class="text-void-700"
         />
         <path
-          d={`M ${strokeWidth} ${height()} A ${radius()} ${radius()} 0 0 1 ${width() - strokeWidth} ${height()}`}
+          d={`M ${strokeWidth()} ${height()} A ${radius()} ${radius()} 0 0 1 ${width() - strokeWidth()} ${height()}`}
           fill="none"
           stroke={config().color}
-          stroke-width={strokeWidth}
+          stroke-width={strokeWidth()}
           stroke-linecap="round"
           stroke-dasharray={`${circumference()}`}
           stroke-dashoffset={props.animated ? circumference() : offset()}
@@ -369,20 +371,21 @@ const HealthScoreCompact: Component<Omit<HealthScoreProps, 'size'>> = props => {
 
 export const HealthScore: Component<HealthScoreProps> = props => {
   const variant = () => props.variant || 'ring';
+  const score = createMemo(() => clampScore(props.score));
 
   return (
-    <Switch fallback={<HealthScoreRing {...props} />}>
+    <Switch fallback={<HealthScoreRing {...props} score={score()} />}>
       <Match when={variant() === 'gauge'}>
-        <HealthScoreGauge {...props} />
+        <HealthScoreGauge {...props} score={score()} />
       </Match>
       <Match when={variant() === 'bar'}>
-        <HealthScoreBar {...props} />
+        <HealthScoreBar {...props} score={score()} />
       </Match>
       <Match when={variant() === 'badge'}>
-        <HealthScoreBadge {...props} />
+        <HealthScoreBadge {...props} score={score()} />
       </Match>
       <Match when={variant() === 'compact'}>
-        <HealthScoreCompact {...props} />
+        <HealthScoreCompact {...props} score={score()} />
       </Match>
     </Switch>
   );

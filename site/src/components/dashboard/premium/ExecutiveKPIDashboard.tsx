@@ -6,6 +6,7 @@ import {
   createSignal,
   createEffect,
   onCleanup,
+  untrack,
 } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -61,7 +62,7 @@ const AnimatedCounter: Component<AnimatedCounterProps> = props => {
   createEffect(() => {
     const target = props.value;
     const startTime = Date.now();
-    const startValue = displayValue();
+    const startValue = untrack(() => displayValue());
     let animationFrame: number;
 
     const animate = () => {

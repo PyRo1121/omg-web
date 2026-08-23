@@ -20,13 +20,12 @@ const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 /** A normalized email address used as the site-session lookup key. */
 export const EmailAddress = Schema.String.pipe(
-  Schema.transform(
-    Schema.String.pipe(Schema.pattern(EMAIL_PATTERN), Schema.brand('EmailAddress')),
-    {
-      decode: (fromA: string) => fromA.trim().toLowerCase(),
-      encode: (toI: string) => toI,
-    }
-  )
+  Schema.transform(Schema.String, {
+    decode: (fromA: string) => fromA.trim().toLowerCase(),
+    encode: (toI: string) => toI,
+  }),
+  Schema.pattern(EMAIL_PATTERN),
+  Schema.brand('EmailAddress')
 );
 export type EmailAddress = Schema.Schema.Type<typeof EmailAddress>;
 

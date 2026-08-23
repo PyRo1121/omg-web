@@ -474,16 +474,6 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = pr
                 Estimated ${(totalPotentialMRR() * 0.6).toFixed(0)}/mo if 60% convert
               </p>
             </div>
-            <button
-              class="rounded-xl px-4 py-2 text-sm font-bold text-white transition-all hover:scale-105 hover:brightness-110"
-              style={{
-                background:
-                  'linear-gradient(135deg, var(--color-aurora-600), var(--color-aurora-400))',
-                'box-shadow': '0 0 15px rgba(16, 185, 129, 0.3)',
-              }}
-            >
-              Start Campaigns
-            </button>
           </div>
         </div>
       </Show>

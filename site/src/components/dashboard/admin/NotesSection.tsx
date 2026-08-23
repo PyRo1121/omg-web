@@ -19,7 +19,6 @@ interface NotesSectionProps {
   notes: ReadonlyArray<Note>;
   onAddNote: (content: string, noteType: string) => void;
   onDeleteNote: (noteId: string) => void;
-  onPinNote?: (noteId: string, isPinned: boolean) => void;
   isLoading?: boolean;
 }
 

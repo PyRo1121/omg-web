@@ -1,4 +1,4 @@
-import { createSignal, Show } from 'solid-js';
+import { createEffect, createSignal, Show } from 'solid-js';
 import { A, useNavigate } from '@solidjs/router';
 import { Title, Meta } from '@solidjs/meta';
 import { signUp, signIn, useSession } from '~/lib/auth-client';
@@ -16,9 +16,11 @@ export default function SignupPage() {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal('');
 
-  if (session()?.data?.user) {
-    navigate('/dashboard', { replace: true });
-  }
+  createEffect(() => {
+    if (session()?.data?.user) {
+      navigate('/dashboard', { replace: true });
+    }
+  });
 
   const handleSignup = async (e: Event) => {
     e.preventDefault();

@@ -287,6 +287,14 @@ function validateLicense(
     if (license.status !== 'active') {
       return invalidLicense(`License is ${license.status}`);
     }
+    // Expiry: an unparsable stored date must fail closed (NaN comparisons are
+    // always false, which would otherwise let the license live forever).
+    if (license.expires_at !== null && license.expires_at.length > 0) {
+      const expiresAt = new Date(license.expires_at);
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt < new Date()) {
+        return invalidLicense('License has expired');
+      }
+    }
     if (license.expires_at && new Date(license.expires_at) < new Date()) {
       return invalidLicense('License has expired');
     }
@@ -682,11 +690,11 @@ export async function handleReportUsage(request: Request, env: Env): Promise<Res
 
 /** The install ping payload sent by the CLI on first run. */
 const InstallPingBodySchema = Schema.Struct({
-  install_id: Schema.String.pipe(Schema.minLength(1)),
-  timestamp: Schema.optional(Schema.String),
-  version: Schema.optional(Schema.String),
-  platform: Schema.optional(Schema.String),
-  backend: Schema.optional(Schema.String),
+  install_id: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
+  timestamp: Schema.optional(Schema.String.pipe(Schema.maxLength(40))),
+  version: Schema.optional(Schema.String.pipe(Schema.maxLength(64))),
+  platform: Schema.optional(Schema.String.pipe(Schema.maxLength(64))),
+  backend: Schema.optional(Schema.String.pipe(Schema.maxLength(64))),
 });
 
 /**
@@ -708,16 +716,19 @@ export async function handleInstallPing(request: Request, env: Env): Promise<Res
   return respondFromEffect(
     Effect.gen(function* () {
       const body = yield* decodeJsonBody(request, InstallPingBodySchema);
-      const version = (body.version === undefined ? 'unknown' : body.version).slice(0, 64);
-      const platform = (body.platform === undefined ? 'unknown' : body.platform).slice(0, 64);
-      const backend = (body.backend === undefined ? 'unknown' : body.backend).slice(0, 64);
       yield* Effect.tryPromise({
         try: () =>
           env.DB.prepare(
             `INSERT OR IGNORE INTO install_stats (id, install_id, version, platform, backend, created_at)
              VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
           )
-            .bind(crypto.randomUUID(), body.install_id, version, platform, backend)
+            .bind(
+              crypto.randomUUID(),
+              body.install_id,
+              body.version ?? null,
+              body.platform ?? null,
+              body.backend ?? null
+            )
             .run(),
         catch: cause =>
           new LicenseHandlerError(

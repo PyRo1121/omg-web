@@ -1,4 +1,4 @@
-import { type Component, createEffect, createSignal, For } from 'solid-js';
+import { type Component, createEffect, createMemo, For } from 'solid-js';
 import { Terminal, Shield, Zap, Globe } from '../../ui/Icons';
 
 interface CommandEvent {
@@ -31,17 +31,13 @@ function getEventIcon(name: string) {
 
 export const CommandStream: Component<CommandStreamProps> = props => {
   let terminalRef: HTMLDivElement | undefined;
-  const [displayedEvents, setDisplayedEvents] = createSignal<CommandEvent[]>([]);
+  const displayedEvents = createMemo(() => props.events.toReversed().slice(-50));
 
   // Automatically scroll to bottom on new events
   createEffect(() => {
-    if (props.events.length > 0) {
-      // Sync events to local display state - reversed to show latest at bottom
-      setDisplayedEvents([...props.events].toReversed().slice(-50));
-
-      if (terminalRef) {
-        terminalRef.scrollTop = terminalRef.scrollHeight;
-      }
+    displayedEvents();
+    if (terminalRef) {
+      terminalRef.scrollTop = terminalRef.scrollHeight;
     }
   });
 

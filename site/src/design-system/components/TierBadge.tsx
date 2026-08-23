@@ -1,4 +1,5 @@
 import { type Component, Show, createMemo } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import { Crown, Sparkles, Users, Building2 } from 'lucide-solid';
 import { cn } from '~/lib/prelude';
 import type { Tier } from '~/lib/contracts/tier';
@@ -94,8 +95,6 @@ export const TierBadge: Component<TierBadgeProps> = props => {
   const showLabel = () => props.showLabel !== false;
   const variant = () => props.variant || 'badge';
 
-  const IconComponent = config().icon;
-
   if (variant() === 'card') {
     return (
       <div
@@ -110,7 +109,7 @@ export const TierBadge: Component<TierBadgeProps> = props => {
       >
         <div class="flex items-center gap-3">
           <div class={cn('rounded-xl p-2', config().bg)}>
-            <IconComponent size={size().icon + 4} class={config().color} />
+            <Dynamic component={config().icon} size={size().icon + 4} class={config().color} />
           </div>
           <div>
             <p class={cn('font-black tracking-wider uppercase', config().color)}>
@@ -138,7 +137,7 @@ export const TierBadge: Component<TierBadgeProps> = props => {
         )}
       >
         <Show when={showIcon()}>
-          <IconComponent size={size().icon} />
+          <Dynamic component={config().icon} size={size().icon} />
         </Show>
         <Show when={showLabel()}>
           <span>{config().label}</span>
@@ -161,7 +160,7 @@ export const TierBadge: Component<TierBadgeProps> = props => {
       )}
     >
       <Show when={showIcon()}>
-        <IconComponent size={size().icon} />
+        <Dynamic component={config().icon} size={size().icon} />
       </Show>
       <Show when={showLabel()}>
         <span>{config().label}</span>

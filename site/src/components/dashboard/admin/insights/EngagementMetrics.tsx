@@ -6,17 +6,9 @@ import {
   onCleanup,
   onMount,
   Show,
+  untrack,
 } from 'solid-js';
-import {
-  Users,
-  TrendingUp,
-  Calendar,
-  Zap,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
-  ChartColumn,
-} from 'lucide-solid';
+import { Users, TrendingUp, Calendar, Zap, ChartColumn } from 'lucide-solid';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -50,7 +42,7 @@ const AnimatedCounter: Component<AnimatedCounterProps> = props => {
   createEffect(() => {
     const target = props.value;
     const startTime = Date.now();
-    const startValue = displayValue();
+    const startValue = untrack(() => displayValue());
     let animationFrame: number;
 
     const animate = () => {
@@ -80,7 +72,6 @@ interface MetricCardProps {
   value: number;
   sublabel: string;
   accent: AccentType;
-  trend?: number;
   previousValue?: number;
   delay?: number;
 }
@@ -120,30 +111,6 @@ const MetricCard: Component<MetricCardProps> = props => {
   const config = () => accentConfig[props.accent];
   const IconComponent = props.icon;
 
-  const trendInfo = createMemo(() => {
-    if (props.trend === undefined) {
-      return null;
-    }
-    const isPositive = props.trend > 0;
-    const isNeutral = Math.abs(props.trend) < 0.5;
-    return {
-      value: props.trend,
-      isPositive,
-      isNeutral,
-      Icon: isNeutral ? Minus : isPositive ? ArrowUpRight : ArrowDownRight,
-      color: isNeutral
-        ? 'var(--color-nebula-500)'
-        : isPositive
-          ? 'var(--color-aurora-400)'
-          : 'var(--color-flare-400)',
-      bg: isNeutral
-        ? 'rgba(113, 113, 122, 0.1)'
-        : isPositive
-          ? 'rgba(16, 185, 129, 0.1)'
-          : 'rgba(239, 68, 68, 0.1)',
-    };
-  });
-
   return (
     <div
       class={cn(
@@ -180,23 +147,6 @@ const MetricCard: Component<MetricCardProps> = props => {
             <IconComponent size={18} class="text-white" />
           </div>
           <div class="flex items-center gap-2">
-            <Show when={trendInfo()}>
-              {info => {
-                const TrendIcon = info().Icon;
-                return (
-                  <div
-                    class="text-2xs flex items-center gap-0.5 rounded-full px-2 py-0.5 font-bold"
-                    style={{
-                      color: info().color,
-                      background: info().bg,
-                    }}
-                  >
-                    <TrendIcon size={10} />
-                    <span class="tabular-nums">{Math.abs(info().value).toFixed(1)}%</span>
-                  </div>
-                );
-              }}
-            </Show>
             <span
               class="text-2xs font-black tracking-widest uppercase"
               style={{ color: config().color }}
@@ -299,7 +249,6 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = props => {
           value={props.data.dau ?? 0}
           sublabel="Daily Active Users"
           accent="plasma"
-          trend={12.5}
           delay={0}
         />
 
@@ -309,7 +258,6 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = props => {
           value={props.data.wau ?? 0}
           sublabel="Weekly Active Users"
           accent="electric"
-          trend={8.2}
           delay={100}
         />
 
@@ -319,7 +267,6 @@ export const EngagementMetrics: Component<EngagementMetricsProps> = props => {
           value={props.data.mau ?? 0}
           sublabel="Monthly Active Users"
           accent="photon"
-          trend={15.7}
           delay={200}
         />
 
