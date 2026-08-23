@@ -1,4 +1,4 @@
-import { type Component, createMemo, createUniqueId, Show, For, splitProps } from 'solid-js';
+import { type Component, createMemo, createUniqueId, Show, splitProps } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -18,19 +18,6 @@ interface MetricRingProps {
   animated?: boolean;
   showValue?: boolean;
   trackColor?: string;
-  class?: string;
-}
-
-interface NestedRingData {
-  value: number;
-  label: string;
-  color?: string;
-}
-
-interface NestedMetricRingsProps {
-  rings: NestedRingData[];
-  size?: RingSize;
-  animated?: boolean;
   class?: string;
 }
 
@@ -172,7 +159,12 @@ export const MetricRing: Component<MetricRingProps> = props => {
       aria-label={local.label ? `${local.label}: ${normalizedValue()}%` : `${normalizedValue()}%`}
       {...others}
     >
-      <svg width={config().diameter} height={config().diameter} class="rotate-[-90deg]">
+      <svg
+        width={config().diameter}
+        height={config().diameter}
+        class="rotate-[-90deg]"
+        aria-hidden="true"
+      >
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stop-color={strokeColor()} stop-opacity="1" />
@@ -260,119 +252,6 @@ export const MetricRing: Component<MetricRingProps> = props => {
           </span>
         </Show>
       </div>
-    </div>
-  );
-};
-
-export const NestedMetricRings: Component<NestedMetricRingsProps> = props => {
-  const [local, others] = splitProps(props, ['rings', 'size', 'animated', 'class']);
-
-  const baseSize = createMemo(() => sizeConfig[local.size || 'lg'].diameter);
-  const strokeWidth = createMemo(() => sizeConfig[local.size || 'lg'].strokeWidth);
-
-  const ringGap = 4;
-  const ringGroupId = createUniqueId();
-
-  return (
-    <div
-      class={cn('relative inline-flex items-center justify-center', local.class)}
-      role="group"
-      aria-label="Nested metric rings"
-      {...others}
-    >
-      <svg width={baseSize()} height={baseSize()} class="rotate-[-90deg]">
-        <For each={local.rings}>
-          {(ring, index) => {
-            const ringRadius = createMemo(() => {
-              const outerRadius = (baseSize() - strokeWidth()) / 2;
-              return outerRadius - index() * (strokeWidth() + ringGap);
-            });
-
-            const circumference = createMemo(() => 2 * Math.PI * ringRadius());
-            const normalizedValue = createMemo(() => Math.max(0, Math.min(100, ring.value)));
-            const offset = createMemo(
-              () => circumference() - (normalizedValue() / 100) * circumference()
-            );
-            const color = createMemo(() => getScoreColor(normalizedValue(), ring.color));
-            const gradientId = `nested-ring-${ringGroupId}-${index()}`;
-
-            return (
-              <>
-                <defs>
-                  <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color={color()} stop-opacity="1" />
-                    <stop offset="100%" stop-color={color()} stop-opacity="0.6" />
-                  </linearGradient>
-                </defs>
-
-                <circle
-                  cx={baseSize() / 2}
-                  cy={baseSize() / 2}
-                  r={ringRadius()}
-                  fill="none"
-                  stroke="var(--ring-track-color, var(--color-void-700))"
-                  stroke-width={strokeWidth() - 1}
-                  class="opacity-60"
-                />
-
-                <circle
-                  cx={baseSize() / 2}
-                  cy={baseSize() / 2}
-                  r={ringRadius()}
-                  fill="none"
-                  stroke={`url(#${gradientId})`}
-                  stroke-width={strokeWidth() - 1}
-                  stroke-linecap="round"
-                  stroke-dasharray={`${circumference()}`}
-                  stroke-dashoffset={local.animated ? circumference() : offset()}
-                  class={cn(
-                    'ease-smooth transition-all duration-1000',
-                    local.animated && 'animate-gauge-fill'
-                  )}
-                  style={{
-                    '--gauge-circumference': `${circumference()}`,
-                    '--gauge-offset': `${offset()}`,
-                    'animation-delay': `${index() * 150}ms`,
-                  }}
-                />
-              </>
-            );
-          }}
-        </For>
-      </svg>
-
-      <div class="absolute inset-0 flex flex-col items-center justify-center">
-        <Show when={local.rings.length > 0}>
-          <span class="font-display text-lg font-black text-white tabular-nums">
-            {Math.round(local.rings.reduce((sum, r) => sum + r.value, 0) / local.rings.length)}
-          </span>
-          <span class="text-2xs text-nebula-500 font-medium tracking-wider uppercase">avg</span>
-        </Show>
-      </div>
-    </div>
-  );
-};
-
-export const MetricRingLegend: Component<{
-  rings: NestedRingData[];
-  class?: string;
-}> = props => {
-  return (
-    <div class={cn('flex flex-col gap-2', props.class)}>
-      <For each={props.rings}>
-        {ring => {
-          const color = getScoreColor(ring.value, ring.color);
-          return (
-            <div class="flex items-center gap-2">
-              <div class="h-2 w-2 rounded-full" style={{ 'background-color': color }} />
-              <span class="text-nebula-400 flex-1 text-xs font-medium">{ring.label}</span>
-              <span class="text-xs font-bold tabular-nums" style={{ color }}>
-                {Math.round(ring.value)}%
-              </span>
-            </div>
-          );
-        }}
-      </For>
     </div>
   );
 };

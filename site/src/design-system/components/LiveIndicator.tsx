@@ -1,44 +1,11 @@
 import type { Component } from 'solid-js';
-import { createSignal, Show, For, splitProps } from 'solid-js';
+import { createSignal, Show, For } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-interface SimpleLiveIndicatorProps {
-  isLive: boolean;
-  label?: string;
-  class?: string;
-}
-
-export const SimpleLiveIndicator: Component<SimpleLiveIndicatorProps> = props => {
-  const [local, others] = splitProps(props, ['isLive', 'label', 'class']);
-
-  return (
-    <Show when={local.isLive}>
-      <div
-        class={cn(
-          'inline-flex items-center gap-2 rounded-full font-bold tracking-wider uppercase',
-          'bg-aurora-500/10 text-aurora-400 px-2.5 py-1 text-xs',
-          'animate-pulse-glow',
-          local.class
-        )}
-        role="status"
-        aria-live="polite"
-        aria-label={local.label || 'Live'}
-        {...others}
-      >
-        <div class="relative">
-          <div class="bg-aurora-500 h-2 w-2 rounded-full" />
-          <div class="bg-aurora-500 absolute inset-0 h-2 w-2 animate-ping rounded-full opacity-75" />
-        </div>
-        <span>{local.label || 'Live'}</span>
-      </div>
-    </Show>
-  );
-};
 
 interface LiveIndicatorProps {
   label?: string;

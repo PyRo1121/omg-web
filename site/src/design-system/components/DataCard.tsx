@@ -1,4 +1,4 @@
-import type { Component, JSX, ParentComponent } from 'solid-js';
+import type { Component, JSX } from 'solid-js';
 import { Show, splitProps } from 'solid-js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -200,25 +200,6 @@ export const DataCard: Component<DataCardProps> = props => {
   );
 };
 
-interface MetricGridProps {
-  columns?: 2 | 3 | 4;
-  class?: string;
-}
-
-export const MetricGrid: ParentComponent<MetricGridProps> = props => {
-  const colClasses = {
-    2: 'grid-cols-1 md:grid-cols-2',
-    3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
-    4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4',
-  };
-
-  return (
-    <div class={cn('grid gap-6', colClasses[props.columns || 4], props.class)}>
-      {props.children}
-    </div>
-  );
-};
-
 interface SparklineCardProps extends DataCardProps {
   data: number[];
   sparklineColor?: string;
@@ -280,26 +261,6 @@ export const SparklineCard: Component<SparklineCardProps> = props => {
             stroke-linejoin="round"
           />
         </svg>
-      </div>
-    </DataCard>
-  );
-};
-
-interface ComparisonCardProps extends DataCardProps {
-  previousValue: string | number;
-  previousLabel?: string;
-}
-
-export const ComparisonCard: Component<ComparisonCardProps> = props => {
-  return (
-    <DataCard {...props}>
-      <div class="mt-4 border-t border-white/5 pt-4">
-        <div class="flex items-center justify-between">
-          <span class="text-nebula-500 text-xs font-medium">
-            {props.previousLabel || 'Previous period'}
-          </span>
-          <span class="text-nebula-400 text-sm font-bold tabular-nums">{props.previousValue}</span>
-        </div>
       </div>
     </DataCard>
   );
