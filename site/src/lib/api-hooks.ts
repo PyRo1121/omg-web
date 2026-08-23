@@ -1,244 +1,160 @@
-import { createQuery, createMutation, useQueryClient } from '@tanstack/solid-query';
+import { createMutation, createQuery, useQueryClient } from '@tanstack/solid-query';
 import * as api from './api';
 
+type QueryOptions = {
+  enabled?: boolean;
+  staleTime?: number;
+  refetchInterval?: number;
+};
+
+/** Standard createQuery wrapper bound to an API loader and its static key parts. */
+function apiQuery<T>(
+  queryKey: ReadonlyArray<unknown>,
+  queryFn: () => Promise<T>,
+  options?: QueryOptions
+) {
+  return createQuery(() => ({ queryKey, queryFn, ...options }));
+}
+
+/**
+ * Standard createMutation wrapper that invalidates the given query keys
+ * (derived from the mutation variables) on success.
+ */
+function invalidatingMutation<TData, TVariables>(
+  mutationFn: (variables: TVariables) => Promise<TData>,
+  invalidatedKeys: (variables: TVariables) => ReadonlyArray<ReadonlyArray<unknown>>
+) {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn,
+    onSuccess: (_data, variables) => {
+      for (const queryKey of invalidatedKeys(variables)) {
+        queryClient.invalidateQueries({ queryKey: [...queryKey] });
+      }
+    },
+  }));
+}
+
 // Reusable Query Hooks
-export function useTeamData() {
-  return createQuery(() => ({
-    queryKey: ['team-data'],
-    queryFn: () => api.getTeamMembers(),
-  }));
-}
+export const useTeamData = () => apiQuery(['team-data'], api.getTeamMembers);
 
-export function useTeamPolicies() {
-  return createQuery(() => ({
-    queryKey: ['team-policies'],
-    queryFn: () => api.getTeamPolicies(),
-  }));
-}
+export const useTeamPolicies = () => apiQuery(['team-policies'], api.getTeamPolicies);
 
-export function useNotificationSettings() {
-  return createQuery(() => ({
-    queryKey: ['notification-settings'],
-    queryFn: () => api.getNotificationSettings(),
-  }));
-}
+export const useNotificationSettings = () =>
+  apiQuery(['notification-settings'], api.getNotificationSettings);
 
-export function useTeamAuditLogs(params?: { limit?: number; offset?: number }) {
-  return createQuery(() => ({
-    queryKey: ['team-audit-logs', params],
-    queryFn: () => api.getTeamAuditLogs(params),
-  }));
-}
+export const useTeamAuditLogs = (params?: { limit?: number; offset?: number }) =>
+  apiQuery(['team-audit-logs', params], () => api.getTeamAuditLogs(params));
 
-export function useAdminEvents() {
-  return createQuery(() => ({
-    queryKey: ['admin-events'],
-    queryFn: () => api.getAdminActivity(),
-  }));
-}
+export const useAdminEvents = () => apiQuery(['admin-events'], api.getAdminActivity);
 
-export function useAdminDashboard() {
-  return createQuery(() => ({
-    queryKey: ['admin-dashboard'],
-    queryFn: () => api.getAdminDashboard(),
-  }));
-}
+export const useAdminDashboard = () => apiQuery(['admin-dashboard'], api.getAdminDashboard);
 
-export function useAdminFirehose(limit = 50) {
-  return createQuery(() => ({
-    queryKey: ['admin-firehose', limit],
-    queryFn: () => api.getAdminFirehose(limit),
+export const useAdminFirehose = (limit = 50) =>
+  apiQuery(['admin-firehose', limit], () => api.getAdminFirehose(limit), {
     refetchInterval: 5000,
-  }));
-}
+  });
 
 // Mutations
-export function useRevokeMachine() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: (machineId: string) => api.revokeMachine(machineId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-data'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    },
-  }));
-}
+export const useRevokeMachine = () =>
+  invalidatingMutation(
+    (machineId: string) => api.revokeMachine(machineId),
+    () => [['team-data'], ['dashboard']]
+  );
 
-export function useAdminRevenue() {
-  return createQuery(() => ({
-    queryKey: ['admin-revenue'],
-    queryFn: () => api.getAdminRevenue(),
-  }));
-}
+export const useAdminRevenue = () => apiQuery(['admin-revenue'], api.getAdminRevenue);
 
-export function useAdminAnalytics() {
-  return createQuery(() => ({
-    queryKey: ['admin-analytics'],
-    queryFn: () => api.getAdminAnalytics(),
-  }));
-}
+export const useAdminAnalytics = () => apiQuery(['admin-analytics'], api.getAdminAnalytics);
 
-export function useAdminAuditLog(page = 1, limit = 50, action = '') {
-  return createQuery(() => ({
-    queryKey: ['admin-audit-log', page, limit, action],
-    queryFn: () => api.getAdminAuditLog(page, limit, action),
-  }));
-}
+export const useAdminAuditLog = (page = 1, limit = 50, action = '') =>
+  apiQuery(['admin-audit-log', page, limit, action], () =>
+    api.getAdminAuditLog(page, limit, action)
+  );
 
-export function useAdminCRMUsers(page = 1, limit = 50, search = '') {
-  return createQuery(() => ({
-    queryKey: ['admin-crm-users', page, limit, search],
-    queryFn: () => api.getAdminUsers(page, limit, search),
-  }));
-}
+export const useAdminCRMUsers = (page = 1, limit = 50, search = '') =>
+  apiQuery(['admin-crm-users', page, limit, search], () => api.getAdminUsers(page, limit, search));
 
-export function useAdminUserDetail(userId: string) {
-  return createQuery(() => ({
-    queryKey: ['admin-user-detail', userId],
-    queryFn: () => api.getAdminUserDetail(userId),
+export const useAdminUserDetail = (userId: string) =>
+  apiQuery(['admin-user-detail', userId], () => api.getAdminUserDetail(userId), {
     enabled: Boolean(userId),
-  }));
-}
+  });
 
-export function useAdminCohorts() {
-  return createQuery(() => ({
-    queryKey: ['admin-cohorts'],
-    queryFn: () => api.getAdminCohorts(),
-  }));
-}
+export const useAdminCohorts = () => apiQuery(['admin-cohorts'], api.getAdminCohorts);
 
-export function useAdminNotes(customerId: string) {
-  return createQuery(() => ({
-    queryKey: ['admin-notes', customerId],
-    queryFn: () => api.getAdminNotes(customerId),
+export const useAdminNotes = (customerId: string) =>
+  apiQuery(['admin-notes', customerId], () => api.getAdminNotes(customerId), {
     enabled: Boolean(customerId),
-  }));
-}
+  });
 
-export function useCreateNote() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: (params: { customerId: string; content: string; noteType?: string }) =>
+export const useCreateNote = () =>
+  invalidatingMutation(
+    (params: { customerId: string; content: string; noteType?: string }) =>
       api.createAdminNote(params.customerId, params.content, params.noteType),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-notes', variables.customerId] });
-    },
-  }));
-}
+    params => [['admin-notes', params.customerId]]
+  );
 
-export function useUpdateNote() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: (params: {
-      noteId: string;
-      customerId: string;
-      content?: string;
-      isPinned?: boolean;
-    }) =>
+export const useUpdateNote = () =>
+  invalidatingMutation(
+    (params: { noteId: string; customerId: string; content?: string; isPinned?: boolean }) =>
       api.updateAdminNote(params.noteId, { content: params.content, isPinned: params.isPinned }),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-notes', variables.customerId] });
-    },
-  }));
-}
+    params => [['admin-notes', params.customerId]]
+  );
 
-export function useDeleteNote() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: (params: { noteId: string; customerId: string }) =>
-      api.deleteAdminNote(params.noteId),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-notes', variables.customerId] });
-    },
-  }));
-}
+export const useDeleteNote = () =>
+  invalidatingMutation(
+    (params: { noteId: string; customerId: string }) => api.deleteAdminNote(params.noteId),
+    params => [['admin-notes', params.customerId]]
+  );
 
-export function useAdminTags() {
-  return createQuery(() => ({
-    queryKey: ['admin-tags'],
-    queryFn: () => api.getAdminTags(),
-  }));
-}
+export const useAdminTags = () => apiQuery(['admin-tags'], api.getAdminTags);
 
-export function useAdminCustomerTags(customerId: string) {
-  return createQuery(() => ({
-    queryKey: ['admin-customer-tags', customerId],
-    queryFn: () => api.getAdminCustomerTags(customerId),
+export const useAdminCustomerTags = (customerId: string) =>
+  apiQuery(['admin-customer-tags', customerId], () => api.getAdminCustomerTags(customerId), {
     enabled: Boolean(customerId),
-  }));
-}
+  });
 
-export function useCreateTag() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: (params: { name: string; color?: string; description?: string }) =>
+export const useCreateTag = () =>
+  invalidatingMutation(
+    (params: { name: string; color?: string; description?: string }) =>
       api.createAdminTag(params.name, params.color, params.description),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-tags'] });
-    },
-  }));
-}
+    () => [['admin-tags']]
+  );
 
-export function useAssignTag() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: (params: { customerId: string; tagId: string }) =>
+export const useAssignTag = () =>
+  invalidatingMutation(
+    (params: { customerId: string; tagId: string }) =>
       api.assignAdminTag(params.customerId, params.tagId),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-customer-tags', variables.customerId] });
-      queryClient.invalidateQueries({ queryKey: ['admin-tags'] });
-    },
-  }));
-}
+    params => [['admin-customer-tags', params.customerId], ['admin-tags']]
+  );
 
-export function useRemoveTag() {
-  const queryClient = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: (params: { customerId: string; tagId: string }) =>
+export const useRemoveTag = () =>
+  invalidatingMutation(
+    (params: { customerId: string; tagId: string }) =>
       api.removeAdminTag(params.customerId, params.tagId),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-customer-tags', variables.customerId] });
-      queryClient.invalidateQueries({ queryKey: ['admin-tags'] });
-    },
-  }));
-}
+    params => [['admin-customer-tags', params.customerId], ['admin-tags']]
+  );
 
-export function useAdminCustomerHealth(customerId: string) {
-  return createQuery(() => ({
-    queryKey: ['admin-customer-health', customerId],
-    queryFn: () => api.getAdminCustomerHealth(customerId),
+export const useAdminCustomerHealth = (customerId: string) =>
+  apiQuery(['admin-customer-health', customerId], () => api.getAdminCustomerHealth(customerId), {
     enabled: Boolean(customerId),
-  }));
-}
+  });
 
-export function useAdminAdvancedMetrics() {
-  return createQuery(() => ({
-    queryKey: ['admin-advanced-metrics'],
-    queryFn: () => api.getAdminAdvancedMetrics(),
+export const useAdminAdvancedMetrics = () =>
+  apiQuery(['admin-advanced-metrics'], api.getAdminAdvancedMetrics, {
     staleTime: 5 * 60 * 1000,
-  }));
-}
+  });
 
-export function useSiteGeoAnalytics(days = 30) {
-  return createQuery(() => ({
-    queryKey: ['site-geo-analytics', days],
-    queryFn: () => api.getSiteGeoAnalytics(days),
+export const useSiteGeoAnalytics = (days = 30) =>
+  apiQuery(['site-geo-analytics', days], () => api.getSiteGeoAnalytics(days), {
     staleTime: 60 * 1000,
-  }));
-}
+  });
 
-export function useSiteRealtimeAnalytics() {
-  return createQuery(() => ({
-    queryKey: ['site-realtime-analytics'],
-    queryFn: () => api.getSiteRealtimeAnalytics(),
+export const useSiteRealtimeAnalytics = () =>
+  apiQuery(['site-realtime-analytics'], api.getSiteRealtimeAnalytics, {
     refetchInterval: 10000,
-  }));
-}
+  });
 
-export function useSiteAnalyticsOverview(days = 30) {
-  return createQuery(() => ({
-    queryKey: ['site-analytics-overview', days],
-    queryFn: () => api.getSiteAnalyticsOverview(days),
+export const useSiteAnalyticsOverview = (days = 30) =>
+  apiQuery(['site-analytics-overview', days], () => api.getSiteAnalyticsOverview(days), {
     staleTime: 60 * 1000,
-  }));
-}
+  });

@@ -19,8 +19,11 @@ import {
   BillingCustomerRowSchema,
   customerIsAdmin,
   IdRowSchema,
+  type IdRow,
   isInvalidExtraRow,
+  optionalRowValue,
   readOptionalExtraRow,
+  type OptionalExtraRow,
 } from '../contracts/d1-extras';
 import {
   CheckoutRequestSchema,
@@ -62,6 +65,20 @@ async function readStripeJson<S extends Schema.Schema.AnyNoContext>(
   return decoded.value;
 }
 
+/** Fetch a Stripe API resource and decode its JSON payload; null when invalid. */
+async function fetchStripeJson<S extends Schema.Schema.AnyNoContext>(
+  apiKey: string,
+  url: string | URL,
+  schema: S,
+  reason: string,
+  init: RequestInit = {}
+): Promise<Schema.Schema.Type<S> | null> {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${apiKey}`);
+  const response = await fetch(url, { ...init, headers });
+  return readStripeJson(response, schema, reason);
+}
+
 function billingCatalog(env: Env): BillingCatalog {
   return {
     proPriceId: env.STRIPE_PRO_PRICE_ID,
@@ -69,8 +86,106 @@ function billingCatalog(env: Env): BillingCatalog {
   };
 }
 
+/** Authenticated session, or the error response that denies the caller. */
+type SessionAuth = NonNullable<Awaited<ReturnType<typeof validateSession>>>;
+
+/** Authenticate the bearer token; Response denies the caller. */
+async function authenticate(request: Request, env: Env): Promise<SessionAuth | Response> {
+  const token = getAuthToken(request);
+  if (!token) return errorResponse('Unauthorized', 401);
+
+  const auth = await validateSession(env.DB, token);
+  if (!auth) return errorResponse('Invalid session', 401);
+  return auth;
+}
+
+/** Require an admin session plus a configured Stripe key; Response denies the caller. */
+async function requireAdmin(request: Request, env: Env): Promise<SessionAuth | Response> {
+  const authOrDenied = await authenticate(request, env);
+  if (authOrDenied instanceof Response) return authOrDenied;
+
+  const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
+    .bind(authOrDenied.user.id)
+    .first();
+
+  if (!(await customerIsAdmin(adminCheck))) {
+    return errorResponse('Unauthorized', 403);
+  }
+  if (!env.STRIPE_SECRET_KEY) {
+    return errorResponse('Billing is not configured', 503);
+  }
+  return authOrDenied;
+}
+
 function lastStripeResourceId(resources: ReadonlyArray<{ readonly id: string }>): string | null {
   return resources.at(-1)?.id ?? null;
+}
+
+/**
+ * Look up a `customers.id` by Stripe customer id without treating malformed
+ * rows as missing.
+ */
+async function findCustomerIdByStripeCustomer(
+  db: D1Database,
+  stripeCustomerId: string | null | undefined
+): Promise<OptionalExtraRow<IdRow>> {
+  const customerRow = await db
+    .prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
+    .bind(stripeCustomerId)
+    .first();
+  return readOptionalExtraRow(
+    IdRowSchema,
+    'Billing customer id row has an invalid shape',
+    customerRow
+  );
+}
+
+/** Shape shared by every paginated Stripe list endpoint. */
+type StripeListEnvelope = {
+  readonly data: ReadonlyArray<{ readonly id: string }>;
+  readonly has_more: boolean;
+};
+
+/**
+ * Walk every page of a paginated Stripe list endpoint, invoking `onPage` once
+ * per decoded page before advancing the cursor. Returns a failure message when
+ * a page has an invalid shape or the pagination cursor is missing, else null.
+ */
+async function pageStripeList<
+  S extends Schema.Schema.AnyNoContext & { readonly Type: StripeListEnvelope },
+>(
+  apiKey: string,
+  path: string,
+  extraParams: ReadonlyArray<readonly [string, string]>,
+  label: string,
+  schema: S,
+  onPage: (page: Schema.Schema.Type<S>) => Promise<void>
+): Promise<string | null> {
+  let startingAfter: string | undefined;
+  for (;;) {
+    const url = URL.parse(`https://api.stripe.com/v1/${path}`);
+    if (url === null) {
+      return `Stripe ${label} list URL is invalid`;
+    }
+    url.searchParams.set('limit', '100');
+    for (const [key, value] of extraParams) url.searchParams.set(key, value);
+    if (startingAfter) url.searchParams.set('starting_after', startingAfter);
+
+    const page = await fetchStripeJson(
+      apiKey,
+      url,
+      schema,
+      `Stripe ${label} list has an invalid shape`
+    );
+    if (!page) return `Stripe ${label} list has an invalid shape`;
+
+    await onPage(page);
+
+    if (!page.has_more) return null;
+    const cursor = lastStripeResourceId(page.data);
+    if (cursor === null) return `Stripe ${label} pagination cursor is missing`;
+    startingAfter = cursor;
+  }
 }
 
 type StripeEventClaim = 'claimed' | 'processed' | 'busy' | 'invalid';
@@ -228,11 +343,9 @@ async function verifyStripeSignature(
 }
 
 export async function handleCreateCheckout(request: Request, env: Env): Promise<Response> {
-  const token = getAuthToken(request);
-  if (!token) return errorResponse('Unauthorized', 401);
-
-  const auth = await validateSession(env.DB, token);
-  if (!auth) return errorResponse('Invalid session', 401);
+  const authOrDenied = await authenticate(request, env);
+  if (authOrDenied instanceof Response) return authOrDenied;
+  const auth = authOrDenied;
 
   const decoded = await Effect.runPromiseExit(decodeJsonBody(request, CheckoutRequestSchema));
   if (Exit.isFailure(decoded)) {
@@ -254,26 +367,23 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     return errorResponse('Billing is not configured', 503);
   }
 
-  const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      mode: 'subscription',
-      customer_email: email,
-      'line_items[0][price]': priceId,
-      'line_items[0][quantity]': '1',
-      success_url: 'https://omg.latham.cloud/dashboard?success=true',
-      cancel_url: 'https://omg.latham.cloud/#pricing',
-    }),
-  });
-
-  const session = await readStripeJson(
-    stripeResponse,
+  const session = await fetchStripeJson(
+    env.STRIPE_SECRET_KEY,
+    'https://api.stripe.com/v1/checkout/sessions',
     StripeCheckoutSessionSchema,
-    'Stripe checkout session has an invalid shape'
+    'Stripe checkout session has an invalid shape',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        mode: 'subscription',
+        customer_email: email,
+        'line_items[0][price]': priceId,
+        'line_items[0][quantity]': '1',
+        success_url: 'https://omg.latham.cloud/dashboard?success=true',
+        cancel_url: 'https://omg.latham.cloud/#pricing',
+      }),
+    }
   );
   if (!session) {
     return errorResponse('Failed to create checkout session', 500);
@@ -297,11 +407,9 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
 }
 
 export async function handleBillingPortal(request: Request, env: Env): Promise<Response> {
-  const token = getAuthToken(request);
-  if (!token) return errorResponse('Unauthorized', 401);
-
-  const auth = await validateSession(env.DB, token);
-  if (!auth) return errorResponse('Invalid session', 401);
+  const authOrDenied = await authenticate(request, env);
+  if (authOrDenied instanceof Response) return authOrDenied;
+  const auth = authOrDenied;
 
   const decoded = await Effect.runPromiseExit(decodeJsonBody(request, PortalBodySchema));
   if (Exit.isFailure(decoded)) {
@@ -339,22 +447,19 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
     return errorResponse('Billing is not configured', 503);
   }
 
-  const portalResponse = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      customer: stripeCustomerId,
-      return_url: 'https://omg.latham.cloud/dashboard?portal=closed',
-    }),
-  });
-
-  const session = await readStripeJson(
-    portalResponse,
+  const session = await fetchStripeJson(
+    env.STRIPE_SECRET_KEY,
+    'https://api.stripe.com/v1/billing_portal/sessions',
     StripePortalSessionSchema,
-    'Stripe portal session has an invalid shape'
+    'Stripe portal session has an invalid shape',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        customer: stripeCustomerId,
+        return_url: 'https://omg.latham.cloud/dashboard?portal=closed',
+      }),
+    }
   );
   if (!session) {
     return errorResponse('Failed to create portal session');
@@ -437,22 +542,12 @@ export async function handleStripeWebhook(
 
     case 'invoice.paid': {
       const invoice = event.data.object;
-      const customerId = invoice.customer;
 
-      const customerRow = await env.DB.prepare(
-        'SELECT id FROM customers WHERE stripe_customer_id = ?'
-      )
-        .bind(customerId)
-        .first();
-      const customerLookup = await readOptionalExtraRow(
-        IdRowSchema,
-        'Billing customer id row has an invalid shape',
-        customerRow
-      );
+      const customerLookup = await findCustomerIdByStripeCustomer(env.DB, invoice.customer);
       if (customerLookup._tag === 'invalid') {
         return new Response('Failed to load customer', { status: 500 });
       }
-      const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
+      const customer = optionalRowValue(customerLookup);
 
       if (customer !== undefined) {
         // Store invoice in database for revenue tracking
@@ -479,22 +574,12 @@ export async function handleStripeWebhook(
 
     case 'invoice.payment_failed': {
       const invoice = event.data.object;
-      const customerId = invoice.customer;
 
-      const customerRow = await env.DB.prepare(
-        'SELECT id FROM customers WHERE stripe_customer_id = ?'
-      )
-        .bind(customerId)
-        .first();
-      const customerLookup = await readOptionalExtraRow(
-        IdRowSchema,
-        'Billing customer id row has an invalid shape',
-        customerRow
-      );
+      const customerLookup = await findCustomerIdByStripeCustomer(env.DB, invoice.customer);
       if (customerLookup._tag === 'invalid') {
         return new Response('Failed to load customer', { status: 500 });
       }
-      const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
+      const customer = optionalRowValue(customerLookup);
 
       if (customer !== undefined) {
         // Preserve the historical payment signal without mutating current subscription state.
@@ -571,23 +656,9 @@ export async function handleStripeWebhook(
  * This is useful for initial setup or data recovery
  */
 export async function handleAdminStripeSync(request: Request, env: Env): Promise<Response> {
-  const token = getAuthToken(request);
-  if (!token) return errorResponse('Unauthorized', 401);
-
-  const auth = await validateSession(env.DB, token);
-  if (!auth) return errorResponse('Invalid session', 401);
-
-  // Check admin status
-  const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
-    .bind(auth.user.id)
-    .first();
-
-  if (!(await customerIsAdmin(adminCheck))) {
-    return errorResponse('Unauthorized', 403);
-  }
-  if (!env.STRIPE_SECRET_KEY) {
-    return errorResponse('Billing is not configured', 503);
-  }
+  const authOrDenied = await requireAdmin(request, env);
+  if (authOrDenied instanceof Response) return authOrDenied;
+  const auth = authOrDenied;
 
   const errors: string[] = [];
   const results = {
@@ -599,201 +670,126 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
 
   try {
     // Sync customers
-    let hasMore = true;
-    let startingAfter: string | undefined;
-
-    while (hasMore) {
-      const url = new URL('https://api.stripe.com/v1/customers');
-      url.searchParams.set('limit', '100');
-      if (startingAfter) url.searchParams.set('starting_after', startingAfter);
-
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
-      });
-      const data = await readStripeJson(
-        response,
-        StripeCustomerListSchema,
-        'Stripe customer list has an invalid shape'
-      );
-      if (!data) {
-        results.errors.push('Stripe customer list has an invalid shape');
-        break;
-      }
-
-      for (const customer of data.data) {
-        try {
-          await env.DB.prepare(
-            `INSERT OR REPLACE INTO customers (id, stripe_customer_id, email, company, created_at)
-             VALUES (COALESCE((SELECT id FROM customers WHERE stripe_customer_id = ? OR email = ?), ?), ?, ?, ?, CURRENT_TIMESTAMP)`
-          )
-            .bind(
-              customer.id,
-              customer.email,
-              crypto.randomUUID(),
-              customer.id,
-              customer.email,
-              customer.metadata?.company
-            )
-            .run();
-          results.customers_synced++;
-        } catch (error: unknown) {
-          results.errors.push(
-            `Customer ${customer.email}: ${decodeThrownMessage(error) || 'unknown error'}`
-          );
-        }
-      }
-
-      hasMore = data.has_more;
-      const lastCustomerId = lastStripeResourceId(data.data);
-      if (hasMore && lastCustomerId === null) {
-        results.errors.push('Stripe customer pagination cursor is missing');
-        break;
-      }
-      startingAfter = lastCustomerId ?? undefined;
-    }
-
-    // Sync subscriptions
-    hasMore = true;
-    startingAfter = undefined;
-
-    while (hasMore) {
-      const url = new URL('https://api.stripe.com/v1/subscriptions');
-      url.searchParams.set('limit', '100');
-      url.searchParams.set('status', 'all');
-      if (startingAfter) url.searchParams.set('starting_after', startingAfter);
-
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
-      });
-      const data = await readStripeJson(
-        response,
-        StripeSubscriptionListSchema,
-        'Stripe subscription list has an invalid shape'
-      );
-      if (!data) {
-        results.errors.push('Stripe subscription list has an invalid shape');
-        break;
-      }
-
-      for (const sub of data.data) {
-        try {
-          const customerRow = await env.DB.prepare(
-            'SELECT id FROM customers WHERE stripe_customer_id = ?'
-          )
-            .bind(sub.customer)
-            .first();
-          const customerLookup = await readOptionalExtraRow(
-            IdRowSchema,
-            'Billing customer id row has an invalid shape',
-            customerRow
-          );
-          if (customerLookup._tag === 'invalid') {
-            results.errors.push(`Subscription ${sub.id}: customer row has an invalid shape`);
-            continue;
-          }
-          const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
-
-          if (customer !== undefined) {
-            await applyStripeSubscriptionProjection(env.DB, customer.id, sub, billingCatalog(env));
-            results.subscriptions_synced++;
-          }
-        } catch (error: unknown) {
-          results.errors.push(
-            `Subscription ${sub.id}: ${decodeThrownMessage(error) || 'unknown error'}`
-          );
-        }
-      }
-
-      hasMore = data.has_more;
-      const lastSubscriptionId = lastStripeResourceId(data.data);
-      if (hasMore && lastSubscriptionId === null) {
-        results.errors.push('Stripe subscription pagination cursor is missing');
-        break;
-      }
-      startingAfter = lastSubscriptionId ?? undefined;
-    }
-
-    // Sync invoices (last 12 months)
-    hasMore = true;
-    startingAfter = undefined;
-    const twelveMonthsAgo = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
-
-    while (hasMore) {
-      const url = new URL('https://api.stripe.com/v1/invoices');
-      url.searchParams.set('limit', '100');
-      url.searchParams.set('created[gte]', twelveMonthsAgo.toString());
-      if (startingAfter) url.searchParams.set('starting_after', startingAfter);
-
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
-      });
-      const data = await readStripeJson(
-        response,
-        StripeInvoiceListSchema,
-        'Stripe invoice list has an invalid shape'
-      );
-      if (!data) {
-        results.errors.push('Stripe invoice list has an invalid shape');
-        break;
-      }
-
-      for (const invoice of data.data) {
-        if (invoice.status !== 'paid') continue;
-
-        try {
-          const customerRow = await env.DB.prepare(
-            'SELECT id FROM customers WHERE stripe_customer_id = ?'
-          )
-            .bind(invoice.customer)
-            .first();
-          const customerLookup = await readOptionalExtraRow(
-            IdRowSchema,
-            'Billing customer id row has an invalid shape',
-            customerRow
-          );
-          if (customerLookup._tag === 'invalid') {
-            results.errors.push(`Invoice ${invoice.id}: customer row has an invalid shape`);
-            continue;
-          }
-          const customer = customerLookup._tag === 'present' ? customerLookup.value : undefined;
-
-          if (customer !== undefined) {
+    const customersFailure = await pageStripeList(
+      env.STRIPE_SECRET_KEY,
+      'customers',
+      [],
+      'customer',
+      StripeCustomerListSchema,
+      async page => {
+        for (const customer of page.data) {
+          try {
             await env.DB.prepare(
-              `INSERT OR REPLACE INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
-               VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), datetime(?, 'unixepoch'))`
+              `INSERT OR REPLACE INTO customers (id, stripe_customer_id, email, company, created_at)
+               VALUES (COALESCE((SELECT id FROM customers WHERE stripe_customer_id = ? OR email = ?), ?), ?, ?, ?, CURRENT_TIMESTAMP)`
             )
               .bind(
-                invoice.id,
+                customer.id,
+                customer.email,
                 crypto.randomUUID(),
                 customer.id,
-                invoice.id,
-                invoice.amount_paid,
-                invoice.currency,
-                invoice.status,
-                invoice.hosted_invoice_url,
-                invoice.invoice_pdf,
-                invoice.period_start,
-                invoice.period_end,
-                invoice.created
+                customer.email,
+                customer.metadata?.company
               )
               .run();
-            results.invoices_synced++;
+            results.customers_synced++;
+          } catch (error: unknown) {
+            results.errors.push(
+              `Customer ${customer.email}: ${decodeThrownMessage(error) || 'unknown error'}`
+            );
           }
-        } catch (error: unknown) {
-          results.errors.push(
-            `Invoice ${invoice.id}: ${decodeThrownMessage(error) || 'unknown error'}`
-          );
         }
       }
+    );
+    if (customersFailure !== null) results.errors.push(customersFailure);
 
-      hasMore = data.has_more;
-      const lastInvoiceId = lastStripeResourceId(data.data);
-      if (hasMore && lastInvoiceId === null) {
-        results.errors.push('Stripe invoice pagination cursor is missing');
-        break;
+    // Sync subscriptions
+    const subscriptionsFailure = await pageStripeList(
+      env.STRIPE_SECRET_KEY,
+      'subscriptions',
+      [['status', 'all']],
+      'subscription',
+      StripeSubscriptionListSchema,
+      async page => {
+        for (const sub of page.data) {
+          try {
+            const customerLookup = await findCustomerIdByStripeCustomer(env.DB, sub.customer);
+            if (customerLookup._tag === 'invalid') {
+              results.errors.push(`Subscription ${sub.id}: customer row has an invalid shape`);
+              continue;
+            }
+            const customer = optionalRowValue(customerLookup);
+
+            if (customer !== undefined) {
+              await applyStripeSubscriptionProjection(
+                env.DB,
+                customer.id,
+                sub,
+                billingCatalog(env)
+              );
+              results.subscriptions_synced++;
+            }
+          } catch (error: unknown) {
+            results.errors.push(
+              `Subscription ${sub.id}: ${decodeThrownMessage(error) || 'unknown error'}`
+            );
+          }
+        }
       }
-      startingAfter = lastInvoiceId ?? undefined;
-    }
+    );
+    if (subscriptionsFailure !== null) results.errors.push(subscriptionsFailure);
+
+    // Sync invoices (last 12 months)
+    const twelveMonthsAgo = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
+    const invoicesFailure = await pageStripeList(
+      env.STRIPE_SECRET_KEY,
+      'invoices',
+      [['created[gte]', twelveMonthsAgo.toString()]],
+      'invoice',
+      StripeInvoiceListSchema,
+      async page => {
+        for (const invoice of page.data) {
+          if (invoice.status !== 'paid') continue;
+
+          try {
+            const customerLookup = await findCustomerIdByStripeCustomer(env.DB, invoice.customer);
+            if (customerLookup._tag === 'invalid') {
+              results.errors.push(`Invoice ${invoice.id}: customer row has an invalid shape`);
+              continue;
+            }
+            const customer = optionalRowValue(customerLookup);
+
+            if (customer !== undefined) {
+              await env.DB.prepare(
+                `INSERT OR REPLACE INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
+                 VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), datetime(?, 'unixepoch'))`
+              )
+                .bind(
+                  invoice.id,
+                  crypto.randomUUID(),
+                  customer.id,
+                  invoice.id,
+                  invoice.amount_paid,
+                  invoice.currency,
+                  invoice.status,
+                  invoice.hosted_invoice_url,
+                  invoice.invoice_pdf,
+                  invoice.period_start,
+                  invoice.period_end,
+                  invoice.created
+                )
+                .run();
+              results.invoices_synced++;
+            }
+          } catch (error: unknown) {
+            results.errors.push(
+              `Invoice ${invoice.id}: ${decodeThrownMessage(error) || 'unknown error'}`
+            );
+          }
+        }
+      }
+    );
+    if (invoicesFailure !== null) results.errors.push(invoicesFailure);
   } catch (error: unknown) {
     results.errors.push(`Sync error: ${decodeThrownMessage(error) || 'unknown error'}`);
   }
@@ -809,33 +805,13 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
  * Admin: Get real-time Stripe metrics (MRR, subscriber counts, etc.)
  */
 export async function handleAdminStripeMetrics(request: Request, env: Env): Promise<Response> {
-  const token = getAuthToken(request);
-  if (!token) return errorResponse('Unauthorized', 401);
-
-  const auth = await validateSession(env.DB, token);
-  if (!auth) return errorResponse('Invalid session', 401);
-
-  // Check admin status
-  const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
-    .bind(auth.user.id)
-    .first();
-
-  if (!(await customerIsAdmin(adminCheck))) {
-    return errorResponse('Unauthorized', 403);
-  }
-  if (!env.STRIPE_SECRET_KEY) {
-    return errorResponse('Billing is not configured', 503);
-  }
+  const authOrDenied = await requireAdmin(request, env);
+  if (authOrDenied instanceof Response) return authOrDenied;
 
   // Fetch active subscriptions from Stripe for accurate MRR
-  const subsResponse = await fetch(
+  const subsData = await fetchStripeJson(
+    env.STRIPE_SECRET_KEY,
     'https://api.stripe.com/v1/subscriptions?status=active&limit=100',
-    {
-      headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
-    }
-  );
-  const subsData = await readStripeJson(
-    subsResponse,
     StripeMetricsListSchema,
     'Stripe metrics subscription list has an invalid shape'
   );
@@ -874,11 +850,9 @@ export async function handleAdminStripeMetrics(request: Request, env: Env): Prom
   }
 
   // Fetch recent balance (available + pending)
-  const balanceResponse = await fetch('https://api.stripe.com/v1/balance', {
-    headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
-  });
-  const balance = await readStripeJson(
-    balanceResponse,
+  const balance = await fetchStripeJson(
+    env.STRIPE_SECRET_KEY,
+    'https://api.stripe.com/v1/balance',
     StripeBalanceSchema,
     'Stripe balance has an invalid shape'
   );

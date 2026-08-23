@@ -1,7 +1,7 @@
 // API Types and Utilities for OMG Dashboard
 // All authenticated endpoints require a valid session token
 
-import { Effect } from 'effect';
+import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
 import {
   ExtraRowParseError,
@@ -233,6 +233,34 @@ export function jsonResponse<TResponse>(data: TResponse, status = 200): Response
 // Error response helper
 export function errorResponse(message: string, status = 400): Response {
   return jsonResponse({ error: message }, status);
+}
+
+/**
+ * Run an Effect-based handler and render its success value as JSON.
+ *
+ * Typed failures are mapped through `toErrorResponse`; defects (unexpected
+ * causes such as thrown errors) render `defectMessage` with status 500.
+ *
+ * @param effect - The handler effect whose success value is the JSON body.
+ * @param toErrorResponse - Maps a typed failure to its HTTP response.
+ * @param defectMessage - Body used for non-failure (defect) causes.
+ * @returns The rendered HTTP response.
+ */
+export async function respondFromEffect<E>(
+  effect: Effect.Effect<unknown, E>,
+  toErrorResponse: (error: E) => Response,
+  defectMessage = 'Internal server error'
+): Promise<Response> {
+  const exit = await Effect.runPromiseExit(effect);
+  return Exit.match(exit, {
+    onSuccess: payload => jsonResponse(payload),
+    onFailure: cause => {
+      const failure = Cause.failureOption(cause);
+      return Option.isSome(failure)
+        ? toErrorResponse(failure.value)
+        : errorResponse(defectMessage, 500);
+    },
+  });
 }
 
 // Generate secure token

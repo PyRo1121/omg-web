@@ -1,8 +1,8 @@
 // License validation handlers (for CLI activation)
-import { Cause, Effect, Exit, Option } from 'effect';
+import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import { decodeJsonBody, InvalidJsonBodyError } from '../body';
-import { type Env, jsonResponse, errorResponse, logAudit, TIER_FEATURES } from '../api';
+import { type Env, errorResponse, logAudit, respondFromEffect, TIER_FEATURES } from '../api';
 import { casesHandled } from '../prelude';
 import {
   ActiveMachineRowSchema,
@@ -10,7 +10,7 @@ import {
   LicenseUsageRowSchema,
   MachineCountRowSchema,
   ValidateLicenseFieldsSchema,
-  ValidateLicenseParseError,
+  type ValidateLicenseParseError,
   ValidateLicenseRowSchema,
   decodeRow,
   decodeRowArray,
@@ -24,7 +24,7 @@ import { EmailAddress } from '../contracts/site-session';
 import {
   AnalyticsBatchSchema,
   CountRowSchema,
-  LicenseOpsParseError,
+  type LicenseOpsParseError,
   PublicLicenseRowSchema,
   ReportUsageRequestSchema,
   decodeLicenseOpsRow,
@@ -133,6 +133,19 @@ function maxMachinesFor(license: ValidateLicenseRow): number {
   return 1;
 }
 
+/** Bind query parameters only when provided; empty parameter lists skip binding. */
+function bound(
+  statement: D1PreparedStatement,
+  params: ReadonlyArray<string | number>
+): D1PreparedStatement {
+  return params.length === 0 ? statement : statement.bind(...params);
+}
+
+function storeUnavailable(operation: string) {
+  return (cause: unknown): ValidateLicenseStoreUnavailable =>
+    new ValidateLicenseStoreUnavailable(operation, cause);
+}
+
 function queryFirst(
   db: D1Database,
   sql: string,
@@ -140,11 +153,8 @@ function queryFirst(
   operation: string
 ) {
   return Effect.tryPromise({
-    try: () => {
-      const statement = db.prepare(sql);
-      return params.length === 0 ? statement.first() : statement.bind(...params).first();
-    },
-    catch: cause => new ValidateLicenseStoreUnavailable(operation, cause),
+    try: () => bound(db.prepare(sql), params).first(),
+    catch: storeUnavailable(operation),
   });
 }
 
@@ -155,11 +165,8 @@ function queryAll(
   operation: string
 ) {
   return Effect.tryPromise({
-    try: () => {
-      const statement = db.prepare(sql);
-      return params.length === 0 ? statement.all() : statement.bind(...params).all();
-    },
-    catch: cause => new ValidateLicenseStoreUnavailable(operation, cause),
+    try: () => bound(db.prepare(sql), params).all(),
+    catch: storeUnavailable(operation),
   });
 }
 
@@ -175,7 +182,7 @@ function runSql(
         .prepare(sql)
         .bind(...params)
         .run(),
-    catch: cause => new ValidateLicenseStoreUnavailable(operation, cause),
+    catch: storeUnavailable(operation),
   });
 }
 
@@ -433,18 +440,9 @@ function httpStatusFor(error: ValidateLicenseError): number {
  * @returns JSON validation payload or a mapped error response.
  */
 export async function handleValidateLicense(request: Request, env: Env): Promise<Response> {
-  const exit = await Effect.runPromiseExit(validateLicense(request, env));
-  return Exit.match(exit, {
-    onSuccess: payload => jsonResponse(payload),
-    onFailure: cause => {
-      const failure = Cause.failureOption(cause);
-      if (Option.isSome(failure)) {
-        const error = failure.value;
-        return errorResponse(error.message, httpStatusFor(error));
-      }
-      return errorResponse('Internal server error', 500);
-    },
-  });
+  return respondFromEffect(validateLicense(request, env), error =>
+    errorResponse(error.message, httpStatusFor(error))
+  );
 }
 
 function utcDate(): string {
@@ -457,6 +455,31 @@ function optionalNumber(value: number | undefined): number {
 
 function optionalText(value: string | undefined): string | null {
   return value === undefined || value.length === 0 ? null : value;
+}
+
+/**
+ * Build an idempotent daily-metric increment for `analytics_daily`.
+ *
+ * @param db - The D1 database handle.
+ * @param today - UTC date the metric is attributed to.
+ * @param metric - Metric name to increment.
+ * @param dimension - Metric dimension, or `'all'` when undimensioned.
+ * @param count - Amount to add.
+ */
+function incrementDailyMetric(
+  db: D1Database,
+  today: string,
+  metric: string,
+  dimension: string | null,
+  count: number
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `INSERT INTO analytics_daily (date, metric, dimension, value)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + ?`
+    )
+    .bind(today, metric, dimension, count, count);
 }
 
 type GetLicensePayload =
@@ -547,22 +570,12 @@ function lookupPublicLicense(
  * @returns A masked public license payload, or a mapped error response.
  */
 export async function handleGetLicense(request: Request, env: Env): Promise<Response> {
-  const exit = await Effect.runPromiseExit(lookupPublicLicense(request, env));
-  return Exit.match(exit, {
-    onSuccess: payload => jsonResponse(payload),
-    onFailure: cause => {
-      const failure = Cause.failureOption(cause);
-      if (Option.isSome(failure)) {
-        const error = failure.value;
-        const status =
-          error._tag === 'InvalidRequestUrlError' || error._tag === 'EmailRequiredError'
-            ? 400
-            : 500;
-        return errorResponse(error.message, status);
-      }
-      return errorResponse('Internal server error', 500);
-    },
-  });
+  return respondFromEffect(lookupPublicLicense(request, env), error =>
+    errorResponse(
+      error.message,
+      error._tag === 'InvalidRequestUrlError' || error._tag === 'EmailRequiredError' ? 400 : 500
+    )
+  );
 }
 
 type ReportUsageError =
@@ -687,14 +700,10 @@ function reportMachineUsage(
     const runtimes = body.runtime_usage_counts;
     if (runtimes !== undefined) {
       for (const [runtime, count] of Object.entries(runtimes)) {
-        yield* runSql(
-          env.DB,
-          `INSERT INTO analytics_daily (date, metric, dimension, value)
-           VALUES (?, 'version', ?, ?)
-           ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + ?`,
-          [today, runtime, count, count],
-          'upsertRuntimeStat'
-        );
+        yield* Effect.tryPromise({
+          try: () => incrementDailyMetric(env.DB, today, 'version', runtime, count).run(),
+          catch: storeUnavailable('upsertRuntimeStat'),
+        });
       }
     }
 
@@ -721,23 +730,14 @@ function reportMachineUsage(
  * @returns JSON success payload or a mapped error response.
  */
 export async function handleReportUsage(request: Request, env: Env): Promise<Response> {
-  const exit = await Effect.runPromiseExit(reportUsage(request, env));
-  return Exit.match(exit, {
-    onSuccess: payload => jsonResponse(payload),
-    onFailure: cause => {
-      const failure = Cause.failureOption(cause);
-      if (Option.isSome(failure)) {
-        const error = failure.value;
-        if (error._tag === 'InvalidJsonBodyError') {
-          return errorResponse(error.message, 400);
-        }
-        if (error._tag === 'InvalidLicenseError') {
-          return errorResponse(error.message, 401);
-        }
-        return errorResponse('Internal server error', 500);
-      }
-      return errorResponse('Internal server error', 500);
-    },
+  return respondFromEffect(reportUsage(request, env), error => {
+    if (error._tag === 'InvalidJsonBodyError') {
+      return errorResponse(error.message, 400);
+    }
+    if (error._tag === 'InvalidLicenseError') {
+      return errorResponse(error.message, 401);
+    }
+    return errorResponse('Internal server error', 500);
   });
 }
 
@@ -767,7 +767,7 @@ const InstallPingBodySchema = Schema.Struct({
  * @returns JSON success payload or a mapped error response.
  */
 export async function handleInstallPing(request: Request, env: Env): Promise<Response> {
-  const exit = await Effect.runPromiseExit(
+  return respondFromEffect(
     Effect.gen(function* () {
       const body = yield* decodeJsonBody(request, InstallPingBodySchema);
       const version = body.version === undefined ? 'unknown' : body.version;
@@ -784,18 +784,12 @@ export async function handleInstallPing(request: Request, env: Env): Promise<Res
         catch: cause => new InstallPingStoreUnavailable(cause),
       });
       return { success: true as const, message: 'Install recorded' };
-    })
+    }),
+    error =>
+      error._tag === 'InvalidJsonBodyError'
+        ? errorResponse('Invalid JSON body', 400)
+        : errorResponse('Internal server error', 500)
   );
-  return Exit.match(exit, {
-    onSuccess: payload => jsonResponse(payload),
-    onFailure: cause => {
-      const failure = Cause.failureOption(cause);
-      if (Option.isSome(failure) && failure.value._tag === 'InvalidJsonBodyError') {
-        return errorResponse('Invalid JSON body', 400);
-      }
-      return errorResponse('Internal server error', 500);
-    },
-  });
 }
 
 // Generate JWT for offline license validation
@@ -828,13 +822,8 @@ async function generateLicenseJWT(
 }
 
 function base64UrlEncode(data: Uint8Array | string): string {
-  if (data instanceof Uint8Array) {
-    return btoa(String.fromCharCode(...data))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-  }
-  return btoa(data).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const raw = data instanceof Uint8Array ? btoa(String.fromCharCode(...data)) : btoa(data);
+  return raw.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function base64UrlDecode(data: string): string {
@@ -954,34 +943,10 @@ function ingestAnalytics(
         )
       );
       if (event.event_type === 'command') {
-        statements.push(
-          env.DB.prepare(
-            `INSERT INTO analytics_daily (date, metric, dimension, value)
-             VALUES (?, 'commands', ?, 1)
-             ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1`
-          ).bind(today, event.event_name)
-        );
-        statements.push(
-          env.DB.prepare(
-            `INSERT INTO analytics_daily (date, metric, dimension, value)
-             VALUES (?, 'total_commands', 'all', 1)
-             ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1`
-          ).bind(today)
-        );
-        statements.push(
-          env.DB.prepare(
-            `INSERT INTO analytics_daily (date, metric, dimension, value)
-             VALUES (?, 'platform', ?, 1)
-             ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1`
-          ).bind(today, event.platform)
-        );
-        statements.push(
-          env.DB.prepare(
-            `INSERT INTO analytics_daily (date, metric, dimension, value)
-             VALUES (?, 'version', ?, 1)
-             ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1`
-          ).bind(today, event.version)
-        );
+        statements.push(incrementDailyMetric(env.DB, today, 'commands', event.event_name, 1));
+        statements.push(incrementDailyMetric(env.DB, today, 'total_commands', 'all', 1));
+        statements.push(incrementDailyMetric(env.DB, today, 'platform', event.platform, 1));
+        statements.push(incrementDailyMetric(env.DB, today, 'version', event.version, 1));
       }
       if (event.event_type === 'error') {
         const errorMsg = analyticsPropertyString(event.properties, 'message', 'unknown error');
@@ -993,13 +958,7 @@ function ingestAnalytics(
           ).bind(errorMsg)
         );
         const errorType = analyticsPropertyString(event.properties, 'error_type', 'unknown');
-        statements.push(
-          env.DB.prepare(
-            `INSERT INTO analytics_daily (date, metric, dimension, value)
-             VALUES (?, 'errors', ?, 1)
-             ON CONFLICT(date, metric, dimension) DO UPDATE SET value = value + 1`
-          ).bind(today, errorType)
-        );
+        statements.push(incrementDailyMetric(env.DB, today, 'errors', errorType, 1));
       }
     }
     yield* Effect.tryPromise({
@@ -1027,15 +986,12 @@ function ingestAnalytics(
  * @returns JSON processed count or a mapped error response.
  */
 export async function handleAnalytics(request: Request, env: Env): Promise<Response> {
-  const exit = await Effect.runPromiseExit(ingestAnalytics(request, env));
-  return Exit.match(exit, {
-    onSuccess: payload => jsonResponse(payload),
-    onFailure: cause => {
-      const failure = Cause.failureOption(cause);
-      if (Option.isSome(failure) && failure.value._tag === 'InvalidJsonBodyError') {
-        return errorResponse('Invalid JSON body', 400);
-      }
-      return errorResponse('Failed to process analytics', 500);
-    },
-  });
+  return respondFromEffect(
+    ingestAnalytics(request, env),
+    error =>
+      error._tag === 'InvalidJsonBodyError'
+        ? errorResponse('Invalid JSON body', 400)
+        : errorResponse('Failed to process analytics', 500),
+    'Failed to process analytics'
+  );
 }
