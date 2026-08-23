@@ -1,5 +1,8 @@
 import * as Schema from 'effect/Schema';
 
+/** A nullable string column. */
+export const NullableStringSchema = Schema.Union(Schema.Null, Schema.String);
+
 /** D1 INTEGER columns decode NULL as 0 for aggregate compatibility. */
 export const D1Number = Schema.Union(Schema.Number, Schema.Null).pipe(
   Schema.transform(Schema.Number, {

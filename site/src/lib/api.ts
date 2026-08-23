@@ -3,7 +3,7 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import type * as Schema from 'effect/Schema';
 import { casesHandled } from './prelude';
-import { browserWorkerFetcher, requestDecodedJson, type WorkerApiError } from './worker-api';
+import { browserWorkerFetcher, requestDecodedJson } from './worker-api';
 import * as Http from './contracts/worker-http';
 import { LicensingRoutes } from '../../shared/licensing-routes';
 
@@ -29,7 +29,26 @@ async function apiRequest<S extends Schema.Schema.AnyNoContext>(
       `Worker response for ${endpoint} has an invalid shape`
     )
   );
-  return unwrapWorkerApi(exit);
+  return Exit.match(exit, {
+    onSuccess: value => value,
+    onFailure: cause => {
+      const failure = Cause.failureOption(cause);
+      if (Option.isNone(failure)) {
+        throw new ApiError('Request failed', 500);
+      }
+      const error = failure.value;
+      switch (error._tag) {
+        case 'WorkerApiHttpError':
+          throw new ApiError(error.message, error.status);
+        case 'WorkerApiNetworkError':
+          throw new ApiError('Request failed', 500);
+        case 'WorkerHttpParseError':
+          throw new ApiError(error.reason, 502);
+        default:
+          return casesHandled(error);
+      }
+    },
+  });
 }
 
 /**
@@ -61,36 +80,9 @@ export class ApiError extends Error {
   }
 }
 
-function unwrapWorkerApi<A>(exit: Exit.Exit<A, WorkerApiError>): A {
-  return Exit.match(exit, {
-    onSuccess: value => value,
-    onFailure: cause => {
-      const failure = Cause.failureOption(cause);
-      if (Option.isNone(failure)) {
-        throw new ApiError('Request failed', 500);
-      }
-      const error = failure.value;
-      switch (error._tag) {
-        case 'WorkerApiHttpError':
-          throw new ApiError(error.message, error.status);
-        case 'WorkerApiNetworkError':
-          throw new ApiError('Request failed', 500);
-        case 'WorkerHttpParseError':
-          throw new ApiError(error.reason, 502);
-        default:
-          return casesHandled(error);
-      }
-    },
-  });
-}
-
 // ==== Account API ====
 
-export async function getAdminUsers(
-  page = 1,
-  limit = 50,
-  search = ''
-): Promise<AdminUsersResponse> {
+export async function getAdminUsers(page = 1, limit = 50, search = '') {
   return apiRequest(
     Http.AdminUsersResponseSchema,
     withQuery(
@@ -102,20 +94,16 @@ export async function getAdminUsers(
   );
 }
 
-export const getAdminUserDetail = (userId: string): Promise<AdminUserDetail> =>
+export const getAdminUserDetail = (userId: string) =>
   apiRequest(Http.AdminUserDetailSchema, `${LicensingRoutes.adminUserGet.path}?id=${userId}`);
 
-export const getAdminCohorts = (): Promise<AdminCohorts> =>
+export const getAdminCohorts = () =>
   apiRequest(Http.AdminCohortsSchema, LicensingRoutes.adminCohorts.path);
 
-export const getAdminRevenue = (): Promise<AdminRevenue> =>
+export const getAdminRevenue = () =>
   apiRequest(Http.AdminRevenueSchema, LicensingRoutes.adminRevenue.path);
 
-export async function getAdminAuditLog(
-  page = 1,
-  limit = 50,
-  action = ''
-): Promise<AdminAuditLogResponse> {
+export async function getAdminAuditLog(page = 1, limit = 50, action = '') {
   return apiRequest(
     Http.AdminAuditLogResponseSchema,
     withQuery(
@@ -127,17 +115,13 @@ export async function getAdminAuditLog(
   );
 }
 
-export const getAdminNotes = (customerId: string): Promise<NotesResponse> =>
+export const getAdminNotes = (customerId: string) =>
   apiRequest(
     Http.NotesResponseSchema,
     `${LicensingRoutes.adminNotesGet.path}?customerId=${customerId}`
   );
 
-export const createAdminNote = (
-  customerId: string,
-  content: string,
-  noteType = 'general'
-): Promise<WorkerBody<typeof Http.CreatedNoteSchema>> =>
+export const createAdminNote = (customerId: string, content: string, noteType = 'general') =>
   apiRequest(Http.CreatedNoteSchema, LicensingRoutes.adminNotesCreate.path, {
     method: 'POST',
     body: JSON.stringify({ customerId, content, noteType }),
@@ -148,20 +132,16 @@ export const deleteAdminNote = (noteId: string): Promise<{ success: boolean }> =
     method: 'DELETE',
   });
 
-export const getAdminTags = (): Promise<TagsResponse> =>
+export const getAdminTags = () =>
   apiRequest(Http.TagsResponseSchema, LicensingRoutes.adminTagsGet.path);
 
-export const createAdminTag = (
-  name: string,
-  color?: string,
-  description?: string
-): Promise<WorkerBody<typeof Http.CreatedTagSchema>> =>
+export const createAdminTag = (name: string, color?: string, description?: string) =>
   apiRequest(Http.CreatedTagSchema, LicensingRoutes.adminTagsGet.path, {
     method: 'POST',
     body: JSON.stringify({ name, color, description }),
   });
 
-export const getAdminCustomerTags = (customerId: string): Promise<TagsResponse> =>
+export const getAdminCustomerTags = (customerId: string) =>
   apiRequest(
     Http.TagsResponseSchema,
     `${LicensingRoutes.adminCustomerTagsGet.path}?customerId=${customerId}`
@@ -180,19 +160,10 @@ export const removeAdminTag = (customerId: string, tagId: string): Promise<{ suc
     { method: 'DELETE' }
   );
 
-export type AdminUser = AdminUsersResponse['users'][number];
-export type AdminUsersResponse = WorkerBody<typeof Http.AdminUsersResponseSchema>;
-export type AdminUserDetail = WorkerBody<typeof Http.AdminUserDetailSchema>;
-export type AdminCohorts = WorkerBody<typeof Http.AdminCohortsSchema>;
-export type AdminRevenue = WorkerBody<typeof Http.AdminRevenueSchema>;
-export type AdminAuditLogResponse = WorkerBody<typeof Http.AdminAuditLogResponseSchema>;
-export type NotesResponse = WorkerBody<typeof Http.NotesResponseSchema>;
-export type TagsResponse = WorkerBody<typeof Http.TagsResponseSchema>;
+export type AdminUser = WorkerBody<typeof Http.AdminUsersResponseSchema>['users'][number];
 
-export const getAdminFirehose = (limit = 50): Promise<FirehoseResponse> =>
+export const getAdminFirehose = (limit = 50) =>
   apiRequest(Http.FirehoseResponseSchema, `${LicensingRoutes.adminFirehose.path}?limit=${limit}`);
-
-export type FirehoseResponse = WorkerBody<typeof Http.FirehoseResponseSchema>;
 
 // Advanced Metrics API
 export const getAdminAdvancedMetrics = (): Promise<AdminAdvancedMetrics> =>
@@ -318,19 +289,6 @@ export function formatRelativeTime(dateStr: string): string {
   return formatDate(dateStr);
 }
 
-export function getTierColor(tier: string): string {
-  switch (tier) {
-    case 'pro':
-      return 'from-indigo-500 to-blue-500';
-    case 'team':
-      return 'from-purple-500 to-pink-500';
-    case 'enterprise':
-      return 'from-amber-500 to-orange-500';
-    default:
-      return 'from-emerald-500 to-teal-500';
-  }
-}
-
 export function getTierBadgeColor(tier: string): string {
   switch (tier) {
     case 'pro':
@@ -352,11 +310,7 @@ export const openAdminBillingPortal = (
     body: JSON.stringify({ email }),
   });
 
-/** Public subscription offers accepted by the billing Worker. */
-
-export type BillingOffer = 'pro' | 'team';
-
-export const createCheckout = (offer: BillingOffer): Promise<{ url: string }> =>
+export const createCheckout = (offer: 'pro' | 'team'): Promise<{ url: string }> =>
   apiRequest(Http.CheckoutUrlSchema, LicensingRoutes.billingCheckout.path, {
     method: 'POST',
     body: JSON.stringify({ offer }),

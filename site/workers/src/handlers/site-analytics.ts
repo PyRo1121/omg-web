@@ -2,11 +2,7 @@ import { reportError } from '../observability';
 import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse } from '../api';
 import { decodeJsonBody } from '../body';
-import {
-  type TrackingBatch,
-  TrackingBatchSchema,
-  optionalStringField,
-} from '../contracts/http-bodies';
+import { TrackingBatchSchema, optionalStringField } from '../contracts/http-bodies';
 import {
   AnalyticsSaltRowSchema,
   CliGeoRowSchema,
@@ -27,229 +23,13 @@ import {
   SiteTopPageRowSchema,
 } from '../contracts/d1-extras';
 
-interface ParsedUserAgent {
-  device: string;
-  browser: string;
-  os: string;
-}
-
 /** Clamp the `days` query parameter to a valid 1–90-day reporting window. */
 function parseReportingDays(raw: string | null): number {
   const parsed = Number.parseInt(raw ?? '', 10);
   return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 90) : 30;
 }
 
-async function getCurrentSalt(db: D1Database): Promise<Uint8Array> {
-  const result = await db
-    .prepare(
-      `SELECT salt FROM analytics_salts 
-     WHERE inserted_at > (unixepoch() * 1000 - 90000)
-     ORDER BY inserted_at DESC LIMIT 1`
-    )
-    .first();
-
-  const saltLookup = await readOptionalExtraRow(
-    AnalyticsSaltRowSchema,
-    'Analytics salt row has an invalid shape',
-    result
-  );
-  if (saltLookup._tag === 'invalid') {
-    throw new ExtraRowParseError('Analytics salt row has an invalid shape');
-  }
-  if (saltLookup._tag === 'present') {
-    return saltLookup.value.salt;
-  }
-
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const saltHex = Array.from(salt)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-
-  await db
-    .prepare(
-      `INSERT INTO analytics_salts (salt, inserted_at) VALUES (x'${saltHex}', unixepoch() * 1000)`
-    )
-    .run();
-
-  return salt;
-}
-
-async function generateVisitorId(
-  request: Request,
-  db: D1Database,
-  domain: string
-): Promise<string> {
-  const salt = await getCurrentSalt(db);
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const ua = request.headers.get('User-Agent') || '';
-
-  const data = new TextEncoder().encode(`${ua}${ip}${domain}`);
-  const key = await crypto.subtle.importKey('raw', salt, { name: 'HMAC', hash: 'SHA-256' }, false, [
-    'sign',
-  ]);
-  const hash = await crypto.subtle.sign('HMAC', key, data);
-
-  return (
-    'v_' +
-    Array.from(new Uint8Array(hash).slice(0, 8))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('')
-  );
-}
-
-function parseUserAgent(ua: string): ParsedUserAgent {
-  let device = 'desktop';
-  let browser = 'Unknown';
-  let os = 'Unknown';
-
-  if (/mobile|android|iphone|ipad/i.test(ua)) {
-    device = /ipad|tablet/i.test(ua) ? 'tablet' : 'mobile';
-  }
-
-  if (/chrome/i.test(ua) && !/edge|edg/i.test(ua)) {
-    browser = 'Chrome';
-  } else if (/firefox/i.test(ua)) {
-    browser = 'Firefox';
-  } else if (/safari/i.test(ua) && !/chrome/i.test(ua)) {
-    browser = 'Safari';
-  } else if (/edge|edg/i.test(ua)) {
-    browser = 'Edge';
-  }
-
-  if (/windows/i.test(ua)) {
-    os = 'Windows';
-  } else if (/mac os/i.test(ua)) {
-    os = 'macOS';
-  } else if (/linux/i.test(ua)) {
-    os = 'Linux';
-  } else if (/android/i.test(ua)) {
-    os = 'Android';
-  } else if (/ios|iphone|ipad/i.test(ua)) {
-    os = 'iOS';
-  }
-
-  return { device, browser, os };
-}
-
-function extractReferrerDomain(referrer: string | null): string {
-  if (!referrer) {
-    return 'direct';
-  }
-  try {
-    const url = new URL(referrer);
-    return url.hostname.replace(/^www\./, '');
-  } catch {
-    return 'direct';
-  }
-}
-
-/** Per-request ingestion context shared by every event in a batch. */
-interface TrackingContext {
-  readonly db: D1Database;
-  readonly visitorId: string;
-  readonly country: string;
-  readonly city: string;
-  readonly device: string;
-  readonly browser: string;
-  readonly os: string;
-  readonly now: number;
-  readonly today: string;
-  readonly hour: number;
-}
-
-type TrackingEvent = TrackingBatch['events'][number];
-
 const MAX_EVENTS_PER_BATCH = 50;
-
-const EVENT_INSERT_SQL = `INSERT INTO site_analytics_events
-  (id, event_type, event_name, properties, timestamp, session_id, visitor_id, country_code, city, duration_ms, created_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-const REALTIME_UPSERT_SQL = `INSERT INTO site_analytics_realtime (visitor_id, session_id, page_path, country_code, city, referrer, last_seen_at, page_count)
-  VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-  ON CONFLICT(visitor_id) DO UPDATE SET
-    session_id = excluded.session_id,
-    page_path = excluded.page_path,
-    last_seen_at = excluded.last_seen_at,
-    page_count = page_count + 1`;
-
-const GEO_DAILY_UPSERT_SQL = `INSERT INTO site_analytics_geo_daily (date, country_code, city, visitors, sessions, pageviews)
-  VALUES (?, ?, ?, 1, 1, 1)
-  ON CONFLICT(date, country_code, city) DO UPDATE SET
-    pageviews = pageviews + 1,
-    sessions = sessions + (CASE WHEN excluded.visitors = 1 THEN 1 ELSE 0 END)`;
-
-const HOURLY_UPSERT_SQL = `INSERT INTO site_analytics_hourly (date, hour, visitors, sessions, pageviews)
-  VALUES (?, ?, 1, 1, 1)
-  ON CONFLICT(date, hour) DO UPDATE SET pageviews = pageviews + 1`;
-
-async function createTrackingContext(request: Request, env: Env): Promise<TrackingContext> {
-  const { device, browser, os } = parseUserAgent(request.headers.get('User-Agent') || '');
-  const now = Date.now();
-  return {
-    db: env.DB,
-    visitorId: await generateVisitorId(request, env.DB, 'omg.latham.cloud'),
-    country: request.headers.get('CF-IPCountry') || 'XX',
-    city: request.headers.get('CF-City') || 'Unknown',
-    device,
-    browser,
-    os,
-    now,
-    today: new Date(now).toISOString().slice(0, 10),
-    hour: new Date(now).getUTCHours(),
-  };
-}
-
-/** Build the persistence statements for one tracked event. */
-function eventStatements(context: TrackingContext, event: TrackingEvent): D1PreparedStatement[] {
-  const props = event.properties || {};
-  const referrerDomain = extractReferrerDomain(optionalStringField(props['referrer']) ?? null);
-  const enrichedProperties = JSON.stringify({
-    ...props,
-    device: context.device,
-    browser: context.browser,
-    os: context.os,
-    referrer_domain: referrerDomain,
-  });
-
-  const statements = [
-    context.db
-      .prepare(EVENT_INSERT_SQL)
-      .bind(
-        crypto.randomUUID(),
-        event.event_type,
-        event.event_name,
-        enrichedProperties,
-        event.timestamp || context.now,
-        event.session_id,
-        context.visitorId,
-        context.country,
-        context.city,
-        event.duration_ms || null,
-        context.now
-      ),
-    context.db
-      .prepare(REALTIME_UPSERT_SQL)
-      .bind(
-        context.visitorId,
-        event.session_id,
-        optionalStringField(props['path']) ?? '/',
-        context.country,
-        context.city,
-        referrerDomain,
-        context.now
-      ),
-  ];
-
-  if (event.event_type === 'pageview') {
-    statements.push(
-      context.db.prepare(GEO_DAILY_UPSERT_SQL).bind(context.today, context.country, context.city),
-      context.db.prepare(HOURLY_UPSERT_SQL).bind(context.today, context.hour)
-    );
-  }
-
-  return statements;
-}
 
 export async function handleTrackEvent(request: Request, env: Env): Promise<Response> {
   try {
@@ -266,14 +46,163 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
       return errorResponse('Invalid payload', 400);
     }
     const events = decodedBody.value.events;
-    if (!Array.isArray(events) || events.length > MAX_EVENTS_PER_BATCH) {
+    if (events.length > MAX_EVENTS_PER_BATCH) {
       return errorResponse('Invalid payload', 400);
     }
 
-    const context = await createTrackingContext(request, env);
-    const statements = events.flatMap(event => eventStatements(context, event));
+    const userAgent = request.headers.get('User-Agent') || '';
+    let device = 'desktop';
+    let browser = 'Unknown';
+    let os = 'Unknown';
+    if (/mobile|android|iphone|ipad/i.test(userAgent)) {
+      device = /ipad|tablet/i.test(userAgent) ? 'tablet' : 'mobile';
+    }
+    if (/chrome/i.test(userAgent) && !/edge|edg/i.test(userAgent)) {
+      browser = 'Chrome';
+    } else if (/firefox/i.test(userAgent)) {
+      browser = 'Firefox';
+    } else if (/safari/i.test(userAgent) && !/chrome/i.test(userAgent)) {
+      browser = 'Safari';
+    } else if (/edge|edg/i.test(userAgent)) {
+      browser = 'Edge';
+    }
+    if (/windows/i.test(userAgent)) {
+      os = 'Windows';
+    } else if (/mac os/i.test(userAgent)) {
+      os = 'macOS';
+    } else if (/linux/i.test(userAgent)) {
+      os = 'Linux';
+    } else if (/android/i.test(userAgent)) {
+      os = 'Android';
+    } else if (/ios|iphone|ipad/i.test(userAgent)) {
+      os = 'iOS';
+    }
+
+    const now = Date.now();
+    const saltResult = await env.DB.prepare(
+      `SELECT salt FROM analytics_salts
+       WHERE inserted_at > (unixepoch() * 1000 - 90000)
+       ORDER BY inserted_at DESC LIMIT 1`
+    ).first();
+    const saltLookup = await readOptionalExtraRow(
+      AnalyticsSaltRowSchema,
+      'Analytics salt row has an invalid shape',
+      saltResult
+    );
+    if (saltLookup._tag === 'invalid') {
+      throw new ExtraRowParseError('Analytics salt row has an invalid shape');
+    }
+    const salt =
+      saltLookup._tag === 'present'
+        ? saltLookup.value.salt
+        : crypto.getRandomValues(new Uint8Array(16));
+    if (saltLookup._tag === 'missing') {
+      const saltHex = Array.from(salt)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+      await env.DB.prepare(
+        `INSERT INTO analytics_salts (salt, inserted_at) VALUES (x'${saltHex}', unixepoch() * 1000)`
+      ).run();
+    }
+
+    const visitorKey = await crypto.subtle.importKey(
+      'raw',
+      salt,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const visitorHash = await crypto.subtle.sign(
+      'HMAC',
+      visitorKey,
+      new TextEncoder().encode(`${userAgent}${ip}omg.latham.cloud`)
+    );
+    const visitorId =
+      'v_' +
+      Array.from(new Uint8Array(visitorHash).slice(0, 8))
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+
+    const country = request.headers.get('CF-IPCountry') || 'XX';
+    const city = request.headers.get('CF-City') || 'Unknown';
+    const currentDate = new Date(now);
+    const today = currentDate.toISOString().slice(0, 10);
+    const hour = currentDate.getUTCHours();
+    const statements = events.flatMap(event => {
+      const properties = event.properties || {};
+      const referrer = optionalStringField(properties['referrer']);
+      let referrerDomain = 'direct';
+      if (referrer) {
+        try {
+          referrerDomain = new URL(referrer).hostname.replace(/^www\./, '');
+        } catch {
+          // Invalid referrers are grouped with direct traffic.
+        }
+      }
+
+      const eventStatements = [
+        env.DB.prepare(
+          `INSERT INTO site_analytics_events
+           (id, event_type, event_name, properties, timestamp, session_id, visitor_id, country_code, city, duration_ms, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          crypto.randomUUID(),
+          event.event_type,
+          event.event_name,
+          JSON.stringify({
+            ...properties,
+            device,
+            browser,
+            os,
+            referrer_domain: referrerDomain,
+          }),
+          event.timestamp || now,
+          event.session_id,
+          visitorId,
+          country,
+          city,
+          event.duration_ms || null,
+          now
+        ),
+        env.DB.prepare(
+          `INSERT INTO site_analytics_realtime (visitor_id, session_id, page_path, country_code, city, referrer, last_seen_at, page_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+           ON CONFLICT(visitor_id) DO UPDATE SET
+             session_id = excluded.session_id,
+             page_path = excluded.page_path,
+             last_seen_at = excluded.last_seen_at,
+             page_count = page_count + 1`
+        ).bind(
+          visitorId,
+          event.session_id,
+          optionalStringField(properties['path']) ?? '/',
+          country,
+          city,
+          referrerDomain,
+          now
+        ),
+      ];
+
+      if (event.event_type === 'pageview') {
+        eventStatements.push(
+          env.DB.prepare(
+            `INSERT INTO site_analytics_geo_daily (date, country_code, city, visitors, sessions, pageviews)
+             VALUES (?, ?, ?, 1, 1, 1)
+             ON CONFLICT(date, country_code, city) DO UPDATE SET
+               pageviews = pageviews + 1,
+               sessions = sessions + (CASE WHEN excluded.visitors = 1 THEN 1 ELSE 0 END)`
+          ).bind(today, country, city),
+          env.DB.prepare(
+            `INSERT INTO site_analytics_hourly (date, hour, visitors, sessions, pageviews)
+             VALUES (?, ?, 1, 1, 1)
+             ON CONFLICT(date, hour) DO UPDATE SET pageviews = pageviews + 1`
+          ).bind(today, hour)
+        );
+      }
+      return eventStatements;
+    });
     if (statements.length > 0) {
-      await context.db.batch(statements);
+      await env.DB.batch(statements);
     }
 
     return jsonResponse({ success: true, processed: events.length });
@@ -325,20 +254,6 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
         .all(),
     ]);
 
-    const combined = new Map<
-      string,
-      {
-        country_code: string;
-        site_visitors: number;
-        site_sessions: number;
-        site_pageviews: number;
-        docs_sessions: number;
-        docs_pageviews: number;
-        cli_installs: number;
-        total_engagement: number;
-      }
-    >();
-
     const [decodedSite, decodedDocs, decodedCli] = await Promise.all([
       Effect.runPromiseExit(
         decodeExtraRowArray(
@@ -368,57 +283,46 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
     const siteRows = decodedSite.value;
     const docsRows = decodedDocs.value;
     const cliRows = decodedCli.value;
+    const combined = new Map<
+      string,
+      {
+        country_code: string;
+        site_visitors: number;
+        docs_sessions: number;
+        cli_installs: number;
+        total_engagement: number;
+      }
+    >();
+    const getCountry = (countryCode: string) => {
+      const existing = combined.get(countryCode);
+      if (existing) {
+        return existing;
+      }
+      const country = {
+        country_code: countryCode,
+        site_visitors: 0,
+        docs_sessions: 0,
+        cli_installs: 0,
+        total_engagement: 0,
+      };
+      combined.set(countryCode, country);
+      return country;
+    };
 
     for (const row of siteRows) {
-      combined.set(row.country_code, {
-        country_code: row.country_code,
-        site_visitors: row.visitors,
-        site_sessions: row.sessions,
-        site_pageviews: row.pageviews,
-        docs_sessions: 0,
-        docs_pageviews: 0,
-        cli_installs: 0,
-        total_engagement: row.visitors + row.sessions,
-      });
+      const country = getCountry(row.country_code);
+      country.site_visitors = row.visitors;
+      country.total_engagement = row.visitors + row.sessions;
     }
-
     for (const row of docsRows) {
-      const existing = combined.get(row.country_code);
-      if (existing) {
-        existing.docs_sessions = row.sessions;
-        existing.docs_pageviews = row.pageviews;
-        existing.total_engagement += row.sessions;
-      } else {
-        combined.set(row.country_code, {
-          country_code: row.country_code,
-          site_visitors: 0,
-          site_sessions: 0,
-          site_pageviews: 0,
-          docs_sessions: row.sessions,
-          docs_pageviews: row.pageviews,
-          cli_installs: 0,
-          total_engagement: row.sessions,
-        });
-      }
+      const country = getCountry(row.country_code);
+      country.docs_sessions = row.sessions;
+      country.total_engagement += row.sessions;
     }
-
     for (const row of cliRows) {
-      const existing = combined.get(row.country_code);
-      if (existing) {
-        existing.cli_installs = row.count;
-        existing.total_engagement += row.count * 10;
-      } else {
-        combined.set(row.country_code, {
-          country_code: row.country_code,
-          site_visitors: 0,
-          site_sessions: 0,
-          site_pageviews: 0,
-          docs_sessions: 0,
-          docs_pageviews: 0,
-          cli_installs: row.count,
-          total_engagement: row.count * 10,
-        });
-      }
+      const country = getCountry(row.country_code);
+      country.cli_installs = row.count;
+      country.total_engagement += row.count * 10;
     }
 
     const sortedGeo = Array.from(combined.values())

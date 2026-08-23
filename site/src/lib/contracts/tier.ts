@@ -1,10 +1,10 @@
 // Boundary parser internals decode untrusted tier strings.
 
 import * as Schema from 'effect/Schema';
-import type { Tier } from '~/design-system/components/TierBadge';
 
 /** Supported customer tiers. */
-export const TierSchema = Schema.Literal('free', 'pro', 'team', 'enterprise');
+const TierSchema = Schema.Literal('free', 'pro', 'team', 'enterprise');
+export type Tier = Schema.Schema.Type<typeof TierSchema>;
 
 /**
  * Parse an untrusted tier string, defaulting to free.

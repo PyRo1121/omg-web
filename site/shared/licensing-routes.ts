@@ -1,16 +1,12 @@
 /** Version of the licensing HTTP route contract shared by the site BFF and Worker. */
 export const LICENSING_HTTP_API_VERSION = 1;
 
-export type LicensingHttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-export type LicensingRouteAuthentication =
-  'none' | 'session' | 'admin-session' | 'admin-secret' | 'stripe-signature';
-export type LicensingRouteTransport = 'direct' | 'site-bff' | 'internal';
-
 interface LicensingRouteDefinition {
-  readonly method: LicensingHttpMethod;
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   readonly path: `/${string}`;
-  readonly authentication: LicensingRouteAuthentication;
-  readonly transport: LicensingRouteTransport;
+  readonly authentication:
+    'none' | 'session' | 'admin-session' | 'admin-secret' | 'stripe-signature';
+  readonly transport: 'direct' | 'site-bff' | 'internal';
 }
 
 export const LicensingRoutes = {
@@ -424,9 +420,6 @@ export const LicensingRoutes = {
   },
 } as const satisfies Readonly<Record<string, LicensingRouteDefinition>>;
 
-export type LicensingRouteId = keyof typeof LicensingRoutes;
-export type ResolvedLicensingRoute = (typeof LicensingRoutes)[LicensingRouteId];
-
 const routeEntries = Object.values(LicensingRoutes);
 
 /** Remove a non-root trailing slash before route resolution. */
@@ -438,7 +431,7 @@ export function normalizeLicensingPath(path: string): string {
 export function resolveLicensingRoute(
   method: string,
   path: string
-): ResolvedLicensingRoute | undefined {
+): (typeof LicensingRoutes)[keyof typeof LicensingRoutes] | undefined {
   const normalizedPath = normalizeLicensingPath(path);
   return routeEntries.find(route => route.method === method && route.path === normalizedPath);
 }

@@ -2,18 +2,14 @@ import { createAuthClient } from 'better-auth/solid';
 import { Effect } from 'effect';
 import { revokeBetterAuthSession, type BrowserSignOutResult } from './better-auth-sign-out';
 
-const getBaseURL = () => {
-  if (import.meta.env.SSR) {
-    return import.meta.env['VITE_BETTER_AUTH_URL'] || 'https://omg.latham.cloud';
-  }
-  return window.location.origin;
-};
-
 const authClient = createAuthClient({
-  baseURL: getBaseURL(),
+  baseURL: import.meta.env.SSR
+    ? import.meta.env['VITE_BETTER_AUTH_URL'] || 'https://omg.latham.cloud'
+    : window.location.origin,
 });
 
-export const { signIn, signUp, signOut, useSession } = authClient;
+const { signIn, signUp, signOut, useSession } = authClient;
+export { signIn, signUp, useSession };
 
 /** Revoke the Better Auth HttpOnly cookie without browser-stored Worker credentials. */
 export function signOutBrowserSessions(): Promise<BrowserSignOutResult> {

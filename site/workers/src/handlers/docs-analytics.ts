@@ -22,12 +22,6 @@ import {
   DocsUtmRowSchema,
 } from '../contracts/d1-extras';
 
-/** Clamp the `days` query parameter to a valid 1–90-day reporting window. */
-function parseReportingDays(raw: string | null): number {
-  const parsed = Number.parseInt(raw ?? '', 10);
-  return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 90) : 30;
-}
-
 /**
  * POST /api/docs/analytics
  * Accept batch analytics events from docs site
@@ -55,11 +49,6 @@ export async function handleDocsAnalytics(
       return errorResponse('Invalid payload: events array required', 400);
     }
     const body = decodedBody.value;
-    if (!body.events || !Array.isArray(body.events)) {
-      return errorResponse('Invalid payload: events array required', 400);
-    }
-
-    // Limit batch size to prevent abuse (max 50 events per request)
     if (body.events.length > 50) {
       return errorResponse('Batch size exceeds limit (max 50 events)', 400);
     }
@@ -68,12 +57,10 @@ export async function handleDocsAnalytics(
     const country = request.headers.get('CF-IPCountry') || 'unknown';
     const userAgent = request.headers.get('User-Agent') || 'unknown';
 
-    // Process events in batch
-    const eventIds: string[] = [];
+    let processed = 0;
     const statements: D1PreparedStatement[] = [];
 
     for (const event of body.events) {
-      // Validate event structure
       if (
         !event.event_type ||
         !event.event_name ||
@@ -85,16 +72,7 @@ export async function handleDocsAnalytics(
       }
 
       const eventId = crypto.randomUUID();
-      eventIds.push(eventId);
-
-      // Enrich properties with server-side data
-      const enrichedProperties = {
-        ...event.properties,
-        country,
-        user_agent: userAgent,
-      };
-
-      // Insert raw event
+      processed += 1;
       statements.push(
         env.DB.prepare(
           `INSERT INTO docs_analytics_events (id, event_type, event_name, properties, timestamp, session_id, duration_ms, created_at)
@@ -103,7 +81,7 @@ export async function handleDocsAnalytics(
           eventId,
           event.event_type,
           event.event_name,
-          JSON.stringify(enrichedProperties),
+          JSON.stringify({ ...event.properties, country, user_agent: userAgent }),
           event.timestamp,
           event.session_id,
           event.duration_ms || null
@@ -126,12 +104,12 @@ export async function handleDocsAnalytics(
             event.session_id,
             event.timestamp,
             event.timestamp,
-            props.utm?.source || null,
-            props.utm?.medium || null,
-            props.utm?.campaign || null,
-            props.referrer || null,
-            props.url || null,
-            props.url || null,
+            props['utm']?.source || null,
+            props['utm']?.medium || null,
+            props['utm']?.campaign || null,
+            props['referrer'] || null,
+            props['url'] || null,
+            props['url'] || null,
             event.duration_ms || 0
           )
         );
@@ -143,19 +121,90 @@ export async function handleDocsAnalytics(
       await env.DB.batch(statements);
     }
 
-    // Trigger async aggregation for the current day (fire-and-forget)
-    // This updates daily rollups without blocking the response
     const today = new Date().toISOString().slice(0, 10);
     ctx.waitUntil(
-      aggregateDocsAnalytics(env.DB, today).catch(error => {
-        reportError('Docs analytics background aggregation failed:', error);
-      })
+      (async () => {
+        try {
+          for (const query of [
+            `INSERT INTO docs_analytics_pageviews_daily (date, path, views, unique_sessions, avg_time_on_page_ms)
+             SELECT
+               DATE(timestamp) as date,
+               JSON_EXTRACT(properties, '$.url') as path,
+               COUNT(*) as views,
+               COUNT(DISTINCT session_id) as unique_sessions,
+               AVG(COALESCE(duration_ms, 0)) as avg_time_on_page_ms
+             FROM docs_analytics_events
+             WHERE event_type = 'pageview' AND DATE(timestamp) = ?
+             GROUP BY date, path
+             ON CONFLICT(date, path) DO UPDATE SET
+               views = excluded.views,
+               unique_sessions = excluded.unique_sessions,
+               avg_time_on_page_ms = excluded.avg_time_on_page_ms`,
+            `INSERT INTO docs_analytics_referrers_daily (date, referrer, sessions, pageviews)
+             SELECT
+               DATE(timestamp) as date,
+               COALESCE(JSON_EXTRACT(properties, '$.referrer'), 'direct') as referrer,
+               COUNT(DISTINCT session_id) as sessions,
+               COUNT(*) as pageviews
+             FROM docs_analytics_events
+             WHERE event_type = 'pageview' AND DATE(timestamp) = ?
+             GROUP BY date, referrer
+             ON CONFLICT(date, referrer) DO UPDATE SET
+               sessions = excluded.sessions,
+               pageviews = excluded.pageviews`,
+            `INSERT INTO docs_analytics_utm_daily (date, utm_source, utm_medium, utm_campaign, sessions, pageviews)
+             SELECT
+               DATE(timestamp) as date,
+               JSON_EXTRACT(properties, '$.utm.source') as utm_source,
+               JSON_EXTRACT(properties, '$.utm.medium') as utm_medium,
+               JSON_EXTRACT(properties, '$.utm.campaign') as utm_campaign,
+               COUNT(DISTINCT session_id) as sessions,
+               COUNT(*) as pageviews
+             FROM docs_analytics_events
+             WHERE event_type = 'pageview'
+               AND DATE(timestamp) = ?
+               AND JSON_EXTRACT(properties, '$.utm.source') IS NOT NULL
+             GROUP BY date, utm_source, utm_medium, utm_campaign
+             ON CONFLICT(date, utm_source, utm_medium, utm_campaign) DO UPDATE SET
+               sessions = excluded.sessions,
+               pageviews = excluded.pageviews`,
+            `INSERT INTO docs_analytics_interactions_daily (date, interaction_type, target, count)
+             SELECT
+               DATE(timestamp) as date,
+               event_name as interaction_type,
+               JSON_EXTRACT(properties, '$.target') as target,
+               COUNT(*) as count
+             FROM docs_analytics_events
+             WHERE event_type = 'interaction' AND DATE(timestamp) = ?
+             GROUP BY date, interaction_type, target
+             ON CONFLICT(date, interaction_type, target) DO UPDATE SET
+               count = excluded.count`,
+            `INSERT INTO docs_analytics_geo_daily (date, country_code, sessions, pageviews)
+             SELECT
+               DATE(timestamp) as date,
+               JSON_EXTRACT(properties, '$.country') as country_code,
+               COUNT(DISTINCT session_id) as sessions,
+               COUNT(*) as pageviews
+             FROM docs_analytics_events
+             WHERE event_type = 'pageview' AND DATE(timestamp) = ?
+             GROUP BY date, country_code
+             ON CONFLICT(date, country_code) DO UPDATE SET
+               sessions = excluded.sessions,
+               pageviews = excluded.pageviews`,
+          ]) {
+            await env.DB.prepare(query).bind(today).run();
+          }
+          reportInfo(`Successfully aggregated docs analytics for ${today}`);
+        } catch (error: unknown) {
+          reportError(`Failed to aggregate docs analytics for ${today}:`, error);
+        }
+      })()
     );
 
     return jsonResponse({
       success: true,
-      processed: eventIds.length,
-      message: `Successfully processed ${eventIds.length} analytics events`,
+      processed,
+      message: `Successfully processed ${processed} analytics events`,
     });
   } catch (error: unknown) {
     reportError('Docs analytics error:', error);
@@ -171,12 +220,10 @@ export async function handleDocsAnalytics(
 export async function handleDocsAnalyticsDashboard(request: Request, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const days = parseReportingDays(url.searchParams.get('days'));
-
-    // Limit to 90 days max
-    const limitDays = days;
+    const parsedDays = Number.parseInt(url.searchParams.get('days') ?? '', 10);
+    const days = Number.isFinite(parsedDays) ? Math.min(Math.max(parsedDays, 1), 90) : 30;
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - limitDays);
+    startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString().slice(0, 10);
 
     // Execute dashboard queries in parallel
@@ -273,55 +320,65 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
         .all(),
     ]);
 
-    const decodedPageviews = await Effect.runPromiseExit(
-      decodeExtraRowArray(
-        DocsPageviewsRowSchema,
-        'Docs analytics pageview row has an invalid shape',
-        pageviewsResult.results
-      )
-    );
-    const decodedTopPages = await Effect.runPromiseExit(
-      decodeExtraRowArray(
-        DocsTopPageRowSchema,
-        'Docs analytics top page row has an invalid shape',
-        topPagesResult.results
-      )
-    );
-    const decodedReferrers = await Effect.runPromiseExit(
-      decodeExtraRowArray(
-        DocsReferrerRowSchema,
-        'Docs analytics referrer row has an invalid shape',
-        referrersResult.results
-      )
-    );
-    const decodedUtm = await Effect.runPromiseExit(
-      decodeExtraRowArray(
-        DocsUtmRowSchema,
-        'Docs analytics UTM row has an invalid shape',
-        utmResult.results
-      )
-    );
-    const decodedGeo = await Effect.runPromiseExit(
-      decodeExtraRowArray(
-        DocsGeoRowSchema,
-        'Docs analytics geo row has an invalid shape',
-        geoResult.results
-      )
-    );
-    const decodedInteractions = await Effect.runPromiseExit(
-      decodeExtraRowArray(
-        DocsInteractionRowSchema,
-        'Docs analytics interaction row has an invalid shape',
-        interactionsResult.results
-      )
-    );
-    const decodedPerformance = await Effect.runPromiseExit(
-      decodeExtraRowArray(
-        DocsPerformanceRowSchema,
-        'Docs analytics performance row has an invalid shape',
-        performanceResult.results
-      )
-    );
+    const [
+      decodedPageviews,
+      decodedTopPages,
+      decodedReferrers,
+      decodedUtm,
+      decodedGeo,
+      decodedInteractions,
+      decodedPerformance,
+    ] = await Promise.all([
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          DocsPageviewsRowSchema,
+          'Docs analytics pageview row has an invalid shape',
+          pageviewsResult.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          DocsTopPageRowSchema,
+          'Docs analytics top page row has an invalid shape',
+          topPagesResult.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          DocsReferrerRowSchema,
+          'Docs analytics referrer row has an invalid shape',
+          referrersResult.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          DocsUtmRowSchema,
+          'Docs analytics UTM row has an invalid shape',
+          utmResult.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          DocsGeoRowSchema,
+          'Docs analytics geo row has an invalid shape',
+          geoResult.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          DocsInteractionRowSchema,
+          'Docs analytics interaction row has an invalid shape',
+          interactionsResult.results
+        )
+      ),
+      Effect.runPromiseExit(
+        decodeExtraRowArray(
+          DocsPerformanceRowSchema,
+          'Docs analytics performance row has an invalid shape',
+          performanceResult.results
+        )
+      ),
+    ]);
     if (
       Exit.isFailure(decodedPageviews) ||
       Exit.isFailure(decodedTopPages) ||
@@ -343,7 +400,7 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
         total_sessions: totalSessions,
         avg_pages_per_session:
           totalSessions > 0 ? (totalPageviews / totalSessions).toFixed(2) : '0',
-        period_days: limitDays,
+        period_days: days,
       },
       pageviews_over_time: decodedPageviews.value,
       top_pages: decodedTopPages.value,
@@ -360,134 +417,18 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
 }
 
 /**
- * Aggregate docs analytics for a given date
- * Updates daily rollup tables from raw events
- * Runs asynchronously via ctx.waitUntil() to not block responses
- */
-async function aggregateDocsAnalytics(db: D1Database, date: string): Promise<void> {
-  try {
-    // Aggregate pageviews
-    await db
-      .prepare(
-        `INSERT INTO docs_analytics_pageviews_daily (date, path, views, unique_sessions, avg_time_on_page_ms)
-         SELECT
-           DATE(timestamp) as date,
-           JSON_EXTRACT(properties, '$.url') as path,
-           COUNT(*) as views,
-           COUNT(DISTINCT session_id) as unique_sessions,
-           AVG(COALESCE(duration_ms, 0)) as avg_time_on_page_ms
-         FROM docs_analytics_events
-         WHERE event_type = 'pageview' AND DATE(timestamp) = ?
-         GROUP BY date, path
-         ON CONFLICT(date, path) DO UPDATE SET
-           views = excluded.views,
-           unique_sessions = excluded.unique_sessions,
-           avg_time_on_page_ms = excluded.avg_time_on_page_ms`
-      )
-      .bind(date)
-      .run();
-
-    // Aggregate referrers
-    await db
-      .prepare(
-        `INSERT INTO docs_analytics_referrers_daily (date, referrer, sessions, pageviews)
-         SELECT
-           DATE(timestamp) as date,
-           COALESCE(JSON_EXTRACT(properties, '$.referrer'), 'direct') as referrer,
-           COUNT(DISTINCT session_id) as sessions,
-           COUNT(*) as pageviews
-         FROM docs_analytics_events
-         WHERE event_type = 'pageview' AND DATE(timestamp) = ?
-         GROUP BY date, referrer
-         ON CONFLICT(date, referrer) DO UPDATE SET
-           sessions = excluded.sessions,
-           pageviews = excluded.pageviews`
-      )
-      .bind(date)
-      .run();
-
-    // Aggregate UTM campaigns
-    await db
-      .prepare(
-        `INSERT INTO docs_analytics_utm_daily (date, utm_source, utm_medium, utm_campaign, sessions, pageviews)
-         SELECT
-           DATE(timestamp) as date,
-           JSON_EXTRACT(properties, '$.utm.source') as utm_source,
-           JSON_EXTRACT(properties, '$.utm.medium') as utm_medium,
-           JSON_EXTRACT(properties, '$.utm.campaign') as utm_campaign,
-           COUNT(DISTINCT session_id) as sessions,
-           COUNT(*) as pageviews
-         FROM docs_analytics_events
-         WHERE event_type = 'pageview'
-           AND DATE(timestamp) = ?
-           AND JSON_EXTRACT(properties, '$.utm.source') IS NOT NULL
-         GROUP BY date, utm_source, utm_medium, utm_campaign
-         ON CONFLICT(date, utm_source, utm_medium, utm_campaign) DO UPDATE SET
-           sessions = excluded.sessions,
-           pageviews = excluded.pageviews`
-      )
-      .bind(date)
-      .run();
-
-    // Aggregate interactions
-    await db
-      .prepare(
-        `INSERT INTO docs_analytics_interactions_daily (date, interaction_type, target, count)
-         SELECT
-           DATE(timestamp) as date,
-           event_name as interaction_type,
-           JSON_EXTRACT(properties, '$.target') as target,
-           COUNT(*) as count
-         FROM docs_analytics_events
-         WHERE event_type = 'interaction' AND DATE(timestamp) = ?
-         GROUP BY date, interaction_type, target
-         ON CONFLICT(date, interaction_type, target) DO UPDATE SET
-           count = excluded.count`
-      )
-      .bind(date)
-      .run();
-
-    // Aggregate geographic data
-    await db
-      .prepare(
-        `INSERT INTO docs_analytics_geo_daily (date, country_code, sessions, pageviews)
-         SELECT
-           DATE(timestamp) as date,
-           JSON_EXTRACT(properties, '$.country') as country_code,
-           COUNT(DISTINCT session_id) as sessions,
-           COUNT(*) as pageviews
-         FROM docs_analytics_events
-         WHERE event_type = 'pageview' AND DATE(timestamp) = ?
-         GROUP BY date, country_code
-         ON CONFLICT(date, country_code) DO UPDATE SET
-           sessions = excluded.sessions,
-           pageviews = excluded.pageviews`
-      )
-      .bind(date)
-      .run();
-
-    reportInfo(`Successfully aggregated docs analytics for ${date}`);
-  } catch (error: unknown) {
-    reportError(`Failed to aggregate docs analytics for ${date}:`, error);
-  }
-}
-
-/**
  * Cleanup old raw events (retention: 7 days)
  * Keeps aggregates forever, deletes raw events after 7 days
  * Run daily via cron trigger
  */
 export async function cleanupDocsAnalytics(db: D1Database): Promise<void> {
   try {
-    const retentionDays = 7;
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-    const cutoffDateStr = cutoffDate.toISOString();
+    cutoffDate.setDate(cutoffDate.getDate() - 7);
 
-    // Delete old raw events
     const result = await db
       .prepare(`DELETE FROM docs_analytics_events WHERE created_at < ?`)
-      .bind(cutoffDateStr)
+      .bind(cutoffDate.toISOString())
       .run();
 
     reportInfo(`Cleaned up ${result.meta.changes} old docs analytics events`);

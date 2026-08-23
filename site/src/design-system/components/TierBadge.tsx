@@ -1,13 +1,7 @@
 import { type Component, Show, createMemo } from 'solid-js';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { Crown, Sparkles, Users, Building2 } from 'lucide-solid';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-export type Tier = 'free' | 'pro' | 'team' | 'enterprise';
+import { cn } from '~/lib/prelude';
+import type { Tier } from '~/lib/contracts/tier';
 
 interface TierBadgeProps {
   tier: Tier;
@@ -175,54 +169,3 @@ export const TierBadge: Component<TierBadgeProps> = props => {
     </div>
   );
 };
-
-interface TierComparisonProps {
-  currentTier: Tier;
-  recommendedTier?: Tier;
-  class?: string;
-}
-
-const tierOrder: Tier[] = ['free', 'pro', 'team', 'enterprise'];
-
-export const TierComparison: Component<TierComparisonProps> = props => {
-  const currentIndex = createMemo(() => tierOrder.indexOf(props.currentTier));
-
-  return (
-    <div class={cn('flex items-center gap-2', props.class)}>
-      {tierOrder.map((tier, index) => {
-        const config = tierConfig[tier];
-        const isActive = index <= currentIndex();
-        const isRecommended = tier === props.recommendedTier;
-        const isCurrent = tier === props.currentTier;
-
-        return (
-          <div class="flex items-center gap-2">
-            <div
-              class={cn(
-                'flex h-8 w-8 items-center justify-center rounded-lg border transition-all',
-                isActive
-                  ? cn(config.bg, config.border, config.color)
-                  : 'bg-void-800 border-void-600 text-nebula-600',
-                isCurrent && 'ring-2 ring-white/20',
-                isRecommended && 'animate-pulse ring-2',
-                isRecommended && config.ringColor
-              )}
-            >
-              <config.icon size={14} />
-            </div>
-            <Show when={index < tierOrder.length - 1}>
-              <div
-                class={cn(
-                  'h-0.5 w-4 rounded-full',
-                  index < currentIndex() ? 'bg-indigo-500/50' : 'bg-void-700'
-                )}
-              />
-            </Show>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-export default TierBadge;

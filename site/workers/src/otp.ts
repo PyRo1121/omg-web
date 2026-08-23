@@ -10,12 +10,11 @@ const OTP_HMAC_CONTEXT = 'omg-web:otp:v1';
 export function generateOtpCode(): string {
   const bytes = new Uint8Array(4);
   const view = new DataView(bytes.buffer);
-  let value = UNBIASED_LIMIT;
-
-  while (value >= UNBIASED_LIMIT) {
+  let value: number;
+  do {
     crypto.getRandomValues(bytes);
     value = view.getUint32(0);
-  }
+  } while (value >= UNBIASED_LIMIT);
 
   return (OTP_MINIMUM + (value % OTP_POSSIBILITIES)).toString();
 }
@@ -39,9 +38,7 @@ export async function hashOtpCode(email: string, code: string, secret: string): 
     key,
     encoder.encode(`${OTP_HMAC_CONTEXT}\u0000${email}\u0000${code}`)
   );
-  const digest = Array.from(new Uint8Array(signature), byte =>
+  return `${OTP_DIGEST_PREFIX}${Array.from(new Uint8Array(signature), byte =>
     byte.toString(16).padStart(2, '0')
-  ).join('');
-
-  return `${OTP_DIGEST_PREFIX}${digest}`;
+  ).join('')}`;
 }

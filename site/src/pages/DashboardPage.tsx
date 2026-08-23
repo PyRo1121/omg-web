@@ -7,7 +7,6 @@ import {
   Shield,
   Clock,
   CircleCheckBig,
-  Mail,
   Terminal,
   Package,
   Zap,
@@ -16,37 +15,45 @@ import {
   ChartColumn,
   CircleAlert,
   TrendingUp,
-  TrendingDown,
-  Minus,
-  Target,
-  Rocket,
-  Gem,
-  Trophy,
-  Star,
-  Flame,
-  Crown,
-  Heart,
   Sparkles,
-  Swords,
-  Bug,
-  Code,
-  GitBranch,
-  Coffee,
-  Lightbulb,
   Copy,
   Check,
   Download,
   Calendar,
   RefreshCw,
-  LayoutDashboard,
-  Settings,
   Users,
 } from 'lucide-solid';
 import { signOutBrowserSessions } from '~/lib/auth-client';
 import { createDashboardView } from '~/lib/state/dashboard-view';
+import {
+  countActiveMachines,
+  countUnlockedAchievements,
+  createTelemetryExport,
+  DASHBOARD_DATE_RANGES,
+  formatDashboardDate,
+  formatDashboardShortDate,
+  formatDashboardTimeSaved,
+  formatMachineId,
+  formatMachineVersion,
+  formatTrendPercentage,
+  getAchievementIcon,
+  getAverageCommandsPerDay,
+  getCommandBarHeight,
+  getDashboardTabs,
+  getMachineDisplayName,
+  getPackageBarHeight,
+  getPeakDay,
+  getProviderIcon,
+  getRecentDailyUsage,
+  getSessionBrowser,
+  getSessionLocation,
+  getTotalPackages,
+  getTrendPresentation,
+  type DashboardDateRange,
+  type DashboardTab,
+} from '~/lib/dashboard-page';
 import AdminDashboard from '~/components/dashboard/AdminDashboard';
 import BackgroundMesh from '~/components/3d/BackgroundMesh';
-import { GitHubIcon, GoogleIcon } from '~/components/ui/BrandIcons';
 
 interface BetterAuthSession {
   user: {
@@ -66,96 +73,6 @@ interface DashboardPageProps {
   session: BetterAuthSession;
 }
 
-type TabType = 'overview' | 'analytics' | 'achievements' | 'machines' | 'settings' | 'admin';
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatShortDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function getProviderIcon(provider: string) {
-  switch (provider) {
-    case 'github':
-      return GitHubIcon;
-    case 'google':
-      return GoogleIcon;
-    case 'credential':
-      return Mail;
-    default:
-      return Shield;
-  }
-}
-
-function getAchievementIcon(_emoji: string, name: string) {
-  const nameUpper = name.toUpperCase();
-
-  if (nameUpper.includes('FIRST') || nameUpper.includes('START')) {
-    return Rocket;
-  }
-  if (nameUpper.includes('SPEED') || nameUpper.includes('FAST')) {
-    return Zap;
-  }
-  if (nameUpper.includes('PACKAGE') || nameUpper.includes('INSTALL')) {
-    return Package;
-  }
-  if (nameUpper.includes('COMMAND') || nameUpper.includes('RUN')) {
-    return Terminal;
-  }
-  if (nameUpper.includes('SECURITY') || nameUpper.includes('SBOM')) {
-    return Shield;
-  }
-  if (nameUpper.includes('BUG') || nameUpper.includes('FIX')) {
-    return Bug;
-  }
-  if (nameUpper.includes('RUNTIME') || nameUpper.includes('SWITCH')) {
-    return Code;
-  }
-  if (nameUpper.includes('MASTER') || nameUpper.includes('EXPERT')) {
-    return Crown;
-  }
-  if (nameUpper.includes('STREAK') || nameUpper.includes('DAILY')) {
-    return Flame;
-  }
-  if (nameUpper.includes('STAR') || nameUpper.includes('TOP')) {
-    return Star;
-  }
-  if (nameUpper.includes('DIAMOND') || nameUpper.includes('ELITE')) {
-    return Gem;
-  }
-  if (nameUpper.includes('TROPHY') || nameUpper.includes('CHAMPION')) {
-    return Trophy;
-  }
-  if (nameUpper.includes('LOVE') || nameUpper.includes('HEART')) {
-    return Heart;
-  }
-  if (nameUpper.includes('COFFEE') || nameUpper.includes('CAFFEINE')) {
-    return Coffee;
-  }
-  if (nameUpper.includes('IDEA') || nameUpper.includes('INNOVATION')) {
-    return Lightbulb;
-  }
-  if (nameUpper.includes('BRANCH') || nameUpper.includes('GIT')) {
-    return GitBranch;
-  }
-  if (nameUpper.includes('BATTLE') || nameUpper.includes('FIGHT')) {
-    return Swords;
-  }
-
-  return Target;
-}
-
 const DashboardPage: Component<DashboardPageProps> = props => {
   const {
     dashboardData,
@@ -169,8 +86,8 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     loadTelemetry,
   } = createDashboardView();
   const [copiedLicense, setCopiedLicense] = createSignal(false);
-  const [dateRange, setDateRange] = createSignal<'7d' | '14d' | '30d' | '90d'>('30d');
-  const [activeTab, setActiveTab] = createSignal<TabType>('overview');
+  const [dateRange, setDateRange] = createSignal<DashboardDateRange>('30d');
+  const [activeTab, setActiveTab] = createSignal<DashboardTab>('overview');
   // onMount only runs on the client (deferred until hydration completes during
   // SSR), so this flag is the observable signal that event handlers are live.
   const [isInteractive, setIsInteractive] = createSignal(false);
@@ -208,82 +125,27 @@ const DashboardPage: Component<DashboardPageProps> = props => {
       return;
     }
 
-    let content = '';
-    let filename = '';
-    let mimeType = '';
-
-    if (format === 'json') {
-      content = JSON.stringify(data, null, 2);
-      filename = `omg-telemetry-${new Date().toISOString().split('T')[0]}.json`;
-      mimeType = 'application/json';
-    } else {
-      const rows = [
-        ['Date', 'Commands', 'Packages Installed', 'Packages Searched', 'Time Saved (ms)'],
-        ...data.daily.map(d => [
-          d.date,
-          d.commands_run,
-          d.packages_installed || 0,
-          d.packages_searched || 0,
-          d.time_saved_ms,
-        ]),
-      ];
-      content = rows.map(row => row.join(',')).join('\n');
-      filename = `omg-telemetry-${new Date().toISOString().split('T')[0]}.csv`;
-      mimeType = 'text/csv';
-    }
-
-    const blob = new Blob([content], { type: mimeType });
+    const telemetryExport = createTelemetryExport(data, format, new Date());
+    const blob = new Blob([telemetryExport.content], { type: telemetryExport.mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename;
+    a.download = telemetryExport.filename;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const formatTimeSaved = createMemo(() => {
-    const ms = telemetryData()?.usage.total_time_saved_ms || 0;
-    const hours = ms / 3600000;
-    if (hours < 1) {
-      return `${Math.round((ms / 60000) * 10) / 10}m`;
-    }
-    if (hours < 24) {
-      return `${Math.round(hours * 10) / 10}h`;
-    }
-    return `${Math.round((hours / 24) * 10) / 10}d`;
-  });
+  const formatTimeSaved = createMemo(() =>
+    formatDashboardTimeSaved(telemetryData()?.usage.total_time_saved_ms || 0)
+  );
 
-  const averageCommandsPerDay = createMemo(() => {
-    const data = telemetryData();
-    if (!data || data.daily.length === 0) {
-      return 0;
-    }
-    const total = data.daily.reduce((sum, d) => sum + d.commands_run, 0);
-    return Math.round(total / data.daily.length);
-  });
+  const averageCommandsPerDay = createMemo(() =>
+    getAverageCommandsPerDay(telemetryData()?.daily ?? [])
+  );
 
-  const peakDay = createMemo(() => {
-    const data = telemetryData();
-    if (!data || data.daily.length === 0) {
-      return null;
-    }
-    const [firstDay, ...remainingDays] = data.daily;
-    if (firstDay === undefined) {
-      return null;
-    }
-    return remainingDays.reduce(
-      (max, day) => (day.commands_run > max.commands_run ? day : max),
-      firstDay
-    );
-  });
+  const peakDay = createMemo(() => getPeakDay(telemetryData()?.daily ?? []));
 
-  const totalPackages = createMemo(() => {
-    const data = telemetryData();
-    if (!data) {
-      return 0;
-    }
-    return data.usage.total_packages_installed + data.usage.total_packages_searched;
-  });
+  const totalPackages = createMemo(() => getTotalPackages(telemetryData()?.usage));
 
   const pageBg =
     'min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden relative';
@@ -304,23 +166,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
   const glassPanel =
     'bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl hover:border-indigo-500/30 transition-all duration-300';
 
-  const tabs = createMemo(() => {
-    const role = telemetryData()?.user?.role;
-
-    const baseTabs: Array<{ id: TabType; label: string; icon: typeof LayoutDashboard }> = [
-      { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-      { id: 'analytics', label: 'Analytics', icon: ChartColumn },
-      { id: 'achievements', label: 'Achievements', icon: Award },
-      { id: 'machines', label: 'Machines', icon: Monitor },
-      { id: 'settings', label: 'Settings', icon: Settings },
-    ];
-
-    if (role === 'admin') {
-      baseTabs.push({ id: 'admin', label: 'Admin', icon: Shield });
-    }
-
-    return baseTabs;
-  });
+  const tabs = createMemo(() => getDashboardTabs(telemetryData()?.user?.role));
 
   const StatCard = (cardProps: {
     title: string;
@@ -330,19 +176,8 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     sub?: string;
     trend?: number | undefined;
   }) => {
-    const trendIcon =
-      !cardProps.trend || cardProps.trend === 0
-        ? Minus
-        : cardProps.trend > 0
-          ? TrendingUp
-          : TrendingDown;
-
-    const trendColor = () => {
-      if (!cardProps.trend || cardProps.trend === 0) {
-        return 'text-slate-500';
-      }
-      return cardProps.trend > 0 ? 'text-emerald-400' : 'text-red-400';
-    };
+    const trendIcon = getTrendPresentation(cardProps.trend).icon;
+    const trendColor = () => getTrendPresentation(cardProps.trend).color;
 
     return (
       <div
@@ -357,7 +192,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
           <Show when={cardProps.trend !== undefined}>
             <div class={`flex items-center gap-1 text-xs font-medium ${trendColor()}`}>
               <Dynamic component={trendIcon} class="h-4 w-4" />
-              <span>{Math.abs(cardProps.trend || 0).toFixed(1)}%</span>
+              <span>{formatTrendPercentage(cardProps.trend)}%</span>
             </div>
           </Show>
         </div>
@@ -562,9 +397,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                           />
                           <StatCard
                             title="Active Machines"
-                            value={data()
-                              .machines.filter(m => m.is_active)
-                              .length.toString()}
+                            value={countActiveMachines(data().machines).toString()}
                             icon={Monitor}
                             color="cyan"
                             sub={`${data().machines.length} total`}
@@ -595,7 +428,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                             <div class="mb-1 text-sm text-slate-400">Peak Productivity</div>
                             <div class="text-2xl font-bold text-white">{day().commands_run}</div>
                             <div class="mt-1 text-xs text-slate-500">
-                              on {formatShortDate(day().date)}
+                              on {formatDashboardShortDate(day().date)}
                             </div>
                           </div>
                         )}
@@ -620,15 +453,12 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                           <span class="gradient-text">Recent Activity (7 Days)</span>
                         </h3>
                         <div class="flex h-48 items-end justify-between gap-2">
-                          <For each={data().daily.slice(-7)}>
+                          <For each={getRecentDailyUsage(data().daily)}>
                             {day => {
-                              const maxCommands = Math.max(
-                                ...data()
-                                  .daily.slice(-7)
-                                  .map(d => d.commands_run),
-                                1
+                              const commandsHeight = getCommandBarHeight(
+                                day,
+                                getRecentDailyUsage(data().daily)
                               );
-                              const commandsHeight = (day.commands_run / maxCommands) * 100;
                               return (
                                 <div class="group flex flex-1 flex-col items-center gap-2">
                                   <div
@@ -649,7 +479,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                     />
                                   </div>
                                   <span class="text-xs text-slate-500">
-                                    {formatShortDate(day.date)}
+                                    {formatDashboardShortDate(day.date)}
                                   </span>
                                 </div>
                               );
@@ -673,14 +503,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                       <span>Time Range</span>
                     </div>
                     <div class="flex gap-2">
-                      <For
-                        each={[
-                          { label: '7d', value: '7d' as const },
-                          { label: '14d', value: '14d' as const },
-                          { label: '30d', value: '30d' as const },
-                          { label: '90d', value: '90d' as const },
-                        ]}
-                      >
+                      <For each={DASHBOARD_DATE_RANGES}>
                         {option => (
                           <button
                             onClick={() => setDateRange(option.value)}
@@ -776,9 +599,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                         />
                         <StatCard
                           title="Active Machines"
-                          value={data()
-                            .machines.filter(m => m.is_active)
-                            .length.toString()}
+                          value={countActiveMachines(data().machines).toString()}
                           icon={Monitor}
                           color="cyan"
                           sub={`${data().machines.length}/${data().license.max_machines} total`}
@@ -806,17 +627,8 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                           <div class="flex h-64 items-end justify-between gap-2">
                             <For each={data().daily}>
                               {day => {
-                                const maxCommands = Math.max(
-                                  ...data().daily.map(d => d.commands_run),
-                                  1
-                                );
-                                const maxPackages = Math.max(
-                                  ...data().daily.map(d => d.packages_installed || 0),
-                                  1
-                                );
-                                const commandsHeight = (day.commands_run / maxCommands) * 100;
-                                const packagesHeight =
-                                  ((day.packages_installed || 0) / maxPackages) * 100;
+                                const commandsHeight = getCommandBarHeight(day, data().daily);
+                                const packagesHeight = getPackageBarHeight(day, data().daily);
                                 return (
                                   <div class="group flex flex-1 flex-col items-center gap-2">
                                     <div
@@ -841,7 +653,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                       />
                                     </div>
                                     <span class="text-xs text-slate-500">
-                                      {formatShortDate(day.date)}
+                                      {formatDashboardShortDate(day.date)}
                                     </span>
                                   </div>
                                 );
@@ -905,7 +717,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                     {data => (
                       <div class="text-sm text-slate-400">
                         <span class="font-bold text-white">
-                          {data().achievements.filter(a => a.unlocked).length}
+                          {countUnlockedAchievements(data().achievements)}
                         </span>
                         {' / '}
                         <span>{data().achievements.length}</span>
@@ -978,7 +790,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                               >
                                 {unlockedAt => (
                                   <div class="mt-3 text-xs text-slate-500">
-                                    Unlocked {formatShortDate(unlockedAt())}
+                                    Unlocked {formatDashboardShortDate(unlockedAt())}
                                   </div>
                                 )}
                               </Show>
@@ -1000,7 +812,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                     {data => (
                       <div class="text-sm text-slate-400">
                         <span class="font-bold text-white">
-                          {data().machines.filter(m => m.is_active).length}
+                          {countActiveMachines(data().machines)}
                         </span>
                         {' / '}
                         <span>{data().license.max_machines}</span>
@@ -1047,7 +859,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                 <div class="flex items-center gap-3">
                                   <Monitor class="h-5 w-5 text-cyan-400" />
                                   <span class="font-medium text-white">
-                                    {machine.hostname || machine.machine_id.substring(0, 8)}
+                                    {getMachineDisplayName(machine)}
                                   </span>
                                 </div>
                                 <Show when={machine.is_active}>
@@ -1067,19 +879,19 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                 <div class="flex items-center justify-between">
                                   <span class="text-slate-500">OMG Version</span>
                                   <span class="text-slate-300">
-                                    v{machine.omg_version || 'unknown'}
+                                    {formatMachineVersion(machine.omg_version)}
                                   </span>
                                 </div>
                                 <div class="flex items-center justify-between">
                                   <span class="text-slate-500">Last Seen</span>
                                   <span class="text-slate-300">
-                                    {formatShortDate(machine.last_seen_at)}
+                                    {formatDashboardShortDate(machine.last_seen_at)}
                                   </span>
                                 </div>
                                 <div class="flex items-center justify-between">
                                   <span class="text-slate-500">Machine ID</span>
                                   <span class="font-mono text-xs text-slate-300">
-                                    {machine.machine_id.substring(0, 12)}...
+                                    {formatMachineId(machine.machine_id)}
                                   </span>
                                 </div>
                               </div>
@@ -1149,7 +961,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                             <div class="flex-1">
                               <div class="flex items-center gap-2">
                                 <p class="font-medium text-white">
-                                  {session.userAgent?.split(' ')[0] || 'Unknown Browser'}
+                                  {getSessionBrowser(session.userAgent)}
                                 </p>
                                 <Show when={session.isCurrent}>
                                   <span class="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-400">
@@ -1158,11 +970,11 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                 </Show>
                               </div>
                               <p class="mt-1 text-sm text-slate-400">
-                                {session.ipAddress || 'Unknown location'}
+                                {getSessionLocation(session.ipAddress)}
                               </p>
                               <div class="mt-2 flex gap-4 text-xs text-slate-500">
-                                <span>Created: {formatDate(session.createdAt)}</span>
-                                <span>Expires: {formatDate(session.expiresAt)}</span>
+                                <span>Created: {formatDashboardDate(session.createdAt)}</span>
+                                <span>Expires: {formatDashboardDate(session.expiresAt)}</span>
                               </div>
                             </div>
                           </div>

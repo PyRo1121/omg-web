@@ -2,6 +2,7 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import { D1Number, NullableStringSchema } from '../../../shared/d1-rows';
 
 /** A failure decoding a Worker JSON response. */
 export class WorkerHttpParseError extends Error {
@@ -14,18 +15,9 @@ export class WorkerHttpParseError extends Error {
   }
 }
 
-const NullableString = Schema.Union(Schema.Null, Schema.String);
 const JsonAtom = Schema.Union(Schema.String, Schema.Number, Schema.Boolean, Schema.Null);
 
-const Num = Schema.optionalWith(
-  Schema.Union(Schema.Number, Schema.Null).pipe(
-    Schema.transform(Schema.Number, {
-      decode: (fromA: number | null) => (fromA === null ? 0 : fromA),
-      encode: (toI: number) => toI,
-    })
-  ),
-  { default: () => 0 }
-);
+const Num = Schema.optionalWith(D1Number, { default: () => 0 });
 
 const Flag = Schema.Union(Schema.Boolean, Schema.Number).pipe(
   Schema.transform(Schema.Boolean, {
@@ -52,8 +44,6 @@ function decodeNumArray<S extends Schema.Schema.AnyNoContext>(schema: S) {
 export const SuccessSchema = Schema.Struct({
   success: Schema.Boolean,
 });
-export type Success = Schema.Schema.Type<typeof SuccessSchema>;
-
 /** Checkout session URL. */
 export const CheckoutUrlSchema = Schema.Struct({
   url: Schema.String.pipe(Schema.minLength(1)),
@@ -64,8 +54,6 @@ export const PortalUrlSchema = Schema.Struct({
   success: Schema.Boolean,
   url: Schema.String.pipe(Schema.minLength(1)),
 });
-
-/** License regeneration payload. */
 
 /** Created note id. */
 export const CreatedNoteSchema = Schema.Struct({
@@ -78,8 +66,6 @@ export const CreatedTagSchema = Schema.Struct({
   success: Schema.Boolean,
   tag_id: Schema.String.pipe(Schema.minLength(1)),
 });
-
-/** Site tracking acknowledgement. */
 
 export const AdminOverviewSchema = Schema.Struct({
   overview: Schema.Struct({
@@ -136,7 +122,7 @@ export const FirehoseResponseSchema = Schema.Struct({
 const AdminUserSchema = Schema.Struct({
   id: Schema.String,
   email: Schema.String,
-  company: NullableString,
+  company: NullableStringSchema,
   customer_tier: Str,
   created_at: Str,
   license_key: Str,
@@ -145,7 +131,7 @@ const AdminUserSchema = Schema.Struct({
   max_seats: Num,
   machine_count: Num,
   total_commands: Num,
-  last_active: Schema.optional(NullableString),
+  last_active: Schema.optional(NullableStringSchema),
   engagement_score: Schema.optional(Schema.Number),
   lifecycle_stage: Schema.optional(Schema.String),
 });
@@ -165,8 +151,8 @@ export const AdminUserDetailSchema = Schema.Struct({
   user: Schema.Struct({
     id: Schema.String,
     email: Schema.String,
-    company: NullableString,
-    stripe_customer_id: Schema.optionalWith(NullableString, { default: () => null }),
+    company: NullableStringSchema,
+    stripe_customer_id: Schema.optionalWith(NullableStringSchema, { default: () => null }),
     tier: Str,
     created_at: Str,
     created_at_relative: Str,
@@ -180,7 +166,7 @@ export const AdminUserDetailSchema = Schema.Struct({
         tier: Str,
         status: Str,
         max_seats: Num,
-        expires_at: NullableString,
+        expires_at: NullableStringSchema,
       })
     ),
     { default: () => null }
@@ -216,8 +202,8 @@ export const AdminUserDetailSchema = Schema.Struct({
           total_searches: Num,
           total_time_saved_ms: Num,
           active_days: Num,
-          first_active: NullableString,
-          last_active: NullableString,
+          first_active: NullableStringSchema,
+          last_active: NullableStringSchema,
         })
       ),
       { default: () => null }
@@ -264,10 +250,10 @@ export const AdminAuditLogResponseSchema = Schema.Struct({
       user_id: Str,
       user_email: Str,
       action: Schema.String,
-      resource_type: NullableString,
-      resource_id: NullableString,
-      ip_address: NullableString,
-      metadata: NullableString,
+      resource_type: NullableStringSchema,
+      resource_id: NullableStringSchema,
+      ip_address: NullableStringSchema,
+      metadata: NullableStringSchema,
       created_at: Schema.String,
     })
   ),
@@ -299,7 +285,7 @@ const CustomerTagSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   color: Schema.String,
-  description: NullableString,
+  description: NullableStringSchema,
   usage_count: Schema.optional(Schema.Number),
   created_at: Str,
 });
@@ -392,7 +378,7 @@ export const AdminAdvancedMetricsSchema = Schema.Struct({
     Schema.Struct({
       customer_id: Str,
       email: Str,
-      company: NullableString,
+      company: NullableStringSchema,
       tier: Str,
       active_machines: Num,
       max_seats: Num,
@@ -433,9 +419,9 @@ export const DocsAnalyticsDashboardSchema = Schema.Struct({
   top_referrers: decodeNumArray(Schema.Struct({ referrer: Str, sessions: Num, pageviews: Num })),
   utm_campaigns: decodeNumArray(
     Schema.Struct({
-      utm_source: NullableString,
-      utm_medium: NullableString,
-      utm_campaign: NullableString,
+      utm_source: NullableStringSchema,
+      utm_medium: NullableStringSchema,
+      utm_campaign: NullableStringSchema,
       sessions: Num,
       pageviews: Num,
     })

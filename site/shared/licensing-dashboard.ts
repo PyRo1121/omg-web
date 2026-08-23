@@ -1,25 +1,30 @@
 import * as Schema from 'effect/Schema';
+import { NullableStringSchema } from './d1-rows';
 
-const NullableString = Schema.Union(Schema.Null, Schema.String);
-
-export const LicensingDashboardMachineSchema = Schema.Struct({
+const LicensingDashboardMachineSchema = Schema.Struct({
   id: Schema.String,
   machine_id: Schema.String,
-  hostname: NullableString,
-  os: NullableString,
-  arch: NullableString,
-  omg_version: NullableString,
+  hostname: NullableStringSchema,
+  os: NullableStringSchema,
+  arch: NullableStringSchema,
+  omg_version: NullableStringSchema,
   last_seen_at: Schema.String,
   first_seen_at: Schema.String,
   is_active: Schema.Number,
+});
+
+export const LicensingGlobalStatsSchema = Schema.Struct({
+  top_package: Schema.String,
+  top_runtime: Schema.String,
+  percentile: Schema.Number,
 });
 
 export const LicensingDashboardSchema = Schema.Struct({
   user: Schema.Struct({
     id: Schema.String,
     email: Schema.String,
-    name: NullableString,
-    avatar_url: NullableString,
+    name: NullableStringSchema,
+    avatar_url: NullableStringSchema,
     created_at: Schema.String,
   }),
   license: Schema.Struct({
@@ -28,7 +33,7 @@ export const LicensingDashboardSchema = Schema.Struct({
     tier: Schema.String,
     status: Schema.String,
     max_machines: Schema.Number,
-    expires_at: NullableString,
+    expires_at: NullableStringSchema,
     features: Schema.Array(Schema.String),
   }),
   machines: Schema.Array(LicensingDashboardMachineSchema),
@@ -64,15 +69,15 @@ export const LicensingDashboardSchema = Schema.Struct({
       name: Schema.String,
       description: Schema.String,
       unlocked: Schema.Boolean,
-      unlocked_at: NullableString,
+      unlocked_at: NullableStringSchema,
     })
   ),
   subscription: Schema.Union(
     Schema.Null,
     Schema.Struct({
       status: Schema.String,
-      current_period_start: NullableString,
-      current_period_end: NullableString,
+      current_period_start: NullableStringSchema,
+      current_period_end: NullableStringSchema,
       cancel_at_period_end: Schema.Number,
     })
   ),
@@ -84,11 +89,7 @@ export const LicensingDashboardSchema = Schema.Struct({
       time_saved: Schema.Number,
     })
   ),
-  global_stats: Schema.Struct({
-    top_package: Schema.String,
-    top_runtime: Schema.String,
-    percentile: Schema.Number,
-  }),
+  global_stats: LicensingGlobalStatsSchema,
 });
 
 export type LicensingDashboard = Schema.Schema.Type<typeof LicensingDashboardSchema>;

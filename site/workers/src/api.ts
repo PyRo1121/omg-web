@@ -10,9 +10,7 @@ import {
 } from './contracts/d1-extras';
 import { TurnstileSiteverifySchema } from './contracts/provider-boundaries';
 
-type GeneratedBindings = Pick<Cloudflare.Env, 'DB'>;
-
-export interface Env extends GeneratedBindings {
+export interface Env extends Pick<Cloudflare.Env, 'DB'> {
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;
@@ -50,16 +48,8 @@ export interface Session {
   expires_at: string;
 }
 
-// Achievement definition
-export interface Achievement {
-  id: string;
-  emoji: string;
-  name: string;
-  description: string;
-  threshold?: number;
-}
-
-export const ACHIEVEMENTS: Achievement[] = [
+// Achievement definitions
+export const ACHIEVEMENTS = [
   { id: 'first_command', emoji: '🚀', name: 'First Step', description: 'Run your first command' },
   {
     id: 'centurion',
@@ -203,19 +193,8 @@ export const corsHeaders = {
 };
 
 // Helper to get origin-specific CORS headers (for authenticated endpoints)
-export function getCorsHeaders(origin: string | null) {
-  const allowedOrigins = ['https://omg.latham.cloud'];
-
-  const isAllowed = origin !== null && allowedOrigins.includes(origin);
-
-  const allowedOrigin = isAllowed && origin ? origin : 'https://omg.latham.cloud';
-
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Credentials': 'true',
-  };
+export function getCorsHeaders(_origin: string | null) {
+  return { ...corsHeaders, 'Access-Control-Allow-Credentials': 'true' };
 }
 
 export function jsonResponse<TResponse>(data: TResponse, status = 200): Response {
@@ -399,9 +378,7 @@ export function verifyTurnstile(
   { readonly success: true } | { readonly success: false; readonly error: string },
   TurnstileVerificationUnavailable
 > {
-  const formData = new URLSearchParams();
-  formData.append('secret', secretKey);
-  formData.append('response', token);
+  const formData = new URLSearchParams({ secret: secretKey, response: token });
   if (ip) {
     formData.append('remoteip', ip);
   }

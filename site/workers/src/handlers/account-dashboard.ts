@@ -1,17 +1,10 @@
 import * as Schema from 'effect/Schema';
-import { Cause, Effect, Exit, Option } from 'effect';
+import { Effect } from 'effect';
 import {
   LicensingDashboardSchema,
   type LicensingDashboard,
 } from '../../../shared/licensing-dashboard';
-import {
-  type Env,
-  jsonResponse,
-  errorResponse,
-  ACHIEVEMENTS,
-  TIER_FEATURES,
-  type User,
-} from '../api';
+import { type Env, errorResponse, respondFromEffect, ACHIEVEMENTS, TIER_FEATURES } from '../api';
 import { requireSession, SessionUnauthorizedError } from '../admin-auth';
 import { casesHandled } from '../prelude';
 import {
@@ -33,8 +26,6 @@ import {
   TopRuntimeRowSchema,
   decodeRow,
   decodeRowArray,
-  type DashboardLicenseRow,
-  type UsageStatsRow,
 } from '../contracts/account-dashboard';
 
 /** The customer has no license row. */
@@ -54,56 +45,6 @@ class DashboardStoreUnavailable extends Error {
   ) {
     super(`Dashboard store unavailable during ${operation}`);
   }
-}
-
-type DashboardError =
-  | SessionUnauthorizedError
-  | LicenseNotFoundError
-  | AccountDashboardParseError
-  | DashboardStoreUnavailable;
-
-function featuresForTier(tier: string): ReadonlyArray<string> {
-  if (tier === 'pro' || tier === 'team' || tier === 'enterprise') {
-    return TIER_FEATURES[tier].features;
-  }
-  return TIER_FEATURES.free.features;
-}
-
-function maxMachinesFor(license: DashboardLicenseRow): number {
-  if (license.max_seats !== undefined && license.max_seats !== null) {
-    return license.max_seats;
-  }
-  if (license.max_machines !== undefined && license.max_machines !== null) {
-    return license.max_machines;
-  }
-  return 1;
-}
-
-function currentStreak(dates: ReadonlyArray<string>): number {
-  if (dates.length === 0) {
-    return 0;
-  }
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const first = dates[0];
-  if (first !== today && first !== yesterday) {
-    return 0;
-  }
-  let streak = 1;
-  for (let i = 1; i < dates.length; i++) {
-    const prev = dates[i - 1];
-    const curr = dates[i];
-    if (prev === undefined || curr === undefined) {
-      break;
-    }
-    const diffDays = (new Date(prev).getTime() - new Date(curr).getTime()) / 86400000;
-    if (diffDays === 1) {
-      streak += 1;
-    } else {
-      break;
-    }
-  }
-  return streak;
 }
 
 function queryFirst(
@@ -136,18 +77,6 @@ function queryAll(
   });
 }
 
-function emptyUsage(): UsageStatsRow {
-  return {
-    total_commands: 0,
-    total_packages_installed: 0,
-    total_packages_searched: 0,
-    total_runtimes_switched: 0,
-    total_sbom_generated: 0,
-    total_vulnerabilities_found: 0,
-    total_time_saved_ms: 0,
-  };
-}
-
 /**
  * Load the Worker account dashboard for the authenticated customer.
  *
@@ -158,10 +87,16 @@ function emptyUsage(): UsageStatsRow {
 function getAccountDashboard(
   request: Request,
   env: Env
-): Effect.Effect<LicensingDashboard, DashboardError> {
+): Effect.Effect<
+  LicensingDashboard,
+  | SessionUnauthorizedError
+  | LicenseNotFoundError
+  | AccountDashboardParseError
+  | DashboardStoreUnavailable
+> {
   return Effect.gen(function* () {
     const auth = yield* requireSession(request, env);
-    const user: User = auth.user;
+    const user = auth.user;
 
     const adminRow = yield* queryFirst(
       env.DB,
@@ -221,7 +156,15 @@ function getAccountDashboard(
     );
     const usageStats =
       usageRow === null
-        ? emptyUsage()
+        ? {
+            total_commands: 0,
+            total_packages_installed: 0,
+            total_packages_searched: 0,
+            total_runtimes_switched: 0,
+            total_sbom_generated: 0,
+            total_vulnerabilities_found: 0,
+            total_time_saved_ms: 0,
+          }
         : yield* decodeRow(UsageStatsRowSchema, 'Usage stats row has an invalid shape', usageRow);
 
     const dailyResult = yield* queryAll(
@@ -273,7 +216,28 @@ function getAccountDashboard(
       'Streak rows have an invalid shape',
       streakResult.results
     );
-    const streak = currentStreak(streakRows.map(row => row.date));
+    const streakDates = streakRows.map(row => row.date);
+    let streak = 0;
+    if (streakDates.length > 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const first = streakDates[0];
+      if (first === today || first === yesterday) {
+        streak = 1;
+        for (let i = 1; i < streakDates.length; i++) {
+          const previous = streakDates[i - 1];
+          const current = streakDates[i];
+          if (
+            previous === undefined ||
+            current === undefined ||
+            (new Date(previous).getTime() - new Date(current).getTime()) / 86400000 !== 1
+          ) {
+            break;
+          }
+          streak += 1;
+        }
+      }
+    }
 
     const subscriptionRow = yield* queryFirst(
       env.DB,
@@ -426,9 +390,13 @@ function getAccountDashboard(
         license_key: license.license_key,
         tier: license.tier,
         status: license.status,
-        max_machines: maxMachinesFor(license),
+        max_machines: license.max_seats ?? license.max_machines ?? 1,
         expires_at: license.expires_at,
-        features: [...featuresForTier(license.tier)],
+        features: [
+          ...(license.tier === 'pro' || license.tier === 'team' || license.tier === 'enterprise'
+            ? TIER_FEATURES[license.tier].features
+            : TIER_FEATURES.free.features),
+        ],
       },
       machines,
       usage: {
@@ -458,20 +426,6 @@ function getAccountDashboard(
   });
 }
 
-function httpStatusFor(error: DashboardError): number {
-  switch (error._tag) {
-    case 'SessionUnauthorizedError':
-      return 401;
-    case 'LicenseNotFoundError':
-      return 404;
-    case 'AccountDashboardParseError':
-    case 'DashboardStoreUnavailable':
-      return 500;
-    default:
-      return casesHandled(error);
-  }
-}
-
 /**
  * HTTP adapter for `GET /api/dashboard`.
  *
@@ -479,22 +433,27 @@ function httpStatusFor(error: DashboardError): number {
  * @param env - Worker bindings.
  * @returns JSON dashboard payload or a mapped error response.
  */
-export async function handleGetDashboard(request: Request, env: Env): Promise<Response> {
-  const exit = await Effect.runPromiseExit(getAccountDashboard(request, env));
-  return Exit.match(exit, {
-    onSuccess: payload => {
-      const decoded = Schema.decodeUnknownEither(LicensingDashboardSchema)(payload);
-      return decoded._tag === 'Right'
-        ? jsonResponse(decoded.right)
-        : errorResponse('Dashboard response has an invalid shape', 500);
-    },
-    onFailure: cause => {
-      const failure = Cause.failureOption(cause);
-      if (Option.isSome(failure)) {
-        const error = failure.value;
-        return errorResponse(error.message, httpStatusFor(error));
-      }
-      return errorResponse('Internal server error', 500);
-    },
+export function handleGetDashboard(request: Request, env: Env): Promise<Response> {
+  const dashboard = getAccountDashboard(request, env).pipe(
+    Effect.flatMap(payload =>
+      Schema.decodeUnknown(LicensingDashboardSchema)(payload).pipe(
+        Effect.mapError(
+          cause => new AccountDashboardParseError('Dashboard response has an invalid shape', cause)
+        )
+      )
+    )
+  );
+  return respondFromEffect(dashboard, error => {
+    switch (error._tag) {
+      case 'SessionUnauthorizedError':
+        return errorResponse(error.message, 401);
+      case 'LicenseNotFoundError':
+        return errorResponse(error.message, 404);
+      case 'AccountDashboardParseError':
+      case 'DashboardStoreUnavailable':
+        return errorResponse(error.message, 500);
+      default:
+        return casesHandled(error);
+    }
   });
 }

@@ -17,7 +17,6 @@ const LicensingIdentitySchema = Schema.Struct({
   name: Schema.String,
   role: Schema.Literal('admin', 'user'),
 });
-type ParsedLicensingIdentity = Schema.Schema.Type<typeof LicensingIdentitySchema>;
 
 /** Untrusted Better Auth identity accepted at the BFF boundary. */
 export interface LicensingIdentity {
@@ -26,8 +25,6 @@ export interface LicensingIdentity {
   readonly name: string;
   readonly role: 'admin' | 'user';
 }
-
-const LicensingSecret = Schema.String.pipe(Schema.minLength(1));
 
 /** Service binding surface used by the same-origin licensing BFF. */
 export interface LicensingService {
@@ -54,7 +51,7 @@ export class LicensingSameOriginRequired extends Error {
 }
 
 /** A required identity or secret failed boundary validation. */
-export class LicensingBffParseError extends Error {
+class LicensingBffParseError extends Error {
   readonly _tag = 'LicensingBffParseError';
   constructor(
     readonly reason: string,
@@ -65,7 +62,7 @@ export class LicensingBffParseError extends Error {
 }
 
 /** The service binding failed before returning a response. */
-export class LicensingServiceUnavailable extends Error {
+class LicensingServiceUnavailable extends Error {
   readonly _tag = 'LicensingServiceUnavailable';
   constructor(override readonly cause?: unknown) {
     super('Licensing service unavailable');
@@ -73,7 +70,7 @@ export class LicensingServiceUnavailable extends Error {
 }
 
 /** The browser request exceeded the BFF's bounded body limit. */
-export class LicensingBodyTooLarge extends Error {
+class LicensingBodyTooLarge extends Error {
   readonly _tag = 'LicensingBodyTooLarge';
   constructor() {
     super('Licensing request body is too large');
@@ -81,7 +78,7 @@ export class LicensingBodyTooLarge extends Error {
 }
 
 /** The browser request body could not be read for forwarding. */
-export class LicensingBodyReadError extends Error {
+class LicensingBodyReadError extends Error {
   readonly _tag = 'LicensingBodyReadError';
   constructor(override readonly cause?: unknown) {
     super('Licensing request body could not be read');
@@ -89,7 +86,7 @@ export class LicensingBodyReadError extends Error {
 }
 
 /** The licensing Worker rejected session minting or the proxied request. */
-export class LicensingWorkerRejected extends Error {
+class LicensingWorkerRejected extends Error {
   readonly _tag = 'LicensingWorkerRejected';
   constructor(
     readonly operation: 'session',
@@ -107,6 +104,13 @@ export type LicensingBffError =
   | LicensingBodyTooLarge
   | LicensingBodyReadError
   | LicensingWorkerRejected;
+
+function licensingParse<A, E>(
+  parse: Effect.Effect<A, E>,
+  reason: string
+): Effect.Effect<A, LicensingBffParseError> {
+  return parse.pipe(Effect.mapError(cause => new LicensingBffParseError(reason, cause)));
+}
 
 function requireSameOrigin(inbound: Request): Effect.Effect<void, LicensingSameOriginRequired> {
   if (inbound.method === 'GET' || inbound.method === 'HEAD') {
@@ -154,13 +158,13 @@ function mintWorkerSession(
   service: LicensingService
 ): Effect.Effect<SiteSessionWorkerResponse, LicensingBffError> {
   return Effect.gen(function* () {
-    const parsedIdentity: ParsedLicensingIdentity = yield* Schema.decodeUnknown(
-      LicensingIdentitySchema
-    )(identity).pipe(
-      Effect.mapError(cause => new LicensingBffParseError('Licensing identity is invalid', cause))
+    const parsedIdentity = yield* licensingParse(
+      Schema.decodeUnknown(LicensingIdentitySchema)(identity),
+      'Licensing identity is invalid'
     );
-    const parsedSecret = yield* Schema.decodeUnknown(LicensingSecret)(secret).pipe(
-      Effect.mapError(cause => new LicensingBffParseError('Licensing secret is invalid', cause))
+    const parsedSecret = yield* licensingParse(
+      Schema.decodeUnknown(Schema.String.pipe(Schema.minLength(1)))(secret),
+      'Licensing secret is invalid'
     );
     const response = yield* serviceFetch(
       service,
@@ -186,10 +190,9 @@ function mintWorkerSession(
       try: () => response.json(),
       catch: cause => new LicensingBffParseError('Worker session response is not JSON', cause),
     });
-    return yield* decodeSiteSessionWorkerResponse(payload).pipe(
-      Effect.mapError(
-        cause => new LicensingBffParseError('Worker session response is invalid', cause)
-      )
+    return yield* licensingParse(
+      decodeSiteSessionWorkerResponse(payload),
+      'Worker session response is invalid'
     );
   });
 }
@@ -197,15 +200,13 @@ function mintWorkerSession(
 function readBoundedBody(
   inbound: Request
 ): Effect.Effect<ArrayBuffer | undefined, LicensingBodyTooLarge | LicensingBodyReadError> {
-  if (inbound.body === null) {
+  const stream = inbound.body;
+  if (stream === null) {
     return Effect.succeed(undefined);
   }
   return Effect.tryPromise({
     try: async () => {
-      const reader = inbound.body?.getReader();
-      if (reader === undefined) {
-        return undefined;
-      }
+      const reader = stream.getReader();
       const chunks: Uint8Array[] = [];
       let total = 0;
       while (true) {
@@ -229,19 +230,6 @@ function readBoundedBody(
     },
     catch: cause =>
       cause instanceof LicensingBodyTooLarge ? cause : new LicensingBodyReadError(cause),
-  });
-}
-
-function sanitizedWorkerResponse(response: Response): Response {
-  const headers = new Headers(response.headers);
-  headers.delete('Set-Cookie');
-  headers.delete('Access-Control-Allow-Origin');
-  headers.delete('Access-Control-Allow-Credentials');
-  headers.set('Cache-Control', 'private, no-store');
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
   });
 }
 
@@ -281,6 +269,15 @@ export function proxyLicensingRequest(
     }
     const outbound = new Request(target, requestInit);
     const response = yield* serviceFetch(service, outbound);
-    return sanitizedWorkerResponse(response);
+    const responseHeaders = new Headers(response.headers);
+    responseHeaders.delete('Set-Cookie');
+    responseHeaders.delete('Access-Control-Allow-Origin');
+    responseHeaders.delete('Access-Control-Allow-Credentials');
+    responseHeaders.set('Cache-Control', 'private, no-store');
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+    });
   });
 }

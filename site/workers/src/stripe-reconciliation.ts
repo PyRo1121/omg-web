@@ -16,7 +16,6 @@ import {
   StripeCustomerEmailSchema,
   StripeSubscriptionSchema,
   type StripeSubscription,
-  type StripeSubscriptionStatus,
 } from './contracts/stripe';
 
 export type StripeFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
@@ -44,31 +43,6 @@ async function readStripeJson<S extends Schema.Schema.AnyNoContext>(
     throw new StripeReconciliationError(reason, decoded.cause);
   }
   return decoded.value;
-}
-
-function subscriptionGrantsAccess(status: StripeSubscriptionStatus): boolean {
-  return status === 'active' || status === 'trialing';
-}
-
-async function currentStripeSubscription(
-  subscriptionId: string,
-  secret: string,
-  stripeFetch: StripeFetch
-): Promise<StripeSubscription> {
-  const response = await stripeFetch(
-    `https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
-    { headers: { Authorization: `Bearer ${secret}` } }
-  );
-  if (!response.ok) {
-    throw new StripeReconciliationError(
-      `Unable to load current Stripe subscription ${subscriptionId}`
-    );
-  }
-  return readStripeJson(
-    response,
-    StripeSubscriptionSchema,
-    'Current Stripe subscription has an invalid shape'
-  );
 }
 
 async function ensureBillingCustomer(
@@ -134,33 +108,6 @@ async function ensureBillingCustomer(
   return { id: customerId, email: stripeCustomer.email, stripe_customer_id: stripeCustomerId };
 }
 
-async function activeSubscriptionEntitlement(
-  subscription: StripeSubscription,
-  catalog: BillingCatalog
-): Promise<BillingEntitlement> {
-  let entitlement: BillingEntitlement | undefined;
-  for (const item of subscription.items.data) {
-    const resolved = await Effect.runPromiseExit(resolveBillingEntitlement(item.price.id, catalog));
-    if (Exit.isFailure(resolved)) {
-      continue;
-    }
-    if (entitlement !== undefined) {
-      throw new BillingEntitlementUnavailable(
-        item.price.id,
-        new Error('Subscription contains multiple recognized billing prices')
-      );
-    }
-    entitlement = resolved.value;
-  }
-  if (entitlement === undefined) {
-    throw new BillingEntitlementUnavailable(
-      subscription.id,
-      new Error('Active subscription has no recognized billing price')
-    );
-  }
-  return entitlement;
-}
-
 /** Atomically project one current Stripe subscription into customer, license, and subscription state. */
 export async function applyStripeSubscriptionProjection(
   db: D1Database,
@@ -168,9 +115,28 @@ export async function applyStripeSubscriptionProjection(
   subscription: StripeSubscription,
   catalog: BillingCatalog
 ): Promise<void> {
-  const entitlement = subscriptionGrantsAccess(subscription.status)
-    ? await activeSubscriptionEntitlement(subscription, catalog)
-    : undefined;
+  let entitlement: BillingEntitlement | undefined;
+  if (subscription.status === 'active' || subscription.status === 'trialing') {
+    for (const item of subscription.items.data) {
+      const resolved = await Effect.runPromiseExit(
+        resolveBillingEntitlement(item.price.id, catalog)
+      );
+      if (Exit.isFailure(resolved)) continue;
+      if (entitlement !== undefined) {
+        throw new BillingEntitlementUnavailable(
+          item.price.id,
+          new Error('Subscription contains multiple recognized billing prices')
+        );
+      }
+      entitlement = resolved.value;
+    }
+    if (entitlement === undefined) {
+      throw new BillingEntitlementUnavailable(
+        subscription.id,
+        new Error('Active subscription has no recognized billing price')
+      );
+    }
+  }
   const customerTier = entitlement?.tier ?? 'free';
   const statements: D1PreparedStatement[] = [
     db
@@ -254,7 +220,20 @@ export async function reconcileStripeSubscriptionSignal(
   catalog: BillingCatalog,
   stripeFetch: StripeFetch
 ): Promise<void> {
-  const subscription = await currentStripeSubscription(subscriptionId, secret, stripeFetch);
+  const response = await stripeFetch(
+    `https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    { headers: { Authorization: `Bearer ${secret}` } }
+  );
+  if (!response.ok) {
+    throw new StripeReconciliationError(
+      `Unable to load current Stripe subscription ${subscriptionId}`
+    );
+  }
+  const subscription = await readStripeJson(
+    response,
+    StripeSubscriptionSchema,
+    'Current Stripe subscription has an invalid shape'
+  );
   const customer = await ensureBillingCustomer(db, subscription.customer, secret, stripeFetch);
   await applyStripeSubscriptionProjection(db, customer.id, subscription, catalog);
 }

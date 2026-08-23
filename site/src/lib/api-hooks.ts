@@ -1,17 +1,11 @@
 import { createMutation, createQuery, useQueryClient } from '@tanstack/solid-query';
 import * as api from './api';
 
-type QueryOptions = {
-  enabled?: boolean;
-  staleTime?: number;
-  refetchInterval?: number;
-};
-
 /** Standard createQuery wrapper bound to an API loader and its static key parts. */
 function apiQuery<T>(
   queryKey: ReadonlyArray<unknown>,
   queryFn: () => Promise<T>,
-  options?: QueryOptions
+  options?: { enabled?: boolean; staleTime?: number; refetchInterval?: number }
 ) {
   return createQuery(() => ({ queryKey, queryFn, ...options }));
 }

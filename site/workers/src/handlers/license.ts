@@ -12,7 +12,6 @@ import {
   getAuthToken,
   validateSession,
 } from '../api';
-import { casesHandled } from '../prelude';
 import {
   ActiveMachineRowSchema,
   ExistingMachineRowSchema,
@@ -47,83 +46,48 @@ const maskKey = (key: string) => {
   return `${key.slice(0, 4)}••••${key.slice(-4)}`;
 };
 
-/** The posted license key is missing or inactive. */
-class InvalidLicenseError extends Error {
-  readonly _tag = 'InvalidLicenseError';
-  constructor() {
-    super('Invalid license');
-  }
-}
-
-/** Email is required for public license lookup. */
-class EmailRequiredError extends Error {
-  readonly _tag = 'EmailRequiredError';
-  constructor() {
-    super('Email required');
-  }
-}
-
-/** The request URL could not be parsed. */
-class InvalidRequestUrlError extends Error {
-  readonly _tag = 'InvalidRequestUrlError';
-  constructor() {
-    super('Invalid request URL');
-  }
-}
-
-/** Neither `key` nor `license_key` was provided. */
-class LicenseKeyRequiredError extends Error {
-  readonly _tag = 'LicenseKeyRequiredError';
-  constructor() {
-    super('License key required');
-  }
-}
-
-/** D1 was unavailable while validating a license. */
-class ValidateLicenseStoreUnavailable extends Error {
-  readonly _tag = 'ValidateLicenseStoreUnavailable';
+class LicenseHandlerError extends Error {
   constructor(
-    readonly operation: string,
+    readonly _tag:
+      | 'InvalidLicenseError'
+      | 'EmailRequiredError'
+      | 'InvalidRequestUrlError'
+      | 'LicenseKeyRequiredError'
+      | 'ValidateLicenseStoreUnavailable'
+      | 'LicenseJwtError'
+      | 'InstallPingStoreUnavailable',
+    message: string,
+    readonly status: 400 | 401 | 500,
     override readonly cause?: unknown
   ) {
-    super(`License store unavailable during ${operation}`);
+    super(message);
   }
 }
 
-/** JWT signing is not configured or failed. */
-class LicenseJwtError extends Error {
-  readonly _tag = 'LicenseJwtError';
-  constructor(override readonly cause?: unknown) {
-    super('Internal server error');
-  }
-}
-
-type ValidateLicenseError =
-  | InvalidJsonBodyError
-  | InvalidRequestUrlError
-  | LicenseKeyRequiredError
-  | ValidateLicenseParseError
-  | ValidateLicenseStoreUnavailable
-  | LicenseJwtError;
+type ValidateLicenseError = InvalidJsonBodyError | ValidateLicenseParseError | LicenseHandlerError;
 
 type InvalidLicensePayload = {
   readonly valid: false;
   readonly error: string;
 };
 
-type ValidLicensePayload = {
-  readonly valid: true;
-  readonly tier: string;
-  readonly max_machines: number;
-  readonly features: ReadonlyArray<string>;
-  readonly customer: string;
-  readonly expires_at: string | null;
-  readonly token: string;
-  readonly machines: ReadonlyArray<unknown>;
-  readonly usage: ReadonlyArray<unknown>;
-};
+type ValidateLicensePayload =
+  | InvalidLicensePayload
+  | {
+      readonly valid: true;
+      readonly tier: string;
+      readonly max_machines: number;
+      readonly features: ReadonlyArray<string>;
+      readonly customer: string;
+      readonly expires_at: string | null;
+      readonly token: string;
+      readonly machines: ReadonlyArray<unknown>;
+      readonly usage: ReadonlyArray<unknown>;
+    };
 
-type ValidateLicensePayload = InvalidLicensePayload | ValidLicensePayload;
+function invalidLicense(error: string): InvalidLicensePayload {
+  return { valid: false, error };
+}
 
 function featuresForTier(tier: string): ReadonlyArray<string> {
   if (tier === 'pro' || tier === 'team' || tier === 'enterprise') {
@@ -142,41 +106,13 @@ function maxMachinesFor(license: ValidateLicenseRow): number {
   return 1;
 }
 
-/** Bind query parameters only when provided; empty parameter lists skip binding. */
-function bound(
-  statement: D1PreparedStatement,
-  params: ReadonlyArray<string | number>
-): D1PreparedStatement {
-  return params.length === 0 ? statement : statement.bind(...params);
-}
-
-function storeUnavailable(operation: string) {
-  return (cause: unknown): ValidateLicenseStoreUnavailable =>
-    new ValidateLicenseStoreUnavailable(operation, cause);
-}
-
-function queryFirst(
-  db: D1Database,
-  sql: string,
-  params: ReadonlyArray<string | number>,
-  operation: string
-) {
-  return Effect.tryPromise({
-    try: () => bound(db.prepare(sql), params).first(),
-    catch: storeUnavailable(operation),
-  });
-}
-
-function queryAll(
-  db: D1Database,
-  sql: string,
-  params: ReadonlyArray<string | number>,
-  operation: string
-) {
-  return Effect.tryPromise({
-    try: () => bound(db.prepare(sql), params).all(),
-    catch: storeUnavailable(operation),
-  });
+function storeUnavailable(operation: string, cause: unknown): LicenseHandlerError {
+  return new LicenseHandlerError(
+    'ValidateLicenseStoreUnavailable',
+    `License store unavailable during ${operation}`,
+    500,
+    cause
+  );
 }
 
 function runSql(
@@ -191,58 +127,53 @@ function runSql(
         .prepare(sql)
         .bind(...params)
         .run(),
-    catch: storeUnavailable(operation),
+    catch: cause => storeUnavailable(operation, cause),
   });
+}
+
+function queryFirst(
+  db: D1Database,
+  sql: string,
+  params: ReadonlyArray<string | number>,
+  operation: string
+) {
+  return runSql(db, sql, params, operation).pipe(Effect.map(result => result.results[0] ?? null));
 }
 
 function decodeInput(
   request: Request
-): Effect.Effect<
-  ValidateLicenseRequest,
-  InvalidJsonBodyError | InvalidRequestUrlError | LicenseKeyRequiredError
-> {
-  const fromFields = (fields: ValidateLicenseFields) => {
-    const normalized = toValidateLicenseRequest(fields);
-    return normalized === null
-      ? Effect.fail(new LicenseKeyRequiredError())
-      : Effect.succeed(normalized);
-  };
-
+): Effect.Effect<ValidateLicenseRequest, InvalidJsonBodyError | LicenseHandlerError> {
+  let decoded: Effect.Effect<ValidateLicenseFields, InvalidJsonBodyError | LicenseHandlerError>;
   if (request.method === 'POST') {
-    return decodeJsonBody(request, ValidateLicenseFieldsSchema).pipe(Effect.flatMap(fromFields));
+    decoded = decodeJsonBody(request, ValidateLicenseFieldsSchema);
+  } else {
+    const url = URL.parse(request.url);
+    if (url === null) {
+      return Effect.fail(
+        new LicenseHandlerError('InvalidRequestUrlError', 'Invalid request URL', 400)
+      );
+    }
+    decoded = decodeValidateLicenseFields({
+      key: url.searchParams.get('key'),
+      license_key: url.searchParams.get('license_key'),
+      machine_id: url.searchParams.get('machine_id'),
+      user_name: url.searchParams.get('user_name'),
+      user_email: url.searchParams.get('user_email'),
+    }).pipe(
+      Effect.mapError(() => new InvalidJsonBodyError('Body does not match the expected contract'))
+    );
   }
 
-  const url = URL.parse(request.url);
-  if (url === null) {
-    return Effect.fail(new InvalidRequestUrlError());
-  }
-  return decodeValidateLicenseFields({
-    key: url.searchParams.get('key'),
-    license_key: url.searchParams.get('license_key'),
-    machine_id: url.searchParams.get('machine_id'),
-    user_name: url.searchParams.get('user_name'),
-    user_email: url.searchParams.get('user_email'),
-  }).pipe(
-    Effect.mapError(() => new InvalidJsonBodyError('Body does not match the expected contract')),
-    Effect.flatMap(fromFields)
+  return decoded.pipe(
+    Effect.flatMap(fields => {
+      const body = toValidateLicenseRequest(fields);
+      return body === null
+        ? Effect.fail(
+            new LicenseHandlerError('LicenseKeyRequiredError', 'License key required', 400)
+          )
+        : Effect.succeed(body);
+    })
   );
-}
-
-function resolveSigning(
-  env: Env
-): Effect.Effect<
-  { readonly secret: string; readonly algorithm: 'HS256' | 'EdDSA' },
-  LicenseJwtError
-> {
-  const privateKey = env.JWT_PRIVATE_KEY;
-  if (privateKey !== undefined && privateKey.length > 0) {
-    return Effect.succeed({ secret: privateKey, algorithm: 'EdDSA' as const });
-  }
-  const hsSecret = env.JWT_SECRET;
-  if (hsSecret !== undefined && hsSecret.length > 0) {
-    return Effect.succeed({ secret: hsSecret, algorithm: 'HS256' as const });
-  }
-  return Effect.fail(new LicenseJwtError());
 }
 
 function registerOrTouchMachine(
@@ -250,10 +181,7 @@ function registerOrTouchMachine(
   request: Request,
   license: ValidateLicenseRow,
   body: ValidateLicenseRequest
-): Effect.Effect<
-  InvalidLicensePayload | null,
-  ValidateLicenseStoreUnavailable | ValidateLicenseParseError
-> {
+): Effect.Effect<InvalidLicensePayload | null, LicenseHandlerError | ValidateLicenseParseError> {
   const machineId = body.machineId;
   if (machineId === null) {
     return Effect.succeed(null);
@@ -271,24 +199,17 @@ function registerOrTouchMachine(
         'Machine row has an invalid shape',
         existingRow
       );
-      if (
+      const hasIdentity =
         (body.userName !== null && body.userName.length > 0) ||
-        (body.userEmail !== null && body.userEmail.length > 0)
-      ) {
-        yield* runSql(
-          env.DB,
-          `UPDATE machines SET last_seen_at = CURRENT_TIMESTAMP, user_name = COALESCE(?, user_name), user_email = COALESCE(?, user_email) WHERE id = ?`,
-          [body.userName, body.userEmail, existing.id],
-          'touchMachine'
-        );
-      } else {
-        yield* runSql(
-          env.DB,
-          `UPDATE machines SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`,
-          [existing.id],
-          'touchMachine'
-        );
-      }
+        (body.userEmail !== null && body.userEmail.length > 0);
+      yield* runSql(
+        env.DB,
+        hasIdentity
+          ? `UPDATE machines SET last_seen_at = CURRENT_TIMESTAMP, user_name = COALESCE(?, user_name), user_email = COALESCE(?, user_email) WHERE id = ?`
+          : `UPDATE machines SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        hasIdentity ? [body.userName, body.userEmail, existing.id] : [existing.id],
+        'touchMachine'
+      );
       return null;
     }
 
@@ -306,10 +227,9 @@ function registerOrTouchMachine(
         countRow
       )).count;
       if (count >= maxMachines) {
-        return {
-          valid: false as const,
-          error: `Machine limit reached (${maxMachines}). Revoke a machine in your dashboard or upgrade.`,
-        };
+        return invalidLicense(
+          `Machine limit reached (${maxMachines}). Revoke a machine in your dashboard or upgrade.`
+        );
       }
     }
 
@@ -356,7 +276,7 @@ function validateLicense(
       'findLicense'
     );
     if (licenseRow === null) {
-      return { valid: false as const, error: 'Invalid license key' };
+      return invalidLicense('Invalid license key');
     }
     const license = yield* decodeRow(
       ValidateLicenseRowSchema,
@@ -364,13 +284,10 @@ function validateLicense(
       licenseRow
     );
     if (license.status !== 'active') {
-      return { valid: false as const, error: `License is ${license.status}` };
+      return invalidLicense(`License is ${license.status}`);
     }
-    if (license.expires_at !== null && license.expires_at.length > 0) {
-      const expiresAt = new Date(license.expires_at);
-      if (expiresAt < new Date()) {
-        return { valid: false as const, error: 'License has expired' };
-      }
+    if (license.expires_at && new Date(license.expires_at) < new Date()) {
+      return invalidLicense('License has expired');
     }
 
     const machineLimit = yield* registerOrTouchMachine(env, request, license, body);
@@ -378,13 +295,20 @@ function validateLicense(
       return machineLimit;
     }
 
-    const signing = yield* resolveSigning(env);
+    const signingSecret = env.JWT_PRIVATE_KEY || env.JWT_SECRET;
+    if (!signingSecret) {
+      return yield* Effect.fail(
+        new LicenseHandlerError('LicenseJwtError', 'Internal server error', 500)
+      );
+    }
+    const algorithm = env.JWT_PRIVATE_KEY ? ('EdDSA' as const) : ('HS256' as const);
     const token = yield* Effect.tryPromise({
-      try: () => generateLicenseJWT(license, body.machineId, signing.secret, signing.algorithm),
-      catch: cause => new LicenseJwtError(cause),
+      try: () => generateLicenseJWT(license, body.machineId, signingSecret, algorithm),
+      catch: cause =>
+        new LicenseHandlerError('LicenseJwtError', 'Internal server error', 500, cause),
     });
 
-    const machineResult = yield* queryAll(
+    const machineResult = yield* runSql(
       env.DB,
       `SELECT machine_id, hostname, os, arch, omg_version, is_active, first_seen_at, last_seen_at, user_name, user_email
        FROM machines WHERE license_id = ?`,
@@ -396,7 +320,7 @@ function validateLicense(
       'Machine rows have an invalid shape',
       machineResult.results
     );
-    const usageResult = yield* queryAll(
+    const usageResult = yield* runSql(
       env.DB,
       `SELECT date, commands_run, packages_installed, packages_searched, runtimes_switched,
               sbom_generated, vulnerabilities_found, time_saved_ms
@@ -410,13 +334,12 @@ function validateLicense(
       'Usage rows have an invalid shape',
       usageResult.results
     );
-    const customerName = license.customer_name;
     return {
       valid: true as const,
       tier: license.tier,
       max_machines: maxMachinesFor(license),
       features: [...featuresForTier(license.tier)],
-      customer: customerName === null || customerName.length === 0 ? license.email : customerName,
+      customer: license.customer_name || license.email,
       expires_at: license.expires_at,
       token,
       machines,
@@ -425,19 +348,11 @@ function validateLicense(
   });
 }
 
-function httpStatusFor(error: ValidateLicenseError): number {
-  switch (error._tag) {
-    case 'InvalidJsonBodyError':
-    case 'InvalidRequestUrlError':
-    case 'LicenseKeyRequiredError':
-      return 400;
-    case 'ValidateLicenseParseError':
-    case 'ValidateLicenseStoreUnavailable':
-    case 'LicenseJwtError':
-      return 500;
-    default:
-      return casesHandled(error);
+function errorStatus(error: { readonly _tag: string }): number {
+  if (error instanceof LicenseHandlerError) {
+    return error.status;
   }
+  return error._tag === 'InvalidJsonBodyError' ? 400 : 500;
 }
 
 /**
@@ -449,7 +364,7 @@ function httpStatusFor(error: ValidateLicenseError): number {
  */
 export async function handleValidateLicense(request: Request, env: Env): Promise<Response> {
   return respondFromEffect(validateLicense(request, env), error =>
-    errorResponse(error.message, httpStatusFor(error))
+    errorResponse(error.message, errorStatus(error))
   );
 }
 
@@ -490,7 +405,10 @@ function incrementDailyMetric(
     .bind(today, metric, dimension, count, count);
 }
 
-type GetLicensePayload =
+function lookupPublicLicense(
+  request: Request,
+  env: Env
+): Effect.Effect<
   | { readonly found: false }
   | {
       readonly found: true;
@@ -500,29 +418,24 @@ type GetLicensePayload =
       readonly expires_at: string | null;
       readonly max_machines: number | null;
       readonly used_machines: number;
-    };
-
-function lookupPublicLicense(
-  request: Request,
-  env: Env
-): Effect.Effect<
-  GetLicensePayload,
-  | InvalidRequestUrlError
-  | EmailRequiredError
-  | ValidateLicenseStoreUnavailable
-  | LicenseOpsParseError
+    },
+  LicenseHandlerError | LicenseOpsParseError
 > {
   return Effect.gen(function* () {
     const url = URL.parse(request.url);
     if (url === null) {
-      return yield* Effect.fail(new InvalidRequestUrlError());
+      return yield* Effect.fail(
+        new LicenseHandlerError('InvalidRequestUrlError', 'Invalid request URL', 400)
+      );
     }
     const rawEmail = url.searchParams.get('email');
-    if (rawEmail === null || rawEmail.length === 0) {
-      return yield* Effect.fail(new EmailRequiredError());
+    if (!rawEmail) {
+      return yield* Effect.fail(
+        new LicenseHandlerError('EmailRequiredError', 'Email required', 400)
+      );
     }
     const email = yield* Schema.decodeUnknown(EmailAddress)(rawEmail).pipe(
-      Effect.mapError(() => new EmailRequiredError())
+      Effect.mapError(() => new LicenseHandlerError('EmailRequiredError', 'Email required', 400))
     );
     const licenseRow = yield* queryFirst(
       env.DB,
@@ -588,30 +501,26 @@ export async function handleGetLicense(request: Request, env: Env): Promise<Resp
     return errorResponse('Unauthorized', 401);
   }
   return respondFromEffect(lookupPublicLicense(request, env), error =>
-    errorResponse(
-      error.message,
-      error._tag === 'InvalidRequestUrlError' || error._tag === 'EmailRequiredError' ? 400 : 500
-    )
+    errorResponse(error.message, errorStatus(error))
   );
 }
-
-type ReportUsageError =
-  | InvalidJsonBodyError
-  | InvalidLicenseError
-  | LicenseOpsParseError
-  | ValidateLicenseStoreUnavailable;
 
 function reportUsage(
   request: Request,
   env: Env
-): Effect.Effect<{ readonly success: true }, ReportUsageError> {
+): Effect.Effect<
+  { readonly success: true },
+  InvalidJsonBodyError | LicenseHandlerError | LicenseOpsParseError
+> {
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, ReportUsageRequestSchema);
     const policy = yield* resolveTelemetryIngestion(env.DB, body.license_key).pipe(
-      Effect.mapError(cause => new ValidateLicenseStoreUnavailable('reportTelemetryPolicy', cause))
+      Effect.mapError(cause => storeUnavailable('reportTelemetryPolicy', cause))
     );
     if (policy._tag === 'invalidLicense') {
-      return yield* Effect.fail(new InvalidLicenseError());
+      return yield* Effect.fail(
+        new LicenseHandlerError('InvalidLicenseError', 'Invalid license', 401)
+      );
     }
     if (policy._tag === 'optedOut') {
       return { success: true as const };
@@ -654,7 +563,7 @@ function reportMachineUsage(
   customerId: string,
   today: string,
   body: ReportUsageRequest
-): Effect.Effect<void, ValidateLicenseStoreUnavailable> {
+): Effect.Effect<void, LicenseHandlerError> {
   return Effect.gen(function* () {
     const machineId = body.machine_id;
     if (machineId !== undefined && machineId.length > 0) {
@@ -719,7 +628,7 @@ function reportMachineUsage(
       for (const [runtime, count] of Object.entries(runtimes)) {
         yield* Effect.tryPromise({
           try: () => incrementDailyMetric(env.DB, today, 'version', runtime, count).run(),
-          catch: storeUnavailable('upsertRuntimeStat'),
+          catch: cause => storeUnavailable('upsertRuntimeStat', cause),
         });
       }
     }
@@ -748,24 +657,12 @@ function reportMachineUsage(
  */
 export async function handleReportUsage(request: Request, env: Env): Promise<Response> {
   return respondFromEffect(reportUsage(request, env), error => {
-    if (error._tag === 'InvalidJsonBodyError') {
-      return errorResponse(error.message, 400);
-    }
-    if (error._tag === 'InvalidLicenseError') {
-      return errorResponse(error.message, 401);
-    }
-    return errorResponse('Internal server error', 500);
+    const status = errorStatus(error);
+    return errorResponse(status < 500 ? error.message : 'Internal server error', status);
   });
 }
 
 // Handle install ping (anonymous telemetry)
-
-class InstallPingStoreUnavailable extends Error {
-  readonly _tag = 'InstallPingStoreUnavailable';
-  constructor(override readonly cause?: unknown) {
-    super('Internal server error');
-  }
-}
 
 /** The install ping payload sent by the CLI on first run. */
 const InstallPingBodySchema = Schema.Struct({
@@ -806,7 +703,13 @@ export async function handleInstallPing(request: Request, env: Env): Promise<Res
           )
             .bind(crypto.randomUUID(), body.install_id, version, platform, backend)
             .run(),
-        catch: cause => new InstallPingStoreUnavailable(cause),
+        catch: cause =>
+          new LicenseHandlerError(
+            'InstallPingStoreUnavailable',
+            'Internal server error',
+            500,
+            cause
+          ),
       });
       return { success: true as const, message: 'Install recorded' };
     }),
@@ -912,14 +815,15 @@ function ingestAnalytics(
   env: Env
 ): Effect.Effect<
   { readonly success: true; readonly processed: number },
-  InvalidJsonBodyError | ValidateLicenseStoreUnavailable
+  InvalidJsonBodyError | LicenseHandlerError
 > {
   return Effect.gen(function* () {
-    if (env.API_RATE_LIMITER) {
+    const rateLimiter = env.API_RATE_LIMITER;
+    if (rateLimiter) {
       const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
       const rl = yield* Effect.tryPromise({
-        try: () => env.API_RATE_LIMITER!.limit({ key: `analytics:${ip}` }),
-        catch: () => new ValidateLicenseStoreUnavailable('analyticsRateLimit', null),
+        try: () => rateLimiter.limit({ key: `analytics:${ip}` }),
+        catch: cause => storeUnavailable('analyticsRateLimit', cause),
       });
       if (!rl.success) {
         return { success: true as const, processed: 0 };
@@ -948,9 +852,7 @@ function ingestAnalytics(
       let decision = decisionsByLicenseKey.get(event.license_key);
       if (decision === undefined) {
         decision = yield* resolveTelemetryIngestion(env.DB, event.license_key).pipe(
-          Effect.mapError(
-            cause => new ValidateLicenseStoreUnavailable('analyticsTelemetryPolicy', cause)
-          )
+          Effect.mapError(cause => storeUnavailable('analyticsTelemetryPolicy', cause))
         );
         decisionsByLicenseKey.set(event.license_key, decision);
       }
@@ -1004,7 +906,7 @@ function ingestAnalytics(
     }
     yield* Effect.tryPromise({
       try: () => env.DB.batch(statements),
-      catch: cause => new ValidateLicenseStoreUnavailable('analyticsBatch', cause),
+      catch: cause => storeUnavailable('analyticsBatch', cause),
     });
     const uniqueMachines = [...new Set(events.map(event => event.machine_id))];
     for (const machineId of uniqueMachines) {

@@ -25,12 +25,6 @@ import {
   PrivacyStatusRowSchema,
   isInvalidExtraRow,
   readOptionalExtraRow,
-  type PrivacyCommandRow,
-  type PrivacyFeatureRow,
-  type PrivacyLicenseRow,
-  type PrivacyMachineRow,
-  type PrivacyPerformanceRow,
-  type PrivacySessionRow,
 } from '../contracts/d1-extras';
 
 /** The authenticated GDPR deletion request body. */
@@ -44,50 +38,40 @@ const OptOutRequestSchema = Schema.Struct({
   opt_out: Schema.Boolean,
 });
 
-interface PrivacyPrincipal {
-  readonly customerId: string;
-  readonly email: string;
-}
-
-type PrivacyAuthentication =
-  | { readonly _tag: 'authenticated'; readonly principal: PrivacyPrincipal }
-  | { readonly _tag: 'rejected'; readonly response: Response };
-
-async function authenticatePrivacyRequest(
+/** Run a handler behind customer session validation. */
+async function withPrivacyPrincipal(
   request: Request,
-  env: Env
-): Promise<PrivacyAuthentication> {
+  env: Env,
+  handler: (principal: {
+    readonly customerId: string;
+    readonly email: string;
+  }) => Response | Promise<Response>
+): Promise<Response> {
   const token = getAuthToken(request);
   if (token === null) {
-    return { _tag: 'rejected', response: errorResponse('Authorization required', 401) };
+    return errorResponse('Authorization required', 401);
   }
-
   const auth = await validateSession(env.DB, token);
   if (auth === null) {
-    return { _tag: 'rejected', response: errorResponse('Invalid or expired session', 401) };
+    return errorResponse('Invalid or expired session', 401);
   }
-
-  return {
-    _tag: 'authenticated',
-    principal: { customerId: auth.user.id, email: auth.user.email },
-  };
+  return handler({ customerId: auth.user.id, email: auth.user.email });
 }
 
-interface ExportData {
-  export_date: string;
-  export_format_version: string;
-  profile?: {
-    email: string | null | undefined;
-    company: string | null | undefined;
-    tier: string | null | undefined;
-    member_since: string | null | undefined;
-  };
-  licenses?: ReadonlyArray<PrivacyLicenseRow>;
-  machines?: ReadonlyArray<PrivacyMachineRow>;
-  command_history?: ReadonlyArray<PrivacyCommandRow>;
-  sessions?: ReadonlyArray<PrivacySessionRow>;
-  performance_summary?: ReadonlyArray<PrivacyPerformanceRow>;
-  feature_usage?: ReadonlyArray<PrivacyFeatureRow>;
+/** Query and decode a repeated privacy-export row set. */
+async function loadPrivacyRows<S extends Schema.Schema.AnyNoContext>(
+  db: D1Database,
+  query: string,
+  customerId: string,
+  schema: S,
+  invalidRowMessage: string,
+  failureMessage: string
+): Promise<ReadonlyArray<Schema.Schema.Type<S>> | Response> {
+  const rows = await db.prepare(query).bind(customerId).all();
+  const decoded = await Effect.runPromiseExit(
+    decodeExtraRowArray(schema, invalidRowMessage, rows.results)
+  );
+  return Exit.isFailure(decoded) ? errorResponse(failureMessage, 500) : decoded.value;
 }
 
 /**
@@ -111,116 +95,112 @@ interface ExportData {
  */
 export async function handleDeleteMyData(request: Request, env: Env): Promise<Response> {
   try {
-    const authentication = await authenticatePrivacyRequest(request, env);
-    if (authentication._tag === 'rejected') {
-      return authentication.response;
-    }
+    return await withPrivacyPrincipal(request, env, async ({ customerId, email }) => {
+      const decoded = await Effect.runPromiseExit(decodeJsonBody(request, DeleteRequestSchema));
+      if (Exit.isFailure(decoded)) {
+        return errorResponse('Invalid JSON body', 400);
+      }
+      const body = decoded.value;
+      if (!body.confirm) {
+        return errorResponse('Deletion must be confirmed. Set confirm: true', 400);
+      }
 
-    const decoded = await Effect.runPromiseExit(decodeJsonBody(request, DeleteRequestSchema));
-    if (Exit.isFailure(decoded)) {
-      return errorResponse('Invalid JSON body', 400);
-    }
-    const body = decoded.value;
-    if (!body.confirm) {
-      return errorResponse('Deletion must be confirmed. Set confirm: true', 400);
-    }
-
-    const { customerId, email } = authentication.principal;
-    const deletionOperations = [
-      {
-        label: 'command_events',
-        statement: env.DB.prepare(
-          'DELETE FROM command_event WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
-        ).bind(customerId),
-      },
-      {
-        label: 'telemetry_sessions',
-        statement: env.DB.prepare(
-          'DELETE FROM session WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
-        ).bind(customerId),
-      },
-      {
-        label: 'performance_metrics',
-        statement: env.DB.prepare(
-          'DELETE FROM performance_metric WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
-        ).bind(customerId),
-      },
-      {
-        label: 'feature_usage',
-        statement: env.DB.prepare(
-          'DELETE FROM feature_usage WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
-        ).bind(customerId),
-      },
-      {
-        label: 'install_stats',
-        statement: env.DB.prepare(
-          `DELETE FROM install_stats
+      const deletionOperations = [
+        {
+          label: 'command_events',
+          statement: env.DB.prepare(
+            'DELETE FROM command_event WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'telemetry_sessions',
+          statement: env.DB.prepare(
+            'DELETE FROM session WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'performance_metrics',
+          statement: env.DB.prepare(
+            'DELETE FROM performance_metric WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'feature_usage',
+          statement: env.DB.prepare(
+            'DELETE FROM feature_usage WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'install_stats',
+          statement: env.DB.prepare(
+            `DELETE FROM install_stats
            WHERE install_id IN (
              SELECT m.machine_id
              FROM machines m
              JOIN licenses l ON l.id = m.license_id
              WHERE l.customer_id = ?
            )`
-        ).bind(customerId),
-      },
-      {
-        label: 'machines',
-        statement: env.DB.prepare(
-          'DELETE FROM machines WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
-        ).bind(customerId),
-      },
-      {
-        label: 'customer_notes',
-        statement: env.DB.prepare('DELETE FROM customer_notes WHERE customer_id = ?').bind(
-          customerId
-        ),
-      },
-      {
-        label: 'session_tokens',
-        statement: env.DB.prepare('DELETE FROM sessions WHERE customer_id = ?').bind(customerId),
-      },
-      {
-        label: 'auth_codes',
-        statement: env.DB.prepare('DELETE FROM auth_codes WHERE email = ?').bind(email),
-      },
-    ] as const;
+          ).bind(customerId),
+        },
+        {
+          label: 'machines',
+          statement: env.DB.prepare(
+            'DELETE FROM machines WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'customer_notes',
+          statement: env.DB.prepare('DELETE FROM customer_notes WHERE customer_id = ?').bind(
+            customerId
+          ),
+        },
+        {
+          label: 'session_tokens',
+          statement: env.DB.prepare('DELETE FROM sessions WHERE customer_id = ?').bind(customerId),
+        },
+        {
+          label: 'auth_codes',
+          statement: env.DB.prepare('DELETE FROM auth_codes WHERE email = ?').bind(email),
+        },
+      ] as const;
 
-    const requestId = crypto.randomUUID();
-    const results = await env.DB.batch([
-      ...deletionOperations.map(operation => operation.statement),
-      env.DB.prepare(
-        `UPDATE licenses
+      const requestId = crypto.randomUUID();
+      const results = await env.DB.batch([
+        ...deletionOperations.map(operation => operation.statement),
+        env.DB.prepare(
+          `UPDATE licenses
          SET status = 'deleted_by_user', updated_at = datetime('now')
          WHERE customer_id = ?`
-      ).bind(customerId),
-      env.DB.prepare(
-        `INSERT INTO audit_log
+        ).bind(customerId),
+        env.DB.prepare(
+          `INSERT INTO audit_log
            (id, customer_id, action, resource_type, resource_id, ip_address, metadata, created_at)
          VALUES (?, ?, 'data_deletion_request', 'customer', ?, ?, ?, datetime('now'))`
-      ).bind(
-        requestId,
-        customerId,
-        customerId,
-        request.headers.get('CF-Connecting-IP') ?? 'unknown',
-        JSON.stringify({ reason: body.reason ?? 'User requested deletion' })
-      ),
-    ]);
+        ).bind(
+          requestId,
+          customerId,
+          customerId,
+          request.headers.get('CF-Connecting-IP') ?? 'unknown',
+          JSON.stringify({ reason: body.reason ?? 'User requested deletion' })
+        ),
+      ]);
 
-    const deletedCounts: Record<string, number> = {};
-    deletionOperations.forEach((operation, index) => {
-      const changes = results[index]?.meta?.changes ?? 0;
-      if (changes > 0) {
-        deletedCounts[operation.label] = changes;
-      }
-    });
+      const deletedCounts: Record<string, number> = {};
+      deletionOperations.forEach((operation, index) => {
+        const changes = results[index]?.meta?.changes ?? 0;
+        if (changes > 0) {
+          deletedCounts[operation.label] = changes;
+        }
+      });
 
-    return jsonResponse({
-      success: true,
-      message: 'Your data has been deleted. This action is irreversible.',
-      request_id: requestId,
-      deleted: deletedCounts,
-      retention_notice:
-        'Audit logs are retained for 30 days for security purposes. Payment records are retained per Stripe requirements.',
+      return jsonResponse({
+        success: true,
+        message: 'Your data has been deleted. This action is irreversible.',
+        request_id: requestId,
+        deleted: deletedCounts,
+        retention_notice:
+          'Audit logs are retained for 30 days for security purposes. Payment records are retained per Stripe requirements.',
+      });
     });
   } catch (error: unknown) {
     Sentry.captureException(error);
@@ -236,174 +216,133 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
  */
 export async function handleExportMyData(request: Request, env: Env): Promise<Response> {
   try {
-    const authentication = await authenticatePrivacyRequest(request, env);
-    if (authentication._tag === 'rejected') {
-      return authentication.response;
-    }
-    const { customerId } = authentication.principal;
+    return await withPrivacyPrincipal(request, env, async ({ customerId }) => {
+      const exportDate = new Date().toISOString();
+      const customerLookup = await readOptionalExtraRow(
+        PrivacyProfileRowSchema,
+        'Privacy profile row has an invalid shape',
+        await env.DB.prepare(
+          'SELECT id, email, company, tier, stripe_customer_id, created_at FROM customers WHERE id = ?'
+        )
+          .bind(customerId)
+          .first()
+      );
+      if (isInvalidExtraRow(customerLookup) || customerLookup._tag === 'missing') {
+        return errorResponse('Failed to load profile', 500);
+      }
+      const customer = customerLookup.value;
 
-    const exportData: ExportData = {
-      export_date: new Date().toISOString(),
-      export_format_version: '2.0',
-    };
-
-    const customerRow = await env.DB.prepare(
-      'SELECT id, email, company, tier, stripe_customer_id, created_at FROM customers WHERE id = ?'
-    )
-      .bind(customerId)
-      .first();
-    const customerLookup = await readOptionalExtraRow(
-      PrivacyProfileRowSchema,
-      'Privacy profile row has an invalid shape',
-      customerRow
-    );
-    if (isInvalidExtraRow(customerLookup) || customerLookup._tag === 'missing') {
-      return errorResponse('Failed to load profile', 500);
-    }
-    const customer = customerLookup.value;
-    exportData.profile = {
-      email: customer.email,
-      company: customer.company,
-      tier: customer.tier,
-      member_since: customer.created_at,
-    };
-
-    const licenses = await env.DB.prepare(
-      'SELECT tier, status, max_machines, created_at AS activated_at, expires_at, created_at FROM licenses WHERE customer_id = ?'
-    )
-      .bind(customerId)
-      .all();
-    const decodedLicenses = await Effect.runPromiseExit(
-      decodeExtraRowArray(
+      const licenses = await loadPrivacyRows(
+        env.DB,
+        'SELECT tier, status, max_machines, created_at AS activated_at, expires_at, created_at FROM licenses WHERE customer_id = ?',
+        customerId,
         PrivacyLicenseRowSchema,
         'Privacy license export row has an invalid shape',
-        licenses.results
-      )
-    );
-    if (Exit.isFailure(decodedLicenses)) {
-      return errorResponse('Failed to export licenses', 500);
-    }
-    exportData.licenses = decodedLicenses.value;
+        'Failed to export licenses'
+      );
+      if (licenses instanceof Response) return licenses;
 
-    const machines = await env.DB.prepare(
-      `SELECT m.machine_id, m.hostname, m.os, m.arch, m.omg_version,
-              m.first_seen_at AS activated_at, m.last_seen_at
-       FROM machines m
-       JOIN licenses l ON l.id = m.license_id
-       WHERE l.customer_id = ?`
-    )
-      .bind(customerId)
-      .all();
-    const decodedMachines = await Effect.runPromiseExit(
-      decodeExtraRowArray(
+      const machines = await loadPrivacyRows(
+        env.DB,
+        `SELECT m.machine_id, m.hostname, m.os, m.arch, m.omg_version,
+                m.first_seen_at AS activated_at, m.last_seen_at
+         FROM machines m
+         JOIN licenses l ON l.id = m.license_id
+         WHERE l.customer_id = ?`,
+        customerId,
         PrivacyMachineRowSchema,
         'Privacy machine export row has an invalid shape',
-        machines.results
-      )
-    );
-    if (Exit.isFailure(decodedMachines)) {
-      return errorResponse('Failed to export machines', 500);
-    }
-    exportData.machines = decodedMachines.value;
+        'Failed to export machines'
+      );
+      if (machines instanceof Response) return machines;
 
-    const commands = await env.DB.prepare(
-      `SELECT command, subcommand, packages, duration_ms, success, timestamp
-       FROM command_event
-       WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)
-       ORDER BY timestamp DESC
-       LIMIT 1000`
-    )
-      .bind(customerId)
-      .all();
-    const decodedCommands = await Effect.runPromiseExit(
-      decodeExtraRowArray(
+      const commands = await loadPrivacyRows(
+        env.DB,
+        `SELECT command, subcommand, packages, duration_ms, success, timestamp
+         FROM command_event
+         WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)
+         ORDER BY timestamp DESC
+         LIMIT 1000`,
+        customerId,
         PrivacyCommandRowSchema,
         'Privacy command export row has an invalid shape',
-        commands.results
-      )
-    );
-    if (Exit.isFailure(decodedCommands)) {
-      return errorResponse('Failed to export command history', 500);
-    }
-    exportData.command_history = decodedCommands.value;
+        'Failed to export command history'
+      );
+      if (commands instanceof Response) return commands;
 
-    const sessions = await env.DB.prepare(
-      `SELECT session_id, event_type, start_time, end_time, commands_run, duration_secs, timestamp
-       FROM session
-       WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)
-       ORDER BY timestamp DESC
-       LIMIT 100`
-    )
-      .bind(customerId)
-      .all();
-    const decodedSessions = await Effect.runPromiseExit(
-      decodeExtraRowArray(
+      const sessions = await loadPrivacyRows(
+        env.DB,
+        `SELECT session_id, event_type, start_time, end_time, commands_run, duration_secs, timestamp
+         FROM session
+         WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)
+         ORDER BY timestamp DESC
+         LIMIT 100`,
+        customerId,
         PrivacySessionRowSchema,
         'Privacy session export row has an invalid shape',
-        sessions.results
-      )
-    );
-    if (Exit.isFailure(decodedSessions)) {
-      return errorResponse('Failed to export sessions', 500);
-    }
-    exportData.sessions = decodedSessions.value;
+        'Failed to export sessions'
+      );
+      if (sessions instanceof Response) return sessions;
 
-    const perfMetrics = await env.DB.prepare(
-      `SELECT metric_type, AVG(duration_ms) as avg_duration_ms, COUNT(*) as sample_count
-       FROM performance_metric
-       WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)
-       GROUP BY metric_type`
-    )
-      .bind(customerId)
-      .all();
-    const decodedPerf = await Effect.runPromiseExit(
-      decodeExtraRowArray(
+      const performanceSummary = await loadPrivacyRows(
+        env.DB,
+        `SELECT metric_type, AVG(duration_ms) as avg_duration_ms, COUNT(*) as sample_count
+         FROM performance_metric
+         WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)
+         GROUP BY metric_type`,
+        customerId,
         PrivacyPerformanceRowSchema,
         'Privacy performance export row has an invalid shape',
-        perfMetrics.results
-      )
-    );
-    if (Exit.isFailure(decodedPerf)) {
-      return errorResponse('Failed to export performance summary', 500);
-    }
-    exportData.performance_summary = decodedPerf.value;
+        'Failed to export performance summary'
+      );
+      if (performanceSummary instanceof Response) return performanceSummary;
 
-    const features = await env.DB.prepare(
-      `SELECT feature, enabled, COUNT(*) as usage_count, MAX(timestamp) as last_used
-       FROM feature_usage
-       WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)
-       GROUP BY feature, enabled`
-    )
-      .bind(customerId)
-      .all();
-    const decodedFeatures = await Effect.runPromiseExit(
-      decodeExtraRowArray(
+      const featureUsage = await loadPrivacyRows(
+        env.DB,
+        `SELECT feature, enabled, COUNT(*) as usage_count, MAX(timestamp) as last_used
+         FROM feature_usage
+         WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)
+         GROUP BY feature, enabled`,
+        customerId,
         PrivacyFeatureRowSchema,
         'Privacy feature export row has an invalid shape',
-        features.results
+        'Failed to export feature usage'
+      );
+      if (featureUsage instanceof Response) return featureUsage;
+
+      await env.DB.prepare(
+        `INSERT INTO audit_log (id, action, resource_type, resource_id, ip_address, created_at)
+         VALUES (?, 'data_export_request', 'customer', ?, ?, datetime('now'))`
       )
-    );
-    if (Exit.isFailure(decodedFeatures)) {
-      return errorResponse('Failed to export feature usage', 500);
-    }
-    exportData.feature_usage = decodedFeatures.value;
+        .bind(crypto.randomUUID(), customerId, request.headers.get('CF-Connecting-IP') ?? 'unknown')
+        .run();
 
-    await env.DB.prepare(
-      `INSERT INTO audit_log (id, action, resource_type, resource_id, ip_address, created_at)
-       VALUES (?, 'data_export_request', 'customer', ?, ?, datetime('now'))`
-    )
-      .bind(crypto.randomUUID(), customerId, request.headers.get('CF-Connecting-IP') ?? 'unknown')
-      .run();
-
-    return new Response(JSON.stringify(exportData, null, 2), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Disposition': `attachment; filename="omg-data-export-${new Date().toISOString().slice(0, 10)}.json"`,
-        'Cache-Control': 'no-store',
-        Pragma: 'no-cache',
-        ...corsHeaders,
-      },
+      const exportData = {
+        export_date: exportDate,
+        export_format_version: '2.0',
+        profile: {
+          email: customer.email,
+          company: customer.company,
+          tier: customer.tier,
+          member_since: customer.created_at,
+        },
+        licenses,
+        machines,
+        command_history: commands,
+        sessions,
+        performance_summary: performanceSummary,
+        feature_usage: featureUsage,
+      };
+      return new Response(JSON.stringify(exportData, null, 2), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Disposition': `attachment; filename="omg-data-export-${new Date().toISOString().slice(0, 10)}.json"`,
+          'Cache-Control': 'no-store',
+          Pragma: 'no-cache',
+          ...corsHeaders,
+        },
+      });
     });
   } catch (error: unknown) {
     Sentry.captureException(error);
@@ -417,31 +356,28 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
  */
 export async function handleOptOut(request: Request, env: Env): Promise<Response> {
   try {
-    const authentication = await authenticatePrivacyRequest(request, env);
-    if (authentication._tag === 'rejected') {
-      return authentication.response;
-    }
+    return await withPrivacyPrincipal(request, env, async ({ customerId }) => {
+      const decoded = await Effect.runPromiseExit(decodeJsonBody(request, OptOutRequestSchema));
+      if (Exit.isFailure(decoded)) {
+        return errorResponse('Invalid JSON body', 400);
+      }
+      const body = decoded.value;
 
-    const decoded = await Effect.runPromiseExit(decodeJsonBody(request, OptOutRequestSchema));
-    if (Exit.isFailure(decoded)) {
-      return errorResponse('Invalid JSON body', 400);
-    }
-    const body = decoded.value;
-
-    await env.DB.prepare(
-      `UPDATE customers
+      await env.DB.prepare(
+        `UPDATE customers
        SET telemetry_opt_out = ?, updated_at = datetime('now')
        WHERE id = ?`
-    )
-      .bind(body.opt_out ? 1 : 0, authentication.principal.customerId)
-      .run();
+      )
+        .bind(body.opt_out ? 1 : 0, customerId)
+        .run();
 
-    return jsonResponse({
-      success: true,
-      telemetry_opt_out: body.opt_out,
-      message: body.opt_out
-        ? 'Telemetry disabled. Your license remains fully functional.'
-        : 'Telemetry re-enabled. Thank you for helping improve OMG!',
+      return jsonResponse({
+        success: true,
+        telemetry_opt_out: body.opt_out,
+        message: body.opt_out
+          ? 'Telemetry disabled. Your license remains fully functional.'
+          : 'Telemetry re-enabled. Thank you for helping improve OMG!',
+      });
     });
   } catch (error: unknown) {
     Sentry.captureException(error);
@@ -478,38 +414,35 @@ export async function handlePrivacyStatus(request: Request, env: Env): Promise<R
   }
 
   try {
-    const authentication = await authenticatePrivacyRequest(request, env);
-    if (authentication._tag === 'rejected') {
-      return authentication.response;
-    }
+    return await withPrivacyPrincipal(request, env, async ({ customerId }) => {
+      const customer = await env.DB.prepare(
+        'SELECT telemetry_opt_out, email FROM customers WHERE id = ?'
+      )
+        .bind(customerId)
+        .first();
+      const decodedStatus = await Effect.runPromiseExit(
+        decodeExtraRow(PrivacyStatusRowSchema, 'Privacy status row has an invalid shape', customer)
+      );
+      if (Exit.isFailure(decodedStatus)) {
+        return errorResponse('Failed to load privacy status', 500);
+      }
+      const statusEmail = decodedStatus.value.email;
+      const separatorIndex = statusEmail?.lastIndexOf('@') ?? -1;
+      const emailDomain =
+        statusEmail !== null &&
+        statusEmail !== undefined &&
+        separatorIndex > 0 &&
+        separatorIndex < statusEmail.length - 1
+          ? statusEmail.slice(separatorIndex + 1)
+          : undefined;
 
-    const customer = await env.DB.prepare(
-      'SELECT telemetry_opt_out, email FROM customers WHERE id = ?'
-    )
-      .bind(authentication.principal.customerId)
-      .first();
-    const decodedStatus = await Effect.runPromiseExit(
-      decodeExtraRow(PrivacyStatusRowSchema, 'Privacy status row has an invalid shape', customer)
-    );
-    if (Exit.isFailure(decodedStatus)) {
-      return errorResponse('Failed to load privacy status', 500);
-    }
-    const statusEmail = decodedStatus.value.email;
-    const separatorIndex = statusEmail?.lastIndexOf('@') ?? -1;
-    const emailDomain =
-      statusEmail !== null &&
-      statusEmail !== undefined &&
-      separatorIndex > 0 &&
-      separatorIndex < statusEmail.length - 1
-        ? statusEmail.slice(separatorIndex + 1)
-        : undefined;
-
-    return jsonResponse({
-      ...baseResponse,
-      user_status: {
-        telemetry_opt_out: Boolean(decodedStatus.value.telemetry_opt_out),
-        email_on_file: emailDomain ? `***@${emailDomain}` : null,
-      },
+      return jsonResponse({
+        ...baseResponse,
+        user_status: {
+          telemetry_opt_out: Boolean(decodedStatus.value.telemetry_opt_out),
+          email_on_file: emailDomain ? `***@${emailDomain}` : null,
+        },
+      });
     });
   } catch (error: unknown) {
     Sentry.captureException(error);

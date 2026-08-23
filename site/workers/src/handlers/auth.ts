@@ -21,6 +21,7 @@ import {
   decodeAuthCodeCountRow,
   decodeAuthCodeRow,
   decodeAuthCustomerRow,
+  type AuthCodeRow,
   type AuthCustomerRow,
   type EmailAddress,
   type SendCodeResponse,
@@ -51,14 +52,6 @@ class TurnstileFailedError extends Error {
   readonly _tag = 'TurnstileFailedError';
   constructor() {
     super('Security verification failed. Please try again.');
-  }
-}
-
-/** Resend is not configured on this Worker. */
-class EmailServiceUnconfigured extends Error {
-  readonly _tag = 'EmailServiceUnconfigured';
-  constructor() {
-    super('Email service not configured');
   }
 }
 
@@ -103,7 +96,6 @@ type SendCodeError =
   | TurnstileRequiredError
   | TurnstileFailedError
   | TurnstileVerificationUnavailable
-  | EmailServiceUnconfigured
   | EmailDeliveryFailed
   | AuthCryptoUnavailable
   | AuthStoreUnavailable;
@@ -126,14 +118,8 @@ function digestOtpCode(
   });
 }
 
-/** Creates the plaintext OTP delivered to the user. */
-type OtpCodeGenerator = () => string;
-
 /** Sends a generated OTP to an email address. */
-export type OtpMailer = (
-  email: EmailAddress,
-  code: string
-) => Effect.Effect<void, EmailServiceUnconfigured | EmailDeliveryFailed>;
+type OtpMailer = (email: EmailAddress, code: string) => Effect.Effect<void, EmailDeliveryFailed>;
 
 function brandGeneratedId<S extends Schema.Schema.AnyNoContext>(
   schema: S,
@@ -149,20 +135,18 @@ function brandGeneratedId<S extends Schema.Schema.AnyNoContext>(
  * @returns An OTP mailer.
  */
 function cloudflareMailer(env: Env): OtpMailer {
-  return (email, code) => {
-    return Effect.tryPromise({
-      try: async () => {
-        await env.EMAIL.send({
+  return (email, code) =>
+    Effect.tryPromise({
+      try: () =>
+        env.EMAIL.send({
           to: email,
           from: 'OMG <noreply@latham.cloud>',
           subject: 'Your OMG verification code',
           html: otpEmailHtml(code),
           text: `Your OMG verification code is ${code}. It expires in 10 minutes.`,
-        });
-      },
+        }),
       catch: cause => new EmailDeliveryFailed(cause),
     });
-  };
 }
 
 function otpEmailHtml(code: string): string {
@@ -220,7 +204,7 @@ export function sendVerificationCode(
   request: Request,
   env: Env,
   mailer: OtpMailer,
-  generateCode: OtpCodeGenerator
+  generateCode: () => string
 ): Effect.Effect<SendCodeResponse, SendCodeError> {
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, SendCodeRequestSchema);
@@ -235,14 +219,13 @@ export function sendVerificationCode(
           .first(),
       catch: cause => new AuthStoreUnavailable('countRecentCodes', cause),
     }).pipe(
-      Effect.flatMap(row => {
-        if (row === null) {
-          return Effect.succeed({ count: 0 });
-        }
-        return decodeAuthCodeCountRow(row).pipe(
-          Effect.mapError(cause => new AuthStoreUnavailable('countRecentCodes', cause))
-        );
-      })
+      Effect.flatMap(row =>
+        row === null
+          ? Effect.succeed({ count: 0 })
+          : decodeAuthCodeCountRow(row).pipe(
+              Effect.mapError(cause => new AuthStoreUnavailable('countRecentCodes', cause))
+            )
+      )
     );
     if (recent.count >= 3) {
       yield* Effect.fail(new AuthRateLimitedError());
@@ -282,14 +265,13 @@ function findOrCreateCustomer(
         db.prepare(`SELECT id, email, company FROM customers WHERE email = ?`).bind(email).first(),
       catch: cause => new AuthStoreUnavailable('findCustomer', cause),
     }).pipe(
-      Effect.flatMap(row => {
-        if (row === null) {
-          return Effect.succeed(null);
-        }
-        return decodeAuthCustomerRow(row).pipe(
-          Effect.mapError(cause => new AuthStoreUnavailable('findCustomer', cause))
-        );
-      })
+      Effect.flatMap(row =>
+        row === null
+          ? Effect.succeed(null)
+          : decodeAuthCustomerRow(row).pipe(
+              Effect.mapError(cause => new AuthStoreUnavailable('findCustomer', cause))
+            )
+      )
     );
     if (existing !== null) {
       return existing;
@@ -333,7 +315,7 @@ function verifyCode(
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, VerifyCodeRequestSchema);
     const digest = yield* digestOtpCode(body.email, body.code, env.JWT_SECRET);
-    const authCode = yield* Effect.tryPromise({
+    yield* Effect.tryPromise({
       try: () =>
         env.DB.prepare(
           `UPDATE auth_codes
@@ -350,24 +332,20 @@ function verifyCode(
           .first(),
       catch: cause => new AuthStoreUnavailable('claimCode', cause),
     }).pipe(
-      Effect.flatMap(row => {
-        if (row === null) {
-          return Effect.succeed(null);
+      Effect.flatMap((row): Effect.Effect<AuthCodeRow, AuthStoreUnavailable | InvalidOtpError> => {
+        if (row !== null) {
+          return decodeAuthCodeRow(row).pipe(
+            Effect.mapError(cause => new AuthStoreUnavailable('claimCode', cause))
+          );
         }
-        return decodeAuthCodeRow(row).pipe(
-          Effect.mapError(cause => new AuthStoreUnavailable('claimCode', cause))
-        );
+        // Do NOT increment attempt_count here: doing so lets an attacker who
+        // knows the victim's email burn their legitimate code by submitting
+        // wrong codes. Brute-force protection is handled by the IP rate limiter.
+        return logAudit(env.DB, null, 'auth.code_verify_failed', 'auth_code', null, request, {
+          email: body.email,
+        }).pipe(Effect.zipRight(Effect.fail(new InvalidOtpError())));
       })
     );
-    if (authCode === null) {
-      // Do NOT increment attempt_count here: doing so lets an attacker who
-      // knows the victim's email burn their legitimate code by submitting
-      // wrong codes. Brute-force protection is handled by the IP rate limiter.
-      yield* logAudit(env.DB, null, 'auth.code_verify_failed', 'auth_code', null, request, {
-        email: body.email,
-      });
-      yield* Effect.fail(new InvalidOtpError());
-    }
     yield* Effect.tryPromise({
       try: () =>
         env.DB.prepare(`UPDATE auth_codes SET used = 1 WHERE email = ? AND used = 0`)
@@ -407,7 +385,6 @@ function verifyCode(
       catch: cause => new AuthStoreUnavailable('pruneSessions', cause),
     });
     yield* logAudit(env.DB, customer.id, 'auth.login', 'session', null, request);
-    const company = customer.company;
     return {
       success: true as const,
       token: sessionToken,
@@ -415,7 +392,7 @@ function verifyCode(
       user: {
         id: customer.id,
         email: customer.email,
-        name: company === undefined ? null : company,
+        name: customer.company ?? null,
       },
     };
   });
@@ -457,7 +434,6 @@ function httpStatusForSend(error: SendCodeError): number {
       return 429;
     case 'TurnstileVerificationUnavailable':
       return 503;
-    case 'EmailServiceUnconfigured':
     case 'EmailDeliveryFailed':
     case 'AuthCryptoUnavailable':
     case 'AuthStoreUnavailable':
@@ -481,30 +457,19 @@ function httpStatusForVerify(error: VerifyCodeError): number {
   }
 }
 
-function responseFromSendExit(exit: Exit.Exit<SendCodeResponse, SendCodeError>): Response {
+function responseFromExit<A, E extends Error>(
+  exit: Exit.Exit<A, E>,
+  httpStatus: (error: E) => number,
+  defectMessage: string
+): Response {
   return Exit.match(exit, {
     onSuccess: payload => jsonResponse(payload),
     onFailure: cause => {
       const failure = Cause.failureOption(cause);
-      if (Option.isSome(failure)) {
-        const error = failure.value;
-        return errorResponse(error.message, httpStatusForSend(error));
+      if (Option.isNone(failure)) {
+        return errorResponse(defectMessage, 500);
       }
-      return errorResponse('Internal server error', 500);
-    },
-  });
-}
-
-function responseFromVerifyExit(exit: Exit.Exit<VerifyCodeResponse, VerifyCodeError>): Response {
-  return Exit.match(exit, {
-    onSuccess: payload => jsonResponse(payload),
-    onFailure: cause => {
-      const failure = Cause.failureOption(cause);
-      if (Option.isSome(failure)) {
-        const error = failure.value;
-        return errorResponse(error.message, httpStatusForVerify(error));
-      }
-      return errorResponse('Verification failed. Please try again.', 500);
+      return errorResponse(failure.value.message, httpStatus(failure.value));
     },
   });
 }
@@ -527,7 +492,7 @@ export async function handleSendCode(request: Request, env: Env): Promise<Respon
   const exit = await Effect.runPromiseExit(
     sendVerificationCode(request, env, cloudflareMailer(env), generateOtpCode)
   );
-  return responseFromSendExit(exit);
+  return responseFromExit(exit, httpStatusForSend, 'Internal server error');
 }
 
 /**
@@ -539,7 +504,7 @@ export async function handleSendCode(request: Request, env: Env): Promise<Respon
  */
 export async function handleVerifyCode(request: Request, env: Env): Promise<Response> {
   const exit = await Effect.runPromiseExit(verifyCode(request, env));
-  return responseFromVerifyExit(exit);
+  return responseFromExit(exit, httpStatusForVerify, 'Verification failed. Please try again.');
 }
 
 /**

@@ -10,74 +10,46 @@ import {
 } from '../contracts/cli-telemetry';
 import { resolveTelemetryIngestion } from '../telemetry-policy';
 
-// ========== Payload Size Limits ==========
-const MAX_EVENT_PAYLOAD_BYTES = 100 * 1024; // 100 KB
-const MAX_BATCH_PAYLOAD_BYTES = 1024 * 1024; // 1 MB
-const MAX_BATCH_SIZE = 500; // events
-
-// ========== Field Length Limits ==========
-const MAX_STRING_LENGTH = 1000; // characters
-const MAX_ERROR_LENGTH = 5000; // characters
-const MAX_ARRAY_LENGTH = 100; // items
-
-// ========== Rate Limiting ==========
+const MAX_EVENT_PAYLOAD_BYTES = 100 * 1024;
+const MAX_BATCH_PAYLOAD_BYTES = 1024 * 1024;
+const MAX_BATCH_SIZE = 500;
+const MAX_STRING_LENGTH = 1000;
+const MAX_ERROR_LENGTH = 5000;
+const MAX_ARRAY_LENGTH = 100;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 
-// ========== Validation Helpers ==========
-
-type ContentLengthCheck = { valid: true } | { valid: false; error: Response };
-
-/**
- * Check Content-Length header before parsing JSON
- */
-function validateContentLength(request: Request, maxBytes: number): ContentLengthCheck {
+/** Reject an invalid or oversized declared body before parsing JSON. */
+function validateContentLength(request: Request, maxBytes: number): Response | undefined {
   const contentLength = request.headers.get('Content-Length');
-
-  if (!contentLength) {
-    return { valid: true };
+  if (contentLength === null) {
+    return undefined;
   }
 
   const bytes = Number(contentLength);
   if (!Number.isFinite(bytes) || bytes < 0) {
-    return { valid: false, error: errorResponse('Invalid Content-Length header', 400) };
+    return errorResponse('Invalid Content-Length header', 400);
   }
-  if (bytes > maxBytes) {
-    return { valid: false, error: errorResponse('Payload too large', 413) };
-  }
-
-  return { valid: true };
+  return bytes > maxBytes ? errorResponse('Payload too large', 413) : undefined;
 }
 
-/**
- * Truncate string to max length (don't reject)
- */
+/** Truncate a telemetry scalar instead of rejecting the event. */
 function truncateString(
   value: string | number | boolean | null | undefined,
   maxLength: number
 ): string | null {
   if (value === null || value === undefined) return null;
-  const str = String(value);
-  return str.length > maxLength ? str.slice(0, maxLength) : str;
+  const stringValue = String(value);
+  return stringValue.length > maxLength ? stringValue.slice(0, maxLength) : stringValue;
 }
 
-/**
- * Truncate array to max length (don't reject)
- */
-function truncateArray(value: ReadonlyArray<string> | undefined, maxLength: number): string[] {
-  if (value === undefined) return [];
-  return value.slice(0, maxLength);
-}
-
-/**
- * Sanitize and validate event payload
- */
+/** Sanitize every bounded event field once before statement construction. */
 function sanitizeEvent(event: TelemetryEvent): TelemetryEvent {
   return {
     ...event,
     command: truncateString(event.command, MAX_STRING_LENGTH),
     subcommand: truncateString(event.subcommand, MAX_STRING_LENGTH),
     error: truncateString(event.error, MAX_ERROR_LENGTH),
-    packages: truncateArray(event.packages || [], MAX_ARRAY_LENGTH),
+    packages: event.packages?.slice(0, MAX_ARRAY_LENGTH) ?? [],
     session_id: truncateString(event.session_id, MAX_STRING_LENGTH),
     metric_type: truncateString(event.metric_type, MAX_STRING_LENGTH),
     context: truncateString(event.context, MAX_STRING_LENGTH),
@@ -88,42 +60,157 @@ function sanitizeEvent(event: TelemetryEvent): TelemetryEvent {
   };
 }
 
-/**
- * Rate limit by license key using Cloudflare Rate Limiting API
- */
-async function checkRateLimit(
+/** Apply rate limiting and resolve the license's persisted ingestion policy. */
+async function authorizeTelemetry(
   env: Env,
   licenseKey: string
-): Promise<{ allowed: boolean; retryAfter?: number }> {
-  if (!env.API_RATE_LIMITER) {
+): Promise<
+  | { readonly _tag: 'allowed'; readonly licenseId: string }
+  | { readonly _tag: 'optedOut' }
+  | { readonly _tag: 'rejected'; readonly response: Response }
+> {
+  if (env.API_RATE_LIMITER) {
+    try {
+      const { success } = await env.API_RATE_LIMITER.limit({ key: `telemetry:${licenseKey}` });
+      if (!success) {
+        const response = errorResponse('Rate limit exceeded', 429);
+        response.headers.set('Retry-After', String(RATE_LIMIT_WINDOW_SECONDS));
+        return { _tag: 'rejected', response };
+      }
+    } catch (error: unknown) {
+      reportError('Rate limit check failed:', error);
+    }
+  } else {
     reportWarning('API_RATE_LIMITER binding not available, skipping rate limit');
-    return { allowed: true };
   }
 
-  try {
-    const rateLimitKey = `telemetry:${licenseKey}`;
-    const { success } = await env.API_RATE_LIMITER.limit({ key: rateLimitKey });
+  const policyExit = await Effect.runPromiseExit(resolveTelemetryIngestion(env.DB, licenseKey));
+  if (Exit.isFailure(policyExit)) {
+    return {
+      _tag: 'rejected',
+      response: errorResponse('Failed to load telemetry policy', 500),
+    };
+  }
+  if (policyExit.value._tag === 'invalidLicense') {
+    return { _tag: 'rejected', response: errorResponse('Invalid license key', 401) };
+  }
+  return policyExit.value;
+}
 
-    if (!success) {
-      // Calculate retry-after based on rate limit window
-      return { allowed: false, retryAfter: RATE_LIMIT_WINDOW_SECONDS };
-    }
+/** Build the D1 mutation shared by single and batch ingestion. */
+function prepareTelemetryStatement(
+  db: D1Database,
+  licenseId: string,
+  item: {
+    readonly event: TelemetryEvent;
+    readonly machine_id: string;
+    readonly timestamp: string;
+  }
+): { readonly eventId: string; readonly statement: D1PreparedStatement } | undefined {
+  const event = sanitizeEvent(item.event);
+  const eventId = crypto.randomUUID();
+  const machineId = truncateString(item.machine_id, MAX_STRING_LENGTH);
+  const timestamp = truncateString(item.timestamp, MAX_STRING_LENGTH);
 
-    return { allowed: true };
-  } catch (error: unknown) {
-    reportError('Rate limit check failed:', error);
-    // Fail open - allow request if rate limiter fails
-    return { allowed: true };
+  switch (event.type) {
+    case 'command':
+      return {
+        eventId,
+        statement: db
+          .prepare(
+            `INSERT INTO command_event (
+              id, license_id, machine_id, session_id, command, subcommand,
+              packages, duration_ms, success, error, result_count, updated_count, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            eventId,
+            licenseId,
+            machineId,
+            event.session_id,
+            event.command,
+            event.subcommand,
+            JSON.stringify(event.packages),
+            event.duration_ms || 0,
+            event.success ? 1 : 0,
+            event.error,
+            event.result_count || null,
+            event.updated_count || null,
+            timestamp
+          ),
+      };
+    case 'session':
+      return {
+        eventId,
+        statement: db
+          .prepare(
+            `INSERT INTO session (
+              id, license_id, machine_id, session_id, event_type,
+              start_time, end_time, commands_run, duration_secs, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            eventId,
+            licenseId,
+            machineId,
+            event.session_id,
+            event.event_type,
+            event.start_time,
+            event.end_time,
+            event.commands_run || null,
+            event.duration_secs || null,
+            timestamp
+          ),
+      };
+    case 'performance':
+      return {
+        eventId,
+        statement: db
+          .prepare(
+            `INSERT INTO performance_metric (
+              id, license_id, machine_id, metric_type, duration_ms, context, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            eventId,
+            licenseId,
+            machineId,
+            event.metric_type,
+            event.duration_ms,
+            event.context,
+            timestamp
+          ),
+      };
+    case 'feature':
+      return {
+        eventId,
+        statement: db
+          .prepare(
+            `INSERT INTO feature_usage (
+              id, license_id, machine_id, feature, enabled, metadata, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            eventId,
+            licenseId,
+            machineId,
+            event.feature,
+            event.enabled ? 1 : 0,
+            JSON.stringify(event.metadata || {}),
+            timestamp
+          ),
+      };
+    default:
+      return undefined;
   }
 }
 
 // Handle single telemetry event
 export async function handleCliEvent(request: Request, env: Env): Promise<Response> {
   try {
-    // Validate payload size BEFORE parsing JSON
-    const lengthCheck = validateContentLength(request, MAX_EVENT_PAYLOAD_BYTES);
-    if (!lengthCheck.valid) {
-      return lengthCheck.error;
+    const contentLengthError = validateContentLength(request, MAX_EVENT_PAYLOAD_BYTES);
+    if (contentLengthError) {
+      return contentLengthError;
     }
 
     const decoded = await Effect.runPromiseExit(
@@ -133,146 +220,24 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
       return errorResponse('Invalid JSON body', 400);
     }
     const body = decoded.value;
-
     if (!body.license_key) {
       return errorResponse('License key required', 401);
     }
 
-    // Rate limit by license key
-    const rateLimit = await checkRateLimit(env, body.license_key);
-    if (!rateLimit.allowed) {
-      const response = errorResponse('Rate limit exceeded', 429);
-      if (rateLimit.retryAfter) {
-        response.headers.set('Retry-After', String(rateLimit.retryAfter));
-      }
-      return response;
+    const authorization = await authorizeTelemetry(env, body.license_key);
+    if (authorization._tag === 'rejected') {
+      return authorization.response;
     }
-
-    const policyExit = await Effect.runPromiseExit(
-      resolveTelemetryIngestion(env.DB, body.license_key)
-    );
-    if (Exit.isFailure(policyExit)) {
-      return errorResponse('Failed to load telemetry policy', 500);
-    }
-    if (policyExit.value._tag === 'invalidLicense') {
-      return errorResponse('Invalid license key', 401);
-    }
-    if (policyExit.value._tag === 'optedOut') {
+    if (authorization._tag === 'optedOut') {
       return jsonResponse({ success: true, skipped: true, reason: 'telemetry_opt_out' });
     }
-    const licenseId = policyExit.value.licenseId;
-    const eventId = crypto.randomUUID();
 
-    // Store based on event type (sanitize all fields)
-    switch (body.event.type) {
-      case 'command': {
-        const cmd = sanitizeEvent(body.event);
-        await env.DB.prepare(
-          `
-          INSERT INTO command_event (
-            id, license_id, machine_id, session_id, command, subcommand,
-            packages, duration_ms, success, error, result_count, updated_count, timestamp
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `
-        )
-          .bind(
-            eventId,
-            licenseId,
-            truncateString(body.machine_id, MAX_STRING_LENGTH),
-            cmd.session_id,
-            cmd.command,
-            cmd.subcommand,
-            JSON.stringify(cmd.packages),
-            cmd.duration_ms || 0,
-            cmd.success ? 1 : 0,
-            cmd.error,
-            cmd.result_count || null,
-            cmd.updated_count || null,
-            truncateString(body.timestamp, MAX_STRING_LENGTH)
-          )
-          .run();
-        break;
-      }
-
-      case 'session': {
-        const sess = sanitizeEvent(body.event);
-        await env.DB.prepare(
-          `
-          INSERT INTO session (
-            id, license_id, machine_id, session_id, event_type,
-            start_time, end_time, commands_run, duration_secs, timestamp
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `
-        )
-          .bind(
-            eventId,
-            licenseId,
-            truncateString(body.machine_id, MAX_STRING_LENGTH),
-            sess.session_id,
-            sess.event_type,
-            sess.start_time,
-            sess.end_time,
-            sess.commands_run || null,
-            sess.duration_secs || null,
-            truncateString(body.timestamp, MAX_STRING_LENGTH)
-          )
-          .run();
-        break;
-      }
-
-      case 'performance': {
-        const perf = sanitizeEvent(body.event);
-        await env.DB.prepare(
-          `
-          INSERT INTO performance_metric (
-            id, license_id, machine_id, metric_type, duration_ms, context, timestamp
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `
-        )
-          .bind(
-            eventId,
-            licenseId,
-            truncateString(body.machine_id, MAX_STRING_LENGTH),
-            perf.metric_type,
-            perf.duration_ms,
-            perf.context,
-            truncateString(body.timestamp, MAX_STRING_LENGTH)
-          )
-          .run();
-        break;
-      }
-
-      case 'feature': {
-        const feat = sanitizeEvent(body.event);
-        await env.DB.prepare(
-          `
-          INSERT INTO feature_usage (
-            id, license_id, machine_id, feature, enabled, metadata, timestamp
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `
-        )
-          .bind(
-            eventId,
-            licenseId,
-            truncateString(body.machine_id, MAX_STRING_LENGTH),
-            feat.feature,
-            feat.enabled ? 1 : 0,
-            JSON.stringify(feat.metadata || {}),
-            truncateString(body.timestamp, MAX_STRING_LENGTH)
-          )
-          .run();
-        break;
-      }
-
-      default:
-        return errorResponse('Invalid event type', 400);
+    const prepared = prepareTelemetryStatement(env.DB, authorization.licenseId, body);
+    if (prepared === undefined) {
+      return errorResponse('Invalid event type', 400);
     }
-
-    return jsonResponse({ success: true, event_id: eventId });
+    await prepared.statement.run();
+    return jsonResponse({ success: true, event_id: prepared.eventId });
   } catch (error: unknown) {
     reportError('CLI event error:', error);
     return errorResponse('Failed to process event', 500);
@@ -282,10 +247,9 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
 // Handle batched telemetry events
 export async function handleCliBatch(request: Request, env: Env): Promise<Response> {
   try {
-    // Validate payload size BEFORE parsing JSON
-    const lengthCheck = validateContentLength(request, MAX_BATCH_PAYLOAD_BYTES);
-    if (!lengthCheck.valid) {
-      return lengthCheck.error;
+    const contentLengthError = validateContentLength(request, MAX_BATCH_PAYLOAD_BYTES);
+    if (contentLengthError) {
+      return contentLengthError;
     }
 
     const decoded = await Effect.runPromiseExit(
@@ -294,173 +258,42 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
     if (Exit.isFailure(decoded)) {
       return errorResponse('Invalid JSON body', 400);
     }
-    const body = decoded.value;
-
-    if (!body.events || body.events.length === 0) {
+    const events = decoded.value.events;
+    if (events === undefined || events.length === 0) {
       return jsonResponse({ success: true, processed: 0 });
     }
-
-    // Enforce batch size limit
-    if (body.events.length > MAX_BATCH_SIZE) {
+    if (events.length > MAX_BATCH_SIZE) {
       return errorResponse(`Batch size exceeds limit of ${MAX_BATCH_SIZE} events`, 413);
     }
 
-    // Extract license key from first event (all should have same license)
-    const firstEvent = body.events.at(0);
-    if (firstEvent === undefined) {
-      return jsonResponse({ success: true, processed: 0 });
-    }
-    const licenseKey = firstEvent.license_key;
+    const licenseKey = events.at(0)?.license_key;
     if (!licenseKey) {
       return errorResponse('License key required', 401);
     }
 
-    // Rate limit by license key (batch counts as multiple events)
-    const rateLimit = await checkRateLimit(env, licenseKey);
-    if (!rateLimit.allowed) {
-      const response = errorResponse('Rate limit exceeded', 429);
-      if (rateLimit.retryAfter) {
-        response.headers.set('Retry-After', String(rateLimit.retryAfter));
-      }
-      return response;
+    const authorization = await authorizeTelemetry(env, licenseKey);
+    if (authorization._tag === 'rejected') {
+      return authorization.response;
     }
-
-    const policyExit = await Effect.runPromiseExit(resolveTelemetryIngestion(env.DB, licenseKey));
-    if (Exit.isFailure(policyExit)) {
-      return errorResponse('Failed to load telemetry policy', 500);
-    }
-    if (policyExit.value._tag === 'invalidLicense') {
-      return errorResponse('Invalid license key', 401);
-    }
-    if (policyExit.value._tag === 'optedOut') {
+    if (authorization._tag === 'optedOut') {
       return jsonResponse({
         success: true,
         processed: 0,
-        skipped: body.events.length,
+        skipped: events.length,
         reason: 'telemetry_opt_out',
       });
     }
-    const licenseId = policyExit.value.licenseId;
+
     const statements: D1PreparedStatement[] = [];
-
-    // Process each event
-    for (const item of body.events) {
-      const eventId = crypto.randomUUID();
-
-      switch (item.event.type) {
-        case 'command': {
-          const cmd = sanitizeEvent(item.event);
-          statements.push(
-            env.DB.prepare(
-              `
-              INSERT INTO command_event (
-                id, license_id, machine_id, session_id, command, subcommand,
-                packages, duration_ms, success, error, result_count, updated_count, timestamp
-              )
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `
-            ).bind(
-              eventId,
-              licenseId,
-              truncateString(item.machine_id, MAX_STRING_LENGTH),
-              cmd.session_id,
-              cmd.command,
-              cmd.subcommand,
-              JSON.stringify(cmd.packages),
-              cmd.duration_ms || 0,
-              cmd.success ? 1 : 0,
-              cmd.error,
-              cmd.result_count || null,
-              cmd.updated_count || null,
-              truncateString(item.timestamp, MAX_STRING_LENGTH)
-            )
-          );
-          break;
-        }
-
-        case 'session': {
-          const sess = sanitizeEvent(item.event);
-          statements.push(
-            env.DB.prepare(
-              `
-              INSERT INTO session (
-                id, license_id, machine_id, session_id, event_type,
-                start_time, end_time, commands_run, duration_secs, timestamp
-              )
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `
-            ).bind(
-              eventId,
-              licenseId,
-              truncateString(item.machine_id, MAX_STRING_LENGTH),
-              sess.session_id,
-              sess.event_type,
-              sess.start_time,
-              sess.end_time,
-              sess.commands_run || null,
-              sess.duration_secs || null,
-              truncateString(item.timestamp, MAX_STRING_LENGTH)
-            )
-          );
-          break;
-        }
-
-        case 'performance': {
-          const perf = sanitizeEvent(item.event);
-          statements.push(
-            env.DB.prepare(
-              `
-              INSERT INTO performance_metric (
-                id, license_id, machine_id, metric_type, duration_ms, context, timestamp
-              )
-              VALUES (?, ?, ?, ?, ?, ?, ?)
-            `
-            ).bind(
-              eventId,
-              licenseId,
-              truncateString(item.machine_id, MAX_STRING_LENGTH),
-              perf.metric_type,
-              perf.duration_ms,
-              perf.context,
-              truncateString(item.timestamp, MAX_STRING_LENGTH)
-            )
-          );
-          break;
-        }
-
-        case 'feature': {
-          const feat = sanitizeEvent(item.event);
-          statements.push(
-            env.DB.prepare(
-              `
-              INSERT INTO feature_usage (
-                id, license_id, machine_id, feature, enabled, metadata, timestamp
-              )
-              VALUES (?, ?, ?, ?, ?, ?, ?)
-            `
-            ).bind(
-              eventId,
-              licenseId,
-              truncateString(item.machine_id, MAX_STRING_LENGTH),
-              feat.feature,
-              feat.enabled ? 1 : 0,
-              JSON.stringify(feat.metadata || {}),
-              truncateString(item.timestamp, MAX_STRING_LENGTH)
-            )
-          );
-          break;
-        }
-        default:
-          return errorResponse('Unsupported telemetry event type', 400);
+    for (const item of events) {
+      const prepared = prepareTelemetryStatement(env.DB, authorization.licenseId, item);
+      if (prepared === undefined) {
+        return errorResponse('Unsupported telemetry event type', 400);
       }
+      statements.push(prepared.statement);
     }
-
-    // Atomic batch execution
-    if (statements.length > 0) {
-      await env.DB.batch(statements);
-    }
-
-    return jsonResponse({ success: true, processed: body.events.length });
+    await env.DB.batch(statements);
+    return jsonResponse({ success: true, processed: events.length });
   } catch (error: unknown) {
     reportError('CLI batch error:', error);
     return errorResponse('Failed to process batch', 500);

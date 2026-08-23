@@ -7,7 +7,7 @@ interface SkeletonProps {
   circle?: boolean;
 }
 
-export const Skeleton: Component<SkeletonProps> = props => {
+const Skeleton: Component<SkeletonProps> = props => {
   return (
     <div
       class={`animate-pulse bg-white/5 ${props.circle ? 'rounded-full' : 'rounded-lg'} ${props.class || ''}`}

@@ -1,11 +1,6 @@
 import type { Component } from 'solid-js';
 import { For, Show, createMemo, createSignal } from 'solid-js';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '~/lib/prelude';
 
 interface HeatmapCell {
   x: number;
@@ -545,12 +540,4 @@ export const DonutChart: Component<DonutChartProps> = props => {
       </Show>
     </div>
   );
-};
-
-export default {
-  Heatmap,
-  Sparkline,
-  ProgressRing,
-  BarChart,
-  DonutChart,
 };

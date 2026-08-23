@@ -37,8 +37,8 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
     const requestedLimit = Number.parseInt(url.searchParams.get('limit') ?? '', 10);
     const limit =
       Number.isFinite(requestedLimit) && requestedLimit >= 1 ? Math.min(requestedLimit, 100) : 50;
-    const since = url.searchParams.get('since'); // ISO timestamp
-    let query = `
+    const since = url.searchParams.get('since');
+    const statement = env.DB.prepare(`
       SELECT
         id,
         event_type,
@@ -52,40 +52,24 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
         duration_ms,
         created_at
       FROM analytics_events
-    `;
+      ${since ? 'WHERE created_at > ?' : ''}
+      ORDER BY created_at DESC LIMIT ?`);
+    const { results } = since
+      ? await statement.bind(since, limit).all()
+      : await statement.bind(limit).all();
 
-    const params: Array<string | number> = [];
-
-    if (since) {
-      query += ` WHERE created_at > ?`;
-      params.push(since);
-    }
-
-    query += ` ORDER BY created_at DESC LIMIT ?`;
-    params.push(limit);
-
-    const { results } = await env.DB.prepare(query)
-      .bind(...params)
-      .all();
-
-    const decoded = await Effect.runPromiseExit(
+    const decodedEvents = await Effect.runPromiseExit(
       decodeExtraRowArray(
         FirehoseEventRowSchema,
         'Firehose event row has an invalid shape',
         results
-      )
-    );
-    if (Exit.isFailure(decoded)) {
-      return errorResponse('Failed to fetch firehose data', 500);
-    }
-
-    const decodedEvents = await Effect.runPromiseExit(
-      Effect.forEach(decoded.value, event =>
-        decodeStoredProperties(event.properties).pipe(
-          Effect.map(properties => ({
-            ...event,
-            properties,
-          }))
+      ).pipe(
+        Effect.flatMap(events =>
+          Effect.forEach(events, event =>
+            decodeStoredProperties(event.properties).pipe(
+              Effect.map(properties => ({ ...event, properties }))
+            )
+          )
         )
       )
     );

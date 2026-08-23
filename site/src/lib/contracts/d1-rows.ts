@@ -2,12 +2,13 @@
 
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import { NullableStringSchema } from '../../../shared/d1-rows';
 
 /** Raw value accepted only at a Schema-decoded D1 boundary. */
 type D1BoundaryInput = Schema.Schema.Encoded<Schema.Schema.Any>;
 
 /** A failure decoding a persisted D1/drizzle row. */
-export class D1RowParseError extends Error {
+class D1RowParseError extends Error {
   readonly _tag = 'D1RowParseError';
   constructor(
     readonly reason: string,
@@ -26,8 +27,6 @@ const D1Timestamp = Schema.Union(
     })
   )
 );
-
-const NullableString = Schema.Union(Schema.Null, Schema.String);
 
 /** Decode a single D1/drizzle row. */
 function decodeD1Row<S extends Schema.Schema.AnyNoContext>(
@@ -69,7 +68,7 @@ function decodeOptionalD1Row<S extends Schema.Schema.AnyNoContext>(
 }
 
 /** Outcome of reading an optional D1 `.get()` row. */
-export type OptionalD1Row<A> =
+type OptionalD1Row<A> =
   | { readonly _tag: 'present'; readonly value: A }
   | { readonly _tag: 'missing' }
   | { readonly _tag: 'invalid' };
@@ -90,16 +89,15 @@ export async function readOptionalD1Row<S extends Schema.Schema.AnyNoContext>(
   return { _tag: 'present', value: exit.value };
 }
 
-/** Outcome of reading a D1 `.all()` list. */
-export type D1RowList<A> =
-  { readonly _tag: 'ok'; readonly value: ReadonlyArray<A> } | { readonly _tag: 'invalid' };
-
 /** Read a D1 `.all()` list. A non-array or any bad row is invalid. */
 export async function readD1RowArray<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string,
   value: D1BoundaryInput
-): Promise<D1RowList<Schema.Schema.Type<S>>> {
+): Promise<
+  | { readonly _tag: 'ok'; readonly value: ReadonlyArray<Schema.Schema.Type<S>> }
+  | { readonly _tag: 'invalid' }
+> {
   const exit = await Effect.runPromiseExit(decodeD1RowArray(schema, reason, value));
   if (Exit.isFailure(exit)) {
     return { _tag: 'invalid' };
@@ -118,29 +116,23 @@ export function isInvalidD1Row(row: OptionalD1Row<unknown>): row is { readonly _
 }
 
 // Shared aggregate/id primitives live in site/shared/d1-rows.ts.
-export { IdRowSchema, CountRowSchema } from '../../../shared/d1-rows';
-export type { IdRow, CountRow } from '../../../shared/d1-rows';
+export { CountRowSchema } from '../../../shared/d1-rows';
 
 /** Customer role lookup row. */
 export const UserRoleRowSchema = Schema.Struct({
   role: Schema.Union(Schema.Literal('user'), Schema.Literal('admin')),
 });
-export type UserRoleRow = Schema.Schema.Type<typeof UserRoleRowSchema>;
-
 /** Session row used by the account dashboard. */
 export const SessionRowSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),
   token: Schema.String,
-  ipAddress: Schema.optional(NullableString),
-  userAgent: Schema.optional(NullableString),
+  ipAddress: Schema.optional(NullableStringSchema),
+  userAgent: Schema.optional(NullableStringSchema),
   createdAt: D1Timestamp,
   expiresAt: D1Timestamp,
 });
-export type SessionRow = Schema.Schema.Type<typeof SessionRowSchema>;
-
 /** OAuth/account row used by the account dashboard. */
 export const AccountRowSchema = Schema.Struct({
   providerId: Schema.String,
   accountId: Schema.String,
 });
-export type AccountRow = Schema.Schema.Type<typeof AccountRowSchema>;

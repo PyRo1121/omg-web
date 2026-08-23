@@ -19,11 +19,9 @@ import {
   BillingCustomerRowSchema,
   customerIsAdmin,
   IdRowSchema,
-  type IdRow,
   isInvalidExtraRow,
   optionalRowValue,
   readOptionalExtraRow,
-  type OptionalExtraRow,
 } from '../contracts/d1-extras';
 import {
   CheckoutRequestSchema,
@@ -52,19 +50,6 @@ const PortalBodySchema = Schema.Struct({
   email: Schema.optional(EmailAddress),
 });
 
-async function readStripeJson<S extends Schema.Schema.AnyNoContext>(
-  response: Response,
-  schema: S,
-  reason: string
-): Promise<Schema.Schema.Type<S> | null> {
-  const payload: unknown = await response.json();
-  const decoded = await Effect.runPromiseExit(decodeStripeJson(schema, reason, payload));
-  if (Exit.isFailure(decoded)) {
-    return null;
-  }
-  return decoded.value;
-}
-
 /** Fetch a Stripe API resource and decode its JSON payload; null when invalid. */
 async function fetchStripeJson<S extends Schema.Schema.AnyNoContext>(
   apiKey: string,
@@ -76,7 +61,9 @@ async function fetchStripeJson<S extends Schema.Schema.AnyNoContext>(
   const headers = new Headers(init.headers);
   headers.set('Authorization', `Bearer ${apiKey}`);
   const response = await fetch(url, { ...init, headers });
-  return readStripeJson(response, schema, reason);
+  const payload: unknown = await response.json();
+  const decoded = await Effect.runPromiseExit(decodeStripeJson(schema, reason, payload));
+  return Exit.isFailure(decoded) ? null : decoded.value;
 }
 
 function billingCatalog(env: Env): BillingCatalog {
@@ -117,45 +104,23 @@ async function requireAdmin(request: Request, env: Env): Promise<SessionAuth | R
   return authOrDenied;
 }
 
-function lastStripeResourceId(resources: ReadonlyArray<{ readonly id: string }>): string | null {
-  return resources.at(-1)?.id ?? null;
-}
-
-/**
- * Look up a `customers.id` by Stripe customer id without treating malformed
- * rows as missing.
- */
-async function findCustomerIdByStripeCustomer(
+/** Resolve an internal customer id from a Stripe customer id. */
+async function resolveStripeCustomerId(
   db: D1Database,
   stripeCustomerId: string | null | undefined
-): Promise<OptionalExtraRow<IdRow>> {
+): Promise<
+  | { readonly ok: true; readonly customerId: string }
+  | { readonly ok: false; readonly reason: 'invalid-row' | 'unlinked' }
+> {
   const customerRow = await db
     .prepare('SELECT id FROM customers WHERE stripe_customer_id = ?')
     .bind(stripeCustomerId)
     .first();
-  return readOptionalExtraRow(
+  const customerLookup = await readOptionalExtraRow(
     IdRowSchema,
     'Billing customer id row has an invalid shape',
     customerRow
   );
-}
-
-/** Outcome of resolving an internal customer row from a Stripe customer id. */
-type ResolvedStripeCustomer =
-  | { readonly ok: true; readonly customerId: string }
-  | { readonly ok: false; readonly reason: 'invalid-row' | 'unlinked' };
-
-/**
- * Resolve an internal customer id from a Stripe customer id.
- *
- * Unifies the lookup/validate/unlinked branching shared by the admin sync
- * loops and the invoice-paid webhook path.
- */
-async function resolveStripeCustomerId(
-  db: D1Database,
-  stripeCustomerId: string | null | undefined
-): Promise<ResolvedStripeCustomer> {
-  const customerLookup = await findCustomerIdByStripeCustomer(db, stripeCustomerId);
   if (customerLookup._tag === 'invalid') {
     return { ok: false, reason: 'invalid-row' };
   }
@@ -166,44 +131,31 @@ async function resolveStripeCustomerId(
   return { ok: true, customerId: customer.id };
 }
 
-/**
- * Record one failed Stripe resource item in the sync result errors list.
- */
-function recordSyncItemError(
-  errors: string[],
-  label: string,
-  resourceId: string,
-  cause: unknown
-): void {
-  errors.push(`${label} ${resourceId}: ${decodeThrownMessage(cause) || 'unknown error'}`);
-}
-
-/** Shape shared by every paginated Stripe list endpoint. */
-type StripeListEnvelope = {
-  readonly data: ReadonlyArray<{ readonly id: string }>;
-  readonly has_more: boolean;
-};
-
-/**
- * Walk every page of a paginated Stripe list endpoint, invoking `onPage` once
- * per decoded page before advancing the cursor. Returns a failure message when
- * a page has an invalid shape or the pagination cursor is missing, else null.
- */
-async function pageStripeList<
-  S extends Schema.Schema.AnyNoContext & { readonly Type: StripeListEnvelope },
+/** Page a Stripe list and sync each item with uniform counting and error reporting. */
+async function syncStripeList<
+  S extends Schema.Schema.AnyNoContext & {
+    readonly Type: {
+      readonly data: ReadonlyArray<{ readonly id: string }>;
+      readonly has_more: boolean;
+    };
+  },
 >(
   apiKey: string,
   path: string,
   extraParams: ReadonlyArray<readonly [string, string]>,
   label: string,
   schema: S,
-  onPage: (page: Schema.Schema.Type<S>) => Promise<void>
-): Promise<string | null> {
+  errors: string[],
+  itemLabel: (item: Schema.Schema.Type<S>['data'][number]) => string,
+  syncItem: (item: Schema.Schema.Type<S>['data'][number]) => Promise<boolean>,
+  recordSynced: () => void
+): Promise<void> {
   let startingAfter: string | undefined;
   for (;;) {
     const url = URL.parse(`https://api.stripe.com/v1/${path}`);
     if (url === null) {
-      return `Stripe ${label} list URL is invalid`;
+      errors.push(`Stripe ${label} list URL is invalid`);
+      return;
     }
     url.searchParams.set('limit', '100');
     for (const [key, value] of extraParams) url.searchParams.set(key, value);
@@ -215,24 +167,34 @@ async function pageStripeList<
       schema,
       `Stripe ${label} list has an invalid shape`
     );
-    if (!page) return `Stripe ${label} list has an invalid shape`;
+    if (!page) {
+      errors.push(`Stripe ${label} list has an invalid shape`);
+      return;
+    }
 
-    await onPage(page);
+    for (const item of page.data) {
+      try {
+        if (await syncItem(item)) recordSynced();
+      } catch (error: unknown) {
+        errors.push(`${itemLabel(item)}: ${decodeThrownMessage(error) || 'unknown error'}`);
+      }
+    }
 
-    if (!page.has_more) return null;
-    const cursor = lastStripeResourceId(page.data);
-    if (cursor === null) return `Stripe ${label} pagination cursor is missing`;
+    if (!page.has_more) return;
+    const cursor = page.data.at(-1)?.id;
+    if (cursor === undefined) {
+      errors.push(`Stripe ${label} pagination cursor is missing`);
+      return;
+    }
     startingAfter = cursor;
   }
 }
-
-type StripeEventClaim = 'claimed' | 'processed' | 'busy' | 'invalid';
 
 async function claimStripeEvent(
   db: D1Database,
   event: StripeWebhookEvent,
   eventData: string
-): Promise<StripeEventClaim> {
+): Promise<'claimed' | 'processed' | 'busy' | 'invalid'> {
   await db
     .prepare(
       `INSERT OR IGNORE INTO stripe_events (
@@ -287,11 +249,11 @@ async function markStripeEventProcessed(db: D1Database, eventId: string): Promis
     .run();
 }
 
-async function markStripeEventFailed(
+async function failedStripeEventResponse(
   db: D1Database,
   eventId: string,
   detail: string
-): Promise<void> {
+): Promise<Response> {
   await db
     .prepare(
       `UPDATE stripe_events
@@ -300,14 +262,6 @@ async function markStripeEventFailed(
     )
     .bind(detail.slice(0, 1000), eventId)
     .run();
-}
-
-async function failedStripeEventResponse(
-  db: D1Database,
-  eventId: string,
-  detail: string
-): Promise<Response> {
-  await markStripeEventFailed(db, eventId, detail);
   return new Response('Stripe event reconciliation failed', { status: 500 });
 }
 
@@ -578,16 +532,18 @@ export async function handleStripeWebhook(
       break;
     }
 
-    case 'invoice.paid': {
+    case 'invoice.paid':
+    case 'invoice.payment_failed': {
       const invoice = event.data.object;
-
       const resolved = await resolveStripeCustomerId(env.DB, invoice.customer);
-      if (!resolved.ok && resolved.reason === 'invalid-row') {
-        return new Response('Failed to load customer', { status: 500 });
+      if (!resolved.ok) {
+        if (resolved.reason === 'invalid-row') {
+          return new Response('Failed to load customer', { status: 500 });
+        }
+        break;
       }
 
-      if (resolved.ok) {
-        // Store invoice in database for revenue tracking
+      if (event.type === 'invoice.paid') {
         await env.DB.prepare(
           `INSERT OR REPLACE INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), CURRENT_TIMESTAMP)`
@@ -605,19 +561,7 @@ export async function handleStripeWebhook(
             invoice.period_end
           )
           .run();
-      }
-      break;
-    }
-
-    case 'invoice.payment_failed': {
-      const invoice = event.data.object;
-
-      const failedResolved = await resolveStripeCustomerId(env.DB, invoice.customer);
-      if (!failedResolved.ok && failedResolved.reason === 'invalid-row') {
-        return new Response('Failed to load customer', { status: 500 });
-      }
-
-      if (failedResolved.ok) {
+      } else {
         // Preserve the historical payment signal without mutating current subscription state.
         await env.DB.prepare(
           `INSERT INTO audit_log (id, customer_id, action, metadata, created_at)
@@ -625,7 +569,7 @@ export async function handleStripeWebhook(
         )
           .bind(
             crypto.randomUUID(),
-            failedResolved.customerId,
+            resolved.customerId,
             JSON.stringify({ invoice_id: invoice.id, amount: invoice.amount_due })
           )
           .run();
@@ -656,27 +600,20 @@ export async function handleStripeWebhook(
       if (existingLookup._tag === 'invalid') {
         return new Response('Failed to load customer', { status: 500 });
       }
-      const existing = existingLookup._tag === 'present' ? existingLookup.value : undefined;
+      // Never auto-link an existing bare-email match; invoice.paid proves payment.
+      if (optionalRowValue(existingLookup) !== undefined) break;
 
-      if (existing === undefined) {
-        await env.DB.prepare(
-          `INSERT INTO customers (id, stripe_customer_id, email, company, created_at)
-           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
+      await env.DB.prepare(
+        `INSERT INTO customers (id, stripe_customer_id, email, company, created_at)
+         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
+      )
+        .bind(
+          crypto.randomUUID(),
+          stripeCustomer.id,
+          stripeCustomer.email,
+          stripeCustomer.metadata?.company || null
         )
-          .bind(
-            crypto.randomUUID(),
-            stripeCustomer.id,
-            stripeCustomer.email,
-            stripeCustomer.metadata?.company || null
-          )
-          .run();
-      } else if (!existing.stripe_customer_id) {
-        // Do NOT auto-link by bare email match — an attacker who knows the
-        // victim's signup email could create their own Stripe customer with
-        // that email and hijack the billing relationship. Linking happens
-        // exclusively via invoice.paid (proves actual payment).
-        break;
-      }
+        .run();
       break;
     }
     default:
@@ -706,119 +643,102 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
   };
 
   try {
-    // Sync customers
-    const customersFailure = await pageStripeList(
+    await syncStripeList(
       env.STRIPE_SECRET_KEY,
       'customers',
       [],
       'customer',
       StripeCustomerListSchema,
-      async page => {
-        for (const customer of page.data) {
-          try {
-            await env.DB.prepare(
-              `INSERT OR REPLACE INTO customers (id, stripe_customer_id, email, company, created_at)
-               VALUES (COALESCE((SELECT id FROM customers WHERE stripe_customer_id = ? OR email = ?), ?), ?, ?, ?, CURRENT_TIMESTAMP)`
-            )
-              .bind(
-                customer.id,
-                customer.email,
-                crypto.randomUUID(),
-                customer.id,
-                customer.email,
-                customer.metadata?.company
-              )
-              .run();
-            results.customers_synced++;
-          } catch (error: unknown) {
-            results.errors.push(
-              `Customer ${customer.email}: ${decodeThrownMessage(error) || 'unknown error'}`
-            );
-          }
-        }
-      }
+      errors,
+      customer => `Customer ${customer.email}`,
+      async customer => {
+        await env.DB.prepare(
+          `INSERT OR REPLACE INTO customers (id, stripe_customer_id, email, company, created_at)
+           VALUES (COALESCE((SELECT id FROM customers WHERE stripe_customer_id = ? OR email = ?), ?), ?, ?, ?, CURRENT_TIMESTAMP)`
+        )
+          .bind(
+            customer.id,
+            customer.email,
+            crypto.randomUUID(),
+            customer.id,
+            customer.email,
+            customer.metadata?.company
+          )
+          .run();
+        return true;
+      },
+      () => results.customers_synced++
     );
-    if (customersFailure !== null) results.errors.push(customersFailure);
 
-    // Sync subscriptions
-    const subscriptionsFailure = await pageStripeList(
+    await syncStripeList(
       env.STRIPE_SECRET_KEY,
       'subscriptions',
       [['status', 'all']],
       'subscription',
       StripeSubscriptionListSchema,
-      async page => {
-        for (const sub of page.data) {
-          try {
-            const resolved = await resolveStripeCustomerId(env.DB, sub.customer);
-            if (!resolved.ok) {
-              if (resolved.reason === 'invalid-row') {
-                results.errors.push(`Subscription ${sub.id}: customer row has an invalid shape`);
-              }
-              continue;
-            }
-            await applyStripeSubscriptionProjection(
-              env.DB,
-              resolved.customerId,
-              sub,
-              billingCatalog(env)
-            );
-            results.subscriptions_synced++;
-          } catch (error: unknown) {
-            recordSyncItemError(results.errors, 'Subscription', sub.id, error);
+      errors,
+      sub => `Subscription ${sub.id}`,
+      async sub => {
+        const resolved = await resolveStripeCustomerId(env.DB, sub.customer);
+        if (!resolved.ok) {
+          if (resolved.reason === 'invalid-row') {
+            errors.push(`Subscription ${sub.id}: customer row has an invalid shape`);
           }
+          return false;
         }
-      }
+        await applyStripeSubscriptionProjection(
+          env.DB,
+          resolved.customerId,
+          sub,
+          billingCatalog(env)
+        );
+        return true;
+      },
+      () => results.subscriptions_synced++
     );
-    if (subscriptionsFailure !== null) results.errors.push(subscriptionsFailure);
 
-    // Sync invoices (last 12 months)
     const twelveMonthsAgo = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
-    const invoicesFailure = await pageStripeList(
+    await syncStripeList(
       env.STRIPE_SECRET_KEY,
       'invoices',
       [['created[gte]', twelveMonthsAgo.toString()]],
       'invoice',
       StripeInvoiceListSchema,
-      async page => {
-        for (const invoice of page.data) {
-          if (invoice.status !== 'paid') continue;
+      errors,
+      invoice => `Invoice ${invoice.id}`,
+      async invoice => {
+        if (invoice.status !== 'paid') return false;
 
-          try {
-            const resolved = await resolveStripeCustomerId(env.DB, invoice.customer);
-            if (!resolved.ok) {
-              if (resolved.reason === 'invalid-row') {
-                results.errors.push(`Invoice ${invoice.id}: customer row has an invalid shape`);
-              }
-              continue;
-            }
-            await env.DB.prepare(
-              `INSERT OR REPLACE INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
-               VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), datetime(?, 'unixepoch'))`
-            )
-              .bind(
-                invoice.id,
-                crypto.randomUUID(),
-                resolved.customerId,
-                invoice.id,
-                invoice.amount_paid,
-                invoice.currency,
-                invoice.status,
-                invoice.hosted_invoice_url,
-                invoice.invoice_pdf,
-                invoice.period_start,
-                invoice.period_end,
-                invoice.created
-              )
-              .run();
-            results.invoices_synced++;
-          } catch (error: unknown) {
-            recordSyncItemError(results.errors, 'Invoice', invoice.id, error);
+        const resolved = await resolveStripeCustomerId(env.DB, invoice.customer);
+        if (!resolved.ok) {
+          if (resolved.reason === 'invalid-row') {
+            errors.push(`Invoice ${invoice.id}: customer row has an invalid shape`);
           }
+          return false;
         }
-      }
+        await env.DB.prepare(
+          `INSERT OR REPLACE INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
+           VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), datetime(?, 'unixepoch'))`
+        )
+          .bind(
+            invoice.id,
+            crypto.randomUUID(),
+            resolved.customerId,
+            invoice.id,
+            invoice.amount_paid,
+            invoice.currency,
+            invoice.status,
+            invoice.hosted_invoice_url,
+            invoice.invoice_pdf,
+            invoice.period_start,
+            invoice.period_end,
+            invoice.created
+          )
+          .run();
+        return true;
+      },
+      () => results.invoices_synced++
     );
-    if (invoicesFailure !== null) results.errors.push(invoicesFailure);
   } catch (error: unknown) {
     results.errors.push(`Sync error: ${decodeThrownMessage(error) || 'unknown error'}`);
   }

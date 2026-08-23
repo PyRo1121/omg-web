@@ -6,7 +6,7 @@ import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 
 /** A failure decoding a site-session wire payload or D1 row. */
-export class SiteSessionParseError extends Error {
+class SiteSessionParseError extends Error {
   readonly _tag = 'SiteSessionParseError';
   constructor(
     readonly reason: string,
@@ -39,20 +39,19 @@ export const CustomerId = Schema.String.pipe(Schema.minLength(1), Schema.brand('
 export type CustomerId = Schema.Schema.Type<typeof CustomerId>;
 
 /** Better Auth role projected into the licensing Worker session. */
-export const SiteSessionRole = Schema.Literal('admin', 'user');
-export type SiteSessionRole = Schema.Schema.Type<typeof SiteSessionRole>;
+const SiteSessionRoleSchema = Schema.Literal('admin', 'user');
 
 /** Body posted by the trusted site BFF to mint a Worker session. */
 export const SiteSessionRequestSchema = Schema.Struct({
   email: EmailAddress,
   name: Schema.optional(Schema.String),
   betterAuthUserId: Schema.optional(Schema.String),
-  role: SiteSessionRole,
+  role: SiteSessionRoleSchema,
 });
-export type SiteSessionRequest = Schema.Schema.Type<typeof SiteSessionRequestSchema>;
+type SiteSessionRequest = Schema.Schema.Type<typeof SiteSessionRequestSchema>;
 
 /** Session payload returned only to the server-side BFF. */
-export const SiteSessionWorkerResponseSchema = Schema.Struct({
+const SiteSessionWorkerResponseSchema = Schema.Struct({
   token: SessionToken,
   expiresAt: Schema.String.pipe(Schema.minLength(1)),
   customerId: CustomerId,
@@ -60,19 +59,19 @@ export const SiteSessionWorkerResponseSchema = Schema.Struct({
 export type SiteSessionWorkerResponse = Schema.Schema.Type<typeof SiteSessionWorkerResponseSchema>;
 
 /** A customer row selected for site-session minting. */
-export const CustomerRowSchema = Schema.Struct({
+const CustomerRowSchema = Schema.Struct({
   id: CustomerId,
   email: Schema.String,
   admin: Schema.Number,
 });
-export type CustomerRow = Schema.Schema.Type<typeof CustomerRowSchema>;
+type CustomerRow = Schema.Schema.Type<typeof CustomerRowSchema>;
 
 /** An existing session row reused by site-session minting. */
-export const SessionRowSchema = Schema.Struct({
+const SessionRowSchema = Schema.Struct({
   token: SessionToken,
   expires_at: Schema.String.pipe(Schema.minLength(1)),
 });
-export type SessionRow = Schema.Schema.Type<typeof SessionRowSchema>;
+type SessionRow = Schema.Schema.Type<typeof SessionRowSchema>;
 
 function mapParseError(reason: string) {
   return (cause: unknown): SiteSessionParseError => new SiteSessionParseError(reason, cause);

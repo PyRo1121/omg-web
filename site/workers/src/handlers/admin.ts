@@ -1,11 +1,18 @@
-import { reportError } from '../observability';
-/**
- * Admin API Handlers - Production-Grade Implementation
- */
+/** Admin HTTP handlers. Persistence lives in the admin and CRM stores. */
+import { Effect, type Schema } from 'effect';
 
-import { type Env, jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
-import { Effect, Exit, type Schema } from 'effect';
+import { type Env, errorResponse, getAuthToken, jsonResponse, validateSession } from '../api';
 import { decodeJsonBody } from '../body';
+import {
+  AdminAssignTagBodySchema,
+  AdminCreateNoteBodySchema,
+  AdminCreateTagBodySchema,
+  AdminUpdateNoteBodySchema,
+  AdminUpdateUserBodySchema,
+} from '../contracts/http-bodies';
+import { ExtraRowParseError } from '../contracts/d1-extras';
+import { reportError } from '../observability';
+import * as AdminStore from '../store/admin-store';
 import {
   assignTag,
   createNote,
@@ -17,68 +24,6 @@ import {
   removeTag,
   updateNote,
 } from '../store/crm';
-import {
-  AdminAssignTagBodySchema,
-  AdminCreateNoteBodySchema,
-  AdminCreateTagBodySchema,
-  AdminUpdateNoteBodySchema,
-  AdminUpdateUserBodySchema,
-} from '../contracts/http-bodies';
-import {
-  AdminActivityRowSchema,
-  AdminAuditLogRowSchema,
-  AdminCohortRowSchema,
-  AdminCommandCountRowSchema,
-  AdminCountsRowSchema,
-  AdminCustomerDetailRowSchema,
-  AdminChurnRiskSegmentRowSchema,
-  AdminCommandHeatmapRowSchema,
-  AdminDailyActiveRowSchema,
-  AdminDateCountRowSchema,
-  AdminErrorTypeCountRowSchema,
-  AdminExpansionOpportunityRowSchema,
-  AdminFleetVersionRowSchema,
-  AdminGeoDimensionRowSchema,
-  AdminLicenseDetailRowSchema,
-  AdminLtvByTierRowSchema,
-  AdminMachineRowSchema,
-  AdminMonthlyRevenueRowSchema,
-  AdminPlatformCountRowSchema,
-  AdminRetentionCohortRowSchema,
-  AdminRevenueByTierRowSchema,
-  AdminRuntimeAdoptionRowSchema,
-  AdminRuntimeUsageRowSchema,
-  AdminStatusCountRowSchema,
-  AdminUsageDailyRowSchema,
-  AdminUsageTotalsRowSchema,
-  AdminUsersExportRowSchema,
-  AdminUsersListRowSchema,
-  AdminVersionCountRowSchema,
-  AtRiskRowSchema,
-  AuditCsvRowSchema,
-  CommandStatsRowSchema,
-  CountRowSchema,
-  CurrentMrrRowSchema,
-  CustomerHealthRowSchema,
-  customerIsAdmin,
-  decodeExtraRow,
-  decodeExtraRowArray,
-  optionalRowValue,
-  isInvalidExtraRow,
-  readOptionalExtraRow,
-  FeatureAdoptionRowSchema,
-  FunnelRowSchema,
-  GlobalUsageRowSchema,
-  GrowthRowSchema,
-  HoursSavedRowSchema,
-  JourneyRowSchema,
-  PerformanceStatsRowSchema,
-  RateRowSchema,
-  SessionStatsRowSchema,
-  TimeToValueRowSchema,
-  TierCountRowSchema,
-  UsageCsvRowSchema,
-} from '../contracts/d1-extras';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -89,700 +34,281 @@ const SECURITY_HEADERS = {
   Pragma: 'no-cache',
 };
 
-function secureJsonResponse<TData>(data: TData, status = 200): Response {
+function secureJsonResponse<T>(data: T, status = 200): Response {
   const response = jsonResponse(data, status);
-  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
-    response.headers.set(key, value);
-  }
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) response.headers.set(key, value);
   return response;
 }
 
 interface AdminContext {
-  user: { id: string; email: string };
-  requestId: string;
-  timestamp: string;
+  readonly user: { readonly id: string; readonly email: string };
+  readonly requestId: string;
+  readonly timestamp: string;
 }
 
-/** Parse a positive-integer query parameter, falling back when absent or malformed. */
 function parsePaginationParam(raw: string | null, fallback: number): number {
   const parsed = Number.parseInt(raw ?? '', 10);
   return Number.isFinite(parsed) && parsed >= 1 ? parsed : fallback;
 }
 
-/** License tier prices in USD used for MRR estimates. */
-const TIER_PRICES = { pro: 9, team: 200, enterprise: 500 } satisfies Record<string, number>;
+const TIER_PRICES = new Map([
+  ['pro', 9],
+  ['team', 200],
+  ['enterprise', 500],
+]);
 
-/**
- * Sum monthly recurring revenue over active-license tier counts.
- *
- * @param rows - Active-license counts grouped by tier.
- * @returns The estimated MRR in USD.
- */
 function computeMrr(
   rows: ReadonlyArray<{ readonly tier: string; readonly count: number }>
 ): number {
-  let mrr = 0;
-  for (const row of rows) {
-    const tierPrice = Object.entries(TIER_PRICES).find(([tier]) => tier === row.tier)?.[1] || 0;
-    mrr += tierPrice * row.count;
+  return rows.reduce((mrr, row) => mrr + (TIER_PRICES.get(row.tier) ?? 0) * row.count, 0);
+}
+
+const numberOrZero = (value: number | null | undefined): number => value || 0;
+
+async function logAdminAudit<TMetadata extends object>(
+  db: D1Database,
+  entry: {
+    readonly action: string;
+    readonly userId: string;
+    readonly request?: Request;
+    readonly resourceType?: string;
+    readonly resourceId?: string;
+    readonly metadata?: TMetadata;
+    readonly success?: boolean;
   }
-  return mrr;
-}
-
-/**
- * Run a row-decoding effect, collapsing any parse failure to `null`.
- *
- * Handlers treat `null` uniformly as their load-failure response.
- */
-async function decodeOrFailure<A>(effect: Effect.Effect<A, unknown>): Promise<A | null> {
-  const exit = await Effect.runPromiseExit(effect);
-  return Exit.isSuccess(exit) ? exit.value : null;
-}
-
-/**
- * Decode an array of D1 rows, returning `null` on parse failure.
- *
- * @param schema - Row schema.
- * @param reason - Parse error reason.
- * @param value - The `results` array.
- * @returns Typed items, or `null` when any row has an invalid shape.
- */
-async function decodeRows<S extends Schema.Schema.AnyNoContext>(
-  schema: S,
-  reason: string,
-  value: Schema.Schema.Encoded<Schema.Schema.Any>
-): Promise<ReadonlyArray<Schema.Schema.Type<S>> | null> {
-  return decodeOrFailure(decodeExtraRowArray(schema, reason, value));
-}
-
-/**
- * Decode a single D1 row, returning `null` on parse failure.
- *
- * @param schema - Row schema.
- * @param reason - Parse error reason.
- * @param value - The raw row.
- * @returns The typed row, or `null` when it has an invalid shape.
- */
-async function decodeRowValue<S extends Schema.Schema.AnyNoContext>(
-  schema: S,
-  reason: string,
-  value: Schema.Schema.Encoded<Schema.Schema.Any>
-): Promise<Schema.Schema.Type<S> | null> {
-  return decodeOrFailure(decodeExtraRow(schema, reason, value));
-}
-
-/**
- * Decode a JSON request body, returning `null` on failure.
- *
- * @param request - The incoming request.
- * @param schema - Body schema.
- * @returns The parsed body, or `null` when decoding fails.
- */
-async function decodeBody<S extends Schema.Schema.AnyNoContext>(
-  request: Request,
-  schema: S
-): Promise<Schema.Schema.Type<S> | null> {
-  return decodeOrFailure(decodeJsonBody(request, schema));
-}
-
-/** One optional `.first()` row to decode. */
-interface OptionalRowSpec<RowSchema extends Schema.Schema.AnyNoContext> {
-  readonly schema: RowSchema;
-  readonly reason: string;
-  readonly value: Schema.Schema.Encoded<Schema.Schema.Any>;
-}
-
-/** Positional decoded values (`undefined` when a row is missing) for each spec. */
-type OptionalRowValues<Specs extends readonly OptionalRowSpec<Schema.Schema.AnyNoContext>[]> = {
-  readonly [Index in keyof Specs]: Specs[Index] extends OptionalRowSpec<infer RowSchema>
-    ? Schema.Schema.Type<RowSchema> | undefined
-    : never;
-};
-
-/**
- * Decode optional `.first()` rows.
- *
- * @param specs - The rows to decode.
- * @returns Each decoded value positionally (`undefined` when missing), or `null` when any present row fails to parse.
- */
-async function readOptionalRows<
-  const Specs extends readonly OptionalRowSpec<Schema.Schema.AnyNoContext>[],
->(specs: Specs): Promise<OptionalRowValues<Specs> | null> {
-  const lookups = await Promise.all(
-    specs.map(spec => readOptionalExtraRow(spec.schema, spec.reason, spec.value))
-  );
-  if (lookups.some(isInvalidExtraRow)) {
-    return null;
+): Promise<void> {
+  try {
+    const ipAddress = entry.request?.headers.get('CF-Connecting-IP');
+    const userAgent = entry.request?.headers.get('User-Agent');
+    const country = entry.request?.headers.get('CF-IPCountry');
+    await Effect.runPromise(
+      AdminStore.writeAudit(db, {
+        action: entry.action,
+        userId: entry.userId,
+        ...(entry.resourceType !== undefined && { resourceType: entry.resourceType }),
+        ...(entry.resourceId !== undefined && { resourceId: entry.resourceId }),
+        ...(entry.metadata !== undefined && { metadata: entry.metadata }),
+        ...(entry.success !== undefined && { success: entry.success }),
+        ...(ipAddress !== null && ipAddress !== undefined && { ipAddress }),
+        ...(userAgent !== null && userAgent !== undefined && { userAgent }),
+        ...(country !== null && country !== undefined && { country }),
+      })
+    );
+  } catch (error: unknown) {
+    reportError('Admin audit log error', error);
   }
-  // SAFETY: lookups correspond positionally to specs, so each element's decoded
-  // row type matches Specs at the same index; TypeScript cannot express this
-  // tuple-level correspondence.
-  const values = lookups.map(optionalRowValue) as OptionalRowValues<Specs>;
-  return values;
 }
-
-/** A required row resolved successfully, or the early error response to return instead. */
-type RequiredRow<A> =
-  | { readonly row: A; readonly response?: undefined }
-  | { readonly row?: undefined; readonly response: Response };
-
-/**
- * Read a required single `.first()` row, distinguishing malformed rows from missing ones.
- *
- * @param schema - Row schema.
- * @param reason - Parse error reason.
- * @param value - The `.first()` result.
- * @param invalidResponse - Response for a present-but-malformed row.
- * @param missingResponse - Response for an absent row.
- * @returns The typed row, or the response to return early.
- */
-async function readRequiredRow<S extends Schema.Schema.AnyNoContext>(
-  schema: S,
-  reason: string,
-  value: Schema.Schema.Encoded<Schema.Schema.Any>,
-  invalidResponse: Response,
-  missingResponse: Response
-): Promise<RequiredRow<Schema.Schema.Type<S>>> {
-  const lookup = await readOptionalExtraRow(schema, reason, value);
-  if (lookup._tag === 'invalid') {
-    return { response: invalidResponse };
-  }
-  if (lookup._tag === 'missing') {
-    return { response: missingResponse };
-  }
-  return { row: lookup.value };
-}
-
-/** SQL counting active licenses per paid tier, shared by dashboard and revenue views. */
-const ACTIVE_TIER_COUNTS_SQL =
-  "SELECT l.tier, COUNT(*) as count FROM licenses l JOIN subscriptions s ON l.customer_id = s.customer_id WHERE s.status = 'active' AND l.tier != 'free' GROUP BY l.tier";
 
 async function validateAdmin(
   request: Request,
   env: Env
-): Promise<{ context: AdminContext; error?: never } | { context?: never; error: Response }> {
-  const requestId = crypto.randomUUID();
-  const timestamp = new Date().toISOString();
+): Promise<{ readonly context: AdminContext } | { readonly error: Response }> {
   const token = getAuthToken(request);
-  if (!token) {
-    return { error: errorResponse('Unauthorized', 401) };
-  }
+  if (!token) return { error: errorResponse('Unauthorized', 401) };
   const auth = await validateSession(env.DB, token);
-  if (!auth) {
-    return { error: errorResponse('Invalid or expired session', 401) };
-  }
+  if (!auth) return { error: errorResponse('Invalid or expired session', 401) };
 
-  // Check admin status from database
-  const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
-    .bind(auth.user.id)
-    .first();
-
-  if (!(await customerIsAdmin(adminCheck))) {
+  if (!(await Effect.runPromise(AdminStore.isAdmin(env.DB, auth.user.id)))) {
     await logAdminAudit(env.DB, {
       action: 'admin.unauthorized_access',
       userId: auth.user.id,
       request,
-      metadata: { attempted_path: URL.parse(request.url)?.pathname ?? '' },
+      metadata: { attempted_path: new URL(request.url).pathname },
       success: false,
     });
     return { error: errorResponse('Unauthorized', 403) };
   }
-  return { context: { user: auth.user, requestId, timestamp } };
+  return {
+    context: {
+      user: auth.user,
+      requestId: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+    },
+  };
 }
 
-/**
- * Run a handler behind admin validation.
- *
- * @param request - The incoming request.
- * @param env - Worker environment.
- * @param handler - Invoked with the validated context when authorized.
- * @returns The handler response, or the validation error response.
- */
 async function withAdminContext(
   request: Request,
   env: Env,
   handler: (context: AdminContext) => Promise<Response>
 ): Promise<Response> {
   const result = await validateAdmin(request, env);
-  if (result.error) {
-    return result.error;
-  }
-  return handler(result.context);
+  return 'error' in result ? result.error : handler(result.context);
 }
 
-/**
- * Run a handler behind admin validation with a parsed request URL.
- *
- * @param request - The incoming request.
- * @param env - Worker environment.
- * @param handler - Invoked with the validated context and parsed URL.
- * @returns The handler response, or the validation/URL error response.
- */
 async function withAdminQuery(
   request: Request,
   env: Env,
   handler: (context: AdminContext, url: URL) => Promise<Response>
 ): Promise<Response> {
+  return withAdminContext(request, env, context => handler(context, new URL(request.url)));
+}
+
+async function withAdminBody<S extends Schema.Schema.AnyNoContext>(
+  request: Request,
+  env: Env,
+  schema: S,
+  handler: (context: AdminContext, body: Schema.Schema.Type<S>) => Promise<Response>
+): Promise<Response> {
   return withAdminContext(request, env, async context => {
-    const url = URL.parse(request.url);
-    if (url === null) {
-      return errorResponse('Invalid request URL', 400);
-    }
-    return handler(context, url);
+    const decoded = await Effect.runPromise(
+      decodeJsonBody(request, schema).pipe(
+        Effect.match({
+          onFailure: () => undefined,
+          onSuccess: value => value,
+        })
+      )
+    );
+    return decoded === undefined
+      ? errorResponse('Invalid JSON body', 400)
+      : handler(context, decoded);
   });
 }
 
-interface AdminAuditEntry<
-  TMetadata extends object = Record<string, string | number | boolean | null>,
-> {
-  action: string;
-  userId: string;
-  request?: Request;
-  resourceType?: string;
-  resourceId?: string;
-  metadata?: TMetadata;
-  success?: boolean;
-}
-
-async function logAdminAudit<TMetadata extends object>(
-  db: D1Database,
-  entry: AdminAuditEntry<TMetadata>
-): Promise<void> {
-  try {
-    const id = crypto.randomUUID();
-    const ip = entry.request?.headers.get('CF-Connecting-IP') || null;
-    const userAgent = entry.request?.headers.get('User-Agent') || null;
-    const country = entry.request?.headers.get('CF-IPCountry') || null;
-    await db
-      .prepare(
-        `INSERT INTO audit_log (id, customer_id, action, resource_type, resource_id, ip_address, user_agent, metadata, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
-      )
-      .bind(
-        id,
-        entry.userId,
-        entry.action,
-        entry.resourceType || null,
-        entry.resourceId || null,
-        ip,
-        userAgent,
-        JSON.stringify({
-          ...entry.metadata,
-          success: entry.success ?? true,
-          country,
-          timestamp: new Date().toISOString(),
-        })
-      )
-      .run();
-  } catch (error: unknown) {
-    reportError('Admin audit log error', error);
+async function storeResponse<A, E>(
+  effect: Effect.Effect<A, E>,
+  failureMessage: (error: E) => string,
+  respond: (value: A) => Response | Promise<Response>
+): Promise<Response> {
+  const result = await Effect.runPromise(
+    effect.pipe(
+      Effect.match({
+        onFailure: error => ({ _tag: 'failure', error }) as const,
+        onSuccess: value => ({ _tag: 'success', value }) as const,
+      })
+    )
+  );
+  if (result._tag === 'failure') {
+    return errorResponse(failureMessage(result.error), 500);
   }
+  return respond(result.value);
 }
 
-function escapeCSV<TValue>(value: TValue): string {
-  const str = String(value ?? '');
-  if (
-    /[",\n\r]/.test(str) ||
-    str.startsWith('=') ||
-    str.startsWith('+') ||
-    str.startsWith('-') ||
-    str.startsWith('@')
-  ) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
+const storeFailure = (message: string) => () => message;
+
+function escapeCSV<T>(value: T): string {
+  const text = String(value ?? '');
+  return /[",\n\r]/.test(text) || ['=', '+', '-', '@'].some(prefix => text.startsWith(prefix))
+    ? `"${text.replace(/"/g, '""')}"`
+    : text;
 }
 
-/**
- * Assemble a CSV download response.
- *
- * @param filename - Attachment filename.
- * @param headers - Column headers rendered as the first line.
- * @param rows - One cell array per data row; cells are escaped via `escapeCSV`.
- * @param extraHeaders - Additional HTTP headers beyond Content-Type/Disposition.
- * @returns The CSV attachment response.
- */
 function csvResponse(
   filename: string,
   headers: readonly string[],
   rows: ReadonlyArray<ReadonlyArray<unknown>>,
   extraHeaders: Record<string, string> = {}
 ): Response {
-  const csv = [headers.join(','), ...rows.map(row => row.map(escapeCSV).join(','))].join('\n');
-  return new Response(csv, {
-    headers: {
-      'Content-Type': 'text/csv',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      ...extraHeaders,
-    },
-  });
+  return new Response(
+    [headers.join(','), ...rows.map(row => row.map(escapeCSV).join(','))].join('\n'),
+    {
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        ...extraHeaders,
+      },
+    }
+  );
 }
 
 export async function handleAdminDashboard(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const batchResults = await env.DB.batch([
-      env.DB.prepare(
-        `SELECT (SELECT COUNT(*) FROM customers) as total_users, (SELECT COUNT(*) FROM licenses WHERE status = 'active') as active_licenses, (SELECT COUNT(*) FROM machines WHERE is_active = 1) as active_machines, (SELECT COUNT(*) FROM install_stats) as total_installs`
-      ),
-      env.DB.prepare(`SELECT tier, COUNT(*) as count FROM licenses GROUP BY tier`),
-      env.DB.prepare(
-        `SELECT SUM(commands_run) as total_commands, SUM(packages_installed) as total_packages_installed, SUM(packages_searched) as total_searches, SUM(time_saved_ms) as total_time_saved_ms FROM usage_daily WHERE date >= date('now', '-30 days')`
-      ),
-      env.DB.prepare(
-        `SELECT date, COUNT(DISTINCT license_id) as active_users, SUM(commands_run) as commands FROM usage_daily WHERE date >= date('now', '-14 days') GROUP BY date ORDER BY date ASC`
-      ),
-      env.DB.prepare(
-        `SELECT DATE(created_at) as date, COUNT(*) as count FROM customers WHERE created_at >= datetime('now', '-7 days') GROUP BY DATE(created_at) ORDER BY date DESC`
-      ),
-      env.DB.prepare(
-        `SELECT platform, COUNT(*) as count FROM install_stats GROUP BY platform ORDER BY count DESC`
-      ),
-      env.DB.prepare(
-        `SELECT version, COUNT(*) as count FROM install_stats GROUP BY version ORDER BY count DESC LIMIT 10`
-      ),
-      env.DB.prepare(`SELECT status, COUNT(*) as count FROM subscriptions GROUP BY status`),
-      env.DB.prepare(ACTIVE_TIER_COUNTS_SQL),
-      env.DB.prepare(`SELECT SUM(time_saved_ms) as total_time_saved FROM usage_daily`),
-      env.DB.prepare(
-        `SELECT omg_version, COUNT(*) as count FROM machines WHERE is_active = 1 GROUP BY omg_version`
-      ),
-      env.DB.prepare(
-        `SELECT json_extract(metadata, '$.country') as dimension, COUNT(*) as count FROM audit_log WHERE action = 'machine.registered' AND created_at >= datetime('now', '-30 days') GROUP BY dimension ORDER BY count DESC LIMIT 10`
-      ),
-      env.DB.prepare(
-        `SELECT SUM(CASE WHEN action LIKE '%.success' THEN 1 ELSE 0 END) as success, SUM(CASE WHEN action LIKE '%.failed' THEN 1 ELSE 0 END) as failure FROM audit_log WHERE created_at >= datetime('now', '-24 hours')`
-      ),
-    ]);
-
-    const [
-      countsResult,
-      tierBreakdownResult,
-      usageTotalsResult,
-      dailyActiveUsersResult,
-      recentSignupsResult,
-      installsByPlatformResult,
-      installsByVersionResult,
-      subscriptionStatsResult,
-      mrrDataResult,
-      globalUsageResult,
-      fleetVersionsResult,
-      geoDistResult,
-      commandStatsResult,
-    ] = batchResults;
-
-    if (
-      countsResult === undefined ||
-      tierBreakdownResult === undefined ||
-      usageTotalsResult === undefined ||
-      dailyActiveUsersResult === undefined ||
-      recentSignupsResult === undefined ||
-      installsByPlatformResult === undefined ||
-      installsByVersionResult === undefined ||
-      subscriptionStatsResult === undefined ||
-      mrrDataResult === undefined ||
-      globalUsageResult === undefined ||
-      fleetVersionsResult === undefined ||
-      geoDistResult === undefined ||
-      commandStatsResult === undefined
-    ) {
-      return errorResponse('Failed to load dashboard', 500);
-    }
-
-    const overviewRows = await readOptionalRows([
-      {
-        schema: AdminCountsRowSchema,
-        reason: 'Admin overview counts have an invalid shape',
-        value: countsResult.results?.[0],
-      },
-      {
-        schema: AdminUsageTotalsRowSchema,
-        reason: 'Admin usage totals have an invalid shape',
-        value: usageTotalsResult.results?.[0],
-      },
-      {
-        schema: GlobalUsageRowSchema,
-        reason: 'Admin global usage has an invalid shape',
-        value: globalUsageResult.results?.[0],
-      },
-      {
-        schema: CommandStatsRowSchema,
-        reason: 'Admin command stats have an invalid shape',
-        value: commandStatsResult.results?.[0],
-      },
-    ]);
-    if (overviewRows === null) {
-      return errorResponse('Failed to load dashboard', 500);
-    }
-    const [counts, usageTotals, globalUsage, commandStats] = overviewRows;
-
-    const [
-      tierBreakdown,
-      dailyActiveUsers,
-      recentSignups,
-      installsByPlatform,
-      installsByVersion,
-      subscriptionStats,
-      mrrData,
-      fleetVersions,
-      geoDist,
-    ] = await Promise.all([
-      decodeRows(
-        TierCountRowSchema,
-        'Admin tier breakdown row has an invalid shape',
-        tierBreakdownResult.results
-      ),
-      decodeRows(
-        AdminDailyActiveRowSchema,
-        'Admin daily active row has an invalid shape',
-        dailyActiveUsersResult.results
-      ),
-      decodeRows(
-        AdminDateCountRowSchema,
-        'Admin signup row has an invalid shape',
-        recentSignupsResult.results
-      ),
-      decodeRows(
-        AdminPlatformCountRowSchema,
-        'Admin platform install row has an invalid shape',
-        installsByPlatformResult.results
-      ),
-      decodeRows(
-        AdminVersionCountRowSchema,
-        'Admin version install row has an invalid shape',
-        installsByVersionResult.results
-      ),
-      decodeRows(
-        AdminStatusCountRowSchema,
-        'Admin subscription status row has an invalid shape',
-        subscriptionStatsResult.results
-      ),
-      decodeRows(
-        TierCountRowSchema,
-        'Admin MRR tier row has an invalid shape',
-        mrrDataResult.results
-      ),
-      decodeRows(
-        AdminFleetVersionRowSchema,
-        'Admin fleet version row has an invalid shape',
-        fleetVersionsResult.results
-      ),
-      decodeRows(
-        AdminGeoDimensionRowSchema,
-        'Admin geo distribution row has an invalid shape',
-        geoDistResult.results
-      ),
-    ]);
-    if (
-      tierBreakdown === null ||
-      dailyActiveUsers === null ||
-      recentSignups === null ||
-      installsByPlatform === null ||
-      installsByVersion === null ||
-      subscriptionStats === null ||
-      mrrData === null ||
-      fleetVersions === null ||
-      geoDist === null
-    ) {
-      return errorResponse('Failed to load dashboard', 500);
-    }
-
-    const globalValueUSD = Math.round(
-      ((globalUsage?.total_time_saved || 0) / (1000 * 60 * 60)) * 100
-    );
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      overview: {
-        total_users: counts?.total_users || 0,
-        active_licenses: counts?.active_licenses || 0,
-        active_machines: counts?.active_machines || 0,
-        total_installs: counts?.total_installs || 0,
-        mrr: computeMrr(mrrData),
-        global_value_usd: globalValueUSD,
-        command_health: {
-          success: commandStats?.success || 0,
-          failure: commandStats?.failure || 0,
-        },
-      },
-      fleet: { versions: fleetVersions },
-      tiers: tierBreakdown,
-      usage: {
-        total_commands: usageTotals?.total_commands || 0,
-        total_packages_installed: usageTotals?.total_packages_installed || 0,
-        total_searches: usageTotals?.total_searches || 0,
-        total_time_saved_ms: usageTotals?.total_time_saved_ms || 0,
-      },
-      daily_active_users: dailyActiveUsers,
-      recent_signups: recentSignups,
-      installs_by_platform: installsByPlatform,
-      installs_by_version: installsByVersion,
-      subscriptions: subscriptionStats,
-      geo_distribution: geoDist,
-    });
-  });
+  return withAdminContext(request, env, context =>
+    storeResponse(
+      AdminStore.loadDashboard(env.DB),
+      storeFailure('Failed to load dashboard'),
+      data => {
+        const globalValueUSD = Math.round(
+          ((data.globalUsage?.total_time_saved ?? 0) / (1000 * 60 * 60)) * 100
+        );
+        return secureJsonResponse({
+          request_id: context.requestId,
+          overview: {
+            total_users: numberOrZero(data.counts?.total_users),
+            active_licenses: numberOrZero(data.counts?.active_licenses),
+            active_machines: numberOrZero(data.counts?.active_machines),
+            total_installs: numberOrZero(data.counts?.total_installs),
+            mrr: computeMrr(data.mrrData),
+            global_value_usd: globalValueUSD,
+            command_health: {
+              success: numberOrZero(data.commandStats?.success),
+              failure: numberOrZero(data.commandStats?.failure),
+            },
+          },
+          fleet: { versions: data.fleetVersions },
+          tiers: data.tierBreakdown,
+          usage: {
+            total_commands: numberOrZero(data.usageTotals?.total_commands),
+            total_packages_installed: numberOrZero(data.usageTotals?.total_packages_installed),
+            total_searches: numberOrZero(data.usageTotals?.total_searches),
+            total_time_saved_ms: numberOrZero(data.usageTotals?.total_time_saved_ms),
+          },
+          daily_active_users: data.dailyActiveUsers,
+          recent_signups: data.recentSignups,
+          installs_by_platform: data.installsByPlatform,
+          installs_by_version: data.installsByVersion,
+          subscriptions: data.subscriptionStats,
+          geo_distribution: data.geoDistribution,
+        });
+      }
+    )
+  );
 }
 
 export async function handleAdminCRMUsers(request: Request, env: Env): Promise<Response> {
-  return withAdminQuery(request, env, async (context, url) => {
+  return withAdminQuery(request, env, (context, url) => {
     const page = parsePaginationParam(url.searchParams.get('page'), 1);
     const limit = Math.min(parsePaginationParam(url.searchParams.get('limit'), 50), 100);
-    const offset = (page - 1) * limit;
-    const search = url.searchParams.get('search') || '';
-
-    let query = `
-    WITH user_stats AS (
-      SELECT
-        c.id, c.email, c.company, c.created_at,
-        COALESCE(l.tier, 'free') as tier,
-        COALESCE(l.status, 'inactive') as license_status,
-        (SELECT COUNT(*) FROM machines m WHERE m.license_id = l.id AND m.is_active = 1) as machine_count,
-        (SELECT SUM(u.commands_run) FROM usage_daily u WHERE u.license_id = l.id) as total_commands,
-        (SELECT MAX(u.date) FROM usage_daily u WHERE u.license_id = l.id) as last_active_date,
-        (SELECT COUNT(DISTINCT date) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-30 days')) as active_days_30d,
-        (SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-3 days')) as cmds_3d,
-        (SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-10 days') AND date < date('now', '-3 days')) as cmds_prev_7d
-      FROM customers c
-      LEFT JOIN licenses l ON c.id = l.customer_id
-    )
-    SELECT
-      *,
-      CASE
-        WHEN COALESCE(cmds_prev_7d, 0) = 0 THEN 1.0
-        ELSE (COALESCE(cmds_3d, 0) / 3.0) / (COALESCE(cmds_prev_7d, 0) / 7.0 + 0.001)
-      END as velocity,
-      ROUND(MIN(40, (COALESCE(active_days_30d, 0) * 1.33)) + ((COALESCE(active_days_30d, 0) / 30.0) * 40) + MIN(20, (COALESCE(machine_count, 0) * 5))) as engagement_score,
-      CASE
-        WHEN last_active_date IS NULL THEN 'new'
-        WHEN last_active_date < date('now', '-30 days') THEN 'churned'
-        WHEN last_active_date < date('now', '-7 days') OR (COALESCE(cmds_prev_7d, 0) > 10 AND (COALESCE(cmds_3d, 0) / 3.0) / (COALESCE(cmds_prev_7d, 0) / 7.0 + 0.001) < 0.2) THEN 'at_risk'
-        WHEN total_commands > 1000 OR active_days_30d > 20 THEN 'power_user'
-        ELSE 'active'
-      END as lifecycle_stage
-    FROM user_stats
-  `;
-
-    const params: (string | number)[] = [];
-    if (search) {
-      query += ` WHERE email LIKE ? OR company LIKE ?`;
-      params.push(`%${search}%`, `%${search}%`);
-    }
-    query += ` ORDER BY engagement_score DESC, created_at DESC LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-
-    const users = await env.DB.prepare(query)
-      .bind(...params)
-      .all();
-    const decodedUsers = await decodeRows(
-      AdminUsersListRowSchema,
-      'Admin user list row has an invalid shape',
-      users.results
+    return storeResponse(
+      AdminStore.listUsers(env.DB, {
+        search: url.searchParams.get('search') || '',
+        limit,
+        offset: (page - 1) * limit,
+      }),
+      storeFailure('Failed to load users'),
+      users =>
+        secureJsonResponse({ request_id: context.requestId, users, pagination: { page, limit } })
     );
-    if (decodedUsers === null) {
-      return errorResponse('Failed to load users', 500);
-    }
-    return secureJsonResponse({
-      request_id: context.requestId,
-      users: decodedUsers,
-      pagination: { page, limit },
-    });
   });
 }
 
 export async function handleAdminUserDetail(request: Request, env: Env): Promise<Response> {
-  return withAdminQuery(request, env, async (context, url) => {
+  return withAdminQuery(request, env, (context, url) => {
     const userId = url.searchParams.get('id');
-    if (!userId) {
-      return errorResponse('User ID required');
-    }
-
-    const userRow = await env.DB.prepare(
-      `SELECT id, email, company, tier, admin, stripe_customer_id, telemetry_opt_out, created_at, updated_at FROM customers WHERE id = ?`
-    )
-      .bind(userId)
-      .first();
-    const userOutcome = await readRequiredRow(
-      AdminCustomerDetailRowSchema,
-      'Admin customer detail has an invalid shape',
-      userRow,
-      errorResponse('Failed to load user', 500),
-      errorResponse('User not found', 404)
+    if (!userId) return Promise.resolve(errorResponse('User ID required'));
+    return storeResponse(
+      AdminStore.loadUserDetail(env.DB, userId),
+      error => {
+        if (!(error instanceof ExtraRowParseError)) return 'Failed to load user';
+        if (error.reason.includes('license')) return 'Failed to load license';
+        if (error.reason.includes('machine')) return 'Failed to load machines';
+        if (error.reason.includes('usage')) return 'Failed to load usage';
+        return 'Failed to load user';
+      },
+      detail => {
+        if (detail._tag === 'user-missing') return errorResponse('User not found', 404);
+        if (detail._tag === 'license-missing')
+          return errorResponse('License not found for user', 404);
+        return secureJsonResponse({
+          request_id: context.requestId,
+          user: detail.user,
+          license: detail.license,
+          machines: detail.machines,
+          usage: detail.usage,
+        });
+      }
     );
-    if (userOutcome.response !== undefined) {
-      return userOutcome.response;
-    }
-    const user = userOutcome.row;
-
-    const licenseRow = await env.DB.prepare(
-      `SELECT id, customer_id, license_key, tier, status, max_seats, max_machines, expires_at, created_at FROM licenses WHERE customer_id = ?`
-    )
-      .bind(userId)
-      .first();
-    const licenseOutcome = await readRequiredRow(
-      AdminLicenseDetailRowSchema,
-      'Admin license detail has an invalid shape',
-      licenseRow,
-      errorResponse('Failed to load license', 500),
-      errorResponse('License not found for user', 404)
-    );
-    if (licenseOutcome.response !== undefined) {
-      return licenseOutcome.response;
-    }
-    const license = licenseOutcome.row;
-
-    const machines = await env.DB.prepare(
-      `SELECT id, license_id, machine_id, hostname, os, arch, omg_version, user_name, user_email, is_active, first_seen_at, last_seen_at FROM machines WHERE license_id = ?`
-    )
-      .bind(license.id)
-      .all();
-    const decodedMachines = await decodeRows(
-      AdminMachineRowSchema,
-      'Admin machine row has an invalid shape',
-      machines.results
-    );
-    if (decodedMachines === null) {
-      return errorResponse('Failed to load machines', 500);
-    }
-    const recentUsage = await env.DB.prepare(
-      `SELECT date, license_id, commands_run, packages_installed, packages_searched, runtimes_switched, sbom_generated, vulnerabilities_found, time_saved_ms FROM usage_daily WHERE license_id = ? ORDER BY date DESC LIMIT 30`
-    )
-      .bind(license.id)
-      .all();
-    const decodedUsage = await decodeRows(
-      AdminUsageDailyRowSchema,
-      'Admin usage daily row has an invalid shape',
-      recentUsage.results
-    );
-    if (decodedUsage === null) {
-      return errorResponse('Failed to load usage', 500);
-    }
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      user,
-      license,
-      machines: decodedMachines,
-      usage: decodedUsage,
-    });
   });
 }
 
 export async function handleAdminUpdateUser(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const body = await decodeBody(request, AdminUpdateUserBodySchema);
-    if (body === null) {
-      return errorResponse('Invalid JSON body', 400);
-    }
-
-    if (body.tier) {
-      await env.DB.prepare(`UPDATE licenses SET tier = ? WHERE customer_id = ?`)
-        .bind(body.tier, body.userId)
-        .run();
-    }
-    if (body.status) {
-      await env.DB.prepare(`UPDATE licenses SET status = ? WHERE customer_id = ?`)
-        .bind(body.status, body.userId)
-        .run();
-    }
-
+  return withAdminBody(request, env, AdminUpdateUserBodySchema, async (context, body) => {
+    await Effect.runPromise(
+      AdminStore.updateUser(env.DB, {
+        userId: body.userId,
+        ...(body.tier !== undefined && { tier: body.tier }),
+        ...(body.status !== undefined && { status: body.status }),
+      })
+    );
     await logAdminAudit(env.DB, {
       action: 'admin.update_user',
       userId: context.user.id,
@@ -793,632 +319,219 @@ export async function handleAdminUpdateUser(request: Request, env: Env): Promise
 }
 
 export async function handleAdminActivity(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const activity = await env.DB.prepare(
-      `SELECT id, customer_id, action, resource_type, resource_id, ip_address, created_at FROM audit_log ORDER BY created_at DESC LIMIT 100`
-    ).all();
-    const decodedActivity = await decodeRows(
-      AdminActivityRowSchema,
-      'Admin activity row has an invalid shape',
-      activity.results
-    );
-    if (decodedActivity === null) {
-      return errorResponse('Failed to load activity', 500);
-    }
-    return secureJsonResponse({
-      request_id: context.requestId,
-      activity: decodedActivity,
-    });
-  });
+  return withAdminContext(request, env, context =>
+    storeResponse(
+      AdminStore.listActivity(env.DB),
+      storeFailure('Failed to load activity'),
+      activity => secureJsonResponse({ request_id: context.requestId, activity })
+    )
+  );
 }
 
 export async function handleAdminHealth(_request: Request, _env: Env): Promise<Response> {
-  // Simple health check logic
   return secureJsonResponse({ status: 'ok', db: 'connected', version: '1.0.0' });
 }
 
 export async function handleAdminExportUsage(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async () => {
-    const usage = await env.DB.prepare(
-      `SELECT date, license_id, commands_run, time_saved_ms FROM usage_daily ORDER BY date DESC LIMIT 1000`
-    ).all();
-    const decodedUsage = await decodeRows(
-      UsageCsvRowSchema,
-      'Usage CSV row has an invalid shape',
-      usage.results
-    );
-    if (decodedUsage === null) {
-      return errorResponse('Failed to export usage', 500);
-    }
-    return csvResponse(
-      'usage.csv',
-      ['date', 'license_id', 'commands_run', 'time_saved_ms'],
-      decodedUsage.map(row => [row.date, row.license_id, row.commands_run, row.time_saved_ms])
-    );
-  });
+  return withAdminContext(request, env, () =>
+    storeResponse(AdminStore.exportUsage(env.DB), storeFailure('Failed to export usage'), usage =>
+      csvResponse(
+        'usage.csv',
+        ['date', 'license_id', 'commands_run', 'time_saved_ms'],
+        usage.map(row => [row.date, row.license_id, row.commands_run, row.time_saved_ms])
+      )
+    )
+  );
 }
 
 export async function handleAdminExportAudit(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async () => {
-    const logs = await env.DB.prepare(
-      `SELECT created_at, action, customer_id, ip_address FROM audit_log ORDER BY created_at DESC LIMIT 1000`
-    ).all();
-    const decodedLogs = await decodeRows(
-      AuditCsvRowSchema,
-      'Audit CSV row has an invalid shape',
-      logs.results
-    );
-    if (decodedLogs === null) {
-      return errorResponse('Failed to export audit log', 500);
-    }
-    return csvResponse(
-      'audit.csv',
-      ['created_at', 'action', 'customer_id', 'ip_address'],
-      decodedLogs.map(row => [row.created_at, row.action, row.customer_id, row.ip_address])
-    );
-  });
+  return withAdminContext(request, env, () =>
+    storeResponse(
+      AdminStore.exportAudit(env.DB),
+      storeFailure('Failed to export audit log'),
+      logs =>
+        csvResponse(
+          'audit.csv',
+          ['created_at', 'action', 'customer_id', 'ip_address'],
+          logs.map(row => [row.created_at, row.action, row.customer_id, row.ip_address])
+        )
+    )
+  );
 }
 
 export async function handleAdminAnalytics(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const topCommands = await env.DB.prepare(
-      `SELECT json_extract(properties, '$.command') as command, COUNT(*) as count FROM analytics_events WHERE event_type = 'command' GROUP BY 1 ORDER BY 2 DESC LIMIT 10`
-    ).all();
-    const topErrors = await env.DB.prepare(
-      `SELECT json_extract(properties, '$.error_type') as error_type, COUNT(*) as count FROM analytics_events WHERE event_type = 'error' GROUP BY 1 ORDER BY 2 DESC LIMIT 10`
-    ).all();
-    const growthRow = await env.DB.prepare(
-      `SELECT (SELECT COUNT(*) FROM customers WHERE created_at >= datetime('now', '-7 days')) as new_users_7d, (SELECT COUNT(*) FROM subscriptions WHERE status = 'active' AND created_at >= datetime('now', '-7 days')) as new_paid_7d`
-    ).first();
-    const timeSavedRow = await env.DB.prepare(
-      `SELECT SUM(time_saved_ms) / 3600000.0 as total_hours FROM usage_daily`
-    ).first();
-    const funnelRow = await env.DB.prepare(
-      `SELECT (SELECT COUNT(*) FROM install_stats WHERE created_at >= datetime('now', '-30 days')) as installs, (SELECT COUNT(DISTINCT u.license_id) FROM usage_daily u WHERE u.date >= datetime('now', '-30 days') AND u.commands_run > 0) as activated, (SELECT COUNT(DISTINCT u.license_id) FROM usage_daily u WHERE u.date >= datetime('now', '-30 days') GROUP BY u.license_id HAVING SUM(u.commands_run) > 1000) as power_users`
-    ).first();
-    const churnRiskRow = await env.DB.prepare(
-      `SELECT COUNT(*) as at_risk_users FROM (SELECT l.customer_id, (SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-3 days')) as cmds_3d, (SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-10 days') AND date < date('now', '-3 days')) as cmds_prev_7d FROM licenses l WHERE l.status = 'active' HAVING (COALESCE(cmds_prev_7d, 0) > 10 AND (COALESCE(cmds_3d, 0) / 3.0) / (COALESCE(cmds_prev_7d, 0) / 7.0 + 0.001) < 0.2) OR (SELECT MAX(date) FROM usage_daily WHERE license_id = l.id) < date('now', '-7 days'))`
-    ).first();
-    const retentionRateRow = await env.DB.prepare(
-      `SELECT CASE WHEN (SELECT COUNT(*) FROM customers WHERE created_at >= datetime('now', '-90 days')) = 0 THEN 0 ELSE CAST((SELECT COUNT(DISTINCT u.license_id) FROM usage_daily u WHERE u.date >= datetime('now', '-7 days')) * 100.0 / (SELECT COUNT(*) FROM customers WHERE created_at >= datetime('now', '-90 days')) AS INTEGER) END as rate`
-    ).first();
-    const performanceRow = await env.DB.prepare(
-      `SELECT AVG(duration_ms) as avg_ms, MIN(duration_ms) as min_ms, MAX(duration_ms) as max_ms, COUNT(*) as count FROM analytics_events WHERE event_type = 'performance' AND created_at >= datetime('now', '-7 days')`
-    ).first();
-    const sessionsRow = await env.DB.prepare(
-      `SELECT COUNT(DISTINCT session_id) as total_sessions, COUNT(CASE WHEN event_type = 'session_start' THEN 1 END) as sessions_started, COUNT(CASE WHEN event_type = 'heartbeat' THEN 1 END) as heartbeats_sent, AVG(CASE WHEN event_type = 'session_end' THEN json_extract(properties, '$.duration_seconds') END) as avg_duration_seconds, MAX(CASE WHEN event_type = 'session_end' THEN json_extract(properties, '$.duration_seconds') END) as max_duration_seconds FROM analytics_events WHERE event_type IN ('session_start', 'heartbeat', 'session_end') AND created_at >= datetime('now', '-30 days')`
-    ).first();
-    const userJourneyRow = await env.DB.prepare(
-      `WITH latest_stages AS (SELECT customer_id, MAX(CASE json_extract(properties, '$.to_stage') WHEN 'installed' THEN 1 WHEN 'activated' THEN 2 WHEN 'first_command' THEN 3 WHEN 'exploring' THEN 4 WHEN 'engaged' THEN 5 WHEN 'power_user' THEN 6 WHEN 'at_risk' THEN 7 WHEN 'churned' THEN 8 ELSE 0 END) as stage_order FROM analytics_events WHERE event_type = 'feature' AND event_name = 'stage_transition' AND created_at >= datetime('now', '-30 days') GROUP BY customer_id) SELECT SUM(CASE WHEN stage_order = 1 THEN 1 END) as installed, SUM(CASE WHEN stage_order = 2 THEN 1 END) as activated, SUM(CASE WHEN stage_order = 3 THEN 1 END) as first_command, SUM(CASE WHEN stage_order = 4 THEN 1 END) as exploring, SUM(CASE WHEN stage_order = 5 THEN 1 END) as engaged, SUM(CASE WHEN stage_order = 6 THEN 1 END) as power_user FROM latest_stages`
-    ).first();
-    const runtimeUsage = await env.DB.prepare(
-      `SELECT json_extract(properties, '$.runtime') as runtime, COUNT(*) as count, COUNT(DISTINCT machine_id) as machines FROM analytics_events WHERE (event_name = 'runtime_switch' OR event_name = 'runtime_use') AND created_at >= datetime('now', '-30 days') GROUP BY 1 ORDER BY 2 DESC`
-    ).all();
-
-    const metricRows = await readOptionalRows([
-      {
-        schema: GrowthRowSchema,
-        reason: 'Admin growth row has an invalid shape',
-        value: growthRow,
-      },
-      {
-        schema: HoursSavedRowSchema,
-        reason: 'Admin hours-saved row has an invalid shape',
-        value: timeSavedRow,
-      },
-      {
-        schema: FunnelRowSchema,
-        reason: 'Admin funnel row has an invalid shape',
-        value: funnelRow,
-      },
-      {
-        schema: AtRiskRowSchema,
-        reason: 'Admin at-risk row has an invalid shape',
-        value: churnRiskRow,
-      },
-      {
-        schema: RateRowSchema,
-        reason: 'Admin retention rate row has an invalid shape',
-        value: retentionRateRow,
-      },
-      {
-        schema: PerformanceStatsRowSchema,
-        reason: 'Admin performance row has an invalid shape',
-        value: performanceRow,
-      },
-      {
-        schema: SessionStatsRowSchema,
-        reason: 'Admin session stats row has an invalid shape',
-        value: sessionsRow,
-      },
-      {
-        schema: JourneyRowSchema,
-        reason: 'Admin journey row has an invalid shape',
-        value: userJourneyRow,
-      },
-    ]);
-    if (metricRows === null) {
-      return errorResponse('Failed to load analytics', 500);
-    }
-    const [
-      growth,
-      timeSaved,
-      funnel,
-      churnRisk,
-      retentionRate,
-      performance,
-      sessions,
-      userJourney,
-    ] = metricRows;
-
-    const [commandsByType, errorsByType, runtimeUsageRows] = await Promise.all([
-      decodeRows(
-        AdminCommandCountRowSchema,
-        'Admin command count row has an invalid shape',
-        topCommands.results
-      ),
-      decodeRows(
-        AdminErrorTypeCountRowSchema,
-        'Admin error type row has an invalid shape',
-        topErrors.results
-      ),
-      decodeRows(
-        AdminRuntimeUsageRowSchema,
-        'Admin runtime usage row has an invalid shape',
-        runtimeUsage.results
-      ),
-    ]);
-    if (commandsByType === null || errorsByType === null || runtimeUsageRows === null) {
-      return errorResponse('Failed to load analytics', 500);
-    }
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      commands_by_type: commandsByType,
-      errors_by_type: errorsByType,
-      growth: {
-        new_users_7d: growth?.new_users_7d || 0,
-        new_paid_7d: growth?.new_paid_7d || 0,
-        growth_rate: 15,
-      },
-      time_saved: { total_hours: timeSaved?.total_hours || 0 },
-      funnel: {
-        installs: funnel?.installs || 0,
-        activated: funnel?.activated || 0,
-        power_users: funnel?.power_users || 0,
-      },
-      churn_risk: { at_risk_users: churnRisk?.at_risk_users || 0 },
-      retention_rate: retentionRate?.rate || 0,
-      performance: {
-        avg_latency_ms: performance?.avg_ms || 0,
-        min_ms: performance?.min_ms || 0,
-        max_ms: performance?.max_ms || 0,
-        query_count: performance?.count || 0,
-      },
-      sessions: {
-        total_30d: sessions?.total_sessions || 0,
-        sessions_started: sessions?.sessions_started || 0,
-        heartbeats_sent: sessions?.heartbeats_sent || 0,
-        avg_duration_seconds: sessions?.avg_duration_seconds || 0,
-        max_duration_seconds: sessions?.max_duration_seconds || 0,
-      },
-      user_journey: {
-        funnel: {
-          installed: userJourney?.installed || 0,
-          activated: userJourney?.activated || 0,
-          first_command: userJourney?.first_command || 0,
-          exploring: userJourney?.exploring || 0,
-          engaged: userJourney?.engaged || 0,
-          power_user: userJourney?.power_user || 0,
-        },
-      },
-      runtime_usage: runtimeUsageRows,
-    });
-  });
+  return withAdminContext(request, env, context =>
+    storeResponse(
+      AdminStore.loadAnalytics(env.DB),
+      storeFailure('Failed to load analytics'),
+      data =>
+        secureJsonResponse({
+          request_id: context.requestId,
+          commands_by_type: data.commandsByType,
+          errors_by_type: data.errorsByType,
+          growth: {
+            new_users_7d: numberOrZero(data.growth?.new_users_7d),
+            new_paid_7d: numberOrZero(data.growth?.new_paid_7d),
+            growth_rate: 15,
+          },
+          time_saved: { total_hours: numberOrZero(data.timeSaved?.total_hours) },
+          funnel: {
+            installs: numberOrZero(data.funnel?.installs),
+            activated: numberOrZero(data.funnel?.activated),
+            power_users: numberOrZero(data.funnel?.power_users),
+          },
+          churn_risk: { at_risk_users: numberOrZero(data.churnRisk?.at_risk_users) },
+          retention_rate: numberOrZero(data.retentionRate?.rate),
+          performance: {
+            avg_latency_ms: numberOrZero(data.performance?.avg_ms),
+            min_ms: numberOrZero(data.performance?.min_ms),
+            max_ms: numberOrZero(data.performance?.max_ms),
+            query_count: numberOrZero(data.performance?.count),
+          },
+          sessions: {
+            total_30d: numberOrZero(data.sessions?.total_sessions),
+            sessions_started: numberOrZero(data.sessions?.sessions_started),
+            heartbeats_sent: numberOrZero(data.sessions?.heartbeats_sent),
+            avg_duration_seconds: numberOrZero(data.sessions?.avg_duration_seconds),
+            max_duration_seconds: numberOrZero(data.sessions?.max_duration_seconds),
+          },
+          user_journey: {
+            funnel: {
+              installed: numberOrZero(data.userJourney?.installed),
+              activated: numberOrZero(data.userJourney?.activated),
+              first_command: numberOrZero(data.userJourney?.first_command),
+              exploring: numberOrZero(data.userJourney?.exploring),
+              engaged: numberOrZero(data.userJourney?.engaged),
+              power_user: numberOrZero(data.userJourney?.power_user),
+            },
+          },
+          runtime_usage: data.runtimeUsage,
+        })
+    )
+  );
 }
 
 export async function handleAdminCohorts(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const cohorts = await env.DB.prepare(
-      `
-    WITH user_cohorts AS (
-      SELECT id as customer_id, strftime('%Y-%m', created_at) as cohort_month
-      FROM customers
-      WHERE created_at >= datetime('now', '-13 months')
-    ),
-    activity_months AS (
-      SELECT l.customer_id, strftime('%Y-%m', u.date) as active_month
-      FROM usage_daily u
-      JOIN licenses l ON u.license_id = l.id
-      GROUP BY 1, 2
+  return withAdminContext(request, env, context =>
+    storeResponse(AdminStore.listCohorts(env.DB), storeFailure('Failed to load cohorts'), cohorts =>
+      secureJsonResponse({ request_id: context.requestId, cohorts })
     )
-    SELECT
-      c.cohort_month,
-      CAST((julianday(a.active_month || '-01') - julianday(c.cohort_month || '-01')) / 30.44 AS INTEGER) as month_index,
-      COUNT(DISTINCT a.customer_id) as active_users
-    FROM user_cohorts c
-    LEFT JOIN activity_months a ON c.customer_id = a.customer_id
-    WHERE month_index >= 0 AND month_index < 12
-    GROUP BY 1, 2
-    ORDER BY 1 DESC, 2 ASC
-  `
-    ).all();
-    const decodedCohorts = await decodeRows(
-      AdminCohortRowSchema,
-      'Admin cohort row has an invalid shape',
-      cohorts.results
-    );
-    if (decodedCohorts === null) {
-      return errorResponse('Failed to load cohorts', 500);
-    }
-
-    return secureJsonResponse({ request_id: context.requestId, cohorts: decodedCohorts });
-  });
+  );
 }
 
 export async function handleAdminRevenue(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const monthlyRevenue = await env.DB.prepare(
-      `SELECT strftime('%Y-%m', created_at) as month, SUM(amount_cents) / 100.0 as revenue, COUNT(*) as transactions FROM invoices WHERE status = 'paid' GROUP BY month ORDER BY month DESC LIMIT 12`
-    ).all();
-    const revenueByTier = await env.DB.prepare(
-      `SELECT l.tier, SUM(i.amount_cents) / 100.0 as total_revenue, COUNT(DISTINCT l.customer_id) as customers FROM invoices i JOIN licenses l ON i.customer_id = l.customer_id WHERE i.status = 'paid' GROUP BY l.tier`
-    ).all();
-    const mrrData = await env.DB.prepare(ACTIVE_TIER_COUNTS_SQL).all();
-    const decodedMrrTiers = await decodeRows(
-      TierCountRowSchema,
-      'Admin revenue tier row has an invalid shape',
-      mrrData.results
-    );
-    const decodedMonthly = await decodeRows(
-      AdminMonthlyRevenueRowSchema,
-      'Admin monthly revenue row has an invalid shape',
-      monthlyRevenue.results
-    );
-    const decodedByTier = await decodeRows(
-      AdminRevenueByTierRowSchema,
-      'Admin revenue-by-tier row has an invalid shape',
-      revenueByTier.results
-    );
-    if (decodedMrrTiers === null || decodedMonthly === null || decodedByTier === null) {
-      return errorResponse('Failed to load revenue', 500);
-    }
-    const mrr = computeMrr(decodedMrrTiers);
-    return secureJsonResponse({
-      request_id: context.requestId,
-      mrr,
-      arr: mrr * 12,
-      monthly_revenue: decodedMonthly,
-      revenue_by_tier: decodedByTier,
-    });
-  });
+  return withAdminContext(request, env, context =>
+    storeResponse(AdminStore.loadRevenue(env.DB), storeFailure('Failed to load revenue'), data => {
+      const mrr = computeMrr(data.mrrTiers);
+      return secureJsonResponse({
+        request_id: context.requestId,
+        mrr,
+        arr: mrr * 12,
+        monthly_revenue: data.monthly,
+        revenue_by_tier: data.byTier,
+      });
+    })
+  );
 }
 
 export async function handleAdminExportUsers(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async () => {
-    const users = await env.DB.prepare(
-      `SELECT c.id, c.email, c.company, c.created_at, l.tier, l.status, (SELECT COUNT(*) FROM machines m WHERE m.license_id = l.id AND m.is_active = 1) as active_machines, (SELECT SUM(commands_run) FROM usage_daily u WHERE u.license_id = l.id) as total_commands FROM customers c LEFT JOIN licenses l ON c.id = l.customer_id ORDER BY c.created_at DESC`
-    ).all();
-    const decodedUsers = await decodeRows(
-      AdminUsersExportRowSchema,
-      'Admin users export row has an invalid shape',
-      users.results
-    );
-    if (decodedUsers === null) {
-      return errorResponse('Failed to export users', 500);
-    }
-    return csvResponse(
-      'omg-users.csv',
-      [
-        'id',
-        'email',
-        'company',
-        'created_at',
-        'tier',
-        'status',
-        'active_machines',
-        'total_commands',
-      ],
-      decodedUsers.map(row => [
-        row.id,
-        row.email,
-        row.company,
-        row.created_at,
-        row.tier,
-        row.status,
-        row.active_machines,
-        row.total_commands,
-      ]),
-      SECURITY_HEADERS
-    );
-  });
+  return withAdminContext(request, env, () =>
+    storeResponse(AdminStore.exportUsers(env.DB), storeFailure('Failed to export users'), users =>
+      csvResponse(
+        'omg-users.csv',
+        [
+          'id',
+          'email',
+          'company',
+          'created_at',
+          'tier',
+          'status',
+          'active_machines',
+          'total_commands',
+        ],
+        users.map(row => [
+          row.id,
+          row.email,
+          row.company,
+          row.created_at,
+          row.tier,
+          row.status,
+          row.active_machines,
+          row.total_commands,
+        ]),
+        SECURITY_HEADERS
+      )
+    )
+  );
 }
 
 export async function handleAdminAuditLog(request: Request, env: Env): Promise<Response> {
-  return withAdminQuery(request, env, async (context, url) => {
+  return withAdminQuery(request, env, (context, url) => {
     const page = parsePaginationParam(url.searchParams.get('page'), 1);
     const limit = Math.min(parsePaginationParam(url.searchParams.get('limit'), 50), 100);
-    const logs = await env.DB.prepare(
-      `SELECT a.id, a.customer_id, c.email as user_email, a.action, a.ip_address, a.metadata, a.created_at FROM audit_log a LEFT JOIN customers c ON a.customer_id = c.id ORDER BY a.created_at DESC LIMIT ? OFFSET ?`
-    )
-      .bind(limit, (page - 1) * limit)
-      .all();
-    const decodedLogs = await decodeRows(
-      AdminAuditLogRowSchema,
-      'Admin audit log row has an invalid shape',
-      logs.results
+    return storeResponse(
+      AdminStore.listAuditLog(env.DB, limit, (page - 1) * limit),
+      storeFailure('Failed to load audit log'),
+      logs => secureJsonResponse({ request_id: context.requestId, logs })
     );
-    if (decodedLogs === null) {
-      return errorResponse('Failed to load audit log', 500);
-    }
-    return secureJsonResponse({ request_id: context.requestId, logs: decodedLogs });
   });
 }
 
 export async function handleAdminAdvancedMetrics(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const [
-      dau,
-      wau,
-      mau,
-      retentionCohorts,
-      ltv,
-      featureAdoption,
-      commandHeatmap,
-      runtimeAdoption,
-      churnRiskSegments,
-      expansionOpportunities,
-      timeToValue,
-      revenueMetrics,
-    ] = await Promise.all([
-      env.DB.prepare(
-        `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily WHERE date = date('now') AND commands_run > 0`
-      ).first(),
-      env.DB.prepare(
-        `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily WHERE date >= date('now', '-7 days') AND commands_run > 0`
-      ).first(),
-      env.DB.prepare(
-        `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily WHERE date >= date('now', '-30 days') AND commands_run > 0`
-      ).first(),
-      env.DB.prepare(
-        `
-      SELECT DATE(c.created_at) as cohort_date,
-             CAST((julianday(u.date) - julianday(DATE(c.created_at))) / 7 AS INTEGER) as week_number,
-             COUNT(DISTINCT c.id) as retained_users
-      FROM customers c
-      JOIN licenses l ON c.id = l.customer_id
-      JOIN usage_daily u ON l.id = u.license_id
-      WHERE c.created_at >= datetime('now', '-90 days') AND u.commands_run > 0
-      GROUP BY cohort_date, week_number
-      ORDER BY cohort_date DESC, week_number ASC
-      LIMIT 100
-    `
-      ).all(),
-      env.DB.prepare(
-        `
-      SELECT l.tier, COUNT(*) as customer_count,
-             AVG(CASE l.tier WHEN 'pro' THEN 9 WHEN 'team' THEN 200 WHEN 'enterprise' THEN 500 ELSE 0 END
-                 * (julianday('now') - julianday(c.created_at)) / 30.0) as avg_ltv
-      FROM customers c
-      JOIN licenses l ON c.id = l.customer_id
-      WHERE l.tier != 'free'
-      GROUP BY l.tier
-    `
-      ).all(),
-      env.DB.prepare(
-        `
-      SELECT SUM(packages_installed) as total_installs, SUM(packages_searched) as total_searches,
-             SUM(runtimes_switched) as total_runtime_switches,
-             COUNT(DISTINCT CASE WHEN packages_installed > 0 THEN license_id END) as install_adopters,
-             COUNT(DISTINCT CASE WHEN packages_searched > 0 THEN license_id END) as search_adopters,
-             COUNT(DISTINCT CASE WHEN runtimes_switched > 0 THEN license_id END) as runtime_adopters,
-             COUNT(DISTINCT license_id) as total_active_users
-      FROM usage_daily WHERE date >= date('now', '-30 days')
-    `
-      ).first(),
-      env.DB.prepare(
-        `
-      SELECT strftime('%H', created_at) as hour, strftime('%w', created_at) as day_of_week, COUNT(*) as event_count
-      FROM analytics_events WHERE event_type = 'command' AND created_at >= datetime('now', '-7 days')
-      GROUP BY hour, day_of_week ORDER BY day_of_week, hour
-    `
-      ).all(),
-      env.DB.prepare(
-        `
-      SELECT json_extract(properties, '$.runtime') as runtime, COUNT(DISTINCT machine_id) as unique_users, COUNT(*) as total_uses
-      FROM analytics_events WHERE event_name IN ('runtime_switch', 'runtime_use') AND created_at >= datetime('now', '-30 days')
-      GROUP BY runtime ORDER BY unique_users DESC
-    `
-      ).all(),
-      env.DB.prepare(
-        `
-      SELECT l.tier, COUNT(*) as user_count,
-             CASE WHEN MAX(u.date) < date('now', '-14 days') THEN 'critical'
-                  WHEN MAX(u.date) < date('now', '-7 days') THEN 'high'
-                  ELSE 'healthy' END as risk_segment
-      FROM licenses l
-      LEFT JOIN usage_daily u ON l.id = u.license_id
-      WHERE l.status = 'active'
-      GROUP BY l.id
-    `
-      ).all(),
-      env.DB.prepare(
-        `
-      SELECT c.email, l.tier, COUNT(DISTINCT m.id) as active_machines, SUM(u.commands_run) as total_commands_30d,
-             CASE WHEN l.tier = 'free' AND SUM(u.commands_run) > 500 THEN 'upsell_to_pro'
-                  WHEN l.tier = 'pro' AND COUNT(DISTINCT m.id) >= 3 THEN 'upsell_to_team' ELSE NULL END as opportunity_type,
-             'medium' as priority
-      FROM licenses l
-      JOIN customers c ON l.customer_id = c.id
-      LEFT JOIN machines m ON l.id = m.license_id AND m.is_active = 1
-      LEFT JOIN usage_daily u ON l.id = u.license_id AND u.date >= date('now', '-30 days')
-      WHERE l.status = 'active'
-      GROUP BY l.customer_id
-      HAVING opportunity_type IS NOT NULL
-      LIMIT 50
-    `
-      ).all(),
-      env.DB.prepare(
-        `
-      SELECT AVG(days_to_activation) as avg_days_to_activation,
-             AVG(activated_week1) * 100.0 as pct_activated_week1
-      FROM (
-        SELECT julianday(MIN(u.date)) - julianday(c.created_at) as days_to_activation,
-               CASE WHEN julianday(MIN(u.date)) - julianday(c.created_at) <= 7 THEN 1.0 ELSE 0.0 END as activated_week1
-        FROM customers c
-        JOIN licenses l ON c.id = l.customer_id
-        LEFT JOIN usage_daily u ON l.id = u.license_id AND u.commands_run > 0
-        WHERE c.created_at >= datetime('now', '-90 days')
-        GROUP BY c.id
-      )
-    `
-      ).first(),
-      env.DB.prepare(
-        `
-      SELECT SUM(CASE l.tier WHEN 'pro' THEN 9 WHEN 'team' THEN 200 WHEN 'enterprise' THEN 500 ELSE 0 END) as current_mrr
-      FROM licenses l JOIN subscriptions s ON l.customer_id = s.customer_id
-      WHERE s.status = 'active' AND l.tier != 'free'
-    `
-      ).first(),
-    ]);
-
-    const [
-      decodedDau,
-      decodedWau,
-      decodedMau,
-      retention,
-      ltvByTier,
-      adoption,
-      heatmap,
-      runtimeRows,
-      churn,
-      expansion,
-      timeToValueMetrics,
-      revenue,
-    ] = await Promise.all([
-      decodeRowValue(CountRowSchema, 'Admin DAU row has an invalid shape', dau),
-      decodeRowValue(CountRowSchema, 'Admin WAU row has an invalid shape', wau),
-      decodeRowValue(CountRowSchema, 'Admin MAU row has an invalid shape', mau),
-      decodeRows(
-        AdminRetentionCohortRowSchema,
-        'Admin retention cohort row has an invalid shape',
-        retentionCohorts.results
-      ),
-      decodeRows(AdminLtvByTierRowSchema, 'Admin LTV row has an invalid shape', ltv.results),
-      decodeRowValue(
-        FeatureAdoptionRowSchema,
-        'Admin feature adoption row has an invalid shape',
-        featureAdoption
-      ),
-      decodeRows(
-        AdminCommandHeatmapRowSchema,
-        'Admin command heatmap row has an invalid shape',
-        commandHeatmap.results
-      ),
-      decodeRows(
-        AdminRuntimeAdoptionRowSchema,
-        'Admin runtime adoption row has an invalid shape',
-        runtimeAdoption.results
-      ),
-      decodeRows(
-        AdminChurnRiskSegmentRowSchema,
-        'Admin churn-risk row has an invalid shape',
-        churnRiskSegments.results
-      ),
-      decodeRows(
-        AdminExpansionOpportunityRowSchema,
-        'Admin expansion opportunity row has an invalid shape',
-        expansionOpportunities.results
-      ),
-      decodeRowValue(
-        TimeToValueRowSchema,
-        'Admin time-to-value row has an invalid shape',
-        timeToValue
-      ),
-      decodeRowValue(
-        CurrentMrrRowSchema,
-        'Admin current MRR row has an invalid shape',
-        revenueMetrics
-      ),
-    ]);
-    if (
-      decodedDau === null ||
-      decodedWau === null ||
-      decodedMau === null ||
-      retention === null ||
-      ltvByTier === null ||
-      adoption === null ||
-      heatmap === null ||
-      runtimeRows === null ||
-      churn === null ||
-      expansion === null ||
-      timeToValueMetrics === null ||
-      revenue === null
-    ) {
-      return errorResponse('Failed to load advanced metrics', 500);
-    }
-
-    const mauCount = decodedMau.count;
-    const dailyCount = decodedDau.count;
-    const weeklyCount = decodedWau.count;
-    const stickinessDenom = mauCount === 0 ? 1 : mauCount;
-    const stickiness = {
-      daily_to_monthly: `${((dailyCount / stickinessDenom) * 100).toFixed(1)}%`,
-      weekly_to_monthly: `${((weeklyCount / stickinessDenom) * 100).toFixed(1)}%`,
-    };
-    const currentMrr = revenue.current_mrr;
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      engagement: {
-        dau: dailyCount,
-        wau: weeklyCount,
-        mau: mauCount,
-        stickiness,
-      },
-      retention: { cohorts: retention },
-      ltv_by_tier: ltvByTier,
-      feature_adoption: adoption,
-      command_heatmap: heatmap,
-      runtime_adoption: runtimeRows,
-      churn_risk_segments: churn,
-      expansion_opportunities: expansion,
-      time_to_value: timeToValueMetrics,
-      revenue_metrics: {
-        current_mrr: currentMrr,
-        projected_arr: currentMrr * 12,
-        expansion_mrr_12m: 0,
-      },
-    });
-  });
+  return withAdminContext(request, env, context =>
+    storeResponse(
+      AdminStore.loadAdvancedMetrics(env.DB),
+      storeFailure('Failed to load advanced metrics'),
+      data => {
+        const denominator = data.mau.count === 0 ? 1 : data.mau.count;
+        const currentMrr = data.revenue.current_mrr;
+        return secureJsonResponse({
+          request_id: context.requestId,
+          engagement: {
+            dau: data.dau.count,
+            wau: data.wau.count,
+            mau: data.mau.count,
+            stickiness: {
+              daily_to_monthly: `${((data.dau.count / denominator) * 100).toFixed(1)}%`,
+              weekly_to_monthly: `${((data.wau.count / denominator) * 100).toFixed(1)}%`,
+            },
+          },
+          retention: { cohorts: data.retention },
+          ltv_by_tier: data.ltvByTier,
+          feature_adoption: data.adoption,
+          command_heatmap: data.heatmap,
+          runtime_adoption: data.runtimeRows,
+          churn_risk_segments: data.churn,
+          expansion_opportunities: data.expansion,
+          time_to_value: data.timeToValue,
+          revenue_metrics: {
+            current_mrr: currentMrr,
+            projected_arr: currentMrr * 12,
+            expansion_mrr_12m: 0,
+          },
+        });
+      }
+    )
+  );
 }
-
-// ============================================
-// Customer Notes CRUD
-// ============================================
 
 export async function handleAdminGetNotes(request: Request, env: Env): Promise<Response> {
   return withAdminQuery(request, env, async (context, url) => {
     const customerId = url.searchParams.get('customerId');
-    if (!customerId) {
-      return errorResponse('Customer ID required', 400);
-    }
+    if (!customerId) return errorResponse('Customer ID required', 400);
     const notes = await Effect.runPromise(listNotes(env.DB, customerId));
     return secureJsonResponse({ request_id: context.requestId, notes });
   });
 }
 
 export async function handleAdminCreateNote(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const body = await decodeBody(request, AdminCreateNoteBodySchema);
-    if (body === null) {
-      return errorResponse('Invalid JSON body', 400);
-    }
+  return withAdminBody(request, env, AdminCreateNoteBodySchema, async (context, body) => {
+    const noteType = body.noteType || 'general';
     const noteId = await Effect.runPromise(
       createNote(env.DB, {
         customerId: body.customerId,
         content: body.content,
-        noteType: body.noteType || 'general',
+        noteType,
         authorId: context.user.id,
       })
     );
@@ -1428,18 +541,14 @@ export async function handleAdminCreateNote(request: Request, env: Env): Promise
       request,
       resourceType: 'customer_note',
       resourceId: noteId,
-      metadata: { customer_id: body.customerId, note_type: body.noteType || 'general' },
+      metadata: { customer_id: body.customerId, note_type: noteType },
     });
     return secureJsonResponse({ request_id: context.requestId, success: true, note_id: noteId });
   });
 }
 
 export async function handleAdminUpdateNote(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const body = await decodeBody(request, AdminUpdateNoteBodySchema);
-    if (body === null) {
-      return errorResponse('Invalid JSON body', 400);
-    }
+  return withAdminBody(request, env, AdminUpdateNoteBodySchema, async (context, body) => {
     await Effect.runPromise(
       updateNote(env.DB, {
         noteId: body.noteId,
@@ -1447,31 +556,23 @@ export async function handleAdminUpdateNote(request: Request, env: Env): Promise
         ...(body.isPinned !== undefined && { isPinned: body.isPinned }),
       })
     );
-
     await logAdminAudit(env.DB, {
       action: 'admin.note_updated',
       userId: context.user.id,
       request,
       resourceType: 'customer_note',
       resourceId: body.noteId,
-      metadata: { updated_fields: Object.keys(body).filter(k => k !== 'noteId') },
+      metadata: { updated_fields: Object.keys(body).filter(key => key !== 'noteId') },
     });
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      success: true,
-    });
+    return secureJsonResponse({ request_id: context.requestId, success: true });
   });
 }
 
 export async function handleAdminDeleteNote(request: Request, env: Env): Promise<Response> {
   return withAdminQuery(request, env, async (context, url) => {
     const noteId = url.searchParams.get('noteId');
-    if (!noteId) {
-      return errorResponse('Note ID required', 400);
-    }
+    if (!noteId) return errorResponse('Note ID required', 400);
     await Effect.runPromise(deleteNote(env.DB, noteId));
-
     await logAdminAudit(env.DB, {
       action: 'admin.note_deleted',
       userId: context.user.id,
@@ -1479,17 +580,9 @@ export async function handleAdminDeleteNote(request: Request, env: Env): Promise
       resourceType: 'customer_note',
       resourceId: noteId,
     });
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      success: true,
-    });
+    return secureJsonResponse({ request_id: context.requestId, success: true });
   });
 }
-
-// ============================================
-// Customer Tags CRUD
-// ============================================
 
 export async function handleAdminGetTags(request: Request, env: Env): Promise<Response> {
   return withAdminContext(request, env, async context => {
@@ -1501,20 +594,14 @@ export async function handleAdminGetTags(request: Request, env: Env): Promise<Re
 export async function handleAdminGetCustomerTags(request: Request, env: Env): Promise<Response> {
   return withAdminQuery(request, env, async (context, url) => {
     const customerId = url.searchParams.get('customerId');
-    if (!customerId) {
-      return errorResponse('Customer ID required', 400);
-    }
+    if (!customerId) return errorResponse('Customer ID required', 400);
     const tags = await Effect.runPromise(listCustomerTags(env.DB, customerId));
     return secureJsonResponse({ request_id: context.requestId, tags });
   });
 }
 
 export async function handleAdminCreateTag(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const body = await decodeBody(request, AdminCreateTagBodySchema);
-    if (body === null) {
-      return errorResponse('Invalid JSON body', 400);
-    }
+  return withAdminBody(request, env, AdminCreateTagBodySchema, async (context, body) => {
     const tagId = await Effect.runPromise(
       createTag(env.DB, {
         name: body.name,
@@ -1530,21 +617,12 @@ export async function handleAdminCreateTag(request: Request, env: Env): Promise<
       resourceId: tagId,
       metadata: { name: body.name, color: body.color ?? '#6366f1' },
     });
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      success: true,
-      tag_id: tagId,
-    });
+    return secureJsonResponse({ request_id: context.requestId, success: true, tag_id: tagId });
   });
 }
 
 export async function handleAdminAssignTag(request: Request, env: Env): Promise<Response> {
-  return withAdminContext(request, env, async context => {
-    const body = await decodeBody(request, AdminAssignTagBodySchema);
-    if (body === null) {
-      return errorResponse('Invalid JSON body', 400);
-    }
+  return withAdminBody(request, env, AdminAssignTagBodySchema, async (context, body) => {
     const assignment = await Effect.runPromise(
       assignTag(env.DB, {
         customerId: body.customerId,
@@ -1566,11 +644,7 @@ export async function handleAdminAssignTag(request: Request, env: Env): Promise<
       resourceType: 'customer_tag_assignment',
       metadata: { customer_id: body.customerId, tag_id: body.tagId },
     });
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      success: true,
-    });
+    return secureJsonResponse({ request_id: context.requestId, success: true });
   });
 }
 
@@ -1578,12 +652,8 @@ export async function handleAdminRemoveTag(request: Request, env: Env): Promise<
   return withAdminQuery(request, env, async (context, url) => {
     const customerId = url.searchParams.get('customerId');
     const tagId = url.searchParams.get('tagId');
-
-    if (!customerId || !tagId) {
-      return errorResponse('Customer ID and Tag ID required', 400);
-    }
+    if (!customerId || !tagId) return errorResponse('Customer ID and Tag ID required', 400);
     await Effect.runPromise(removeTag(env.DB, customerId, tagId));
-
     await logAdminAudit(env.DB, {
       action: 'admin.tag_removed',
       userId: context.user.id,
@@ -1591,44 +661,21 @@ export async function handleAdminRemoveTag(request: Request, env: Env): Promise<
       resourceType: 'customer_tag_assignment',
       metadata: { customer_id: customerId, tag_id: tagId },
     });
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      success: true,
-    });
+    return secureJsonResponse({ request_id: context.requestId, success: true });
   });
 }
 
-// ============================================
-// Customer Health Score
-// ============================================
-
 export async function handleAdminGetCustomerHealth(request: Request, env: Env): Promise<Response> {
-  return withAdminQuery(request, env, async (context, url) => {
+  return withAdminQuery(request, env, (context, url) => {
     const customerId = url.searchParams.get('customerId');
-    if (!customerId) {
-      return errorResponse('Customer ID required', 400);
-    }
-
-    const healthRow = await env.DB.prepare(
-      `SELECT customer_id, overall_score, engagement_score, activation_score, growth_score, risk_score, lifecycle_stage, updated_at FROM customer_health WHERE customer_id = ?`
-    )
-      .bind(customerId)
-      .first();
-    const healthOutcome = await readRequiredRow(
-      CustomerHealthRowSchema,
-      'Customer health row has an invalid shape',
-      healthRow,
-      errorResponse('Failed to load customer health', 500),
-      errorResponse('Customer health not found', 404)
+    if (!customerId) return Promise.resolve(errorResponse('Customer ID required', 400));
+    return storeResponse(
+      AdminStore.getCustomerHealth(env.DB, customerId),
+      storeFailure('Failed to load customer health'),
+      health =>
+        health === undefined
+          ? errorResponse('Customer health not found', 404)
+          : secureJsonResponse({ request_id: context.requestId, health })
     );
-    if (healthOutcome.response !== undefined) {
-      return healthOutcome.response;
-    }
-
-    return secureJsonResponse({
-      request_id: context.requestId,
-      health: healthOutcome.row,
-    });
   });
 }

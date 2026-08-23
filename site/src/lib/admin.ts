@@ -6,24 +6,11 @@ import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import { storedDataErrorResponse } from '~/lib/api-error';
 import { isInvalidD1Row, readOptionalD1Row, UserRoleRowSchema } from '~/lib/contracts/d1-rows';
 
-/** The minimum request context needed to authorize an administrator. */
-export type AdminRequestEvent = Pick<APIEvent, 'nativeEvent' | 'request'>;
-
-function getEnv(event: AdminRequestEvent): CloudflareEnv {
-  const env = event.nativeEvent.context.cloudflare?.env;
-  if (!env) {
-    throw new Error('Cloudflare environment not available');
-  }
-
-  return {
-    DB: env.DB,
-    BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
-    BETTER_AUTH_URL: env.BETTER_AUTH_URL,
-    GITHUB_CLIENT_ID: env.GITHUB_CLIENT_ID,
-    GITHUB_CLIENT_SECRET: env.GITHUB_CLIENT_SECRET,
-    GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: env.GOOGLE_CLIENT_SECRET,
-  };
+function denial(error: string, status: number): Response {
+  return new Response(JSON.stringify({ error }), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 
 /**
@@ -32,8 +19,20 @@ function getEnv(event: AdminRequestEvent): CloudflareEnv {
  * @param event - The incoming SolidStart request context.
  * @returns The authorized principal and database context, or an HTTP denial response.
  */
-export async function requireAdmin(event: AdminRequestEvent) {
-  const env = getEnv(event);
+export async function requireAdmin(event: Pick<APIEvent, 'nativeEvent' | 'request'>) {
+  const cloudflareEnv = event.nativeEvent.context.cloudflare?.env;
+  if (!cloudflareEnv) {
+    throw new Error('Cloudflare environment not available');
+  }
+  const env: CloudflareEnv = {
+    DB: cloudflareEnv.DB,
+    BETTER_AUTH_SECRET: cloudflareEnv.BETTER_AUTH_SECRET,
+    BETTER_AUTH_URL: cloudflareEnv.BETTER_AUTH_URL,
+    GITHUB_CLIENT_ID: cloudflareEnv.GITHUB_CLIENT_ID,
+    GITHUB_CLIENT_SECRET: cloudflareEnv.GITHUB_CLIENT_SECRET,
+    GOOGLE_CLIENT_ID: cloudflareEnv.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: cloudflareEnv.GOOGLE_CLIENT_SECRET,
+  };
   const auth = createAuth(env);
 
   const session = await auth.api.getSession({
@@ -41,10 +40,7 @@ export async function requireAdmin(event: AdminRequestEvent) {
   });
 
   if (!session?.user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return denial('Unauthorized', 401);
   }
 
   const db = drizzle(env.DB, { schema });
@@ -66,10 +62,7 @@ export async function requireAdmin(event: AdminRequestEvent) {
     return storedDataErrorResponse();
   }
   if (userLookup._tag === 'missing' || userLookup.value.role !== 'admin') {
-    return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return denial('Forbidden: Admin access required', 403);
   }
 
   return { env, userId, db };

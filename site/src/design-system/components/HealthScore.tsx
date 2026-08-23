@@ -1,10 +1,5 @@
 import { type Component, createMemo, Show, splitProps, For, Switch, Match } from 'solid-js';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '~/lib/prelude';
 
 type HealthLevel = 'critical' | 'poor' | 'fair' | 'good' | 'excellent';
 
@@ -96,7 +91,7 @@ const sizeConfig = {
   xl: { ring: 128, stroke: 8, fontSize: 'text-4xl', labelSize: 'text-base' },
 };
 
-export const HealthScoreRing: Component<HealthScoreProps> = props => {
+const HealthScoreRing: Component<HealthScoreProps> = props => {
   const [local, others] = splitProps(props, ['score', 'size', 'showLabel', 'animated', 'class']);
 
   const level = createMemo(() => getHealthLevel(local.score));
@@ -160,7 +155,7 @@ export const HealthScoreRing: Component<HealthScoreProps> = props => {
   );
 };
 
-export const HealthScoreBadge: Component<HealthScoreProps> = props => {
+const HealthScoreBadge: Component<HealthScoreProps> = props => {
   const level = createMemo(() => getHealthLevel(props.score));
   const config = createMemo(() => healthConfig[level()]);
 
@@ -216,7 +211,7 @@ export const HealthScoreBadge: Component<HealthScoreProps> = props => {
   );
 };
 
-export const HealthScoreBar: Component<HealthScoreProps & { showSegments?: boolean }> = props => {
+const HealthScoreBar: Component<HealthScoreProps & { showSegments?: boolean }> = props => {
   const level = createMemo(() => getHealthLevel(props.score));
   const config = createMemo(() => healthConfig[level()]);
 
@@ -267,7 +262,7 @@ export const HealthScoreBar: Component<HealthScoreProps & { showSegments?: boole
   );
 };
 
-export const HealthScoreGauge: Component<HealthScoreProps> = props => {
+const HealthScoreGauge: Component<HealthScoreProps> = props => {
   const level = createMemo(() => getHealthLevel(props.score));
   const config = createMemo(() => healthConfig[level()]);
   const sizeValues = createMemo(() => sizeConfig[props.size || 'lg']);
@@ -354,7 +349,7 @@ export const HealthScoreGauge: Component<HealthScoreProps> = props => {
   );
 };
 
-export const HealthScoreCompact: Component<Omit<HealthScoreProps, 'size'>> = props => {
+const HealthScoreCompact: Component<Omit<HealthScoreProps, 'size'>> = props => {
   const level = createMemo(() => getHealthLevel(props.score));
   const config = createMemo(() => healthConfig[level()]);
 
@@ -395,5 +390,3 @@ export const HealthScore: Component<HealthScoreProps> = props => {
     </Switch>
   );
 };
-
-export default HealthScore;

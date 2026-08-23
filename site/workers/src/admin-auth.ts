@@ -21,19 +21,15 @@ export class SessionUnauthorizedError extends Error {
 }
 
 /** The session belongs to a non-admin customer. */
-export class SessionForbiddenError extends Error {
+class SessionForbiddenError extends Error {
   readonly _tag = 'SessionForbiddenError';
   constructor(override readonly cause?: unknown) {
     super('Forbidden');
   }
 }
 
-const AdminFlagRowSchema = Schema.Struct({
-  admin: Schema.Number,
-});
-
 /** A validated Worker session and customer. */
-export interface AuthedSession {
+interface AuthedSession {
   readonly user: User;
   readonly session: Session;
 }
@@ -72,7 +68,7 @@ export function requireSession(
  * @param env - Worker bindings including D1.
  * @returns Void when the caller is an admin, otherwise a tagged session error.
  */
-export function requireAdminSession(
+function requireAdminSession(
   request: Request,
   env: Env
 ): Effect.Effect<void, SessionUnauthorizedError | SessionForbiddenError> {
@@ -86,7 +82,7 @@ export function requireAdminSession(
     if (row === null) {
       return yield* Effect.fail(new SessionUnauthorizedError('invalid'));
     }
-    const decoded = yield* Schema.decodeUnknown(AdminFlagRowSchema)(row).pipe(
+    const decoded = yield* Schema.decodeUnknown(Schema.Struct({ admin: Schema.Number }))(row).pipe(
       Effect.mapError(cause => new SessionForbiddenError(cause))
     );
     if (decoded.admin !== 1) {

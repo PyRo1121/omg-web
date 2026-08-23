@@ -2,43 +2,21 @@ import { reportError, reportWarning } from '../observability';
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import { errorResponse, getCorsHeaders } from '../api';
-import {
-  GitHubCommitActivityResponseSchema,
-  type GitHubCommitActivityResponse,
-} from '../contracts/provider-boundaries';
+import { GitHubCommitActivityResponseSchema } from '../contracts/provider-boundaries';
 
 const CACHE_TTL = 120;
 const STALE_TTL = 3600;
-
-/**
- * Copy cached response headers and override cache/CORS metadata without ever
- * emitting duplicate header values: spreading raw cached header records next
- * to capitalized overrides lets the Headers constructor append same-name
- * entries (e.g. two Access-Control-Allow-Origin values), which browsers reject.
- */
-function withCacheOverrides(
-  cachedHeaders: Headers,
-  cacheState: 'HIT' | 'STALE',
-  age: number,
-  cors: ReturnType<typeof getCorsHeaders>
-): Headers {
-  const headers = new Headers(cachedHeaders);
-  for (const [name, value] of Object.entries(cors)) {
-    headers.set(name, value);
-  }
-  headers.set('X-Cache', cacheState);
-  headers.set('X-Cache-Age', age.toString());
-  return headers;
-}
 
 export async function handleGitHubProxy(
   request: Request,
   ctx: ExecutionContext
 ): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const cors = getCorsHeaders(origin);
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
-        ...getCorsHeaders(request.headers.get('Origin')),
+        ...cors,
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Max-Age': '86400',
@@ -57,38 +35,29 @@ export async function handleGitHubProxy(
 
   if (cachedResponse) {
     const age = parseInt(cachedResponse.headers.get('Age') || '0', 10);
-
-    if (age < CACHE_TTL) {
-      return new Response(cachedResponse.body, {
-        headers: withCacheOverrides(
-          cachedResponse.headers,
-          'HIT',
-          age,
-          getCorsHeaders(request.headers.get('Origin'))
-        ),
-      });
-    }
-
     if (age < STALE_TTL) {
-      // Never let background refresh failures bubble as uncaught Worker exceptions.
-      ctx.waitUntil(
-        refreshCache(cache, cacheKey, request.headers.get('Origin')).catch(error => {
-          reportError('GitHub cache background refresh failed:', error);
-        })
-      );
+      const cacheState = age < CACHE_TTL ? 'HIT' : 'STALE';
+      if (cacheState === 'STALE') {
+        // Never let background refresh failures bubble as uncaught Worker exceptions.
+        ctx.waitUntil(
+          refreshCache(cache, cacheKey, origin).catch(error => {
+            reportError('GitHub cache background refresh failed:', error);
+          })
+        );
+      }
 
-      return new Response(cachedResponse.body, {
-        headers: withCacheOverrides(
-          cachedResponse.headers,
-          'STALE',
-          age,
-          getCorsHeaders(request.headers.get('Origin'))
-        ),
-      });
+      // Override through Headers.set so cached and CORS names cannot be duplicated.
+      const headers = new Headers(cachedResponse.headers);
+      for (const [name, value] of Object.entries(cors)) {
+        headers.set(name, value);
+      }
+      headers.set('X-Cache', cacheState);
+      headers.set('X-Cache-Age', age.toString());
+      return new Response(cachedResponse.body, { headers });
     }
   }
 
-  return refreshCache(cache, cacheKey, request.headers.get('Origin'));
+  return refreshCache(cache, cacheKey, origin);
 }
 
 async function refreshCache(
@@ -148,10 +117,7 @@ async function refreshCache(
     reportError('GitHub API returned an invalid commit activity payload');
     return errorResponse('GitHub API returned invalid data', 502);
   }
-  const data: GitHubCommitActivityResponse = decodedData.value;
-  const responseBody = JSON.stringify(data);
-
-  const response = new Response(responseBody, {
+  const response = new Response(JSON.stringify(decodedData.value), {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': `public, max-age=${CACHE_TTL}, stale-while-revalidate=${STALE_TTL}`,

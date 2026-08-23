@@ -15,12 +15,8 @@ import {
   decodeExtraRowArray,
 } from '../contracts/d1-extras';
 
-export type AdminNoteRow = Schema.Schema.Type<typeof AdminNoteRowSchema>;
-export type AdminTagCatalogRow = Schema.Schema.Type<typeof AdminTagCatalogRowSchema>;
-export type AdminCustomerTagRow = Schema.Schema.Type<typeof AdminCustomerTagRowSchema>;
-
 /** A CRM store operation failed (storage or row-shape error). */
-export class CrmStoreError extends Error {
+class CrmStoreError extends Error {
   readonly _tag = 'CrmStoreError';
   constructor(
     readonly operation: string,
@@ -32,42 +28,50 @@ export class CrmStoreError extends Error {
 
 const fail = (operation: string) => (cause: unknown) => new CrmStoreError(operation, cause);
 
+function listRows<S extends Schema.Schema.AnyNoContext>(
+  db: D1Database,
+  operation: string,
+  schema: S,
+  reason: string,
+  sql: string,
+  params: ReadonlyArray<string> = []
+): Effect.Effect<ReadonlyArray<Schema.Schema.Type<S>>, CrmStoreError> {
+  return Effect.tryPromise({
+    try: () => {
+      const statement = db.prepare(sql);
+      return (params.length === 0 ? statement : statement.bind(...params)).all();
+    },
+    catch: fail(operation),
+  }).pipe(
+    Effect.flatMap(result => decodeExtraRowArray(schema, reason, result.results ?? [])),
+    Effect.mapError(cause => new CrmStoreError(`${operation}:decode`, cause))
+  );
+}
+
 /** All notes for one customer, pinned first then newest. */
 export const listNotes = (db: D1Database, customerId: string) =>
-  Effect.map(
-    Effect.tryPromise({
-      try: () =>
-        db
-          .prepare(
-            `SELECT n.id, n.customer_id, n.author_id, n.note_type, n.content, n.is_pinned, n.created_at, n.updated_at, c.email as author_email
-             FROM customer_notes n
-             LEFT JOIN customers c ON n.author_id = c.id
-             WHERE n.customer_id = ?
-             ORDER BY n.is_pinned DESC, n.created_at DESC`
-          )
-          .bind(customerId)
-          .all(),
-      catch: fail('listNotes'),
-    }),
-    result => result.results ?? []
-  ).pipe(
-    Effect.flatMap(rows =>
-      decodeExtraRowArray(AdminNoteRowSchema, 'Admin note row has an invalid shape', rows)
-    ),
-    Effect.mapError(cause => new CrmStoreError('listNotes:decode', cause))
+  listRows(
+    db,
+    'listNotes',
+    AdminNoteRowSchema,
+    'Admin note row has an invalid shape',
+    `SELECT n.id, n.customer_id, n.author_id, n.note_type, n.content, n.is_pinned, n.created_at, n.updated_at, c.email as author_email
+     FROM customer_notes n
+     LEFT JOIN customers c ON n.author_id = c.id
+     WHERE n.customer_id = ?
+     ORDER BY n.is_pinned DESC, n.created_at DESC`,
+    [customerId]
   );
-
-export interface CreateNoteInput {
-  readonly customerId: string;
-  readonly content: string;
-  readonly noteType: string;
-  readonly authorId: string;
-}
 
 /** Create a note; returns its id. */
 export const createNote = (
   db: D1Database,
-  input: CreateNoteInput
+  input: {
+    readonly customerId: string;
+    readonly content: string;
+    readonly noteType: string;
+    readonly authorId: string;
+  }
 ): Effect.Effect<string, CrmStoreError> =>
   Effect.tryPromise({
     try: async () => {
@@ -84,16 +88,14 @@ export const createNote = (
     catch: fail('createNote'),
   });
 
-export interface UpdateNoteInput {
-  readonly noteId: string;
-  readonly content?: string;
-  readonly isPinned?: boolean;
-}
-
 /** Partially update a note; only provided fields change. */
 export const updateNote = (
   db: D1Database,
-  input: UpdateNoteInput
+  input: {
+    readonly noteId: string;
+    readonly content?: string;
+    readonly isPinned?: boolean;
+  }
 ): Effect.Effect<void, CrmStoreError> =>
   Effect.tryPromise({
     try: () => {
@@ -111,90 +113,54 @@ export const updateNote = (
       return db
         .prepare(`UPDATE customer_notes SET ${updates.join(', ')} WHERE id = ?`)
         .bind(...params)
-        .run()
-        .then(() => undefined);
+        .run();
     },
     catch: fail('updateNote'),
-  });
+  }).pipe(Effect.asVoid);
 
 /** Delete a note by id. */
 export const deleteNote = (db: D1Database, noteId: string): Effect.Effect<void, CrmStoreError> =>
   Effect.tryPromise({
-    try: () =>
-      db
-        .prepare(`DELETE FROM customer_notes WHERE id = ?`)
-        .bind(noteId)
-        .run()
-        .then(() => undefined),
+    try: () => db.prepare(`DELETE FROM customer_notes WHERE id = ?`).bind(noteId).run(),
     catch: fail('deleteNote'),
-  });
+  }).pipe(Effect.asVoid);
 
 /** Full tag catalog with usage counts. */
 export const listTagCatalog = (db: D1Database) =>
-  Effect.map(
-    Effect.tryPromise({
-      try: () =>
-        db
-          .prepare(
-            `SELECT t.id, t.name, t.color, t.description, t.created_by, t.created_at, COUNT(cta.customer_id) as usage_count
-             FROM customer_tags t
-             LEFT JOIN customer_tag_assignments cta ON t.id = cta.tag_id
-             GROUP BY t.id
-             ORDER BY t.name ASC`
-          )
-          .all(),
-      catch: fail('listTagCatalog'),
-    }),
-    result => result.results ?? []
-  ).pipe(
-    Effect.flatMap(rows =>
-      decodeExtraRowArray(
-        AdminTagCatalogRowSchema,
-        'Admin tag catalog row has an invalid shape',
-        rows
-      )
-    ),
-    Effect.mapError(cause => new CrmStoreError('listTagCatalog:decode', cause))
+  listRows(
+    db,
+    'listTagCatalog',
+    AdminTagCatalogRowSchema,
+    'Admin tag catalog row has an invalid shape',
+    `SELECT t.id, t.name, t.color, t.description, t.created_by, t.created_at, COUNT(cta.customer_id) as usage_count
+     FROM customer_tags t
+     LEFT JOIN customer_tag_assignments cta ON t.id = cta.tag_id
+     GROUP BY t.id
+     ORDER BY t.name ASC`
   );
 
 /** Tags assigned to one customer. */
 export const listCustomerTags = (db: D1Database, customerId: string) =>
-  Effect.map(
-    Effect.tryPromise({
-      try: () =>
-        db
-          .prepare(
-            `SELECT t.id, t.name, t.color, t.description, t.created_by, t.created_at FROM customer_tags t
-             JOIN customer_tag_assignments cta ON t.id = cta.tag_id
-             WHERE cta.customer_id = ?
-             ORDER BY t.name ASC`
-          )
-          .bind(customerId)
-          .all(),
-      catch: fail('listCustomerTags'),
-    }),
-    result => result.results ?? []
-  ).pipe(
-    Effect.flatMap(rows =>
-      decodeExtraRowArray(
-        AdminCustomerTagRowSchema,
-        'Admin customer tag row has an invalid shape',
-        rows
-      )
-    ),
-    Effect.mapError(cause => new CrmStoreError('listCustomerTags:decode', cause))
+  listRows(
+    db,
+    'listCustomerTags',
+    AdminCustomerTagRowSchema,
+    'Admin customer tag row has an invalid shape',
+    `SELECT t.id, t.name, t.color, t.description, t.created_by, t.created_at FROM customer_tags t
+     JOIN customer_tag_assignments cta ON t.id = cta.tag_id
+     WHERE cta.customer_id = ?
+     ORDER BY t.name ASC`,
+    [customerId]
   );
-
-export interface CreateTagInput {
-  readonly name: string;
-  readonly color?: string;
-  readonly description?: string;
-}
 
 /** Create a tag; returns its id. */
 export const createTag = (
   db: D1Database,
-  input: CreateTagInput
+  input: {
+    readonly name: string;
+    readonly color?: string;
+    readonly description?: string;
+  }
 ): Effect.Effect<string, CrmStoreError> =>
   Effect.tryPromise({
     try: async () => {
@@ -211,22 +177,18 @@ export const createTag = (
     catch: fail('createTag'),
   });
 
-export type AssignTagResult = 'created' | 'already-assigned';
-
-export interface AssignTagInput {
-  readonly customerId: string;
-  readonly tagId: string;
-  readonly assignedBy: string;
-}
-
 /**
  * Assign a tag to a customer. Idempotent: re-assignment reports
  * `'already-assigned'` instead of failing on the uniqueness constraint.
  */
 export const assignTag = (
   db: D1Database,
-  input: AssignTagInput
-): Effect.Effect<AssignTagResult, CrmStoreError> =>
+  input: {
+    readonly customerId: string;
+    readonly tagId: string;
+    readonly assignedBy: string;
+  }
+): Effect.Effect<'created' | 'already-assigned', CrmStoreError> =>
   Effect.tryPromise({
     try: () =>
       db
@@ -259,7 +221,6 @@ export const removeTag = (
       db
         .prepare(`DELETE FROM customer_tag_assignments WHERE customer_id = ? AND tag_id = ?`)
         .bind(customerId, tagId)
-        .run()
-        .then(() => undefined),
+        .run(),
     catch: fail('removeTag'),
-  });
+  }).pipe(Effect.asVoid);

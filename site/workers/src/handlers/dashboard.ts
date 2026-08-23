@@ -41,23 +41,15 @@ const SessionListRowSchema = Schema.Struct({
   expires_at: Schema.String,
 });
 
-/** Authenticated dashboard session context passed to every handler. */
-interface DashboardSession {
-  readonly db: D1Database;
-  readonly userId: string;
-  readonly email: string;
-  /** ID of the session that authenticated this request. */
-  readonly sessionId: string;
-}
-
-/**
- * Run a handler behind session validation. New handlers should use this
- * instead of duplicating the getAuthToken/validateSession preamble.
- */
+/** Run a handler behind dashboard session validation. */
 async function withDashboardSession(
   request: Request,
   env: Env,
-  handler: (session: DashboardSession) => Promise<Response>
+  handler: (session: {
+    readonly db: D1Database;
+    readonly userId: string;
+    readonly sessionId: string;
+  }) => Response | Promise<Response>
 ): Promise<Response> {
   const token = getAuthToken(request);
   if (!token) {
@@ -67,12 +59,20 @@ async function withDashboardSession(
   if (!auth) {
     return errorResponse('Invalid or expired session', 401);
   }
-  return handler({
-    db: env.DB,
-    userId: auth.user.id,
-    email: auth.user.email,
-    sessionId: auth.session.id,
-  });
+  return handler({ db: env.DB, userId: auth.user.id, sessionId: auth.session.id });
+}
+
+/** Load the authenticated customer's license ID or its HTTP failure. */
+async function loadLicenseId(db: D1Database, userId: string): Promise<string | Response> {
+  const lookup = await readOptionalExtraRow(
+    IdRowSchema,
+    'License id row has an invalid shape',
+    await db.prepare(`SELECT id FROM licenses WHERE customer_id = ?`).bind(userId).first()
+  );
+  if (isInvalidExtraRow(lookup)) {
+    return errorResponse('Failed to load license', 500);
+  }
+  return lookup._tag === 'missing' ? errorResponse('License not found', 404) : lookup.value.id;
 }
 
 // Update user profile
@@ -97,68 +97,30 @@ export async function handleUpdateProfile(request: Request, env: Env): Promise<R
 
 // Regenerate license key
 export async function handleRegenerateLicense(request: Request, env: Env): Promise<Response> {
-  const token = getAuthToken(request);
-  if (!token) {
-    return errorResponse('Authorization required', 401);
-  }
+  return withDashboardSession(request, env, async ({ db, userId }) => {
+    const licenseId = await loadLicenseId(db, userId);
+    if (licenseId instanceof Response) {
+      return licenseId;
+    }
 
-  const auth = await validateSession(env.DB, token);
-  if (!auth) {
-    return errorResponse('Invalid or expired session', 401);
-  }
+    const newLicenseKey = crypto.randomUUID();
+    await db
+      .prepare(`UPDATE licenses SET license_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+      .bind(newLicenseKey, licenseId)
+      .run();
+    await db
+      .prepare(`UPDATE machines SET is_active = 0 WHERE license_id = ?`)
+      .bind(licenseId)
+      .run();
+    await Effect.runPromise(
+      logAudit(db, userId, 'license.regenerated', 'license', licenseId, request)
+    );
 
-  const { user } = auth;
-
-  // Get current license
-  const licenseRow = await env.DB.prepare(
-    `
-    SELECT id FROM licenses WHERE customer_id = ?
-  `
-  )
-    .bind(user.id)
-    .first();
-
-  const licenseLookup = await readOptionalExtraRow(
-    IdRowSchema,
-    'License id row has an invalid shape',
-    licenseRow
-  );
-  if (isInvalidExtraRow(licenseLookup)) {
-    return errorResponse('Failed to load license', 500);
-  }
-  if (licenseLookup._tag === 'missing') {
-    return errorResponse('License not found', 404);
-  }
-  const license = licenseLookup.value;
-
-  // Generate new key
-  const newLicenseKey = crypto.randomUUID();
-
-  await env.DB.prepare(
-    `
-    UPDATE licenses SET license_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-  `
-  )
-    .bind(newLicenseKey, license.id)
-    .run();
-
-  // Deactivate all machines (they need to re-activate)
-  await env.DB.prepare(
-    `
-    UPDATE machines SET is_active = 0 WHERE license_id = ?
-  `
-  )
-    .bind(license.id)
-    .run();
-
-  await Effect.runPromise(
-    logAudit(env.DB, user.id, 'license.regenerated', 'license', license.id, request)
-  );
-
-  return jsonResponse({
-    success: true,
-    license_key: newLicenseKey,
-    message: 'License key regenerated. All machines need to re-activate.',
+    return jsonResponse({
+      success: true,
+      license_key: newLicenseKey,
+      message: 'License key regenerated. All machines need to re-activate.',
+    });
   });
 }
 
@@ -171,27 +133,14 @@ export async function handleRevokeMachine(request: Request, env: Env): Promise<R
     }
     const body = decoded.value;
 
-    const licenseRow = await db
-      .prepare(`SELECT id FROM licenses WHERE customer_id = ?`)
-      .bind(userId)
-      .first();
-
-    const licenseLookup = await readOptionalExtraRow(
-      IdRowSchema,
-      'License id row has an invalid shape',
-      licenseRow
-    );
-    if (isInvalidExtraRow(licenseLookup)) {
-      return errorResponse('Failed to load license', 500);
+    const licenseId = await loadLicenseId(db, userId);
+    if (licenseId instanceof Response) {
+      return licenseId;
     }
-    if (licenseLookup._tag === 'missing') {
-      return errorResponse('License not found', 404);
-    }
-    const license = licenseLookup.value;
 
     const result = await db
       .prepare(`UPDATE machines SET is_active = 0 WHERE license_id = ? AND machine_id = ?`)
-      .bind(license.id, body.machine_id)
+      .bind(licenseId, body.machine_id)
       .run();
 
     if (result.meta.changes === 0) {
@@ -518,27 +467,14 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
     }
     const body = decoded.value;
 
-    const licenseRow = await db
-      .prepare(`SELECT id FROM licenses WHERE customer_id = ?`)
-      .bind(userId)
-      .first();
-
-    const licenseLookup = await readOptionalExtraRow(
-      IdRowSchema,
-      'License id row has an invalid shape',
-      licenseRow
-    );
-    if (isInvalidExtraRow(licenseLookup)) {
-      return errorResponse('Failed to load license', 500);
+    const licenseId = await loadLicenseId(db, userId);
+    if (licenseId instanceof Response) {
+      return licenseId;
     }
-    if (licenseLookup._tag === 'missing') {
-      return errorResponse('License not found', 404);
-    }
-    const license = licenseLookup.value;
 
     const result = await db
       .prepare(`UPDATE machines SET is_active = 0 WHERE license_id = ? AND id = ?`)
-      .bind(license.id, body.machine_id)
+      .bind(licenseId, body.machine_id)
       .run();
 
     if (result.meta.changes === 0) {
@@ -603,15 +539,10 @@ export async function handleGetAuditLog(request: Request, env: Env): Promise<Res
 
 // Placeholder for policies
 export async function handleGetTeamPolicies(request: Request, env: Env): Promise<Response> {
-  return withDashboardSession(request, env, async () => {
-    // Return empty list for now (Production-ready placeholder)
-    return jsonResponse({ policies: [] });
-  });
+  return withDashboardSession(request, env, () => jsonResponse({ policies: [] }));
 }
 
 // Placeholder for notifications
 export async function handleGetNotifications(request: Request, env: Env): Promise<Response> {
-  return withDashboardSession(request, env, async () => {
-    return jsonResponse({ settings: [] });
-  });
+  return withDashboardSession(request, env, () => jsonResponse({ settings: [] }));
 }
