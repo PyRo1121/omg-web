@@ -41,40 +41,51 @@ const SessionListRowSchema = Schema.Struct({
   expires_at: Schema.String,
 });
 
-// Update user profile
-export async function handleUpdateProfile(request: Request, env: Env): Promise<Response> {
+/** Authenticated dashboard session context passed to every handler. */
+interface DashboardSession {
+  readonly db: D1Database;
+  readonly userId: string;
+  readonly email: string;
+}
+
+/**
+ * Run a handler behind session validation. New handlers should use this
+ * instead of duplicating the getAuthToken/validateSession preamble.
+ */
+async function withDashboardSession(
+  request: Request,
+  env: Env,
+  handler: (session: DashboardSession) => Promise<Response>
+): Promise<Response> {
   const token = getAuthToken(request);
   if (!token) {
     return errorResponse('Authorization required', 401);
   }
-
   const auth = await validateSession(env.DB, token);
   if (!auth) {
     return errorResponse('Invalid or expired session', 401);
   }
+  return handler({ db: env.DB, userId: auth.user.id, email: auth.user.email });
+}
 
-  const decoded = await Effect.runPromiseExit(decodeJsonBody(request, UpdateProfileBodySchema));
-  if (Exit.isFailure(decoded)) {
-    return errorResponse('Invalid JSON body', 400);
-  }
-  const body = decoded.value;
-  const { user } = auth;
-
-  if (body.name !== undefined) {
-    await env.DB.prepare(
-      `
-      UPDATE customers SET company = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-    `
-    )
-      .bind(body.name || null, user.id)
-      .run();
-  }
-
-  await Effect.runPromise(
-    logAudit(env.DB, user.id, 'user.profile_updated', 'customer', user.id, request)
-  );
-
-  return jsonResponse({ success: true });
+// Update user profile
+export async function handleUpdateProfile(request: Request, env: Env): Promise<Response> {
+  return withDashboardSession(request, env, async ({ db, userId }) => {
+    const decoded = await Effect.runPromiseExit(decodeJsonBody(request, UpdateProfileBodySchema));
+    if (Exit.isFailure(decoded)) {
+      return errorResponse('Invalid JSON body', 400);
+    }
+    if (decoded.value.name !== undefined) {
+      await db
+        .prepare(`UPDATE customers SET company = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+        .bind(decoded.value.name || null, userId)
+        .run();
+    }
+    await Effect.runPromise(
+      logAudit(db, userId, 'user.profile_updated', 'customer', userId, request)
+    );
+    return jsonResponse({ success: true });
+  });
 }
 
 // Regenerate license key
