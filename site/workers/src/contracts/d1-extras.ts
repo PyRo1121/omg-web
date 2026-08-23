@@ -3,9 +3,9 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 
-import { CountRowSchema, CountRow, D1Number, IdRowSchema, IdRow } from '../../../shared/d1-rows';
+import { CountRowSchema, D1Number, IdRowSchema } from '../../../shared/d1-rows';
 
-export { CountRowSchema, CountRow, IdRowSchema, IdRow };
+export { CountRowSchema, IdRowSchema };
 
 /** A failure decoding a remaining D1 row or provider payload. */
 export class ExtraRowParseError extends Error {
@@ -61,7 +61,6 @@ export const PrivacyLicenseRowSchema = Schema.Struct({
   expires_at: OptNullStr,
   created_at: Schema.String,
 });
-export type PrivacyLicenseRow = Schema.Schema.Type<typeof PrivacyLicenseRowSchema>;
 
 /** Privacy export machine_usage row. Nulls are preserved. */
 export const PrivacyMachineRowSchema = Schema.Struct({
@@ -73,7 +72,6 @@ export const PrivacyMachineRowSchema = Schema.Struct({
   activated_at: OptNullStr,
   last_seen_at: OptNullStr,
 });
-export type PrivacyMachineRow = Schema.Schema.Type<typeof PrivacyMachineRowSchema>;
 
 /** Privacy export command_event row. Nulls are preserved. */
 export const PrivacyCommandRowSchema = Schema.Struct({
@@ -84,7 +82,6 @@ export const PrivacyCommandRowSchema = Schema.Struct({
   success: OptNullNum,
   timestamp: Schema.String,
 });
-export type PrivacyCommandRow = Schema.Schema.Type<typeof PrivacyCommandRowSchema>;
 
 /** Privacy export session row. Nulls are preserved. */
 export const PrivacySessionRowSchema = Schema.Struct({
@@ -96,7 +93,6 @@ export const PrivacySessionRowSchema = Schema.Struct({
   duration_secs: OptNullNum,
   timestamp: Schema.String,
 });
-export type PrivacySessionRow = Schema.Schema.Type<typeof PrivacySessionRowSchema>;
 
 /** Privacy export performance aggregate. */
 export const PrivacyPerformanceRowSchema = Schema.Struct({
@@ -104,7 +100,6 @@ export const PrivacyPerformanceRowSchema = Schema.Struct({
   avg_duration_ms: OptNullNum,
   sample_count: D1Number,
 });
-export type PrivacyPerformanceRow = Schema.Schema.Type<typeof PrivacyPerformanceRowSchema>;
 
 /** Privacy export feature_usage aggregate. */
 export const PrivacyFeatureRowSchema = Schema.Struct({
@@ -113,7 +108,6 @@ export const PrivacyFeatureRowSchema = Schema.Struct({
   usage_count: D1Number,
   last_used: OptNullStr,
 });
-export type PrivacyFeatureRow = Schema.Schema.Type<typeof PrivacyFeatureRowSchema>;
 
 /** usage_daily chart row for the dashboard team view. */
 export const UsageDailyRowSchema = Schema.Struct({
@@ -121,7 +115,6 @@ export const UsageDailyRowSchema = Schema.Struct({
   commands_run: D1Number,
   time_saved_ms: D1Number,
 });
-export type UsageDailyRow = Schema.Schema.Type<typeof UsageDailyRowSchema>;
 
 /** Dashboard audit log list row. */
 export const DashboardAuditLogRowSchema = Schema.Struct({
@@ -266,8 +259,6 @@ export const AuditCsvRowSchema = Schema.Struct({
   customer_id: OptNullStr,
   ip_address: OptNullStr,
 });
-
-/** COUNT(*) / COUNT(DISTINCT ...) aggregate. */
 
 /** Admin overview COUNT aggregates. */
 export const AdminCountsRowSchema = Schema.Struct({
@@ -538,7 +529,6 @@ export function isTeamOrEnterpriseTier(tier: string): boolean {
 
 /** Admin flag selected from customers.admin. */
 export const AdminFlagRowSchema = Schema.Struct({ admin: Schema.Number });
-export type AdminFlagRow = Schema.Schema.Type<typeof AdminFlagRowSchema>;
 
 /** Admin user-detail customer row. */
 export const AdminCustomerDetailRowSchema = Schema.Struct({

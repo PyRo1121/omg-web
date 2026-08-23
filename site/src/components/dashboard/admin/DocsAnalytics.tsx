@@ -49,36 +49,18 @@ export const DocsAnalytics: Component = () => {
 
         {/* Period Selector */}
         <div class="flex gap-2">
-          <button
-            onClick={() => setPeriod(7)}
-            class={`rounded-lg px-3 py-1.5 text-sm transition-all ${
-              period() === 7
-                ? 'border border-indigo-500/30 bg-indigo-500/20 text-indigo-400'
-                : 'text-slate-400 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            7 days
-          </button>
-          <button
-            onClick={() => setPeriod(30)}
-            class={`rounded-lg px-3 py-1.5 text-sm transition-all ${
-              period() === 30
-                ? 'border border-indigo-500/30 bg-indigo-500/20 text-indigo-400'
-                : 'text-slate-400 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            30 days
-          </button>
-          <button
-            onClick={() => setPeriod(90)}
-            class={`rounded-lg px-3 py-1.5 text-sm transition-all ${
-              period() === 90
-                ? 'border border-indigo-500/30 bg-indigo-500/20 text-indigo-400'
-                : 'text-slate-400 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            90 days
-          </button>
+          {[7, 30, 90].map(days => (
+            <button
+              onClick={() => setPeriod(days)}
+              class={`rounded-lg px-3 py-1.5 text-sm transition-all ${
+                period() === days
+                  ? 'border border-indigo-500/30 bg-indigo-500/20 text-indigo-400'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              {days} days
+            </button>
+          ))}
         </div>
       </div>
 

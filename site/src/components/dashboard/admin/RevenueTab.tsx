@@ -308,5 +308,3 @@ export const RevenueTab: Component = () => {
     </div>
   );
 };
-
-export default RevenueTab;

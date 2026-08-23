@@ -46,12 +46,6 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
     setStep('details');
   };
 
-  const handleBack = () => {
-    if (step() === 'details') {
-      setStep('select');
-    }
-  };
-
   const handleCheckout = async (): Promise<void> => {
     setError(null);
     setIsLoading(true);
@@ -269,7 +263,7 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
             {/* Step 2: Email & Details */}
             <Show when={step() === 'details'}>
               <button
-                onClick={handleBack}
+                onClick={() => setStep('select')}
                 class="mb-6 flex items-center gap-2 text-slate-400 transition-colors hover:text-white"
               >
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

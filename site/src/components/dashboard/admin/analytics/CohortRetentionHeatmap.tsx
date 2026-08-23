@@ -253,7 +253,7 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
             </thead>
             <tbody>
               <For each={cohortMap()}>
-                {([cohortMonth, _monthData], rowIndex) => (
+                {([cohortMonth], rowIndex) => (
                   <tr
                     class={cn(
                       'transition-colors duration-200',
@@ -274,7 +274,7 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                       {monthIndex => {
                         const rate = getRetentionRate(cohortMonth, monthIndex);
                         const users = getActiveUsers(cohortMonth, monthIndex);
-                        const colors = rate !== null ? getRetentionColor(rate) : null;
+                        const colors = rate === null ? null : getRetentionColor(rate);
                         const isHovered =
                           hoveredCell()?.cohort === cohortMonth &&
                           hoveredCell()?.month === monthIndex;
@@ -361,8 +361,8 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                 </td>
                 <td class="bg-void-900 sticky left-[100px] z-10 px-2 py-2" />
                 <For each={avgRetentionByMonth()}>
-                  {(avgRate, _monthIndex) => {
-                    const colors = avgRate !== null ? getRetentionColor(avgRate) : null;
+                  {avgRate => {
+                    const colors = avgRate === null ? null : getRetentionColor(avgRate);
                     return (
                       <td class="px-1 py-2">
                         <Show when={avgRate !== null} fallback={<div class="h-6 w-10" />}>

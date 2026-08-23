@@ -1,6 +1,19 @@
 import type { Component } from 'solid-js';
 import HeroTerminal from './hero/HeroTerminal';
 
+const TrustBadge: Component<{ label: string }> = props => (
+  <div class="flex items-center gap-2">
+    <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+      <path
+        fill-rule="evenodd"
+        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+        clip-rule="evenodd"
+      />
+    </svg>
+    <span>{props.label}</span>
+  </div>
+);
+
 const Hero: Component = () => {
   return (
     <section class="relative flex min-h-screen items-center overflow-hidden px-6 pt-24 pb-20">
@@ -75,26 +88,8 @@ const Hero: Component = () => {
 
             {/* Trust badges */}
             <div class="animate-fade-in-up flex flex-wrap items-center gap-6 text-sm text-slate-500 delay-400">
-              <div class="flex items-center gap-2">
-                <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fill-rule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                <span>No sudo required</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fill-rule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                <span>Arch • Debian • Ubuntu</span>
-              </div>
+              <TrustBadge label="No sudo required" />
+              <TrustBadge label="Arch • Debian • Ubuntu" />
             </div>
           </div>
 

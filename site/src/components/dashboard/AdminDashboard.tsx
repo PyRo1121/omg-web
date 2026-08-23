@@ -1,4 +1,5 @@
 import { reportClientError } from '~/lib/observability';
+import type { AdminTab } from '~/types';
 import { type Component, createMemo, For, Show, Switch, Match } from 'solid-js';
 import {
   Activity,
@@ -47,69 +48,26 @@ import type {
   GeoDistribution,
   CommandHealth,
   CRMCustomer,
-  CustomerHealth,
 } from './premium/types';
 
-type DateRange = '7d' | '30d' | '90d' | 'custom';
-type AdminTab =
-  'overview' | 'crm' | 'analytics' | 'insights' | 'revenue' | 'audit' | 'segments' | 'predictions';
+/** Match an untrusted string against a fixed set of allowed values. */
+function oneOf<T extends string>(values: ReadonlyArray<T>, key: string): T | undefined {
+  return values.find(value => value === key);
+}
 
-const DATE_RANGES = {
-  '7d': '7d',
-  '30d': '30d',
-  '90d': '90d',
-  custom: 'custom',
-} as const satisfies Record<DateRange, DateRange>;
-
-const LIFECYCLE_STAGES = {
-  new: 'new',
-  onboarding: 'onboarding',
-  activated: 'activated',
-  engaged: 'engaged',
-  power_user: 'power_user',
-  at_risk: 'at_risk',
-  churning: 'churning',
-  churned: 'churned',
-  reactivated: 'reactivated',
-  trial: 'trial',
-  active: 'active',
-} as const satisfies Record<CustomerHealth['lifecycle_stage'], CustomerHealth['lifecycle_stage']>;
-
-const CUSTOMER_STATUSES = {
-  active: 'active',
-  suspended: 'suspended',
-  cancelled: 'cancelled',
-} as const;
-
-const RISK_SEGMENTS = {
-  low: 'low',
-  medium: 'medium',
-  high: 'high',
-  critical: 'critical',
-} as const;
-
-const OPPORTUNITY_TYPES = {
-  usage_based: 'usage_based',
-  feature_gate: 'feature_gate',
-  team_growth: 'team_growth',
-  enterprise: 'enterprise',
-} as const;
-
-const PRIORITIES = {
-  low: 'low',
-  medium: 'medium',
-  high: 'high',
-  urgent: 'urgent',
-} as const;
-
-type SavedView = {
-  id: string;
-  name: string;
-  tab: AdminTab;
-  dateRange: DateRange;
-  segment: string;
-  compareEnabled: boolean;
-};
+const LIFECYCLE_STAGES = [
+  'new',
+  'onboarding',
+  'activated',
+  'engaged',
+  'power_user',
+  'at_risk',
+  'churning',
+  'churned',
+  'reactivated',
+  'trial',
+  'active',
+] as const;
 
 const SEGMENTS = [
   { id: 'all', name: 'All Customers' },
@@ -126,6 +84,12 @@ function transformToExecutiveKPI(
   metrics: api.AdminAdvancedMetrics | undefined
 ): ExecutiveKPI {
   const mrr = dashboard?.overview?.mrr || 0;
+  const atRiskUsers =
+    metrics?.churn_risk_segments?.reduce(
+      (acc, s) =>
+        s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc,
+      0
+    ) ?? 0;
   return {
     mrr,
     mrr_change: 8.3, // Would calculate from historical data
@@ -136,25 +100,8 @@ function transformToExecutiveKPI(
     stickiness: parseFloat(
       metrics?.engagement?.stickiness?.daily_to_monthly?.replaceAll('%', '') || '0'
     ),
-    churn_rate: metrics?.churn_risk_segments?.reduce(
-      (acc, s) =>
-        s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc,
-      0
-    )
-      ? (metrics.churn_risk_segments.reduce(
-          (acc, s) =>
-            s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc,
-          0
-        ) /
-          (metrics.engagement?.mau || 1)) *
-        100
-      : 2.1,
-    at_risk_count:
-      metrics?.churn_risk_segments?.reduce(
-        (acc, s) =>
-          s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc,
-        0
-      ) || 0,
+    churn_rate: atRiskUsers ? (atRiskUsers / (metrics?.engagement?.mau || 1)) * 100 : 2.1,
+    at_risk_count: atRiskUsers,
     expansion_pipeline: metrics?.revenue_metrics?.expansion_mrr_12m || 0,
   };
 }
@@ -201,7 +148,7 @@ function transformToAdvancedMetrics(
       })) || [],
     churn_risk_segments:
       metrics.churn_risk_segments?.map(s => ({
-        risk_segment: valueForKey(Object.entries(RISK_SEGMENTS), s.risk_segment) ?? 'medium',
+        risk_segment: oneOf(['low', 'medium', 'high', 'critical'], s.risk_segment) ?? 'medium',
         user_count: s.user_count,
         tier: s.tier,
         avg_days_inactive: 0,
@@ -211,8 +158,9 @@ function transformToAdvancedMetrics(
         email: o.email,
         tier: o.tier,
         opportunity_type:
-          valueForKey(Object.entries(OPPORTUNITY_TYPES), o.opportunity_type) ?? 'usage_based',
-        priority: valueForKey(Object.entries(PRIORITIES), o.priority) ?? 'medium',
+          oneOf(['usage_based', 'feature_gate', 'team_growth', 'enterprise'], o.opportunity_type) ??
+          'usage_based',
+        priority: oneOf(['low', 'medium', 'high', 'urgent'], o.priority) ?? 'medium',
         potential_arr: 0,
       })) || [],
     time_to_value: {
@@ -311,15 +259,14 @@ function getCountryName(code: string): string {
 
 function transformToCRMCustomer(user: api.AdminUser): CRMCustomer {
   const score = user.engagement_score || 50;
-  const stage =
-    valueForKey(Object.entries(LIFECYCLE_STAGES), user.lifecycle_stage || 'active') ?? 'active';
+  const stage = oneOf(LIFECYCLE_STAGES, user.lifecycle_stage || 'active') ?? 'active';
 
   return {
     id: user.id,
     email: user.email,
     company: user.company || undefined,
     tier: user.tier || 'free',
-    status: valueForKey(Object.entries(CUSTOMER_STATUSES), user.status) ?? 'active',
+    status: oneOf(['active', 'suspended', 'cancelled'], user.status) ?? 'active',
     health: {
       overall_score: score,
       engagement_score: Math.min(100, score + 10),
@@ -342,7 +289,7 @@ function transformToCRMCustomer(user: api.AdminUser): CRMCustomer {
   };
 }
 
-export const AdminDashboard: Component = () => {
+const AdminDashboard: Component = () => {
   const [store, actions] = createDashboardStore();
   const dashboardQuery = useAdminDashboard();
   const firehoseQuery = useAdminFirehose(100);
@@ -424,14 +371,6 @@ export const AdminDashboard: Component = () => {
     } finally {
       actions.setExporting(false);
     }
-  };
-
-  const saveCurrentView = () => {
-    actions.saveView();
-  };
-
-  const loadView = (view: SavedView) => {
-    actions.loadView(view);
   };
 
   const tabCounts = createMemo(() => ({
@@ -551,7 +490,7 @@ export const AdminDashboard: Component = () => {
               value={store.filters.dateRange}
               onChange={e =>
                 actions.setDateRange(
-                  valueForKey(Object.entries(DATE_RANGES), e.currentTarget.value) ?? '30d'
+                  oneOf(['7d', '30d', '90d', 'custom'], e.currentTarget.value) ?? '30d'
                 )
               }
               class="bg-transparent text-sm font-bold text-white focus:outline-none"
@@ -675,7 +614,7 @@ export const AdminDashboard: Component = () => {
           <For each={store.views.saved}>
             {view => (
               <button
-                onClick={() => loadView(view)}
+                onClick={() => actions.loadView(view)}
                 class="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-white/[0.06]"
               >
                 {view.name}
@@ -867,7 +806,7 @@ export const AdminDashboard: Component = () => {
                 Cancel
               </button>
               <button
-                onClick={saveCurrentView}
+                onClick={() => actions.saveView()}
                 disabled={!store.views.newViewName.trim()}
                 class="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
               >

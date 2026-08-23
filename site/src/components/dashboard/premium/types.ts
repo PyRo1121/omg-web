@@ -28,31 +28,7 @@ export type LifecycleStage =
   | 'trial'
   | 'active';
 
-export interface CustomerNote {
-  id: string;
-  note_type: NoteType;
-  content: string;
-  is_pinned: boolean;
-  author_email: string;
-  created_at: string;
-}
-
-export type NoteType = 'general' | 'call' | 'email' | 'meeting' | 'support' | 'sales' | 'success';
-
-export interface CRMTask {
-  id: string;
-  task_type: TaskType;
-  title: string;
-  description?: string;
-  priority: Priority;
-  status: TaskStatus;
-  due_date: string;
-  assigned_to?: string;
-}
-
-export type TaskType = 'followup' | 'onboarding' | 'renewal' | 'upsell' | 'support' | 'custom';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
-export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 
 export interface CustomerTag {
   id: string;

@@ -43,7 +43,6 @@ function secureJsonResponse<T>(data: T, status = 200): Response {
 interface AdminContext {
   readonly user: { readonly id: string; readonly email: string };
   readonly requestId: string;
-  readonly timestamp: string;
 }
 
 function parsePaginationParam(raw: string | null, fallback: number): number {
@@ -122,7 +121,6 @@ async function validateAdmin(
     context: {
       user: auth.user,
       requestId: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
     },
   };
 }

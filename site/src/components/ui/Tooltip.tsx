@@ -61,6 +61,7 @@ export const Tooltip: Component<TooltipProps> = props => {
 
   const getPositionClasses = () => {
     const position = props.position || 'top';
+    // `position` was defaulted above, so every case here is reachable.
     switch (position) {
       case 'top':
         return '-translate-x-1/2 -translate-y-full';
@@ -70,8 +71,6 @@ export const Tooltip: Component<TooltipProps> = props => {
         return '-translate-x-full -translate-y-1/2';
       case 'right':
         return '-translate-y-1/2';
-      default:
-        return '-translate-x-1/2 -translate-y-full';
     }
   };
 

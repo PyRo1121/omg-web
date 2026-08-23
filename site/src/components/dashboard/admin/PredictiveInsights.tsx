@@ -36,6 +36,19 @@ const TIME_HORIZONS = {
 } as const satisfies Record<TimeHorizon, TimeHorizon>;
 type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
+function priorityFromProbability(probability: number): Priority {
+  if (probability >= 0.7) {
+    return 'urgent';
+  }
+  if (probability >= 0.5) {
+    return 'high';
+  }
+  if (probability >= 0.3) {
+    return 'medium';
+  }
+  return 'low';
+}
+
 interface ChurnPrediction {
   customerId: string;
   email: string;
@@ -43,7 +56,6 @@ interface ChurnPrediction {
   tier: string;
   probability: number;
   riskFactors: string[];
-  lastActive: string;
   mrrAtRisk: number;
   recommendedAction: string;
 }
@@ -77,7 +89,6 @@ interface HealthTrend {
   predictedScore: number;
   trend: 'improving' | 'stable' | 'declining';
   trendStrength: number;
-  actionRecommendation: string;
 }
 
 type PriorityConfig = { [K in Priority]: { color: string; bg: string; label: string } };
@@ -108,18 +119,7 @@ const ChurnPredictionCard: Component<{
   prediction: ChurnPrediction;
   onAction: (action: string) => void;
 }> = props => {
-  const riskLevel = createMemo((): Priority => {
-    if (props.prediction.probability >= 0.7) {
-      return 'urgent';
-    }
-    if (props.prediction.probability >= 0.5) {
-      return 'high';
-    }
-    if (props.prediction.probability >= 0.3) {
-      return 'medium';
-    }
-    return 'low';
-  });
+  const riskLevel = createMemo(() => priorityFromProbability(props.prediction.probability));
 
   return (
     <div class="group bg-void-850 hover:border-flare-500/30 relative overflow-hidden rounded-2xl border border-white/5 p-5 transition-all duration-300">
@@ -208,18 +208,7 @@ const ExpansionOpportunityCard: Component<{
   prediction: ExpansionPrediction;
   onAction: (action: string) => void;
 }> = props => {
-  const opportunityLevel = createMemo((): Priority => {
-    if (props.prediction.probability >= 0.7) {
-      return 'urgent';
-    }
-    if (props.prediction.probability >= 0.5) {
-      return 'high';
-    }
-    if (props.prediction.probability >= 0.3) {
-      return 'medium';
-    }
-    return 'low';
-  });
+  const opportunityLevel = createMemo(() => priorityFromProbability(props.prediction.probability));
 
   return (
     <div class="group bg-void-850 hover:border-aurora-500/30 relative overflow-hidden rounded-2xl border border-white/5 p-5 transition-all duration-300">
@@ -312,10 +301,7 @@ const AnomalyAlertCard: Component<{
     low: { color: 'text-nebula-400', bg: 'bg-nebula-500/10', icon: Activity },
   } as const;
 
-  const getSeverityConfig = (severity: string) =>
-    valueForKey(Object.entries(severityConfig), severity) ?? severityConfig.medium;
-
-  const config = () => getSeverityConfig(props.alert.severity);
+  const config = () => severityConfig[props.alert.severity];
   const IconComponent = config().icon;
 
   return (
@@ -433,19 +419,19 @@ export const PredictiveInsights: Component = () => {
       return [];
     }
 
-    const expansionOps = metricsQuery.data.expansion_opportunities || [];
-
     return metricsQuery.data.churn_risk_segments
       .filter(s => s.risk_segment === 'high' || s.risk_segment === 'critical')
       .map((segment, i) => {
-        const opportunity = expansionOps[i];
+        // Segment rows are aggregates: they carry no customer identity, so a
+        // synthetic label is used rather than pairing with unrelated
+        // expansion-opportunity records by index.
         const probability = segment.risk_segment === 'critical' ? 0.8 : 0.55;
         const mrrPerUser = segment.tier === 'enterprise' ? 199 : segment.tier === 'team' ? 29 : 9;
 
         return {
-          customerId: opportunity?.customer_id || `user-${i}`,
-          email: opportunity?.email || `user${i}@example.com`,
-          company: opportunity?.company || null,
+          customerId: `segment-${segment.risk_segment}-${i}`,
+          email: `${segment.tier || 'pro'}-${segment.risk_segment}-segment`,
+          company: null,
           tier: segment.tier || 'pro',
           probability,
           riskFactors: [
@@ -453,7 +439,6 @@ export const PredictiveInsights: Component = () => {
             `${segment.user_count} similar users`,
             segment.risk_segment === 'critical' ? 'No activity 14+ days' : 'Declining usage',
           ],
-          lastActive: '5 days ago',
           mrrAtRisk: mrrPerUser * segment.user_count,
           recommendedAction:
             segment.risk_segment === 'critical'
@@ -566,12 +551,6 @@ export const PredictiveInsights: Component = () => {
               : score,
         trend,
         trendStrength: trend === 'improving' ? 8 : trend === 'declining' ? -12 : 0,
-        actionRecommendation:
-          trend === 'declining'
-            ? 'Proactive outreach recommended'
-            : trend === 'improving'
-              ? 'Identify upsell opportunity'
-              : 'Maintain regular check-ins',
       };
     });
   });

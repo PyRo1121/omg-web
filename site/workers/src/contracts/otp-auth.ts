@@ -82,19 +82,27 @@ function mapParseError(reason: string) {
   return (cause: unknown): AuthParseError => new AuthParseError(reason, cause);
 }
 
+/** Decode one D1 row against its schema into a typed value, or fail with `AuthParseError`. */
+function decodeRow<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  reason: string
+): (
+  value: Schema.Schema.Encoded<Schema.Schema.Any>
+) => Effect.Effect<Schema.Schema.Type<S>, AuthParseError> {
+  const decode = Schema.decodeUnknown(schema);
+  return value => Effect.mapError(decode(value), mapParseError(reason));
+}
+
 /**
  * Decode a D1 COUNT(*) row used for OTP rate limiting.
  *
  * @param value - The D1 `.first()` result.
  * @returns The typed count row, or `AuthParseError`.
  */
-export function decodeAuthCodeCountRow(
-  value: Schema.Schema.Encoded<Schema.Schema.Any>
-): Effect.Effect<AuthCodeCountRow, AuthParseError> {
-  return Schema.decodeUnknown(AuthCodeCountRowSchema)(value).pipe(
-    Effect.mapError(mapParseError('Auth code count row has an invalid shape'))
-  );
-}
+export const decodeAuthCodeCountRow = decodeRow(
+  AuthCodeCountRowSchema,
+  'Auth code count row has an invalid shape'
+);
 
 /**
  * Decode a D1 OTP row selected for verification.
@@ -102,13 +110,7 @@ export function decodeAuthCodeCountRow(
  * @param value - The D1 `.first()` result.
  * @returns The typed OTP row, or `AuthParseError`.
  */
-export function decodeAuthCodeRow(
-  value: Schema.Schema.Encoded<Schema.Schema.Any>
-): Effect.Effect<AuthCodeRow, AuthParseError> {
-  return Schema.decodeUnknown(AuthCodeRowSchema)(value).pipe(
-    Effect.mapError(mapParseError('Auth code row has an invalid shape'))
-  );
-}
+export const decodeAuthCodeRow = decodeRow(AuthCodeRowSchema, 'Auth code row has an invalid shape');
 
 /**
  * Decode a D1 customer row used while creating a session.
@@ -116,10 +118,7 @@ export function decodeAuthCodeRow(
  * @param value - The D1 `.first()` result.
  * @returns The typed customer row, or `AuthParseError`.
  */
-export function decodeAuthCustomerRow(
-  value: Schema.Schema.Encoded<Schema.Schema.Any>
-): Effect.Effect<AuthCustomerRow, AuthParseError> {
-  return Schema.decodeUnknown(AuthCustomerRowSchema)(value).pipe(
-    Effect.mapError(mapParseError('Customer row has an invalid shape'))
-  );
-}
+export const decodeAuthCustomerRow = decodeRow(
+  AuthCustomerRowSchema,
+  'Customer row has an invalid shape'
+);

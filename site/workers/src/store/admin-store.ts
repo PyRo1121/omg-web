@@ -58,7 +58,7 @@ const ACTIVE_TIER_COUNTS_SQL =
   "SELECT l.tier, COUNT(*) as count FROM licenses l JOIN subscriptions s ON l.customer_id = s.customer_id WHERE s.status = 'active' AND l.tier != 'free' GROUP BY l.tier";
 
 /** An admin store operation failed (storage or row-shape error). */
-export class AdminStoreError extends Error {
+class AdminStoreError extends Error {
   readonly _tag = 'AdminStoreError';
   constructor(
     readonly operation: string,
@@ -118,8 +118,9 @@ export const isAdmin = (db: D1Database, customerId: string) =>
     try: () => db.prepare('SELECT admin FROM customers WHERE id = ?').bind(customerId).first(),
     catch: fail('isAdmin'),
   }).pipe(
+    // SAFETY: customerIsAdmin returns a Promise<boolean>; tryPromise awaits it.
     Effect.flatMap(row =>
-      Effect.try({
+      Effect.tryPromise({
         try: () => customerIsAdmin(row),
         catch: fail('isAdmin:decode'),
       })

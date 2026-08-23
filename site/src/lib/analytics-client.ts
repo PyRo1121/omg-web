@@ -251,7 +251,7 @@ async function sendWithFetch(payload: string, events: AnalyticsEvent[]): Promise
 /**
  * Track a page view
  */
-export function trackPageView(): void {
+function trackPageView(): void {
   if (!('window' in globalThis)) {
     return;
   }
@@ -278,12 +278,13 @@ export function trackPageView(): void {
 /**
  * Track scroll depth (call on scroll events, deduplicated internally)
  */
-export function trackScrollDepth(depth: number): void {
+function trackScrollDepth(depth: number): void {
   // Only track at specific thresholds: 25%, 50%, 75%, 90%, 100%
   const thresholds = [25, 50, 75, 90, 100];
+  // The find predicate already guarantees the threshold exceeds maxScrollDepth.
   const roundedDepth = thresholds.find(t => depth >= t && maxScrollDepth < t);
 
-  if (roundedDepth && roundedDepth > maxScrollDepth) {
+  if (roundedDepth !== undefined) {
     maxScrollDepth = roundedDepth;
     queueEvent('scroll_depth', 'scroll', {
       depth: roundedDepth,
@@ -294,7 +295,7 @@ export function trackScrollDepth(depth: number): void {
 /**
  * Track time spent on page (call on page unload)
  */
-export function trackTimeOnPage(): void {
+function trackTimeOnPage(): void {
   if (pageLoadTime === 0) {
     return;
   }
@@ -314,7 +315,7 @@ export function trackTimeOnPage(): void {
 /**
  * Track CTA clicks
  */
-export function trackCtaClick(ctaType: CtaType, ctaLabel?: string): void {
+function trackCtaClick(ctaType: CtaType, ctaLabel?: string): void {
   queueEvent('cta_click', 'cta_interaction', {
     cta_type: ctaType,
     cta_label: ctaLabel || ctaType,
@@ -581,9 +582,9 @@ function ctaTypeForLink(link: Element): CtaType | undefined {
  * Initialize SPA navigation tracking
  */
 function initNavigationTracking(): void {
-  // Track history changes for SPA navigation
+  // Patch pushState for SPA navigation. replaceState is intentionally left
+  // alone: it fires for query-param updates, which are not page views.
   const originalPushState = history.pushState;
-  const originalReplaceState = history.replaceState;
 
   history.pushState = function (...args) {
     // Track time on previous page before navigation
@@ -592,11 +593,6 @@ function initNavigationTracking(): void {
 
     originalPushState.apply(this, args);
     trackPageView();
-  };
-
-  history.replaceState = function (...args) {
-    originalReplaceState.apply(this, args);
-    // Don't track pageview on replaceState (e.g., query param updates)
   };
 
   window.addEventListener('popstate', () => {

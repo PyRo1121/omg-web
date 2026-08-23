@@ -67,27 +67,13 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
     if (count === 0) {
       return 0;
     }
+    // Same thresholds as the original ladder (>k/8 for k = 7..1); k/8 is exact
+    // in floating point, so results are identical.
     const intensity = count / maxCount();
-    if (intensity > 0.875) {
-      return 8;
-    }
-    if (intensity > 0.75) {
-      return 7;
-    }
-    if (intensity > 0.625) {
-      return 6;
-    }
-    if (intensity > 0.5) {
-      return 5;
-    }
-    if (intensity > 0.375) {
-      return 4;
-    }
-    if (intensity > 0.25) {
-      return 3;
-    }
-    if (intensity > 0.125) {
-      return 2;
+    for (let level = 8; level >= 2; level--) {
+      if (intensity > (level - 1) / 8) {
+        return level;
+      }
     }
     return 1;
   };
@@ -96,13 +82,10 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
     if (props.data.length === 0) {
       return { day: 0, hour: 0, count: 0 };
     }
-    const [first, ...rest] = props.data;
-    if (first === undefined) {
-      return { day: 0, hour: 0, count: 0 };
-    }
-    const peak = rest.reduce(
-      (max, item) => (item.event_count > max.event_count ? item : max),
-      first
+    // Length is guaranteed non-zero here; ties resolve to the earliest row,
+    // matching the previous first-element-seeded reduce.
+    const peak = props.data.reduce((max, item) =>
+      item.event_count > max.event_count ? item : max
     );
     return {
       day: parseInt(peak.day_of_week),
@@ -323,15 +306,18 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
             <span class="text-nebula-600 text-xs">Low</span>
             <div class="flex gap-0.5">
               <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>
-                {level => (
-                  <div
-                    class="h-4 w-4 rounded transition-all hover:scale-110"
-                    style={{
-                      background: heatmapColor(level).bg,
-                      'box-shadow': `0 0 4px ${heatmapColor(level).glow}`,
-                    }}
-                  />
-                )}
+                {level => {
+                  const colors = heatmapColor(level);
+                  return (
+                    <div
+                      class="h-4 w-4 rounded transition-all hover:scale-110"
+                      style={{
+                        background: colors.bg,
+                        'box-shadow': `0 0 4px ${colors.glow}`,
+                      }}
+                    />
+                  );
+                }}
               </For>
             </div>
             <span class="text-nebula-600 text-xs">High</span>

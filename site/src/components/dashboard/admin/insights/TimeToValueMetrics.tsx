@@ -139,15 +139,15 @@ export const TimeToValueMetrics: Component<TimeToValueMetricsProps> = props => {
   const activationHealth = createMemo(() => {
     const days = activationDays();
     if (days <= 1) {
-      return { status: 'excellent', color: 'var(--color-aurora-400)', label: 'Excellent' };
+      return { color: 'var(--color-aurora-400)', label: 'Excellent' };
     }
     if (days <= 3) {
-      return { status: 'good', color: 'var(--color-electric-400)', label: 'Good' };
+      return { color: 'var(--color-electric-400)', label: 'Good' };
     }
     if (days <= 7) {
-      return { status: 'fair', color: 'var(--color-solar-400)', label: 'Fair' };
+      return { color: 'var(--color-solar-400)', label: 'Fair' };
     }
-    return { status: 'slow', color: 'var(--color-flare-400)', label: 'Needs Work' };
+    return { color: 'var(--color-flare-400)', label: 'Needs Work' };
   });
 
   const onboardingInsight = createMemo(() => {

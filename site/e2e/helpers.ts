@@ -8,7 +8,6 @@ import { expect, type Page } from '@playwright/test';
  * not attached yet. Callers therefore re-run the whole click/assert pair
  * until the observable effect holds rather than sleeping for a fixed time.
  */
-/** Upper bound for one hydration-tolerant click/assert retry cycle. */
 export const HYDRATION_TOLERANT_TIMEOUT = 30_000;
 
 /** Extra-patient bound for heavy pages (dev-mode landing page) under slow hydration. */

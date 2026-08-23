@@ -5,7 +5,7 @@ import {
   type LicensingDashboard,
 } from '../../../shared/licensing-dashboard';
 import { type Env, errorResponse, respondFromEffect, ACHIEVEMENTS, TIER_FEATURES } from '../api';
-import { requireSession, SessionUnauthorizedError } from '../admin-auth';
+import { requireSession, type SessionUnauthorizedError } from '../admin-auth';
 import { casesHandled } from '../prelude';
 import {
   AccountDashboardParseError,
@@ -54,10 +54,11 @@ function queryFirst(
   operation: string
 ) {
   return Effect.tryPromise({
-    try: () => {
-      const statement = db.prepare(sql);
-      return params.length === 0 ? statement.first() : statement.bind(...params).first();
-    },
+    try: () =>
+      db
+        .prepare(sql)
+        .bind(...params)
+        .first(),
     catch: cause => new DashboardStoreUnavailable(operation, cause),
   });
 }
@@ -69,10 +70,11 @@ function queryAll(
   operation: string
 ) {
   return Effect.tryPromise({
-    try: () => {
-      const statement = db.prepare(sql);
-      return params.length === 0 ? statement.all() : statement.bind(...params).all();
-    },
+    try: () =>
+      db
+        .prepare(sql)
+        .bind(...params)
+        .all(),
     catch: cause => new DashboardStoreUnavailable(operation, cause),
   });
 }
@@ -392,11 +394,10 @@ function getAccountDashboard(
         status: license.status,
         max_machines: license.max_seats ?? license.max_machines ?? 1,
         expires_at: license.expires_at,
-        features: [
-          ...(license.tier === 'pro' || license.tier === 'team' || license.tier === 'enterprise'
+        features:
+          license.tier === 'pro' || license.tier === 'team' || license.tier === 'enterprise'
             ? TIER_FEATURES[license.tier].features
-            : TIER_FEATURES.free.features),
-        ],
+            : TIER_FEATURES.free.features,
       },
       machines,
       usage: {

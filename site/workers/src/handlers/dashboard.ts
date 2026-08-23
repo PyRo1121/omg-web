@@ -124,6 +124,34 @@ export async function handleRegenerateLicense(request: Request, env: Env): Promi
   });
 }
 
+// Revoke a machine (by machine_id) or a team member's machine (by row id).
+async function deactivateMachine(
+  db: D1Database,
+  userId: string,
+  request: Request,
+  machineId: string,
+  whereColumn: 'machine_id' | 'id',
+  auditAction: string
+): Promise<Response> {
+  const licenseId = await loadLicenseId(db, userId);
+  if (licenseId instanceof Response) {
+    return licenseId;
+  }
+
+  const result = await db
+    .prepare(`UPDATE machines SET is_active = 0 WHERE license_id = ? AND ${whereColumn} = ?`)
+    .bind(licenseId, machineId)
+    .run();
+
+  if (result.meta.changes === 0) {
+    return errorResponse('Machine not found', 404);
+  }
+
+  await Effect.runPromise(logAudit(db, userId, auditAction, 'machine', machineId, request));
+
+  return jsonResponse({ success: true });
+}
+
 // Revoke a machine
 export async function handleRevokeMachine(request: Request, env: Env): Promise<Response> {
   return withDashboardSession(request, env, async ({ db, userId }) => {
@@ -131,27 +159,14 @@ export async function handleRevokeMachine(request: Request, env: Env): Promise<R
     if (Exit.isFailure(decoded)) {
       return errorResponse('Invalid JSON body', 400);
     }
-    const body = decoded.value;
-
-    const licenseId = await loadLicenseId(db, userId);
-    if (licenseId instanceof Response) {
-      return licenseId;
-    }
-
-    const result = await db
-      .prepare(`UPDATE machines SET is_active = 0 WHERE license_id = ? AND machine_id = ?`)
-      .bind(licenseId, body.machine_id)
-      .run();
-
-    if (result.meta.changes === 0) {
-      return errorResponse('Machine not found', 404);
-    }
-
-    await Effect.runPromise(
-      logAudit(db, userId, 'machine.revoked', 'machine', body.machine_id, request)
+    return deactivateMachine(
+      db,
+      userId,
+      request,
+      decoded.value.machine_id,
+      'machine_id',
+      'machine.revoked'
     );
-
-    return jsonResponse({ success: true });
   });
 }
 
@@ -465,27 +480,14 @@ export async function handleRevokeTeamMember(request: Request, env: Env): Promis
     if (Exit.isFailure(decoded)) {
       return errorResponse('Invalid JSON body', 400);
     }
-    const body = decoded.value;
-
-    const licenseId = await loadLicenseId(db, userId);
-    if (licenseId instanceof Response) {
-      return licenseId;
-    }
-
-    const result = await db
-      .prepare(`UPDATE machines SET is_active = 0 WHERE license_id = ? AND id = ?`)
-      .bind(licenseId, body.machine_id)
-      .run();
-
-    if (result.meta.changes === 0) {
-      return errorResponse('Machine not found', 404);
-    }
-
-    await Effect.runPromise(
-      logAudit(db, userId, 'team.member_revoked', 'machine', body.machine_id, request)
+    return deactivateMachine(
+      db,
+      userId,
+      request,
+      decoded.value.machine_id,
+      'id',
+      'team.member_revoked'
     );
-
-    return jsonResponse({ success: true });
   });
 }
 

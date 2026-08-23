@@ -13,6 +13,7 @@ import {
   X,
 } from '../../ui/Icons';
 import { useAdminAuditLog } from '../../../lib/api-hooks';
+import { valueForKey } from '../../../lib/lookup';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { formatRelativeTime } from '../../../lib/api';
 
@@ -43,6 +44,23 @@ const formatAction = (action: string) => {
     .join(' ');
 };
 
+const FALLBACK_ACTION_COLOR = 'text-slate-400 bg-slate-500/10';
+
+// Filterable actions; `admin.rate_limited` is deliberately not offered as a filter.
+const uniqueActions = [
+  'auth.login',
+  'auth.logout',
+  'billing.checkout_created',
+  'billing.portal_opened',
+  'license.regenerated',
+  'admin.user_updated',
+];
+
+const getIcon = (action: string) => valueForKey(Object.entries(ACTION_ICONS), action) ?? Shield;
+
+const getColor = (action: string) =>
+  valueForKey(Object.entries(ACTION_COLORS), action) ?? FALLBACK_ACTION_COLOR;
+
 export const AuditLogTab: Component = () => {
   const [page, setPage] = createSignal(1);
   const [actionFilter, setActionFilter] = createSignal('');
@@ -50,7 +68,7 @@ export const AuditLogTab: Component = () => {
   const [showFilters, setShowFilters] = createSignal(false);
   const limit = 25;
 
-  const auditQuery = useAdminAuditLog(page(), limit, actionFilter());
+  const auditQuery = useAdminAuditLog(page, () => limit, actionFilter);
 
   const logs = () => {
     const allLogs = auditQuery.data?.logs || [];
@@ -79,26 +97,6 @@ export const AuditLogTab: Component = () => {
     setSearchQuery('');
     setPage(1);
   };
-
-  const getIcon = (action: string) => {
-    return Object.entries(ACTION_ICONS).find(([key]) => key === action)?.[1] || Shield;
-  };
-
-  const getColor = (action: string) => {
-    return (
-      Object.entries(ACTION_COLORS).find(([key]) => key === action)?.[1] ||
-      'text-slate-400 bg-slate-500/10'
-    );
-  };
-
-  const uniqueActions = [
-    'auth.login',
-    'auth.logout',
-    'billing.checkout_created',
-    'billing.portal_opened',
-    'license.regenerated',
-    'admin.user_updated',
-  ];
 
   return (
     <div class="animate-in fade-in slide-in-from-bottom-4 space-y-6 duration-500">
@@ -298,5 +296,3 @@ export const AuditLogTab: Component = () => {
     </div>
   );
 };
-
-export default AuditLogTab;

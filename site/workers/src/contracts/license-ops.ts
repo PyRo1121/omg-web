@@ -2,10 +2,9 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { EmailAddress } from '../../../shared/site-session';
 import { LicenseKey } from './license-key';
 
-export { EmailAddress, LicenseKey };
+export { LicenseKey };
 
 /** A failure decoding a license-ops payload or D1 row. */
 export class LicenseOpsParseError extends Error {
@@ -67,7 +66,7 @@ export const AnalyticsEventSchema = Schema.Struct({
 
 /** Batch envelope posted to `/api/analytics`. */
 export const AnalyticsBatchSchema = Schema.Struct({
-  events: Schema.optional(Schema.Array(AnalyticsEventSchema)),
+  events: Schema.optional(Schema.Array(AnalyticsEventSchema).pipe(Schema.maxItems(50))),
 });
 export type AnalyticsBatch = Schema.Schema.Type<typeof AnalyticsBatchSchema>;
 export type AnalyticsEvent = Schema.Schema.Type<typeof AnalyticsEventSchema>;
@@ -80,8 +79,6 @@ export const PublicLicenseRowSchema = Schema.Struct({
   expires_at: Schema.Union(Schema.Null, Schema.String),
   max_machines: Schema.Union(Schema.Null, Schema.Number),
 });
-
-/** Active license id used while reporting usage. */
 
 /** COUNT(*) row. */
 export const CountRowSchema = Schema.Struct({

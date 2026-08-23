@@ -599,5 +599,3 @@ export const CustomerHealthHub: Component<CustomerHealthHubProps> = props => {
     </div>
   );
 };
-
-export default CustomerHealthHub;

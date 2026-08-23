@@ -113,43 +113,32 @@ function proxyFromEvent(event: APIEvent): Effect.Effect<Response, LicensingRoute
   });
 }
 
-function statusFor(error: LicensingRouteError): number {
-  switch (error._tag) {
-    case 'LicensingUnauthorized':
-      return 401;
-    case 'LicensingSameOriginRequired':
-      return 403;
-    case 'LicensingRouteRejected':
-      return 404;
-    case 'LicensingBodyTooLarge':
-      return 413;
-    case 'LicensingWorkerRejected':
-      return 502;
-    case 'LicensingBffMisconfigured':
-    case 'LicensingIdentityStoreUnavailable':
-    case 'LicensingBffParseError':
-    case 'LicensingServiceUnavailable':
-    case 'LicensingBodyReadError':
-      return 500;
-    default:
-      return casesHandled(error);
-  }
+interface RouteErrorResponse {
+  status: number;
+  message: string;
 }
 
-function safeMessage(error: LicensingRouteError): string {
+/** Maps each failure to its HTTP status and client-safe message in one place. */
+function errorResponse(error: LicensingRouteError): RouteErrorResponse {
   switch (error._tag) {
+    // Client-facing rejections expose their descriptive message.
     case 'LicensingUnauthorized':
+      return { status: 401, message: error.message };
     case 'LicensingSameOriginRequired':
+      return { status: 403, message: error.message };
     case 'LicensingRouteRejected':
+      return { status: 404, message: error.message };
     case 'LicensingBodyTooLarge':
-      return error.message;
+      return { status: 413, message: error.message };
+    case 'LicensingWorkerRejected':
+      return { status: 502, message: 'Licensing request failed' };
+    // Misconfiguration and infrastructure failures stay opaque.
     case 'LicensingBffMisconfigured':
     case 'LicensingIdentityStoreUnavailable':
     case 'LicensingBffParseError':
     case 'LicensingServiceUnavailable':
     case 'LicensingBodyReadError':
-    case 'LicensingWorkerRejected':
-      return 'Licensing request failed';
+      return { status: 500, message: 'Licensing request failed' };
     default:
       return casesHandled(error);
   }
@@ -164,7 +153,8 @@ function responseFromExit(exit: Exit.Exit<Response, LicensingRouteError>): Respo
         return Response.json({ error: 'Licensing request failed' }, { status: 500 });
       }
       const error = failure.value;
-      return Response.json({ error: safeMessage(error) }, { status: statusFor(error) });
+      const { status, message } = errorResponse(error);
+      return Response.json({ error: message }, { status });
     },
   });
 }

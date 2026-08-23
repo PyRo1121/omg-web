@@ -53,10 +53,9 @@ export function requireSession(
     try: () => validateSession(env.DB, token),
     catch: cause => new SessionUnauthorizedError('invalid', cause),
   }).pipe(
+    // `validateSession` already returns the `{ user, session }` pair.
     Effect.flatMap(auth =>
-      auth === null
-        ? Effect.fail(new SessionUnauthorizedError('invalid'))
-        : Effect.succeed({ user: auth.user, session: auth.session })
+      auth === null ? Effect.fail(new SessionUnauthorizedError('invalid')) : Effect.succeed(auth)
     )
   );
 }

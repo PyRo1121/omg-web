@@ -1,4 +1,5 @@
 import type { Component } from 'solid-js';
+import { For } from 'solid-js';
 
 interface SkeletonProps {
   class?: string;
@@ -27,36 +28,20 @@ export const CardSkeleton: Component = () => {
         <Skeleton width="24px" height="24px" />
       </div>
       <div class="space-y-4">
-        <div class="flex items-center justify-between rounded-2xl border border-white/[0.03] bg-white/[0.02] p-4">
-          <div class="space-y-2">
-            <div class="flex items-center gap-2">
-              <Skeleton width="60px" height="20px" />
-              <Skeleton width="100px" height="20px" />
+        <For each={[0, 1, 2]}>
+          {() => (
+            <div class="flex items-center justify-between rounded-2xl border border-white/[0.03] bg-white/[0.02] p-4">
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <Skeleton width="60px" height="20px" />
+                  <Skeleton width="100px" height="20px" />
+                </div>
+                <Skeleton width="150px" height="16px" />
+              </div>
+              <Skeleton width="24px" height="24px" />
             </div>
-            <Skeleton width="150px" height="16px" />
-          </div>
-          <Skeleton width="24px" height="24px" />
-        </div>
-        <div class="flex items-center justify-between rounded-2xl border border-white/[0.03] bg-white/[0.02] p-4">
-          <div class="space-y-2">
-            <div class="flex items-center gap-2">
-              <Skeleton width="60px" height="20px" />
-              <Skeleton width="100px" height="20px" />
-            </div>
-            <Skeleton width="150px" height="16px" />
-          </div>
-          <Skeleton width="24px" height="24px" />
-        </div>
-        <div class="flex items-center justify-between rounded-2xl border border-white/[0.03] bg-white/[0.02] p-4">
-          <div class="space-y-2">
-            <div class="flex items-center gap-2">
-              <Skeleton width="60px" height="20px" />
-              <Skeleton width="100px" height="20px" />
-            </div>
-            <Skeleton width="150px" height="16px" />
-          </div>
-          <Skeleton width="24px" height="24px" />
-        </div>
+          )}
+        </For>
       </div>
     </div>
   );

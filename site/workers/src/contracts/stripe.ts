@@ -28,20 +28,17 @@ export const StripeCheckoutSessionSchema = Schema.Struct({
   url: Schema.optional(Schema.String),
   error: Schema.optional(StripeErrorSchema),
 });
-export type StripeCheckoutSession = Schema.Schema.Type<typeof StripeCheckoutSessionSchema>;
 
 /** Billing portal session returned by Stripe. */
 export const StripePortalSessionSchema = Schema.Struct({
   url: Schema.optional(Schema.String),
   error: Schema.optional(StripeErrorSchema),
 });
-export type StripePortalSession = Schema.Schema.Type<typeof StripePortalSessionSchema>;
 
 /** Customer lookup used when a webhook has no local row. */
 export const StripeCustomerEmailSchema = Schema.Struct({
   email: Schema.String,
 });
-export type StripeCustomerEmail = Schema.Schema.Type<typeof StripeCustomerEmailSchema>;
 
 /** Customer record from list/sync. */
 export const StripeCustomerSchema = Schema.Struct({
@@ -54,7 +51,6 @@ export const StripeCustomerSchema = Schema.Struct({
     })
   ),
 });
-export type StripeCustomer = Schema.Schema.Type<typeof StripeCustomerSchema>;
 
 export const StripeSubscriptionStatusSchema = Schema.Literal(
   'active',
@@ -66,7 +62,6 @@ export const StripeSubscriptionStatusSchema = Schema.Literal(
   'incomplete_expired',
   'paused'
 );
-export type StripeSubscriptionStatus = Schema.Schema.Type<typeof StripeSubscriptionStatusSchema>;
 
 const StripeSubscriptionItemSchema = Schema.Struct({
   price: Schema.Struct({
@@ -100,7 +95,6 @@ export const StripeInvoiceSchema = Schema.Struct({
   period_end: Schema.optional(Schema.Number),
   created: Schema.optional(Schema.Number),
 });
-export type StripeInvoice = Schema.Schema.Type<typeof StripeInvoiceSchema>;
 
 const StripeMetricsItemSchema = Schema.Struct({
   price: Schema.Struct({
@@ -120,7 +114,6 @@ export const StripeMetricsSubscriptionSchema = Schema.Struct({
     data: Schema.Array(StripeMetricsItemSchema),
   }),
 });
-export type StripeMetricsSubscription = Schema.Schema.Type<typeof StripeMetricsSubscriptionSchema>;
 
 /** One Stripe balance bucket. */
 export const StripeBalanceFundsSchema = Schema.Struct({
@@ -132,7 +125,6 @@ export const StripeBalanceSchema = Schema.Struct({
   available: Schema.Array(StripeBalanceFundsSchema),
   pending: Schema.Array(StripeBalanceFundsSchema),
 });
-export type StripeBalance = Schema.Schema.Type<typeof StripeBalanceSchema>;
 
 export const StripeCustomerListSchema = Schema.Struct({
   has_more: Schema.Boolean,

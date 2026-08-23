@@ -8,7 +8,7 @@ const OptionalString = Schema.optional(Schema.Union(Schema.Null, Schema.String))
 const JsonAtom = Schema.Union(Schema.String, Schema.Number, Schema.Boolean, Schema.Null);
 
 /** One CLI telemetry event. Type is checked after decode so invalid types keep the existing 400 message. */
-export const TelemetryEventSchema = Schema.Struct({
+const TelemetryEventSchema = Schema.Struct({
   type: Schema.String,
   command: OptionalString,
   subcommand: OptionalString,
@@ -32,8 +32,8 @@ export const TelemetryEventSchema = Schema.Struct({
 });
 export type TelemetryEvent = Schema.Schema.Type<typeof TelemetryEventSchema>;
 
-/** Envelope for a single CLI event. */
-export const SingleTelemetryRequestSchema = Schema.Struct({
+/** Shared envelope fields for a single CLI event and each item of a batch. */
+const TelemetryEnvelopeSchema = Schema.Struct({
   event: TelemetryEventSchema,
   timestamp: Schema.String,
   machine_id: Schema.String,
@@ -42,23 +42,13 @@ export const SingleTelemetryRequestSchema = Schema.Struct({
   license_key: Schema.optional(Schema.String),
   retries: OptionalNumber,
 });
-export type SingleTelemetryRequest = Schema.Schema.Type<typeof SingleTelemetryRequestSchema>;
 
-const TelemetryItemSchema = Schema.Struct({
-  event: TelemetryEventSchema,
-  timestamp: Schema.String,
-  machine_id: Schema.String,
-  version: Schema.String,
-  platform: Schema.String,
-  license_key: Schema.optional(Schema.String),
-  retries: OptionalNumber,
-});
+/** Envelope for a single CLI event. */
+export const SingleTelemetryRequestSchema = TelemetryEnvelopeSchema;
 
 /** Envelope for a CLI event batch. */
 export const BatchTelemetryRequestSchema = Schema.Struct({
-  events: Schema.optional(Schema.Array(TelemetryItemSchema)),
+  events: Schema.optional(Schema.Array(TelemetryEnvelopeSchema)),
   batch_timestamp: Schema.optional(Schema.String),
   machine_id: Schema.optional(Schema.String),
 });
-export type BatchTelemetryRequest = Schema.Schema.Type<typeof BatchTelemetryRequestSchema>;
-export type TelemetryItem = Schema.Schema.Type<typeof TelemetryItemSchema>;

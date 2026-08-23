@@ -84,6 +84,25 @@ import {
 } from './handlers/privacy';
 import { normalizeLicensingPath, resolveLicensingRoute } from '../../shared/licensing-routes';
 
+function badgeResponse(message: string): Response {
+  return new Response(
+    JSON.stringify({
+      schemaVersion: 1,
+      label: 'installs',
+      message,
+      color: 'blue',
+    }),
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=60, must-revalidate',
+        ...corsHeaders,
+      },
+    }
+  );
+}
+
 async function handleInstallsBadge(env: Env): Promise<Response> {
   try {
     const result = await env.DB.prepare(
@@ -98,40 +117,10 @@ async function handleInstallsBadge(env: Env): Promise<Response> {
       Sentry.captureMessage('Installs badge row has an invalid shape');
     }
     const total = badgeLookup._tag === 'present' ? badgeLookup.value.total : 0;
-    return new Response(
-      JSON.stringify({
-        schemaVersion: 1,
-        label: 'installs',
-        message: total.toLocaleString(),
-        color: 'blue',
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=60, must-revalidate',
-          ...corsHeaders,
-        },
-      }
-    );
+    return badgeResponse(total.toLocaleString());
   } catch (error: unknown) {
     Sentry.captureException(error);
-    return new Response(
-      JSON.stringify({
-        schemaVersion: 1,
-        label: 'installs',
-        message: '0',
-        color: 'blue',
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=60, must-revalidate',
-          ...corsHeaders,
-        },
-      }
-    );
+    return badgeResponse('0');
   }
 }
 
@@ -169,6 +158,15 @@ function handleAdminCustomerTagsRoute(
     default:
       return errorResponse('Not found', 404);
   }
+}
+
+/** Deny non-admin sessions, otherwise delegate to `handler`. */
+async function adminGated(
+  request: Request,
+  env: Env,
+  handler: (request: Request, env: Env) => Promise<Response>
+): Promise<Response> {
+  return (await forbiddenUnlessAdminSession(request, env)) ?? handler(request, env);
 }
 
 export default Sentry.withSentry(
@@ -232,24 +230,16 @@ export default Sentry.withSentry(
             return handleOptOut(request, env);
           case '/api/docs/analytics':
             return handleDocsAnalytics(request, env, ctx);
-          case '/api/docs/analytics/dashboard': {
-            const denied = await forbiddenUnlessAdminSession(request, env);
-            return denied ?? handleDocsAnalyticsDashboard(request, env);
-          }
+          case '/api/docs/analytics/dashboard':
+            return adminGated(request, env, handleDocsAnalyticsDashboard);
           case '/api/site/analytics/track':
             return handleTrackEvent(request, env);
-          case '/api/site/analytics/geo': {
-            const denied = await forbiddenUnlessAdminSession(request, env);
-            return denied ?? handleGetGeoAnalytics(request, env);
-          }
-          case '/api/site/analytics/realtime': {
-            const denied = await forbiddenUnlessAdminSession(request, env);
-            return denied ?? handleGetRealtimeAnalytics(request, env);
-          }
-          case '/api/site/analytics/overview': {
-            const denied = await forbiddenUnlessAdminSession(request, env);
-            return denied ?? handleGetAnalyticsOverview(request, env);
-          }
+          case '/api/site/analytics/geo':
+            return adminGated(request, env, handleGetGeoAnalytics);
+          case '/api/site/analytics/realtime':
+            return adminGated(request, env, handleGetRealtimeAnalytics);
+          case '/api/site/analytics/overview':
+            return adminGated(request, env, handleGetAnalyticsOverview);
           case '/api/github-stats':
             return handleGitHubProxy(request, ctx);
           case '/api/internal/site-session': {

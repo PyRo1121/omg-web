@@ -1,11 +1,6 @@
 import type { Component, ParentComponent, JSX } from 'solid-js';
 import { Show, For, createSignal } from 'solid-js';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '~/lib/prelude';
 
 interface DashboardGridProps {
   columns?: 1 | 2 | 3 | 4 | 6 | 12;

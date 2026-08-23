@@ -416,10 +416,9 @@ function getHealthLabel(stickiness: number) {
 }
 
 function generateHistoricalData(currentValue: number, points: number = 12): number[] {
-  let value = currentValue * 0.85;
   return Array.from({ length: points }, (_, i) => {
     const progress = i / (points - 1);
-    value =
+    const value =
       currentValue * 0.85 +
       currentValue * 0.15 * progress +
       currentValue * 0.02 * (i % 3 === 0 ? 1 : -1);
@@ -630,7 +629,6 @@ interface ExpansionPipelineProps {
         potential_arr?: number;
       }>
     | undefined;
-  expansionMRR12m?: number | undefined;
 }
 
 const ExpansionPipeline: Component<ExpansionPipelineProps> = props => {
@@ -866,7 +864,6 @@ export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = prop
           <ExpansionPipeline
             value={props.kpi.expansion_pipeline}
             opportunities={props.metrics?.expansion_opportunities}
-            expansionMRR12m={props.metrics?.revenue_metrics?.expansion_mrr_12m}
           />
         </div>
       </Show>

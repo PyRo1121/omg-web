@@ -195,7 +195,12 @@ function finalizeDocsResponse(
     statusText: response.statusText,
     headers,
   });
-  if (shouldStoreDocsResponse(response, request.method, pathname, contentType)) {
+  const isCacheableSuccess =
+    response.status >= 200 &&
+    response.status < 300 &&
+    request.method === 'GET' &&
+    shouldCache(pathname, contentType);
+  if (isCacheableSuccess) {
     const cacheKey = new Request(targetUrl, request);
     ctx.waitUntil(caches.default.put(cacheKey, finalResponse.clone()));
   }
@@ -224,20 +229,6 @@ function docsResponseHeaders(
     headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   }
   return headers;
-}
-
-function shouldStoreDocsResponse(
-  response: Response,
-  method: string,
-  pathname: string,
-  contentType: string
-): boolean {
-  return (
-    response.status >= 200 &&
-    response.status < 300 &&
-    method === 'GET' &&
-    shouldCache(pathname, contentType)
-  );
 }
 
 function docsUnavailableResponse(): Response {

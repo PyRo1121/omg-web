@@ -15,6 +15,3 @@ export const GitHubCommitActivitySchema = Schema.Struct({
 
 /** GitHub commit activity returned as an ordered list of weekly entries. */
 export const GitHubCommitActivityResponseSchema = Schema.Array(GitHubCommitActivitySchema);
-export type GitHubCommitActivityResponse = Schema.Schema.Type<
-  typeof GitHubCommitActivityResponseSchema
->;

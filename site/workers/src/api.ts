@@ -38,8 +38,6 @@ export interface User {
   created_at: string;
 }
 
-// License from database
-// Machine from database
 // Session from database
 export interface Session {
   id: string;

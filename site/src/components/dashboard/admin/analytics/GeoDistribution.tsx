@@ -1,11 +1,6 @@
 import { type Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import { Globe, TrendingUp, ChevronDown, ChevronUp } from 'lucide-solid';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '~/lib/prelude';
 
 interface GeoData {
   country_code: string;
@@ -138,6 +133,10 @@ const REGION_COLORS = [
   },
 ] as const;
 
+function lookupTable(table: Record<string, string>, code: string, fallback: string) {
+  return Object.hasOwn(table, code) ? table[code] : fallback;
+}
+
 function regionColor(index: number) {
   return REGION_COLORS[index % REGION_COLORS.length] ?? REGION_COLORS[0];
 }
@@ -164,11 +163,9 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
 
   const maxUsers = createMemo(() => Math.max(...props.data.map(d => d.user_count), 1));
 
-  const getCountryName = (code: string) =>
-    Object.entries(COUNTRY_NAMES).find(([key]) => key === code)?.[1] || code;
+  const getCountryName = (code: string) => lookupTable(COUNTRY_NAMES, code, code);
 
-  const getFlag = (code: string) =>
-    Object.entries(COUNTRY_FLAGS).find(([key]) => key === code)?.[1] || '🌍';
+  const getFlag = (code: string) => lookupTable(COUNTRY_FLAGS, code, '🌍');
 
   const getPercentage = (count: number) =>
     totalUsers() > 0 ? ((count / totalUsers()) * 100).toFixed(1) : '0';

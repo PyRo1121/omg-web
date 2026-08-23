@@ -30,15 +30,15 @@ import {
 import { NotesSection } from './NotesSection';
 import { TagsSection } from './TagsSection';
 
+type DrawerSection = 'overview' | 'crm' | 'machines' | 'usage' | 'billing';
+
 interface CustomerDetailDrawerProps {
   userId: string | null;
   onClose: () => void;
 }
 
 export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props => {
-  const [activeSection, setActiveSection] = createSignal<
-    'overview' | 'crm' | 'machines' | 'usage' | 'billing'
-  >('overview');
+  const [activeSection, setActiveSection] = createSignal<DrawerSection>('overview');
   let drawerRef: HTMLDivElement | undefined;
   let previousActiveElement: HTMLElement | null = null;
 
@@ -128,10 +128,7 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
     createTagMutation.mutate({ name, color });
   };
 
-  const SectionButton = (sectionProps: {
-    id: typeof activeSection extends () => infer T ? T : never;
-    label: string;
-  }) => (
+  const SectionButton = (sectionProps: { id: DrawerSection; label: string }) => (
     <button
       onClick={() => setActiveSection(sectionProps.id)}
       class={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${

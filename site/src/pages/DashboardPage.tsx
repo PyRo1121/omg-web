@@ -145,6 +145,8 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
   const peakDay = createMemo(() => getPeakDay(telemetryData()?.daily ?? []));
 
+  const recentDailyUsage = createMemo(() => getRecentDailyUsage(telemetryData()?.daily ?? []));
+
   const totalPackages = createMemo(() => getTotalPackages(telemetryData()?.usage));
 
   const pageBg =
@@ -168,14 +170,27 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
   const tabs = createMemo(() => getDashboardTabs(telemetryData()?.user?.role));
 
+  // Tailwind v4 extracts classes statically: color names must map to full
+  // literal class strings, never template interpolation.
+  const statColorClasses = {
+    emerald: { chip: 'from-emerald-500/20', icon: 'text-emerald-400' },
+    indigo: { chip: 'from-indigo-500/20', icon: 'text-indigo-400' },
+    purple: { chip: 'from-purple-500/20', icon: 'text-purple-400' },
+    cyan: { chip: 'from-cyan-500/20', icon: 'text-cyan-400' },
+    amber: { chip: 'from-amber-500/20', icon: 'text-amber-400' },
+    red: { chip: 'from-red-500/20', icon: 'text-red-400' },
+  } satisfies Record<string, { chip: string; icon: string }>;
+
+  type StatColor = keyof typeof statColorClasses;
   const StatCard = (cardProps: {
     title: string;
     value: string;
     icon: Component<{ class?: string }>;
-    color: string;
+    color: StatColor;
     sub?: string;
     trend?: number | undefined;
   }) => {
+    const colorClasses = statColorClasses[cardProps.color];
     const trendIcon = getTrendPresentation(cardProps.trend).icon;
     const trendColor = () => getTrendPresentation(cardProps.trend).color;
 
@@ -184,10 +199,8 @@ const DashboardPage: Component<DashboardPageProps> = props => {
         class={`${glassPanel} group p-6 transition-all hover:scale-[1.02] hover:border-indigo-500/30`}
       >
         <div class="mb-4 flex items-start justify-between">
-          <div
-            class={`rounded-xl bg-gradient-to-r p-3 from-${cardProps.color}-500/20 to-purple-500/20`}
-          >
-            <cardProps.icon class={`h-6 w-6 text-${cardProps.color}-400`} />
+          <div class={`rounded-xl bg-gradient-to-r p-3 ${colorClasses.chip} to-purple-500/20`}>
+            <cardProps.icon class={`h-6 w-6 ${colorClasses.icon}`} />
           </div>
           <Show when={cardProps.trend !== undefined}>
             <div class={`flex items-center gap-1 text-xs font-medium ${trendColor()}`}>
@@ -223,6 +236,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
               <div class="flex items-center gap-3">
                 <Show when={!telemetryLoading() && telemetryData()}>
                   <button
+                    type="button"
                     onClick={loadTelemetry}
                     class="btn-secondary px-3 py-2 text-sm"
                     title="Refresh data"
@@ -233,6 +247,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                 {/* Disabled until hydration so a click can never be silently
                     dropped before Solid attaches the delegated listener. */}
                 <button
+                  type="button"
                   onClick={handleSignOut}
                   disabled={!isInteractive()}
                   class="btn-secondary px-4 py-2 text-sm"
@@ -246,10 +261,11 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
           <div class="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-xl">
             <div class="px-6">
-              <nav class="no-scrollbar flex gap-1 overflow-x-auto" role="tablist">
+              <nav class="no-scrollbar flex gap-1 overflow-x-auto">
                 <For each={tabs()}>
                   {tab => (
                     <button
+                      type="button"
                       onClick={() => setActiveTab(tab.id)}
                       class={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all ${
                         activeTab() === tab.id ? 'text-white' : 'text-slate-400 hover:text-white'
@@ -351,6 +367,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                 {license().license_key}
                               </p>
                               <button
+                                type="button"
                                 onClick={copyLicenseKey}
                                 class="rounded-lg p-2 transition-colors hover:bg-white/10"
                                 title="Copy license key"
@@ -453,12 +470,9 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                           <span class="gradient-text">Recent Activity (7 Days)</span>
                         </h3>
                         <div class="flex h-48 items-end justify-between gap-2">
-                          <For each={getRecentDailyUsage(data().daily)}>
+                          <For each={recentDailyUsage()}>
                             {day => {
-                              const commandsHeight = getCommandBarHeight(
-                                day,
-                                getRecentDailyUsage(data().daily)
-                              );
+                              const commandsHeight = getCommandBarHeight(day, recentDailyUsage());
                               return (
                                 <div class="group flex flex-1 flex-col items-center gap-2">
                                   <div
@@ -506,6 +520,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                       <For each={DASHBOARD_DATE_RANGES}>
                         {option => (
                           <button
+                            type="button"
                             onClick={() => setDateRange(option.value)}
                             class={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
                               dateRange() === option.value
@@ -520,6 +535,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                     </div>
                     <div class="flex items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => exportData('csv')}
                         class="btn-secondary px-3 py-2 text-sm"
                         title="Export as CSV"
@@ -528,6 +544,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                         CSV
                       </button>
                       <button
+                        type="button"
                         onClick={() => exportData('json')}
                         class="btn-secondary px-3 py-2 text-sm"
                         title="Export as JSON"
@@ -1018,6 +1035,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                 {license().license_key}
                               </code>
                               <button
+                                type="button"
                                 onClick={copyLicenseKey}
                                 class="rounded-lg p-2 transition-colors hover:bg-white/10"
                                 title="Copy license key"
@@ -1060,6 +1078,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                   </p>
                   <div class="flex gap-3">
                     <button
+                      type="button"
                       onClick={() => exportData('csv')}
                       class="btn-secondary px-4 py-2 text-sm"
                       disabled={telemetryLoading() || !telemetryData()}
@@ -1068,6 +1087,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                       Export CSV
                     </button>
                     <button
+                      type="button"
                       onClick={() => exportData('json')}
                       class="btn-secondary px-4 py-2 text-sm"
                       disabled={telemetryLoading() || !telemetryData()}

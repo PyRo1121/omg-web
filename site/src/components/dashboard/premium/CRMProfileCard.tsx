@@ -115,14 +115,6 @@ const handleEmail = (email: string) => {
   window.location.href = `mailto:${email}`;
 };
 
-const handleCall = (customerId: string, onQuickAction?: (action: string, id: string) => void) => {
-  onQuickAction?.('call', customerId);
-};
-
-const handleNote = (customerId: string, onQuickAction?: (action: string, id: string) => void) => {
-  onQuickAction?.('note', customerId);
-};
-
 export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
   const [showActions, setShowActions] = createSignal(false);
 
@@ -329,12 +321,12 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
               <QuickActionButton
                 icon={Phone}
                 label="Call"
-                onClick={() => handleCall(props.customer.id, props.onQuickAction)}
+                onClick={() => props.onQuickAction?.('call', props.customer.id)}
               />
               <QuickActionButton
                 icon={MessageSquare}
                 label="Note"
-                onClick={() => handleNote(props.customer.id, props.onQuickAction)}
+                onClick={() => props.onQuickAction?.('note', props.customer.id)}
               />
             </div>
 

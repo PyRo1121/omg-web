@@ -344,12 +344,7 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     return errorResponse('Invalid billing offer', 400);
   }
   const { offer } = decoded.value;
-  const priceExit = await Effect.runPromiseExit(
-    resolveBillingPrice(offer, {
-      proPriceId: env.STRIPE_PRO_PRICE_ID,
-      teamPriceId: env.STRIPE_TEAM_PRICE_ID,
-    })
-  );
+  const priceExit = await Effect.runPromiseExit(resolveBillingPrice(offer, billingCatalog(env)));
   if (Exit.isFailure(priceExit)) {
     return errorResponse('Billing offer unavailable', 503);
   }
@@ -552,13 +547,13 @@ export async function handleStripeWebhook(
             crypto.randomUUID(),
             resolved.customerId,
             invoice.id,
-            invoice.amount_paid,
-            invoice.currency,
-            invoice.status,
-            invoice.hosted_invoice_url || null,
-            invoice.invoice_pdf || null,
-            invoice.period_start,
-            invoice.period_end
+            invoice.amount_paid ?? null,
+            invoice.currency ?? null,
+            invoice.status ?? null,
+            invoice.hosted_invoice_url ?? null,
+            invoice.invoice_pdf ?? null,
+            invoice.period_start ?? null,
+            invoice.period_end ?? null
           )
           .run();
       } else {
@@ -725,14 +720,14 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
             crypto.randomUUID(),
             resolved.customerId,
             invoice.id,
-            invoice.amount_paid,
-            invoice.currency,
-            invoice.status,
-            invoice.hosted_invoice_url,
-            invoice.invoice_pdf,
-            invoice.period_start,
-            invoice.period_end,
-            invoice.created
+            invoice.amount_paid ?? null,
+            invoice.currency ?? null,
+            invoice.status ?? null,
+            invoice.hosted_invoice_url ?? null,
+            invoice.invoice_pdf ?? null,
+            invoice.period_start ?? null,
+            invoice.period_end ?? null,
+            invoice.created ?? null
           )
           .run();
         return true;

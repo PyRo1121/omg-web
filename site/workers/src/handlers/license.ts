@@ -24,6 +24,8 @@ import {
   decodeRowArray,
   decodeValidateLicenseFields,
   toValidateLicenseRequest,
+  type ActiveMachineRow,
+  type LicenseUsageRow,
   type ValidateLicenseFields,
   type ValidateLicenseRequest,
   type ValidateLicenseRow,
@@ -81,8 +83,8 @@ type ValidateLicensePayload =
       readonly customer: string;
       readonly expires_at: string | null;
       readonly token: string;
-      readonly machines: ReadonlyArray<unknown>;
-      readonly usage: ReadonlyArray<unknown>;
+      readonly machines: ReadonlyArray<ActiveMachineRow>;
+      readonly usage: ReadonlyArray<LicenseUsageRow>;
     };
 
 function invalidLicense(error: string): InvalidLicensePayload {
@@ -199,15 +201,14 @@ function registerOrTouchMachine(
         'Machine row has an invalid shape',
         existingRow
       );
-      const hasIdentity =
-        (body.userName !== null && body.userName.length > 0) ||
-        (body.userEmail !== null && body.userEmail.length > 0);
+      // COALESCE keeps the stored identity when the request omits one.
       yield* runSql(
         env.DB,
-        hasIdentity
-          ? `UPDATE machines SET last_seen_at = CURRENT_TIMESTAMP, user_name = COALESCE(?, user_name), user_email = COALESCE(?, user_email) WHERE id = ?`
-          : `UPDATE machines SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        hasIdentity ? [body.userName, body.userEmail, existing.id] : [existing.id],
+        `UPDATE machines SET last_seen_at = CURRENT_TIMESTAMP,
+           user_name = COALESCE(?, user_name),
+           user_email = COALESCE(?, user_email)
+         WHERE id = ?`,
+        [body.userName, body.userEmail, existing.id],
         'touchMachine'
       );
       return null;
@@ -363,6 +364,15 @@ function errorStatus(error: { readonly _tag: string }): number {
  * @returns JSON validation payload or a mapped error response.
  */
 export async function handleValidateLicense(request: Request, env: Env): Promise<Response> {
+  // License keys are the sole activation credential; throttle per-IP to blunt
+  // key brute-force attempts.
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (env.API_RATE_LIMITER) {
+    const { success } = await env.API_RATE_LIMITER.limit({ key: `validate_license:${ip}` });
+    if (!success) {
+      return errorResponse('Rate limit exceeded', 429);
+    }
+  }
   return respondFromEffect(validateLicense(request, env), error =>
     errorResponse(error.message, errorStatus(error))
   );
@@ -499,6 +509,12 @@ export async function handleGetLicense(request: Request, env: Env): Promise<Resp
   const auth = await validateSession(env.DB, token);
   if (!auth) {
     return errorResponse('Unauthorized', 401);
+  }
+  // Ownership: the session user may only look up their own license. Prevents
+  // authenticated cross-tenant enumeration by email.
+  const requestedEmail = URL.parse(request.url)?.searchParams.get('email') ?? null;
+  if (requestedEmail !== null && requestedEmail.toLowerCase() !== auth.user.email.toLowerCase()) {
+    return errorResponse('Forbidden', 403);
   }
   return respondFromEffect(lookupPublicLicense(request, env), error =>
     errorResponse(error.message, errorStatus(error))

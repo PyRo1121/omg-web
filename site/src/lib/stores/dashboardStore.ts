@@ -264,6 +264,3 @@ export function createDashboardStore() {
 
   return [state, actions] as const;
 }
-
-export type DashboardStore = ReturnType<typeof createDashboardStore>;
-export type DashboardActions = DashboardStore[1];

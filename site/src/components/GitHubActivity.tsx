@@ -1,5 +1,5 @@
 import { reportClientError, reportClientWarning } from '~/lib/observability';
-import { type Component, createSignal, onMount, Show, For } from 'solid-js';
+import { type Component, createMemo, createSignal, onMount, Show, For } from 'solid-js';
 import {
   parseGitHubActivity,
   parseGitHubActivityCache,
@@ -19,6 +19,7 @@ const GitHubActivity: Component = () => {
   const [loading, setLoading] = createSignal(true);
   const [totalCommits, setTotalCommits] = createSignal(0);
   const [error, setError] = createSignal<string | null>(null);
+  const maxValue = createMemo(() => Math.max(...data().map(d => d.value)));
 
   const getCachedData = (): GitHubActivityCache | null => {
     try {
@@ -166,8 +167,7 @@ const GitHubActivity: Component = () => {
         <div class="flex items-end gap-3" style={{ height: '140px' }}>
           <For each={data()}>
             {item => {
-              const maxVal = Math.max(...data().map(d => d.value));
-              const barHeight = Math.max((item.value / maxVal) * 120, 8);
+              const barHeight = Math.max((item.value / maxValue()) * 120, 8);
               return (
                 <div class="group relative flex flex-1 flex-col items-center gap-2">
                   <div

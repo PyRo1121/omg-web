@@ -58,6 +58,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div class="hidden rounded-xl border border-white/10 bg-white/[0.02] p-1 md:flex">
             <button
+              type="button"
               onClick={() => setViewMode('table')}
               class={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
                 viewMode() === 'table' ? 'bg-white text-black' : 'text-slate-400 hover:text-white'
@@ -66,6 +67,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
               Table
             </button>
             <button
+              type="button"
               onClick={() => setViewMode('cards')}
               class={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
                 viewMode() === 'cards' ? 'bg-white text-black' : 'text-slate-400 hover:text-white'
@@ -118,7 +120,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
                   <CRMProfileCard
                     customer={customer}
                     onViewDetail={customerId => props.onViewDetail(customerId)}
-                    onQuickAction={(action, _customerId) => {
+                    onQuickAction={action => {
                       if (action === 'email') {
                         window.open(`mailto:${customer.email}`);
                       }
@@ -152,7 +154,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
                       <CRMProfileCardTableRow
                         customer={customer}
                         onViewDetail={customerId => props.onViewDetail(customerId)}
-                        onQuickAction={(action, _customerId) => {
+                        onQuickAction={action => {
                           if (action === 'email') {
                             window.open(`mailto:${customer.email}`);
                           }
@@ -181,6 +183,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
                 </p>
                 <div class="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={() =>
                       props.onPageChange(Math.max(1, (props.pagination?.page || 1) - 1))
                     }
@@ -190,6 +193,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
                     Previous
                   </button>
                   <button
+                    type="button"
                     onClick={() =>
                       props.onPageChange(
                         Math.min(props.pagination?.pages || 1, (props.pagination?.page || 1) + 1)

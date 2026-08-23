@@ -8,7 +8,6 @@ interface PageEntry {
   path: string;
   priority: number;
   changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
-  lastmod?: string;
 }
 
 const STATIC_PAGES: PageEntry[] = [
@@ -53,7 +52,7 @@ const DOC_PAGES: PageEntry[] = [
  */
 function generateUrlEntry(page: PageEntry, baseUrl: string): string {
   const loc = `${baseUrl}${page.path}`;
-  const lastmod = page.lastmod || new Date().toISOString().split('T')[0];
+  const lastmod = new Date().toISOString().split('T')[0];
 
   return `  <url>
     <loc>${escapeXml(loc)}</loc>

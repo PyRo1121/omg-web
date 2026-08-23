@@ -21,7 +21,11 @@ export default function Home() {
   const [show3D, setShow3D] = createSignal(false);
 
   onMount(() => {
-    window.requestIdleCallback(() => setShow3D(true), { timeout: 8000 });
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(() => setShow3D(true), { timeout: 8000 });
+    } else {
+      setTimeout(() => setShow3D(true), 200);
+    }
   });
 
   return (

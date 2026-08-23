@@ -42,10 +42,16 @@ export const useAdminFirehose = (limit = 50) =>
 
 export const useAdminRevenue = () => apiQuery(['admin-revenue'], api.getAdminRevenue);
 
-export const useAdminAuditLog = (page = 1, limit = 50, action = '') =>
-  apiQuery(['admin-audit-log', page, limit, action], () =>
-    api.getAdminAuditLog(page, limit, action)
-  );
+// Accessor form keeps the query key reactive: changing page/filter refetches.
+export const useAdminAuditLog = (
+  page: () => number = () => 1,
+  limit: () => number = () => 50,
+  action: () => string = () => ''
+) =>
+  createQuery(() => ({
+    queryKey: ['admin-audit-log', page(), limit(), action()],
+    queryFn: () => api.getAdminAuditLog(page(), limit(), action()),
+  }));
 
 export const useAdminCRMUsers = (page = 1, limit = 50, search = '') =>
   apiQuery(['admin-crm-users', page, limit, search], () => api.getAdminUsers(page, limit, search));

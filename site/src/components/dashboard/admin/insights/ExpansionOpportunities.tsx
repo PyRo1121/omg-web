@@ -173,8 +173,8 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = pr
   const sortedOpportunities = createMemo(() =>
     [...props.data].toSorted((a, b) => {
       return (
-        (PRIORITY_CONFIG[getPriorityLevel(b.priority)]?.rank || 0) -
-        (PRIORITY_CONFIG[getPriorityLevel(a.priority)]?.rank || 0)
+        PRIORITY_CONFIG[getPriorityLevel(b.priority)].rank -
+        PRIORITY_CONFIG[getPriorityLevel(a.priority)].rank
       );
     })
   );

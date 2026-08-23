@@ -185,7 +185,7 @@ const SegmentCard: Component<{
             <div class="flex items-center gap-2">
               <div class="bg-void-700 h-2 flex-1 overflow-hidden rounded-full">
                 <div
-                  class={cn('h-full rounded-full transition-all duration-500')}
+                  class="h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${props.metrics.churnRisk}%`,
                     'background-color':
@@ -290,6 +290,12 @@ const SegmentComparisonChart: Component<{
   );
 };
 
+const VENN_POSITIONS = [
+  { left: '25%', top: '20%' },
+  { left: '50%', top: '20%' },
+  { left: '37%', top: '45%' },
+];
+
 const VennDiagramConcept: Component<{ segments: SegmentMetrics[] }> = props => {
   const segments = () => props.segments.slice(0, 3);
 
@@ -302,12 +308,7 @@ const VennDiagramConcept: Component<{ segments: SegmentMetrics[] }> = props => {
       <div class="relative flex h-64 items-center justify-center">
         <For each={segments()}>
           {(segment, i) => {
-            const positions = [
-              { left: '25%', top: '20%' },
-              { left: '50%', top: '20%' },
-              { left: '37%', top: '45%' },
-            ];
-            const pos = positions[i()] ?? { left: '25%', top: '20%' };
+            const pos = VENN_POSITIONS[i()] ?? { left: '25%', top: '20%' };
 
             return (
               <div
@@ -360,19 +361,18 @@ export const SegmentAnalytics: Component = () => {
     }
 
     const metrics = metricsQuery.data;
-    const churnRiskMap: Record<string, number> = {};
     const ltvMap: Record<string, number> = {};
-
-    metrics.churn_risk_segments?.forEach(s => {
-      churnRiskMap[s.tier || 'free'] = s.user_count;
-    });
 
     metrics.ltv_by_tier?.forEach(l => {
       ltvMap[l.tier] = l.avg_ltv;
     });
 
-    const totalUsers = metrics.engagement?.mau || 1;
     const currentMRR = metrics.revenue_metrics?.current_mrr || 0;
+    const mau = metrics.engagement?.mau || 1;
+    const stickiness = ((metrics.engagement?.dau || 0) / mau) * 100;
+    const trend: 'up' | 'down' | 'stable' =
+      stickiness > 20 ? 'up' : stickiness > 10 ? 'stable' : 'down';
+    const trendValue = trend === 'up' ? stickiness - 15 : trend === 'down' ? -(15 - stickiness) : 0;
 
     return PREDEFINED_SEGMENTS.map(segment => {
       let userCount = 0;
@@ -381,7 +381,7 @@ export const SegmentAnalytics: Component = () => {
       let mrrContribution = 0;
 
       if (segment.id === 'power_users') {
-        userCount = Math.round(totalUsers * 0.1);
+        userCount = Math.round(mau * 0.1);
         avgLtv = (ltvMap['enterprise'] || 0) * 0.8;
         churnRisk = 5;
         mrrContribution = currentMRR * 0.4;
@@ -394,7 +394,7 @@ export const SegmentAnalytics: Component = () => {
         churnRisk = 65;
         mrrContribution = currentMRR * 0.08;
       } else if (segment.id === 'new_users') {
-        userCount = Math.round(totalUsers * 0.15);
+        userCount = Math.round(mau * 0.15);
         avgLtv = 0;
         churnRisk = 25;
         mrrContribution = currentMRR * 0.05;
@@ -417,14 +417,6 @@ export const SegmentAnalytics: Component = () => {
         churnRisk = 18;
         mrrContribution = currentMRR * 0.2;
       }
-
-      const dau = metrics.engagement?.dau || 0;
-      const mau = metrics.engagement?.mau || 1;
-      const stickiness = (dau / mau) * 100;
-      const trend: 'up' | 'down' | 'stable' =
-        stickiness > 20 ? 'up' : stickiness > 10 ? 'stable' : 'down';
-      const trendValue =
-        trend === 'up' ? stickiness - 15 : trend === 'down' ? -(15 - stickiness) : 0;
 
       return {
         segment,

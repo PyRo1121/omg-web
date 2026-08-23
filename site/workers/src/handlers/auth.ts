@@ -503,6 +503,15 @@ export async function handleSendCode(request: Request, env: Env): Promise<Respon
  * @returns JSON session payload or a mapped error response.
  */
 export async function handleVerifyCode(request: Request, env: Env): Promise<Response> {
+  // Throttle per-IP: OTP codes have bounded attempts by design, but without a
+  // limiter an attacker can still brute-force across many requests.
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (env.AUTH_RATE_LIMITER) {
+    const { success } = await env.AUTH_RATE_LIMITER.limit({ key: `verify_code:${ip}` });
+    if (!success) {
+      return errorResponse('Rate limit exceeded', 429);
+    }
+  }
   const exit = await Effect.runPromiseExit(verifyCode(request, env));
   return responseFromExit(exit, httpStatusForVerify, 'Verification failed. Please try again.');
 }

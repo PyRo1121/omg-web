@@ -7,7 +7,7 @@ import { LicensingRoutes } from '../../../shared/licensing-routes';
 import { parseApiError } from '~/lib/dashboard-contract';
 
 /** A failure while loading or decoding the account dashboard. */
-export class DashboardLoadError extends Error {
+class DashboardLoadError extends Error {
   readonly _tag = 'DashboardLoadError';
   constructor(
     readonly reason: string,
@@ -18,7 +18,7 @@ export class DashboardLoadError extends Error {
 }
 
 /** A failure while loading or decoding the telemetry dashboard. */
-export class TelemetryLoadError extends Error {
+class TelemetryLoadError extends Error {
   readonly _tag = 'TelemetryLoadError';
   constructor(
     readonly reason: string,

@@ -2,6 +2,13 @@ import type { APIEvent } from '@solidjs/start/server';
 import * as Sentry from '@sentry/solid';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://omg.latham.cloud',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Credentials': 'true',
+};
+
 function getEnv(event: APIEvent): CloudflareEnv {
   const cf = event.nativeEvent.context.cloudflare?.env;
 
@@ -21,13 +28,6 @@ function getEnv(event: APIEvent): CloudflareEnv {
 }
 
 async function handleAuth(event: APIEvent): Promise<Response> {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://omg.latham.cloud',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Credentials': 'true',
-  };
-
   if (event.request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders });
   }

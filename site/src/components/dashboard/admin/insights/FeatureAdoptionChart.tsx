@@ -18,30 +18,35 @@ interface FeatureAdoptionChartProps {
   data: FeatureAdoptionData;
 }
 
+const COLOR_CLASSES = {
+  indigo: {
+    bg: 'bg-indigo-500/20',
+    text: 'text-indigo-400',
+    bar: 'bg-indigo-500',
+  },
+  cyan: {
+    bg: 'bg-cyan-500/20',
+    text: 'text-cyan-400',
+    bar: 'bg-cyan-500',
+  },
+  purple: {
+    bg: 'bg-purple-500/20',
+    text: 'text-purple-400',
+    bar: 'bg-purple-500',
+  },
+  emerald: {
+    bg: 'bg-emerald-500/20',
+    text: 'text-emerald-400',
+    bar: 'bg-emerald-500',
+  },
+} satisfies Record<string, { bg: string; text: string; bar: string }>;
+type ColorName = keyof typeof COLOR_CLASSES;
+
 function getColorClasses(color: string) {
-  const colors = {
-    indigo: {
-      bg: 'bg-indigo-500/20',
-      text: 'text-indigo-400',
-      bar: 'bg-indigo-500',
-    },
-    cyan: {
-      bg: 'bg-cyan-500/20',
-      text: 'text-cyan-400',
-      bar: 'bg-cyan-500',
-    },
-    purple: {
-      bg: 'bg-purple-500/20',
-      text: 'text-purple-400',
-      bar: 'bg-purple-500',
-    },
-    emerald: {
-      bg: 'bg-emerald-500/20',
-      text: 'text-emerald-400',
-      bar: 'bg-emerald-500',
-    },
-  } satisfies Record<string, { bg: string; text: string; bar: string }>;
-  return Object.entries(colors).find(([key]) => key === color)?.[1] ?? colors.indigo;
+  // SAFETY: `color` is always one of the literal keys assigned in `features`
+  // below ('indigo' | 'cyan' | 'purple' | 'emerald'); the fallback keeps an
+  // out-of-contract value rendering with the default palette.
+  return COLOR_CLASSES[color as ColorName] ?? COLOR_CLASSES.indigo;
 }
 
 export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props => {
@@ -49,29 +54,29 @@ export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props 
     {
       name: 'Package Install',
       icon: Package,
-      adopters: props.data.install_adopters ?? 0,
-      total_uses: props.data.total_installs ?? 0,
+      adopters: props.data.install_adopters,
+      total_uses: props.data.total_installs,
       color: 'indigo',
     },
     {
       name: 'Package Search',
       icon: Search,
-      adopters: props.data.search_adopters ?? 0,
-      total_uses: props.data.total_searches ?? 0,
+      adopters: props.data.search_adopters,
+      total_uses: props.data.total_searches,
       color: 'cyan',
     },
     {
       name: 'Runtime Switch',
       icon: Repeat,
-      adopters: props.data.runtime_adopters ?? 0,
-      total_uses: props.data.total_runtime_switches ?? 0,
+      adopters: props.data.runtime_adopters,
+      total_uses: props.data.total_runtime_switches,
       color: 'purple',
     },
     {
       name: 'SBOM Generate',
       icon: FileCode,
-      adopters: props.data.sbom_adopters ?? 0,
-      total_uses: props.data.total_sbom ?? 0,
+      adopters: props.data.sbom_adopters,
+      total_uses: props.data.total_sbom,
       color: 'emerald',
     },
   ];

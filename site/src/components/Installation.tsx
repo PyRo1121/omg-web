@@ -1,16 +1,25 @@
 import type { Component } from 'solid-js';
-import { createSignal } from 'solid-js';
+import { createSignal, For } from 'solid-js';
+
+const INSTALL_TABS = [
+  { id: 'curl', label: 'Linux/macOS' },
+  { id: 'windows', label: 'Windows' },
+  { id: 'arch', label: 'Arch (AUR)' },
+  { id: 'scoop', label: 'Scoop' },
+] as const;
+
+type InstallTabId = (typeof INSTALL_TABS)[number]['id'];
 
 const Installation: Component = () => {
   const [copied, setCopied] = createSignal(false);
-  const [activeTab, setActiveTab] = createSignal<'curl' | 'windows' | 'arch' | 'scoop'>('curl');
+  const [activeTab, setActiveTab] = createSignal<InstallTabId>('curl');
 
   const commands = {
     curl: 'curl -fsSL https://omg.latham.cloud/install.sh | bash',
     windows: 'irm https://omg.latham.cloud/install.ps1 | iex',
     arch: 'yay -S omg-bin',
     scoop: 'scoop install omg',
-  };
+  } as const satisfies Record<InstallTabId, string>;
 
   const copyToClipboard = () => {
     void navigator.clipboard.writeText(commands[activeTab()]);
@@ -27,7 +36,13 @@ const Installation: Component = () => {
         {/* Header */}
         <div class="mb-16 text-center">
           <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-4 py-2 text-sm text-green-300">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              aria-hidden="true"
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -48,46 +63,20 @@ const Installation: Component = () => {
         {/* Install tabs */}
         <div class="mx-auto max-w-3xl">
           <div class="mb-6 flex flex-wrap justify-center gap-2">
-            <button
-              onClick={() => setActiveTab('curl')}
-              class={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-                activeTab() === 'curl'
-                  ? 'bg-indigo-500 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              Linux/macOS
-            </button>
-            <button
-              onClick={() => setActiveTab('windows')}
-              class={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-                activeTab() === 'windows'
-                  ? 'bg-indigo-500 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              Windows
-            </button>
-            <button
-              onClick={() => setActiveTab('arch')}
-              class={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-                activeTab() === 'arch'
-                  ? 'bg-indigo-500 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              Arch (AUR)
-            </button>
-            <button
-              onClick={() => setActiveTab('scoop')}
-              class={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-                activeTab() === 'scoop'
-                  ? 'bg-indigo-500 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              Scoop
-            </button>
+            <For each={INSTALL_TABS}>
+              {tab => (
+                <button
+                  onClick={() => setActiveTab(tab.id)}
+                  class={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                    activeTab() === tab.id
+                      ? 'bg-indigo-500 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              )}
+            </For>
           </div>
 
           {/* Command box */}
@@ -110,6 +99,7 @@ const Installation: Component = () => {
               >
                 {copied() ? (
                   <svg
+                    aria-hidden="true"
                     class="h-5 w-5 text-green-400"
                     fill="none"
                     stroke="currentColor"
@@ -124,6 +114,7 @@ const Installation: Component = () => {
                   </svg>
                 ) : (
                   <svg
+                    aria-hidden="true"
                     class="h-5 w-5 text-indigo-400 group-hover:text-indigo-300"
                     fill="none"
                     stroke="currentColor"
@@ -177,7 +168,12 @@ const Installation: Component = () => {
         <div class="mx-auto grid max-w-4xl gap-6 md:grid-cols-3">
           <div class="rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 p-6 transition-colors hover:border-cyan-500/40">
             <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/20">
-              <svg class="h-6 w-6 text-cyan-400" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                aria-hidden="true"
+                class="h-6 w-6 text-cyan-400"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
               </svg>
             </div>
@@ -190,7 +186,12 @@ const Installation: Component = () => {
 
           <div class="rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-red-500/10 p-6 transition-colors hover:border-orange-500/40">
             <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/20">
-              <svg class="h-6 w-6 text-orange-400" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                aria-hidden="true"
+                class="h-6 w-6 text-orange-400"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
               </svg>
             </div>
@@ -203,7 +204,12 @@ const Installation: Component = () => {
 
           <div class="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 p-6 transition-colors hover:border-blue-500/40">
             <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/20">
-              <svg class="h-6 w-6 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                aria-hidden="true"
+                class="h-6 w-6 text-blue-400"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801" />
               </svg>
             </div>

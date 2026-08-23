@@ -40,26 +40,26 @@ export type DashboardTab =
 export type DashboardDateRange = '7d' | '14d' | '30d' | '90d';
 
 /** An icon component rendered by the dashboard. */
-export type DashboardIcon = Component<{ readonly class?: string }>;
+type DashboardIcon = Component<{ readonly class?: string }>;
 
 /** A dashboard tab and its presentation metadata. */
-export interface DashboardTabOption {
+interface DashboardTabOption {
   readonly id: DashboardTab;
   readonly label: string;
   readonly icon: LucideIcon;
 }
 
 /** A supported telemetry export serialization. */
-export type TelemetryExportFormat = 'csv' | 'json';
+type TelemetryExportFormat = 'csv' | 'json';
 
 /** Presentation metadata for a stat-card trend. */
-export interface TrendPresentation {
+interface TrendPresentation {
   readonly icon: LucideIcon;
   readonly color: string;
 }
 
 /** Serialized telemetry ready for the browser download boundary. */
-export interface TelemetryExport {
+interface TelemetryExport {
   readonly content: string;
   readonly filename: string;
   readonly mimeType: 'application/json' | 'text/csv';

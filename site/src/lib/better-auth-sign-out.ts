@@ -1,4 +1,4 @@
-import { Effect, Either } from 'effect';
+import { Effect } from 'effect';
 
 /** Better Auth cookie revocation failed during browser sign-out. */
 class BetterAuthSignOutError extends Error {
@@ -17,11 +17,14 @@ export interface BrowserSignOutResult {
 export function revokeBetterAuthSession(
   revoke: () => Promise<void>
 ): Effect.Effect<BrowserSignOutResult> {
-  return Effect.tryPromise({
-    try: revoke,
-    catch: cause => new BetterAuthSignOutError(cause),
-  }).pipe(
-    Effect.either,
-    Effect.map(result => (Either.isLeft(result) ? { failures: [result.left] } : { failures: [] }))
+  return Effect.match(
+    Effect.tryPromise({
+      try: revoke,
+      catch: cause => new BetterAuthSignOutError(cause),
+    }),
+    {
+      onFailure: failure => ({ failures: [failure] }),
+      onSuccess: () => ({ failures: [] }),
+    }
   );
 }

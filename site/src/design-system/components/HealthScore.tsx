@@ -375,9 +375,6 @@ export const HealthScore: Component<HealthScoreProps> = props => {
       <Match when={variant() === 'gauge'}>
         <HealthScoreGauge {...props} />
       </Match>
-      <Match when={variant() === 'ring'}>
-        <HealthScoreRing {...props} />
-      </Match>
       <Match when={variant() === 'bar'}>
         <HealthScoreBar {...props} />
       </Match>

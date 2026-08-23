@@ -1,6 +1,55 @@
 import type { Component } from 'solid-js';
-import { createSignal } from 'solid-js';
+import { For, createSignal } from 'solid-js';
 import UpgradeModal from './UpgradeModal';
+
+interface Feature {
+  readonly label: string;
+  readonly strong?: true;
+}
+
+const FeatureList: Component<{ features: readonly Feature[] }> = props => (
+  <ul class="mb-6 space-y-3 text-sm">
+    <For each={props.features}>
+      {feature => (
+        <li class="flex items-center gap-2">
+          <span class="text-green-400">✓</span>
+          {feature.strong ? <strong>{feature.label}</strong> : feature.label}
+        </li>
+      )}
+    </For>
+  </ul>
+);
+
+const FREE_FEATURES: readonly Feature[] = [
+  { label: 'Package management' },
+  { label: '100+ runtimes via mise' },
+  { label: 'Container integration' },
+  { label: 'Environment fingerprinting' },
+  { label: 'Gist sharing' },
+];
+
+const PRO_FEATURES: readonly Feature[] = [
+  { label: 'Everything in Free' },
+  { label: 'SBOM generation', strong: true },
+  { label: 'Vulnerability scanning', strong: true },
+  { label: 'Secret detection', strong: true },
+];
+
+const TEAM_FEATURES: readonly Feature[] = [
+  { label: 'Everything in Pro' },
+  { label: 'Team environment sync', strong: true },
+  { label: 'Shared team configs', strong: true },
+  { label: 'Tamper-proof audit logs', strong: true },
+  { label: 'Up to 25 team members', strong: true },
+];
+
+const ENTERPRISE_FEATURES: readonly Feature[] = [
+  { label: 'Everything in Team' },
+  { label: 'SSO/SAML integration', strong: true },
+  { label: 'Policy enforcement', strong: true },
+  { label: 'SLSA provenance', strong: true },
+  { label: 'Dedicated support', strong: true },
+];
 
 const Pricing: Component = () => {
   const [showUpgradeModal, setShowUpgradeModal] = createSignal(false);
@@ -35,28 +84,7 @@ const Pricing: Component = () => {
               <span class="text-sm text-slate-400">/forever</span>
             </div>
 
-            <ul class="mb-6 space-y-3 text-sm">
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                Package management
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                100+ runtimes via mise
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                Container integration
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                Environment fingerprinting
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                Gist sharing
-              </li>
-            </ul>
+            <FeatureList features={FREE_FEATURES} />
 
             <a href="#install" class="btn-secondary w-full justify-center text-sm">
               Get Started
@@ -81,26 +109,10 @@ const Pricing: Component = () => {
               <span class="text-sm text-slate-400">/month</span>
             </div>
 
-            <ul class="mb-6 space-y-3 text-sm">
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                Everything in Free
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>SBOM generation</strong>
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>Vulnerability scanning</strong>
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>Secret detection</strong>
-              </li>
-            </ul>
+            <FeatureList features={PRO_FEATURES} />
 
             <button
+              type="button"
               class="btn-primary w-full justify-center text-sm"
               onClick={() => openUpgrade('pro')}
             >
@@ -126,30 +138,10 @@ const Pricing: Component = () => {
               <span class="text-sm text-slate-400">/month</span>
             </div>
 
-            <ul class="mb-6 space-y-3 text-sm">
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                Everything in Pro
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>Team environment sync</strong>
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>Shared team configs</strong>
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>Tamper-proof audit logs</strong>
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>Up to 25 team members</strong>
-              </li>
-            </ul>
+            <FeatureList features={TEAM_FEATURES} />
 
             <button
+              type="button"
               class="btn-primary w-full justify-center text-sm"
               onClick={() => openUpgrade('team')}
             >
@@ -169,28 +161,7 @@ const Pricing: Component = () => {
               <span class="mt-1 block text-sm text-slate-400">tailored to your needs</span>
             </div>
 
-            <ul class="mb-6 space-y-3 text-sm">
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                Everything in Team
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>SSO/SAML integration</strong>
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>Policy enforcement</strong>
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>SLSA provenance</strong>
-              </li>
-              <li class="flex items-center gap-2">
-                <span class="text-green-400">✓</span>
-                <strong>Dedicated support</strong>
-              </li>
-            </ul>
+            <FeatureList features={ENTERPRISE_FEATURES} />
 
             <a
               href="mailto:enterprise@latham.cloud"

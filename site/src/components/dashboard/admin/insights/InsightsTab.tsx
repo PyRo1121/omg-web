@@ -28,12 +28,12 @@ import {
 
 type InsightCategory = 'all' | 'engagement' | 'revenue' | 'risk' | 'growth';
 
-const INSIGHT_CATEGORIES: { id: InsightCategory; label: string; color: string }[] = [
-  { id: 'all', label: 'All Insights', color: 'text-white' },
-  { id: 'engagement', label: 'Engagement', color: 'text-indigo-400' },
-  { id: 'revenue', label: 'Revenue', color: 'text-aurora-400' },
-  { id: 'risk', label: 'Risk', color: 'text-flare-400' },
-  { id: 'growth', label: 'Growth', color: 'text-solar-400' },
+const INSIGHT_CATEGORIES: { id: InsightCategory; label: string }[] = [
+  { id: 'all', label: 'All Insights' },
+  { id: 'engagement', label: 'Engagement' },
+  { id: 'revenue', label: 'Revenue' },
+  { id: 'risk', label: 'Risk' },
+  { id: 'growth', label: 'Growth' },
 ];
 
 function exportInsight(format: 'pdf' | 'png') {
