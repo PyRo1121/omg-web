@@ -1,6 +1,7 @@
 import { Title, Meta, Link } from '@solidjs/meta';
 import { A } from '@solidjs/router';
 import Footer from '~/components/Footer';
+import Header from '~/components/Header';
 
 /** Terms of service for the OMG Package Manager site, CLI, and licensing API. */
 export default function TermsPage() {
@@ -13,14 +14,22 @@ export default function TermsPage() {
       />
       <Link rel="canonical" href="https://omg.latham.cloud/terms" />
 
-      <div class="min-h-screen bg-[#0a0a0a] text-slate-200">
-        <main class="mx-auto max-w-3xl px-6 py-16">
-          <h1 class="mb-2 text-3xl font-bold text-white">Terms of Service</h1>
-          <p class="mb-10 text-sm text-slate-500">Last updated February 7, 2026</p>
+      <div class="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+        <Header />
+        <main class="manifest-shell px-6 py-16 sm:px-10 sm:py-24">
+          <p class="manifest-index">LEGAL / TERMS</p>
+          <h1 class="mt-4 text-6xl font-black tracking-[-0.06em] uppercase sm:text-8xl">
+            Terms of service
+          </h1>
+          <p class="mt-4 border-b border-[var(--ink)] pb-8 font-mono text-xs text-[var(--ink-muted)]">
+            Last updated February 7, 2026
+          </p>
 
-          <div class="space-y-8 text-sm leading-relaxed text-slate-300">
+          <div class="max-w-3xl space-y-10 pt-10 text-sm leading-relaxed text-[var(--ink-muted)]">
             <section>
-              <h2 class="mb-3 text-lg font-semibold text-white">1. The service</h2>
+              <h2 class="mb-3 text-2xl font-bold tracking-[-0.03em] text-[var(--ink)]">
+                1. The service
+              </h2>
               <p>
                 OMG Package Manager ("OMG") is a unified package manager CLI for Linux with an
                 optional licensing platform providing telemetry, dashboards, and team features. The
@@ -30,7 +39,9 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 class="mb-3 text-lg font-semibold text-white">2. Accounts and licenses</h2>
+              <h2 class="mb-3 text-2xl font-bold tracking-[-0.03em] text-[var(--ink)]">
+                2. Accounts and licenses
+              </h2>
               <ul class="list-disc space-y-2 pl-5">
                 <li>You are responsible for activity performed through your account and keys.</li>
                 <li>
@@ -45,7 +56,9 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 class="mb-3 text-lg font-semibold text-white">3. Acceptable use</h2>
+              <h2 class="mb-3 text-2xl font-bold tracking-[-0.03em] text-[var(--ink)]">
+                3. Acceptable use
+              </h2>
               <ul class="list-disc space-y-2 pl-5">
                 <li>No attempts to breach, overload, or abuse the service or its APIs.</li>
                 <li>
@@ -57,7 +70,9 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 class="mb-3 text-lg font-semibold text-white">4. Billing</h2>
+              <h2 class="mb-3 text-2xl font-bold tracking-[-0.03em] text-[var(--ink)]">
+                4. Billing
+              </h2>
               <p>
                 Paid tiers are billed through Stripe. Subscriptions renew until canceled and can be
                 managed via the billing portal in your dashboard. Refunds and chargebacks may result
@@ -66,7 +81,9 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 class="mb-3 text-lg font-semibold text-white">5. Disclaimer and liability</h2>
+              <h2 class="mb-3 text-2xl font-bold tracking-[-0.03em] text-[var(--ink)]">
+                5. Disclaimer and liability
+              </h2>
               <p>
                 The service is provided "as is" without warranties of any kind. To the maximum
                 extent permitted by law, OMG's operators are not liable for indirect, incidental, or
@@ -75,14 +92,13 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 class="mb-3 text-lg font-semibold text-white">6. Changes and contact</h2>
+              <h2 class="mb-3 text-2xl font-bold tracking-[-0.03em] text-[var(--ink)]">
+                6. Changes and contact
+              </h2>
               <p>
                 These terms may be updated; material changes will be announced on the site.
                 Continued use after changes constitutes acceptance. Questions:{' '}
-                <a
-                  class="text-indigo-400 transition-colors hover:text-indigo-300"
-                  href="mailto:support@latham.cloud"
-                >
+                <a class="font-semibold text-[var(--signal)]" href="mailto:support@latham.cloud">
                   support@latham.cloud
                 </a>
                 .
@@ -90,7 +106,7 @@ export default function TermsPage() {
             </section>
           </div>
 
-          <A href="/" class="mt-12 inline-block text-sm text-slate-500 hover:text-white">
+          <A href="/" class="manifest-button mt-12">
             ← Back to home
           </A>
         </main>

@@ -1,10 +1,10 @@
-import { createEffect, createSignal, Show } from 'solid-js';
+import { Meta, Title } from '@solidjs/meta';
 import { A, useNavigate } from '@solidjs/router';
-import { Title, Meta } from '@solidjs/meta';
+import { CircleAlert, LoaderCircle, Mail } from 'lucide-solid';
+import { createEffect, createSignal, Show } from 'solid-js';
+import { GitHubIcon, GoogleIcon } from '~/components/ui/BrandIcons';
 import { signIn, useSession } from '~/lib/auth-client';
 import { getErrorMessage } from '~/lib/error-message';
-import { Terminal, Mail, CircleAlert, LoaderCircle } from 'lucide-solid';
-import { GitHubIcon, GoogleIcon } from '~/components/ui/BrandIcons';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -20,26 +20,21 @@ export default function LoginPage() {
     }
   });
 
-  const handleEmailLogin = async (e: Event) => {
-    e.preventDefault();
+  const handleEmailLogin = async (event: Event): Promise<void> => {
+    event.preventDefault();
     setLoading(true);
     setError('');
-
     try {
-      const result = await signIn.email({
-        email: email(),
-        password: password(),
-      });
-
+      const result = await signIn.email({ email: email(), password: password() });
       if (result.error) {
         setError(result.error.message || 'Login failed');
       } else {
         navigate('/dashboard');
       }
-    } catch (err) {
+    } catch (cause: unknown) {
       setError(
-        err instanceof Error
-          ? getErrorMessage(err, 'An unexpected error occurred')
+        cause instanceof Error
+          ? getErrorMessage(cause, 'An unexpected error occurred')
           : 'An unexpected error occurred'
       );
     } finally {
@@ -47,39 +42,25 @@ export default function LoginPage() {
     }
   };
 
-  const handleOAuthLogin = async (provider: 'github' | 'google') => {
+  const handleOAuthLogin = async (provider: 'github' | 'google'): Promise<void> => {
     setLoading(true);
     setError('');
-
     try {
-      const result = await signIn.social({
-        provider,
-        callbackURL: '/dashboard',
-      });
-      // signIn.social resolves without navigating when the popup is blocked
-      // or the provider returns an error page; surface it instead of leaving
-      // the buttons disabled forever.
+      const result = await signIn.social({ provider, callbackURL: '/dashboard' });
       if (result?.error) {
         setError(result.error.message || 'OAuth login failed');
       }
-    } catch (err) {
+    } catch (cause: unknown) {
       setError(
-        err instanceof Error ? getErrorMessage(err, 'OAuth login failed') : 'OAuth login failed'
+        cause instanceof Error ? getErrorMessage(cause, 'OAuth login failed') : 'OAuth login failed'
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const pageBg =
-    'min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-blue-500/30 selection:text-blue-200 overflow-x-hidden relative';
-  const glassPanel = 'bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl';
-  const glassInput =
-    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all';
-  const glassButton =
-    'w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed';
-  const oauthButton =
-    'w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium py-3 rounded-xl transition-all';
+  const inputClass =
+    'w-full border border-[var(--ink)] bg-[var(--paper-raised)] px-4 py-3 font-mono text-sm placeholder:text-[var(--ink-muted)]';
 
   return (
     <>
@@ -87,122 +68,125 @@ export default function LoginPage() {
       <Meta name="description" content="Sign in to your OMG Package Manager dashboard" />
       <Meta name="robots" content="noindex, nofollow" />
 
-      <div class={pageBg}>
-        <div class="pointer-events-none fixed top-[-20%] left-[-10%] h-[50%] w-[50%] rounded-full bg-blue-600/10 blur-[120px]" />
-        <div class="pointer-events-none fixed right-[-10%] bottom-[-20%] h-[50%] w-[50%] rounded-full bg-purple-600/10 blur-[120px]" />
-        <div class="pointer-events-none fixed top-[20%] right-[10%] h-[30%] w-[30%] rounded-full bg-cyan-600/5 blur-[100px]" />
+      <main class="manifest-shell grid min-h-screen lg:grid-cols-[5fr_7fr]">
+        <section class="flex flex-col justify-between border-b border-[var(--ink)] bg-[var(--signal)] p-6 text-[var(--paper-raised)] sm:p-10 lg:border-r lg:border-b-0">
+          <A href="/" class="flex items-center gap-3 text-[var(--paper-raised)] no-underline">
+            <span class="grid h-10 w-10 place-items-center bg-[var(--paper-raised)] font-mono text-sm font-semibold text-[var(--signal)]">
+              O/
+            </span>
+            <strong class="text-xl">OMG</strong>
+          </A>
+          <div class="my-24 lg:my-0">
+            <p class="manifest-label">ACCOUNT ACCESS / 01</p>
+            <h1 class="mt-5 text-6xl leading-[0.86] font-black tracking-[-0.065em] uppercase sm:text-8xl">
+              Return to your workspace.
+            </h1>
+          </div>
+          <p class="font-mono text-xs text-[#fae0dc]">Packages / runtimes / fleet operations</p>
+        </section>
 
-        <div class="relative z-10 flex min-h-screen flex-col items-center justify-center p-4">
-          <div class={`${glassPanel} animate-fade-in w-full max-w-md p-8 md:p-12`}>
-            <div class="mb-8 text-center">
-              <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-500 to-purple-500 shadow-lg shadow-blue-500/20">
-                <Terminal class="h-8 w-8 text-white" />
-              </div>
-              <h1 class="mb-2 text-3xl font-bold tracking-tight text-white">Welcome back</h1>
-              <p class="text-slate-400">Sign in to access your dashboard</p>
-            </div>
+        <section
+          class="flex items-center bg-[var(--paper-raised)] p-6 sm:p-10 lg:p-16"
+          aria-labelledby="login-form-title"
+        >
+          <div class="mx-auto w-full max-w-xl">
+            <p class="manifest-index">SIGN IN</p>
+            <h2 id="login-form-title" class="mt-3 text-4xl font-black tracking-[-0.05em] uppercase">
+              Welcome back
+            </h2>
+            <p class="mt-3 text-[var(--ink-muted)]">
+              Choose a verified identity provider or use an existing controlled account.
+            </p>
 
-            <div class="mb-6 space-y-3">
+            <div class="mt-10 grid sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => handleOAuthLogin('github')}
+                onClick={() => void handleOAuthLogin('github')}
                 disabled={loading()}
-                class={oauthButton}
+                class="manifest-button sm:border-r-0"
+                aria-label="Continue with GitHub"
               >
-                <GitHubIcon class="h-5 w-5" />
-                Continue with GitHub
+                <GitHubIcon class="h-5 w-5" /> GitHub
               </button>
               <button
                 type="button"
-                onClick={() => handleOAuthLogin('google')}
+                onClick={() => void handleOAuthLogin('google')}
                 disabled={loading()}
-                class={oauthButton}
+                class="manifest-button"
+                aria-label="Continue with Google"
               >
-                <GoogleIcon class="h-5 w-5" />
-                Continue with Google
+                <GoogleIcon class="h-5 w-5" /> Google
               </button>
             </div>
 
-            <div class="relative mb-6">
-              <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-white/10" />
-              </div>
-              <div class="relative flex justify-center text-sm">
-                <span class="bg-[#0a0a0a] px-4 text-slate-500">or continue with email</span>
-              </div>
+            <div class="manifest-label my-8 flex items-center gap-4 text-[var(--ink-muted)]">
+              <span class="h-px flex-1 bg-[var(--rule)]" /> Existing account{' '}
+              <span class="h-px flex-1 bg-[var(--rule)]" />
             </div>
 
-            <form onSubmit={handleEmailLogin} class="space-y-4">
-              <div>
-                <label for="login-email" class="mb-2 ml-1 block text-sm font-medium text-slate-300">
-                  Email Address
-                </label>
-                <div class="relative">
-                  <Mail class="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-slate-500" />
+            <form onSubmit={event => void handleEmailLogin(event)} class="space-y-5">
+              <label class="block" for="login-email">
+                <span class="manifest-label mb-2 block text-[var(--ink-muted)]">Email address</span>
+                <span class="relative block">
+                  <Mail
+                    class="absolute top-1/2 left-3 -translate-y-1/2 text-[var(--ink-muted)]"
+                    size={16}
+                    strokeWidth={1.5}
+                  />
                   <input
                     id="login-email"
                     type="email"
                     value={email()}
-                    onInput={e => setEmail(e.currentTarget.value)}
-                    placeholder="dev@example.com"
+                    onInput={event => setEmail(event.currentTarget.value)}
+                    autocomplete="email"
                     required
-                    class={`${glassInput} pl-12`}
+                    class={`${inputClass} pl-10`}
                   />
-                </div>
-              </div>
+                </span>
+              </label>
 
-              <div>
-                <label
-                  for="login-password"
-                  class="mb-2 ml-1 block text-sm font-medium text-slate-300"
-                >
-                  Password
-                </label>
+              <label class="block" for="login-password">
+                <span class="manifest-label mb-2 block text-[var(--ink-muted)]">Password</span>
                 <input
                   id="login-password"
                   type="password"
                   value={password()}
-                  onInput={e => setPassword(e.currentTarget.value)}
-                  placeholder="Enter your password"
+                  onInput={event => setPassword(event.currentTarget.value)}
+                  autocomplete="current-password"
                   required
-                  class={glassInput}
+                  class={inputClass}
                 />
-              </div>
+              </label>
 
               <Show when={error()}>
-                <div class="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
-                  <CircleAlert class="h-4 w-4 flex-shrink-0" />
-                  {error()}
+                <div
+                  role="alert"
+                  class="flex items-start gap-3 border border-[var(--danger)] bg-[#fff1ee] p-4 text-sm text-[var(--danger)]"
+                >
+                  <CircleAlert class="mt-0.5 h-4 w-4 shrink-0" /> {error()}
                 </div>
               </Show>
 
-              <button type="submit" disabled={loading()} class={glassButton}>
-                {loading() ? (
-                  <span class="flex items-center justify-center gap-2">
-                    <LoaderCircle class="h-4 w-4 animate-spin" />
-                    Signing in...
-                  </span>
-                ) : (
-                  'Sign In'
-                )}
+              <button
+                type="submit"
+                disabled={loading()}
+                class="manifest-button manifest-button--primary w-full"
+              >
+                <Show when={loading()} fallback="Sign in">
+                  <LoaderCircle class="h-4 w-4 animate-spin" /> Signing in
+                </Show>
               </button>
             </form>
 
-            <div class="mt-6 text-center">
-              <p class="text-sm text-slate-400">
-                Don't have an account?{' '}
-                <A href="/signup" class="font-medium text-blue-400 hover:text-blue-300">
-                  Sign up
-                </A>
-              </p>
-            </div>
+            <p class="mt-8 font-mono text-xs text-[var(--ink-muted)]">
+              Need an account?{' '}
+              <A href="/signup" class="font-semibold text-[var(--signal)]">
+                Sign up
+              </A>
+            </p>
           </div>
-
-          <A href="/" class="mt-8 text-sm text-slate-500 transition-colors hover:text-white">
-            ← Back to home
-          </A>
-        </div>
-      </div>
+        </section>
+      </main>
     </>
   );
 }

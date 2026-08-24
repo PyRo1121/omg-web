@@ -97,7 +97,7 @@ function transformToExecutiveKPI(
     ) ?? 0;
   return {
     mrr,
-    mrr_change: 8.3, // Would calculate from historical data
+    mrr_change: 0,
     arr: mrr * 12,
     dau: metrics?.engagement?.dau || dashboard?.daily_active_users?.[0]?.active_users || 0,
     wau: metrics?.engagement?.wau || 0,
@@ -105,7 +105,7 @@ function transformToExecutiveKPI(
     stickiness: parseFloat(
       metrics?.engagement?.stickiness?.daily_to_monthly?.replaceAll('%', '') || '0'
     ),
-    churn_rate: atRiskUsers ? (atRiskUsers / (metrics?.engagement?.mau || 1)) * 100 : 2.1,
+    churn_rate: atRiskUsers ? (atRiskUsers / (metrics?.engagement?.mau || 1)) * 100 : 0,
     at_risk_count: atRiskUsers,
     expansion_pipeline: metrics?.revenue_metrics?.expansion_mrr_12m || 0,
   };
@@ -469,17 +469,14 @@ const AdminDashboard: Component = () => {
         tabindex={isActive() ? 0 : -1}
         onClick={() => actions.setTab(props.id)}
         onKeyDown={e => handleTabKeyDown(e, props.id)}
-        class={`relative flex items-center gap-2 rounded-xl px-4 py-2.5 font-bold transition-all duration-300 ${
+        class={`manifest-label relative flex items-center gap-2 border-r border-[var(--rule)] px-4 py-3 ${
           isActive()
-            ? 'from-electric-500/20 to-photon-500/20 shadow-electric-500/10 ring-electric-500/30 bg-gradient-to-r text-white shadow-lg ring-1'
-            : 'text-nebula-400 hover:bg-white/5 hover:text-white'
+            ? 'bg-[var(--ink)] text-[var(--paper)]'
+            : 'text-[var(--ink-muted)] hover:bg-[var(--paper-muted)] hover:text-[var(--ink)]'
         }`}
       >
-        <Show when={isActive()}>
-          <div class="from-electric-500/10 to-photon-500/10 absolute inset-0 rounded-xl bg-gradient-to-r blur-sm" />
-        </Show>
         <span class="relative">
-          <props.icon size={16} />
+          <props.icon size={15} />
         </span>
         <span class="relative">{props.label}</span>
         <Show when={props.count !== undefined && props.count > 0}>
@@ -496,14 +493,15 @@ const AdminDashboard: Component = () => {
   };
 
   return (
-    <div class="space-y-6 pb-20">
-      <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+    <div class="space-y-8 pb-20">
+      <div class="grid gap-6 border-b border-[var(--ink)] pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
-          <h1 class="font-display text-4xl font-black tracking-tight text-white">
-            Mission Control
+          <p class="manifest-index">ADMIN / OPERATIONS</p>
+          <h1 class="font-display mt-3 text-5xl font-black tracking-[-0.055em] text-[var(--ink)] uppercase">
+            Control ledger
           </h1>
-          <p class="mt-2 font-medium text-slate-400">
-            Global infrastructure, revenue, and fleet telemetry
+          <p class="mt-2 font-mono text-xs text-[var(--ink-muted)]">
+            Infrastructure / revenue / fleet telemetry
           </p>
         </div>
 
@@ -646,7 +644,7 @@ const AdminDashboard: Component = () => {
       <div
         role="tablist"
         aria-label="Dashboard sections"
-        class="no-scrollbar flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-white/5 bg-white/[0.02] p-1.5"
+        class="no-scrollbar flex items-center overflow-x-auto border border-[var(--ink)] bg-[var(--paper-raised)]"
       >
         <TabButton id="overview" icon={Activity} label="Overview" />
         <TabButton id="crm" icon={Users} label="CRM" count={tabCounts().crm} />

@@ -1,554 +1,79 @@
-# OMG Design System: Mission Control
+# OMG Manifest interface
 
-> A world-class design system for the OMG Admin Dashboard & CRM
+## Design read
 
-## Aesthetic Direction
+OMG is a technical operations product for Linux developers and engineering teams. Its interface uses a Swiss-industrial “package manifest” language: rigid information grids, high-contrast typography, semantic tables, and one signal color. It must resemble a carefully typeset operations manual rather than a generic SaaS dashboard.
 
-### Core Philosophy: "Mission Control"
+## Principles
 
-The OMG dashboard is designed as a premium **command center** that conveys the precision, speed, and technical sophistication of the OMG unified package manager. The aesthetic combines:
+1. **Information before containers.** Group related data with headings, rules, table semantics, and whitespace. Do not wrap every metric in a card.
+2. **One visual language.** Paper (`--paper`), carbon (`--ink`), rules, and signal red (`--signal`) are the visual palette. Green, amber, and red are reserved for state.
+3. **Data is tabular.** Numeric values use IBM Plex Mono with tabular figures. Customer and operational records use semantic tables, not responsive card duplicates.
+4. **Geometry communicates structure.** Corners are square. Shadows, glass blur, gradients, and decorative glows are prohibited.
+5. **Progressive disclosure.** Primary pages show summaries and tables. Kobalte dialogs, menus, and tabs handle focused interaction and keyboard behavior.
+6. **Motion is feedback.** Only short transform/opacity transitions are allowed. Reduced-motion preferences disable them.
 
-- **Deep Space Darkness**: Rich void blacks with subtle blue undertones create depth
-- **Bioluminescent Data**: Colors that "glow" against darkness, making data immediately scannable
-- **Technical Precision**: Clean geometry, tabular figures, and information density
-- **Living System**: Pulse animations, real-time streams, and presence indicators
+## Foundations
 
-### Visual Differentiation
+- Display/body: Archivo Variable, self-hosted with `font-display: swap`.
+- Data/code: IBM Plex Mono, self-hosted at weights 400–600.
+- Accessible primitives: Kobalte.
+- Server state: TanStack Solid Query.
+- Data grids: TanStack Solid Table v9 with reactive getters and semantic markup.
+- Icons: the existing Lucide Solid set at 1.25–1.6 stroke width. Icons supplement labels; they never replace ambiguous text.
 
-Unlike generic admin templates, OMG Mission Control features:
+## Layout
 
-1. **Distinctive Typography**: Space Grotesk for display (geometric, technical) + Plus Jakarta Sans for body (modern, readable)
-2. **Semantic Color Coding**: Every color has meaning tied to health scores, lifecycle stages, risk levels
-3. **Depth Through Glow**: Colored glows and shadows create visual hierarchy without traditional elevation
-4. **Real-time DNA**: Built-in patterns for live data streams, presence indicators, and animated transitions
+- Maximum canvas: `96rem`, represented by `.manifest-shell`.
+- Structural pages use a 12-column `.manifest-grid` and collapse to one column below 768px.
+- Sections meet at visible 1px rules. Nested groups use `--rule`; major boundaries use `--ink`.
+- Marketing sections alternate information structures: hero split, feature ledger, runtime catalog, benchmark table, install workbench, and plan matrix.
+- Dashboard tabs form a single horizontal index. Data regions use lists, definitions, and tables before panels.
 
----
+## Reusable classes
 
-## Typography
+- `.manifest-shell`: constrained page canvas with side rules.
+- `.manifest-section`: major top boundary.
+- `.manifest-grid`: responsive 12-column structural grid.
+- `.manifest-label`: 11px uppercase operational metadata.
+- `.manifest-index`: signal-red section or record identifier.
+- `.manifest-button`: square, high-contrast action.
+- `.manifest-button--primary`: signal-red primary action.
 
-### Font Stack
+These are structural vocabulary, not a substitute for semantic HTML.
 
-```css
---font-display: 'Space Grotesk', system-ui, sans-serif; /* Headers, metrics */
---font-body: 'Plus Jakarta Sans', system-ui, sans-serif; /* Body, UI text */
---font-mono: 'JetBrains Mono', 'Fira Code', monospace; /* Code, data */
-```
+## Interaction requirements
 
-### Google Fonts Import
+- Every icon-only control has an accessible name.
+- Every input has a visible label.
+- Tabs, menus, and dialogs use Kobalte unless native HTML provides the complete interaction.
+- Tables include a caption (visible or screen-reader-only), scoped headers, and horizontal overflow on narrow screens.
+- Loading states resemble the destination structure. Empty and error states explain the next action.
+- Disabled controls retain readable contrast and expose the native `disabled` state.
 
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link
-  href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
-  rel="stylesheet"
-/>
-```
+## Prohibited patterns
 
-### Type Scale
+- Gradient text or multicolor accents.
+- Glass surfaces, backdrop blur on scrolling content, glow shadows, or floating color blobs.
+- Equal-height feature cards, KPI card walls, and separate mobile card/table implementations.
+- Decorative badges such as “Popular” or “Best value” without operational meaning.
+- Fake activity, fake precision, placeholder companies, or invented trend lines.
+- Manual focus traps when Kobalte provides the primitive.
+- Continuous animation, confetti, or scroll listeners.
 
-| Token       | Size | Use Case                 |
-| ----------- | ---- | ------------------------ |
-| `text-2xs`  | 10px | Micro labels, timestamps |
-| `text-xs`   | 12px | Badges, captions         |
-| `text-sm`   | 14px | Body text, table cells   |
-| `text-base` | 16px | Default body             |
-| `text-lg`   | 18px | Emphasized body          |
-| `text-xl`   | 20px | Card headers             |
-| `text-2xl`  | 24px | Section titles           |
-| `text-3xl`  | 30px | Page subtitles           |
-| `text-4xl`  | 36px | Page titles              |
-| `text-5xl`  | 48px | Hero metrics             |
+## Verification
 
-### Typography Patterns
+Before shipping a UI change:
 
-```jsx
-// Page title
-<h1 class="text-4xl font-black tracking-tight text-white font-display">
-  System Command
-</h1>
+1. Run strict typecheck, lint, formatting, focused tests, and bundle budgets.
+2. Inspect desktop at 1440px and mobile at 390px.
+3. Exercise keyboard navigation, focus restoration, loading, empty, error, and overflow states.
+4. Confirm body text meets WCAG AA and controls have visible focus.
+5. Confirm the page contains no unintended gradients, blur, or rounded card stacks.
 
-// Section header
-<h3 class="text-xl font-black tracking-tight text-white">
-  Customer CRM
-</h3>
+## References
 
-// Metric display
-<span class="font-display text-5xl font-black tabular-nums text-white">
-  12,847
-</span>
-
-// Label
-<span class="text-xs font-bold uppercase tracking-widest text-nebula-500">
-  Total Users
-</span>
-
-// Monospace data
-<code class="font-mono text-sm text-nebula-300 tabular-nums">
-  ses_abc123
-</code>
-```
-
----
-
-## Color System
-
-### Palette Philosophy
-
-| Palette      | Purpose     | Primary Use                        |
-| ------------ | ----------- | ---------------------------------- |
-| **Void**     | Backgrounds | Surface hierarchy, depth           |
-| **Nebula**   | Text        | Content hierarchy, disabled states |
-| **Indigo**   | Primary     | Actions, links, focus states       |
-| **Electric** | Accent      | Energy, activated states           |
-| **Photon**   | Secondary   | Creative, secondary actions        |
-| **Aurora**   | Success     | Healthy, positive, growth          |
-| **Solar**    | Warning     | Attention, caution, review         |
-| **Flare**    | Error       | Critical, danger, urgent           |
-| **Plasma**   | Info        | Informational, new, neutral        |
-
-### Health Score Colors
-
-```
-0-20:  Critical (Flare-500)    #ef4444
-21-40: Poor (Flare-400)        #f87171
-41-60: Fair (Solar-500)        #f59e0b
-61-80: Good (Electric-500)     #22d3d3
-81-100: Excellent (Aurora-500) #10b981
-```
-
-### Lifecycle Stage Colors
-
-| Stage       | Color        | Icon          |
-| ----------- | ------------ | ------------- |
-| New         | Plasma-400   | Sparkles      |
-| Onboarding  | Photon-400   | Rocket        |
-| Activated   | Electric-500 | Zap           |
-| Engaged     | Indigo-400   | Activity      |
-| Power User  | Solar-400    | Crown         |
-| At Risk     | Flare-400    | AlertTriangle |
-| Churning    | Flare-600    | TrendingDown  |
-| Churned     | Nebula-600   | XCircle       |
-| Reactivated | Aurora-400   | RefreshCw     |
-
-### Tier Colors
-
-| Tier       | Color        | Background         |
-| ---------- | ------------ | ------------------ |
-| Free       | Nebula-500   | Solid              |
-| Pro        | Indigo-400   | Gradient to Purple |
-| Team       | Electric-400 | Gradient to Plasma |
-| Enterprise | Solar-400    | Gradient to Orange |
-
----
-
-## Spacing & Layout
-
-### Spacing Scale (4px base)
-
-```
-space-1:  4px   | Tight gaps, inline spacing
-space-2:  8px   | Component internal padding
-space-3:  12px  | Small component gaps
-space-4:  16px  | Default padding
-space-6:  24px  | Card padding
-space-8:  32px  | Section padding
-space-10: 40px  | Large gaps
-space-12: 48px  | Section margins
-space-16: 64px  | Page sections
-```
-
-### Dashboard Grid
-
-```jsx
-// 4-column metric grid
-<DashboardGrid columns={4} gap="lg">
-  <DataCard ... />
-  <DataCard ... />
-  <DataCard ... />
-  <DataCard ... />
-</DashboardGrid>
-
-// Mixed layout
-<DashboardGrid columns={3} gap="lg">
-  <GridItem span={2}>  {/* Spans 2 columns */}
-    <CommandStream />
-  </GridItem>
-  <GridItem span={1}>
-    <GlobalPresence />
-  </GridItem>
-</DashboardGrid>
-```
-
-### Breakpoints
-
-```
-xs:  475px   | Large phones
-sm:  640px   | Small tablets
-md:  768px   | Tablets
-lg:  1024px  | Small desktops
-xl:  1280px  | Desktops
-2xl: 1536px  | Large desktops
-3xl: 1920px  | Ultra-wide
-```
-
----
-
-## Component Library
-
-### Health Score Visualizations
-
-```jsx
-// Ring gauge (default)
-<HealthScore score={85} size="lg" showLabel animated />
-
-// Progress bar
-<HealthScore score={72} variant="bar" showLabel showSegments />
-
-// Compact badge
-<HealthScore score={45} variant="badge" showTrend trend={-5} />
-
-// Half-circle gauge
-<HealthScore score={90} variant="gauge" size="xl" />
-```
-
-### Lifecycle Badges
-
-```jsx
-// Standard badge
-<LifecycleBadge stage="power_user" showIcon />
-
-// Progress indicator
-<LifecycleProgress currentStage="engaged" showLabels />
-
-// Timeline view
-<LifecycleTimeline
-  currentStage="activated"
-  stageHistory={[
-    { stage: 'new', date: 'Jan 15' },
-    { stage: 'onboarding', date: 'Jan 18' },
-    { stage: 'activated', date: 'Jan 25' }
-  ]}
-/>
-```
-
-### Real-time Indicators
-
-```jsx
-// Live pulse
-<LiveIndicator label="Live" variant="pulse" color="success" />
-
-// Stream counter
-<StreamCounter count={1247} label="Events" rate={12} />
-
-// Presence dot
-<PresenceIndicator status="online" label="John Doe" />
-
-// Data stream
-<DataStream
-  items={[
-    { id: '1', content: 'omg search firefox', type: 'success' },
-    { id: '2', content: 'omg install vim', type: 'info' }
-  ]}
-/>
-```
-
-### Data Cards
-
-```jsx
-// Basic stat card
-<DataCard
-  title="Total Users"
-  value="12,847"
-  icon={<Users />}
-  trend={{ value: 8.2, direction: 'up', period: 'vs last month' }}
-  accent="indigo"
-/>
-
-// With sparkline
-<SparklineCard
-  title="Revenue"
-  value="$45,230"
-  data={[10, 15, 12, 25, 30, 28, 35]}
-  sparklineColor="#10b981"
-/>
-```
-
-### Tier Badges
-
-```jsx
-// Badge
-<TierBadge tier="enterprise" size="md" glowing />
-
-// Card format
-<TierBadge tier="team" variant="card" />
-
-// Comparison
-<TierComparison currentTier="pro" recommendedTier="team" />
-```
-
-### Risk Indicators
-
-```jsx
-// Badge
-<RiskIndicator level="high" probability={75} />
-
-// Progress bar
-<RiskIndicator level="critical" variant="bar" probability={92} showLabel />
-
-// Segments list
-<RiskSegments
-  segments={[
-    { level: 'critical', count: 5, tier: 'enterprise', avgCommands: 12 },
-    { level: 'high', count: 23, tier: 'pro', avgCommands: 45 }
-  ]}
-  onSegmentClick={(level) => console.log(level)}
-/>
-```
-
-### CRM Components
-
-```jsx
-// Notes list
-<NotesList
-  notes={notes}
-  onAddNote={(content, type) => createNote(content, type)}
-  onDeleteNote={(id) => deleteNote(id)}
-/>
-
-// Tags manager
-<TagsManager
-  assignedTags={customerTags}
-  availableTags={allTags}
-  onAssign={(id) => assignTag(id)}
-  onRemove={(id) => removeTag(id)}
-  onCreate={(name, color) => createTag(name, color)}
-/>
-
-// Task card
-<TaskCard
-  task={{
-    id: '1',
-    type: 'renewal',
-    title: 'Schedule renewal call',
-    dueDate: 'Tomorrow',
-    completed: false,
-    priority: 'high'
-  }}
-  onToggle={(id) => toggleTask(id)}
-/>
-
-// Communication timeline
-<CommunicationTimeline communications={history} />
-```
-
-### Layout Components
-
-```jsx
-// Page header
-<PageHeader
-  title="System Command"
-  subtitle="Global infrastructure telemetry"
-  breadcrumbs={[
-    { label: 'Dashboard', href: '/' },
-    { label: 'Admin' }
-  ]}
-  actions={<Button>Export</Button>}
-/>
-
-// Tab navigation
-<TabNavigation
-  tabs={[
-    { id: 'overview', label: 'Overview', icon: <Activity /> },
-    { id: 'crm', label: 'CRM', icon: <Users />, badge: 23 }
-  ]}
-  activeTab={activeTab}
-  onChange={setActiveTab}
-  variant="pills"
-/>
-
-// Section
-<Section
-  title="Customer Health"
-  subtitle="Real-time engagement metrics"
-  action={<RefreshButton />}
-  variant="card"
-  collapsible
->
-  {/* Content */}
-</Section>
-
-// Drawer
-<Drawer
-  open={drawerOpen}
-  onClose={() => setDrawerOpen(false)}
-  title="Customer Detail"
-  subtitle="360° view"
-  width="2xl"
->
-  {/* Drawer content */}
-</Drawer>
-```
-
----
-
-## Animation System
-
-### Timing
-
-```css
---duration-fast: 100ms /* Hover states */ --duration-normal: 200ms /* Standard transitions */
-  --duration-slow: 300ms /* Complex animations */ --duration-slower: 500ms /* Page transitions */;
-```
-
-### Easing
-
-```css
---ease-smooth: cubic-bezier(0.23, 1, 0.32, 1) /* Most interactions */
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1) /* Bouncy feedback */
-  --ease-swift: cubic-bezier(0.16, 1, 0.3, 1) /* Quick, snappy */;
-```
-
-### Keyframe Animations
-
-| Animation                | Use Case                         |
-| ------------------------ | -------------------------------- |
-| `animate-pulse-glow`     | Active/selected states with glow |
-| `animate-pulse-slow`     | Subtle breathing effect          |
-| `animate-float`          | Floating elements                |
-| `animate-shimmer`        | Loading/skeleton states          |
-| `animate-gauge-fill`     | Health score ring fill           |
-| `animate-stream-in`      | List item entrance               |
-| `animate-slide-in-right` | Drawer entrance                  |
-| `animate-fade-up`        | Content entrance                 |
-
----
-
-## Interaction Patterns
-
-### Health Score Changes
-
-```jsx
-// Score change triggers:
-// 1. Ring fills with easing animation
-// 2. Color transitions smoothly
-// 3. Glow pulses briefly
-// 4. Optional trend indicator appears
-
-<HealthScore score={newScore} animated showTrend trend={delta} />
-```
-
-### Real-time Updates
-
-```jsx
-// New stream items:
-// 1. Slide in from left with scale
-// 2. Previous items shift down
-// 3. Old items fade out at bottom
-// 4. Counter increments with lerp
-
-<DataStream items={liveItems} maxVisible={5} />
-<StreamCounter count={total} rate={perSecond} />
-```
-
-### Drawer/Modal Patterns
-
-```jsx
-// Open:
-// 1. Backdrop fades in with blur
-// 2. Panel slides from right
-// 3. Content fades in staggered
-
-// Close:
-// 1. Content fades out
-// 2. Panel slides out
-// 3. Backdrop fades
-```
-
-### Filter/Search
-
-```jsx
-// 1. Results filter immediately (optimistic)
-// 2. Loading skeleton for async
-// 3. Stagger animate results in
-// 4. Empty state if no results
-```
-
----
-
-## Accessibility
-
-### Color Contrast
-
-All text meets WCAG AA standards:
-
-- Regular text: 4.5:1 contrast ratio
-- Large text: 3:1 contrast ratio
-- Interactive elements: Visible focus states
-
-### Focus States
-
-```css
-/* Keyboard focus */
-focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2 focus:ring-offset-void-950
-```
-
-### Motion
-
-```css
-/* Respect reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-```
-
----
-
-## Implementation Checklist
-
-### Required Google Fonts
-
-```html
-<link
-  href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
-  rel="stylesheet"
-/>
-```
-
-### CSS Import
-
-```css
-@import './design-system/tokens.css';
-```
-
-### Tailwind Theme
-
-The palette and utility scales are registered for Tailwind v4 directly in CSS —
-no JS config file is needed:
-
-```css
-@import './design-system/tokens.css';
-```
-
-`tokens.css` declares the primitives in an `@theme static` block, so utilities
-such as `bg-void-850`, `text-nebula-400`, `text-2xs`, `shadow-card`,
-`ease-smooth`, and `animate-gauge-fill` are generated by `@tailwindcss/postcss`
-and every theme variable remains available as a plain CSS custom property.
-
-### Component Import
-
-```tsx
-import {
-  HealthScore,
-  LifecycleBadge,
-  LiveIndicator,
-  DataCard,
-  TierBadge,
-  RiskIndicator,
-  DashboardGrid,
-  Section,
-} from './design-system';
-```
+- Kobalte component guidance: <https://kobalte.dev/docs/core/overview/introduction/>
+- TanStack Solid Table: <https://tanstack.com/table/latest/docs/framework/solid>
+- Carbon dashboard guidance: <https://carbondesignsystem.com/data-visualization/dashboards/>
+- Carbon data-table guidance: <https://carbondesignsystem.com/components/data-table/usage/>

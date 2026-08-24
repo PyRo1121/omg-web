@@ -1,7 +1,7 @@
-import { type Component, createEffect, createSignal, onCleanup, Show, For } from 'solid-js';
+import { Dialog } from '@kobalte/core';
+import { ArrowLeft, Check, LoaderCircle, X } from 'lucide-solid';
+import { type Component, createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
 import { ApiError, createCheckout } from '../lib/api';
-
-const UPGRADE_DIALOG_LABEL = 'Upgrade your plan';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -13,56 +13,42 @@ const TIERS = {
   pro: {
     name: 'Pro',
     price: 9,
-    description: 'For security-conscious developers',
-    color: 'indigo',
-    features: [
-      { name: 'SBOM Generation', description: 'Software Bill of Materials for compliance' },
-      { name: 'Vulnerability Scanning', description: 'Detect CVEs in your dependencies' },
-      { name: 'Secret Detection', description: 'Find leaked credentials before they ship' },
-      { name: 'Priority Updates', description: 'Get new features first' },
-    ],
+    description: 'Security controls for individual developers',
+    features: ['SBOM generation', 'Vulnerability scanning', 'Secret detection'],
   },
   team: {
     name: 'Team',
     price: 200,
-    description: 'For teams & organizations',
-    color: 'purple',
-    features: [
-      { name: 'Everything in Pro', description: 'All security features included' },
-      { name: 'Team Environment Sync', description: 'Keep everyone on the same page' },
-      { name: 'Shared Configurations', description: 'Centralized team settings' },
-      { name: 'Audit Logs', description: 'Tamper-proof activity tracking' },
-      { name: 'Up to 25 Members', description: 'Scale your team securely' },
-    ],
+    description: 'Shared controls for teams and organizations',
+    features: ['Everything in Pro', 'Environment sync', 'Audit log', 'Up to 25 members'],
   },
-};
+} as const;
 
 const UpgradeModal: Component<UpgradeModalProps> = props => {
   const [step, setStep] = createSignal<'select' | 'details' | 'processing'>('select');
-  const [selectedTier, setSelectedTier] = createSignal<'pro' | 'team'>(props.initialTier || 'pro');
+  const [selectedTier, setSelectedTier] = createSignal<'pro' | 'team'>(props.initialTier ?? 'pro');
   const [error, setError] = createSignal<string | null>(null);
-  const [isLoading, setIsLoading] = createSignal(false);
-  let redirectTimeout: ReturnType<typeof setTimeout> | undefined;
+  let redirectTimer: ReturnType<typeof setTimeout> | undefined;
   let checkoutAttempt = 0;
-  let dialogRef: HTMLDivElement | undefined;
-  let previouslyFocused: Element | null = null;
-
-  const cancelPendingRedirect = (): void => {
-    if (redirectTimeout !== undefined) {
-      clearTimeout(redirectTimeout);
-      redirectTimeout = undefined;
-    }
-  };
 
   const cancelCheckout = (): void => {
     checkoutAttempt += 1;
-    cancelPendingRedirect();
+    if (redirectTimer !== undefined) {
+      clearTimeout(redirectTimer);
+      redirectTimer = undefined;
+    }
+  };
+
+  const close = (): void => {
+    cancelCheckout();
+    setStep('select');
+    setError(null);
+    props.onClose();
   };
 
   createEffect(() => {
-    const initialTier = props.initialTier ?? 'pro';
     if (props.isOpen) {
-      setSelectedTier(initialTier);
+      setSelectedTier(props.initialTier ?? 'pro');
     } else {
       cancelCheckout();
     }
@@ -70,96 +56,43 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
 
   onCleanup(cancelCheckout);
 
-  // Dialog lifecycle: initial focus, focus containment/restoration, Escape.
-  createEffect(() => {
-    if (!props.isOpen) {
-      return;
-    }
-    previouslyFocused = document.activeElement;
-    const focusTimer = setTimeout(() => {
-      dialogRef?.querySelector<HTMLElement>('button')?.focus();
-    }, 0);
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        handleClose();
-        return;
-      }
-      if (e.key !== 'Tab' || !dialogRef) {
-        return;
-      }
-      const focusable = dialogRef.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      const firstElement = focusable[0];
-      const lastElement = focusable[focusable.length - 1];
-      if (!firstElement || !lastElement) {
-        return;
-      }
-      if (e.shiftKey && document.activeElement === firstElement) {
-        e.preventDefault();
-        lastElement.focus();
-      } else if (!e.shiftKey && document.activeElement === lastElement) {
-        e.preventDefault();
-        firstElement.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    onCleanup(() => {
-      clearTimeout(focusTimer);
-      document.removeEventListener('keydown', handleKeyDown);
-      if (previouslyFocused instanceof HTMLElement) {
-        previouslyFocused.focus();
-      }
-    });
-  });
-
-  const handleTierSelect = (tier: 'pro' | 'team') => {
+  const chooseTier = (tier: 'pro' | 'team'): void => {
     setSelectedTier(tier);
     setStep('details');
   };
 
-  const handleCheckout = async (): Promise<void> => {
-    const currentAttempt = checkoutAttempt + 1;
-    checkoutAttempt = currentAttempt;
-    cancelPendingRedirect();
+  const startCheckout = async (): Promise<void> => {
+    const attempt = checkoutAttempt + 1;
+    checkoutAttempt = attempt;
     setError(null);
-    setIsLoading(true);
     setStep('processing');
 
     try {
       const checkout = await createCheckout(selectedTier());
-      let checkoutUrl: URL;
-      try {
-        checkoutUrl = new URL(checkout.url);
-      } catch {
+      if (!URL.canParse(checkout.url)) {
         setError('Checkout returned an invalid redirect.');
         setStep('details');
         return;
       }
-
+      const checkoutUrl = new URL(checkout.url);
       if (checkoutUrl.protocol !== 'https:' || checkoutUrl.hostname !== 'checkout.stripe.com') {
         setError('Checkout returned an untrusted redirect.');
         setStep('details');
         return;
       }
-
-      if (!props.isOpen || currentAttempt !== checkoutAttempt) {
+      if (!props.isOpen || attempt !== checkoutAttempt) {
         return;
       }
-
-      redirectTimeout = setTimeout(() => {
-        redirectTimeout = undefined;
-        if (!props.isOpen || currentAttempt !== checkoutAttempt) {
+      redirectTimer = setTimeout(() => {
+        redirectTimer = undefined;
+        if (!props.isOpen || attempt !== checkoutAttempt) {
           return;
         }
-        const redirectLink = document.createElement('a');
-        redirectLink.href = checkoutUrl.toString();
-        redirectLink.rel = 'noopener noreferrer';
-        redirectLink.click();
-      }, 800);
+        const link = document.createElement('a');
+        link.href = checkoutUrl.toString();
+        link.rel = 'noopener noreferrer';
+        link.click();
+      }, 500);
     } catch (cause: unknown) {
       setError(
         cause instanceof ApiError && cause.status === 401
@@ -167,413 +100,136 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
           : 'Unable to start checkout. Please try again.'
       );
       setStep('details');
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleClose = () => {
-    cancelCheckout();
-    setStep('select');
-    setError(null);
-    props.onClose();
-  };
-
   return (
-    <Show when={props.isOpen}>
-      <div
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
-        onClick={e => e.target === e.currentTarget && handleClose()}
-      >
-        {/* Backdrop */}
-        <div class="animate-fade-in absolute inset-0 bg-black/80 backdrop-blur-md" />
-
-        {/* Modal */}
-        <div
-          ref={el => (dialogRef = el)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={UPGRADE_DIALOG_LABEL}
-          class="animate-scale-in relative w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-b from-slate-800 to-slate-900 shadow-2xl shadow-black/50"
-        >
-          {/* Glow effect */}
-          <div class="pointer-events-none absolute -top-40 -right-40 h-80 w-80 rounded-full bg-indigo-500/20 blur-3xl" />
-          <div class="pointer-events-none absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-purple-500/20 blur-3xl" />
-
-          {/* Close button */}
-          <button
-            onClick={handleClose}
-            aria-label="Close upgrade dialog"
-            class="absolute top-4 right-4 z-10 rounded-full p-2 text-slate-400 transition-all hover:bg-slate-700/50 hover:text-white"
-          >
-            <svg
-              aria-hidden="true"
-              class="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-
-          <div class="relative p-8">
-            {/* Step 1: Tier Selection */}
-            <Show when={step() === 'select'}>
-              <div class="mb-8 text-center">
-                <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-400">
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
-                  Upgrade Your Experience
-                </div>
-                <h2 class="mb-2 text-3xl font-bold text-white">Choose Your Plan</h2>
-                <p class="text-slate-400">Unlock powerful features for your development workflow</p>
+    <Dialog.Root open={props.isOpen} onOpenChange={open => !open && close()}>
+      <Dialog.Portal>
+        <Dialog.Overlay class="fixed inset-0 z-40 bg-[rgba(21,21,20,0.66)]" />
+        <div class="fixed inset-0 z-40 grid place-items-center overflow-y-auto p-4">
+          <Dialog.Content class="relative w-full max-w-4xl border border-[var(--ink)] bg-[var(--paper-raised)]">
+            <header class="flex items-start justify-between border-b border-[var(--ink)] p-5 sm:p-7">
+              <div>
+                <p class="manifest-index">BILLING / CHECKOUT</p>
+                <Dialog.Title class="mt-2 text-3xl font-black tracking-[-0.045em] uppercase">
+                  {step() === 'select' ? 'Choose a plan' : 'Review the order'}
+                </Dialog.Title>
+                <Dialog.Description class="mt-2 text-sm text-[var(--ink-muted)]">
+                  Checkout uses the identity on your signed-in OMG account.
+                </Dialog.Description>
               </div>
+              <Dialog.CloseButton
+                class="grid h-10 w-10 place-items-center border border-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--paper)]"
+                aria-label="Close checkout"
+              >
+                <X size={18} strokeWidth={1.5} />
+              </Dialog.CloseButton>
+            </header>
 
-              <div class="grid gap-6 md:grid-cols-2">
+            <Show when={step() === 'select'}>
+              <div class="grid md:grid-cols-2">
                 <For each={['pro', 'team'] as const}>
                   {tierKey => {
                     const tier = TIERS[tierKey];
-                    const isTeam = tierKey === 'team';
                     return (
                       <button
-                        onClick={() => handleTierSelect(tierKey)}
-                        class={`group relative rounded-2xl border-2 p-6 text-left transition-all duration-300 hover:scale-[1.02] ${
-                          isTeam
-                            ? 'border-purple-500/50 bg-purple-500/5 hover:border-purple-400 hover:bg-purple-500/10'
-                            : 'border-slate-600/50 bg-slate-800/50 hover:border-indigo-400 hover:bg-indigo-500/10'
-                        }`}
+                        type="button"
+                        class="group min-h-96 border-b border-[var(--ink)] p-6 text-left hover:bg-[var(--paper-muted)] sm:p-8 md:border-r md:border-b-0 md:last:border-r-0"
+                        onClick={() => chooseTier(tierKey)}
                       >
-                        {isTeam && (
-                          <div class="absolute -top-3 left-6">
-                            <span class="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-3 py-1 text-xs font-bold text-white shadow-lg">
-                              BEST VALUE
-                            </span>
-                          </div>
-                        )}
-
-                        <div class="mb-4 flex items-start justify-between">
-                          <div>
-                            <h3 class="mb-1 text-xl font-bold text-white">{tier.name}</h3>
-                            <p class="text-sm text-slate-400">{tier.description}</p>
-                          </div>
-                          <div
-                            class={`rounded-xl p-3 ${isTeam ? 'bg-purple-500/20' : 'bg-indigo-500/20'}`}
-                          >
-                            <svg
-                              class={`h-6 w-6 ${isTeam ? 'text-purple-400' : 'text-indigo-400'}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              {isTeam ? (
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                                />
-                              ) : (
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                                />
-                              )}
-                            </svg>
-                          </div>
-                        </div>
-
-                        <div class="mb-6 flex items-baseline gap-1">
-                          <span class="text-4xl font-bold text-white">${tier.price}</span>
-                          <span class="text-slate-400">/month</span>
-                        </div>
-
-                        <ul class="mb-6 space-y-3">
-                          <For each={tier.features.slice(0, 4)}>
+                        <span class="manifest-label text-[var(--signal)]">{tier.name}</span>
+                        <strong class="mt-5 block text-6xl tracking-[-0.065em]">
+                          ${tier.price}
+                        </strong>
+                        <span class="font-mono text-[10px] tracking-[0.08em] text-[var(--ink-muted)] uppercase">
+                          per month
+                        </span>
+                        <p class="mt-8 max-w-xs text-sm text-[var(--ink-muted)]">
+                          {tier.description}
+                        </p>
+                        <ul class="mt-8 space-y-3 p-0 font-mono text-xs">
+                          <For each={tier.features}>
                             {feature => (
-                              <li class="flex items-start gap-3">
-                                <svg
-                                  class={`mt-0.5 h-5 w-5 flex-shrink-0 ${isTeam ? 'text-purple-400' : 'text-green-400'}`}
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                                <div>
-                                  <span class="font-medium text-white">{feature.name}</span>
-                                  <p class="text-xs text-slate-500">{feature.description}</p>
-                                </div>
+                              <li class="flex items-center gap-2">
+                                <Check size={14} strokeWidth={1.5} class="text-[var(--signal)]" />
+                                {feature}
                               </li>
                             )}
                           </For>
                         </ul>
-
-                        <div
-                          class={`flex items-center justify-center gap-2 rounded-xl py-3 font-semibold transition-all ${
-                            isTeam
-                              ? 'bg-purple-500 text-white group-hover:bg-purple-400'
-                              : 'bg-indigo-500 text-white group-hover:bg-indigo-400'
-                          }`}
-                        >
+                        <span class="manifest-button mt-8 group-hover:bg-[var(--ink)] group-hover:text-[var(--paper)]">
                           Select {tier.name}
-                          <svg
-                            class="h-4 w-4 transition-transform group-hover:translate-x-1"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                        </div>
+                        </span>
                       </button>
                     );
                   }}
                 </For>
               </div>
-
-              <p class="mt-6 text-center text-sm text-slate-500">
-                All plans include a 14-day money-back guarantee
-              </p>
             </Show>
 
-            {/* Step 2: Email & Details */}
-            <Show when={step() === 'details'}>
-              <button
-                onClick={() => setStep('select')}
-                class="mb-6 flex items-center gap-2 text-slate-400 transition-colors hover:text-white"
-              >
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-                Back to plans
-              </button>
+            <Show when={step() !== 'select'}>
+              <div class="grid md:grid-cols-[1fr_1.2fr]">
+                <aside class="border-b border-[var(--ink)] bg-[var(--ink)] p-6 text-[var(--paper-raised)] sm:p-8 md:border-r md:border-b-0">
+                  <button
+                    type="button"
+                    class="manifest-label flex items-center gap-2 text-[#aaa59a] hover:text-[var(--paper-raised)]"
+                    onClick={() => setStep('select')}
+                  >
+                    <ArrowLeft size={14} strokeWidth={1.5} /> Change plan
+                  </button>
+                  <p class="mt-16 text-5xl font-black tracking-[-0.055em] uppercase">
+                    {TIERS[selectedTier()].name}
+                  </p>
+                  <p class="mt-3 text-sm text-[#aaa59a]">{TIERS[selectedTier()].description}</p>
+                  <data class="mt-12 block font-mono text-4xl">
+                    ${TIERS[selectedTier()].price}
+                    <span class="text-xs text-[#aaa59a]"> / month</span>
+                  </data>
+                </aside>
 
-              <div class="grid gap-8 md:grid-cols-2">
-                {/* Left: Checkout */}
-                <div>
-                  <div class="mb-6">
-                    <div
-                      class={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ${
-                        selectedTier() === 'team'
-                          ? 'bg-purple-500/20 text-purple-400'
-                          : 'bg-indigo-500/20 text-indigo-400'
-                      }`}
-                    >
-                      {TIERS[selectedTier()].name} Plan
-                    </div>
-                    <h2 class="mt-3 mb-1 text-2xl font-bold text-white">Complete Your Upgrade</h2>
-                    <p class="text-sm text-slate-400">
-                      Checkout uses the email on your signed-in OMG account.
-                    </p>
-                  </div>
-
-                  <div class="space-y-4">
-                    <div class="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-4 text-sm text-indigo-200">
-                      Sign in to continue. Your account identity determines the Stripe customer and
-                      cannot be overridden in this form.
-                    </div>
-
-                    <Show when={error()}>
-                      <div class="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
-                        <svg
-                          class="h-4 w-4 flex-shrink-0"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        {error()}
-                      </div>
-                    </Show>
-
-                    <button
-                      onClick={handleCheckout}
-                      disabled={isLoading()}
-                      class={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-semibold text-white transition-all ${
-                        selectedTier() === 'team'
-                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400'
-                          : 'bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-400 hover:to-blue-400'
-                      } disabled:cursor-not-allowed disabled:opacity-50`}
-                    >
-                      {isLoading() ? (
-                        <>
-                          <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle
-                              class="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              stroke-width="4"
-                            />
-                            <path
-                              class="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            />
-                          </svg>
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          Continue to Checkout
-                          <svg
-                            class="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                        </>
+                <div class="p-6 sm:p-8">
+                  <h3 class="manifest-label text-[var(--ink-muted)]">Included capabilities</h3>
+                  <ul class="mt-5 divide-y divide-[var(--rule)] border-y border-[var(--rule)] p-0 font-mono text-xs">
+                    <For each={TIERS[selectedTier()].features}>
+                      {feature => (
+                        <li class="flex items-center gap-3 py-4">
+                          <Check size={14} strokeWidth={1.5} class="text-[var(--signal)]" />
+                          {feature}
+                        </li>
                       )}
-                    </button>
+                    </For>
+                  </ul>
 
-                    <div class="flex items-center justify-center gap-4 text-xs text-slate-500">
-                      <div class="flex items-center gap-1">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                          />
-                        </svg>
-                        Secure checkout
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                          />
-                        </svg>
-                        Powered by Stripe
-                      </div>
+                  <Show when={error()}>
+                    <div
+                      role="alert"
+                      class="mt-5 border border-[var(--danger)] bg-[#fff1ee] p-4 text-sm text-[var(--danger)]"
+                    >
+                      {error()}
                     </div>
-                  </div>
-                </div>
+                  </Show>
 
-                {/* Right: Order Summary */}
-                <div class="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6">
-                  <h3 class="mb-4 text-lg font-semibold text-white">Order Summary</h3>
-
-                  <div class="flex items-center justify-between border-b border-slate-700 py-4">
-                    <div>
-                      <p class="font-medium text-white">OMG {TIERS[selectedTier()].name}</p>
-                      <p class="text-sm text-slate-400">Monthly subscription</p>
-                    </div>
-                    <p class="text-xl font-bold text-white">${TIERS[selectedTier()].price}</p>
-                  </div>
-
-                  <div class="border-b border-slate-700 py-4">
-                    <p class="mb-3 text-sm text-slate-400">What's included:</p>
-                    <ul class="space-y-2">
-                      <For each={TIERS[selectedTier()].features}>
-                        {feature => (
-                          <li class="flex items-center gap-2 text-sm text-slate-300">
-                            <svg
-                              class="h-4 w-4 flex-shrink-0 text-green-400"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                            {feature.name}
-                          </li>
-                        )}
-                      </For>
-                    </ul>
-                  </div>
-
-                  <div class="flex items-center justify-between pt-4">
-                    <p class="text-slate-400">Total today</p>
-                    <p class="text-2xl font-bold text-white">
-                      ${TIERS[selectedTier()].price}
-                      <span class="text-sm font-normal text-slate-400">/mo</span>
-                    </p>
-                  </div>
-
-                  <div class="mt-4 rounded-xl border border-green-500/30 bg-green-500/10 p-3">
-                    <p class="flex items-center gap-2 text-sm text-green-400">
-                      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      14-day money-back guarantee
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    class="manifest-button manifest-button--primary mt-7 w-full"
+                    disabled={step() === 'processing'}
+                    onClick={() => void startCheckout()}
+                  >
+                    <Show when={step() === 'processing'} fallback="Continue to Stripe">
+                      <LoaderCircle size={16} class="animate-spin" /> Opening checkout
+                    </Show>
+                  </button>
+                  <p class="mt-4 font-mono text-[10px] leading-relaxed text-[var(--ink-muted)]">
+                    Stripe processes payment details. OMG never receives card numbers.
+                  </p>
                 </div>
               </div>
             </Show>
-
-            {/* Step 3: Processing */}
-            <Show when={step() === 'processing'}>
-              <div class="py-12 text-center">
-                <div class="relative mx-auto mb-6 h-20 w-20">
-                  <div class="absolute inset-0 rounded-full border-4 border-slate-700" />
-                  <div class="absolute inset-0 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-                </div>
-                <h2 class="mb-2 text-2xl font-bold text-white">Preparing Checkout</h2>
-                <p class="text-slate-400">Redirecting you to secure payment...</p>
-              </div>
-            </Show>
-          </div>
+          </Dialog.Content>
         </div>
-      </div>
-    </Show>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 };
 

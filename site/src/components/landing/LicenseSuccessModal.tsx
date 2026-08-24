@@ -1,57 +1,30 @@
+import { Dialog } from '@kobalte/core';
+import { Check, Copy, KeyRound, LoaderCircle, X } from 'lucide-solid';
 import type { Component } from 'solid-js';
-import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
+import { createMemo, createSignal, onMount, Show } from 'solid-js';
 import { parseCheckoutSessionStatus } from '../../lib/dashboard-contract';
 import { reportClientError } from '../../lib/observability';
 
-const CONFETTI_COLORS = ['#6366f1', '#8b5cf6', '#22d3ee', '#34d399', '#f59e0b'];
-
-/** Stripe Checkout Session ids are high-entropy capabilities; bound the shape. */
 const CHECKOUT_SESSION_ID_PATTERN = /^cs_[A-Za-z0-9]{10,200}$/;
 
 type FulfillmentState =
   | { readonly _tag: 'verifying' }
-  | {
-      readonly _tag: 'ready';
-      readonly licenseKey: string;
-      readonly tier: string;
-    }
+  | { readonly _tag: 'ready'; readonly licenseKey: string; readonly tier: string }
   | { readonly _tag: 'processing'; readonly email: string | null }
   | { readonly _tag: 'unverified' };
 
-interface ConfettiPiece {
-  readonly id: number;
-  readonly left: number;
-  readonly color: string;
-  readonly delay: number;
-}
-
-function spawnConfettiPieces(): ConfettiPiece[] {
-  return Array.from({ length: 50 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)] ?? '#6366f1',
-    delay: Math.random() * 0.5,
-  }));
-}
-
-/**
- * Verify a Checkout Session server-side and derive the dialog state.
- *
- * The authenticated site BFF binds the session probe to the account that
- * created checkout; the redirect parameter alone never grants trust.
- */
 async function verifyCheckoutSession(
   sessionId: string
 ): Promise<{ readonly ok: true; readonly state: FulfillmentState } | { readonly ok: false }> {
   try {
-    const res = await fetch(
+    const response = await fetch(
       `/api/licensing/api/billing/checkout-session?id=${encodeURIComponent(sessionId)}`,
       { credentials: 'same-origin' }
     );
-    if (!res.ok) {
+    if (!response.ok) {
       return { ok: false };
     }
-    const parsed = parseCheckoutSessionStatus(await res.json());
+    const parsed = parseCheckoutSessionStatus(await response.json());
     if (!parsed.ok) {
       reportClientError('Checkout session response has an invalid shape', parsed.error);
       return { ok: false };
@@ -67,41 +40,23 @@ async function verifyCheckoutSession(
       return { ok: true, state: { _tag: 'processing', email: parsed.value.email ?? null } };
     }
     return { ok: true, state: { _tag: 'unverified' } };
-  } catch (e) {
-    reportClientError('Unhandled client operation failed', e);
+  } catch (cause: unknown) {
+    reportClientError('Unhandled client operation failed', cause);
     return { ok: false };
   }
 }
 
-/**
- * Post-checkout fulfillment dialog.
- *
- * Opens itself when the Stripe checkout redirects back with
- * ?success=true&session_id={CHECKOUT_SESSION_ID}, verifies the session against
- * the billing API, and hands out the license key once the signed webhook has
- * provisioned it. The redirect parameters are never treated as proof of
- * payment — entitlements are granted exclusively by webhook reconciliation.
- */
 export const LicenseSuccessModal: Component = () => {
-  const [showSuccess, setShowSuccess] = createSignal(false);
+  const [open, setOpen] = createSignal(false);
   const [state, setState] = createSignal<FulfillmentState>({ _tag: 'verifying' });
-
-  // Snapshot accessors: each state() call is an independent read, so JSX-level
-  // narrowing cannot flow between them. These memos narrow once and stay
-  // reactive.
-  const ready = createMemo(() => {
-    const s = state();
-    return s._tag === 'ready' ? { licenseKey: s.licenseKey, tier: s.tier } : undefined;
-  });
-  const processing = createMemo(() => {
-    const s = state();
-    return s._tag === 'processing' ? { email: s.email } : undefined;
-  });
-
   const [copied, setCopied] = createSignal(false);
-  const [confetti, setConfetti] = createSignal<ConfettiPiece[]>([]);
-  let panelRef: HTMLDivElement | undefined;
-  let previouslyFocused: Element | null = null;
+
+  const ready = createMemo(() => {
+    const current = state();
+    return current._tag === 'ready'
+      ? { licenseKey: current.licenseKey, tier: current.tier }
+      : undefined;
+  });
 
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
@@ -110,203 +65,88 @@ export const LicenseSuccessModal: Component = () => {
     if (params.get('success') !== 'true' || sessionId === null) {
       return;
     }
+    setOpen(true);
     if (!CHECKOUT_SESSION_ID_PATTERN.test(sessionId)) {
-      setShowSuccess(true);
       setState({ _tag: 'unverified' });
       return;
     }
-
-    setShowSuccess(true);
     setState({ _tag: 'verifying' });
-    setConfetti(spawnConfettiPieces());
-    const confettiTimer = setTimeout(() => setConfetti([]), 4000);
-    onCleanup(() => clearTimeout(confettiTimer));
-
     void verifyCheckoutSession(sessionId).then(result => {
       setState(result.ok ? result.state : { _tag: 'unverified' });
     });
   });
 
-  // Dialog lifecycle: initial focus, focus containment/restoration, Escape.
-  createEffect(() => {
-    if (!showSuccess()) {
-      return;
-    }
-    previouslyFocused = document.activeElement;
-    const focusTimer = setTimeout(() => {
-      panelRef?.querySelector<HTMLElement>('button')?.focus();
-    }, 0);
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        handleClose();
-        return;
-      }
-      if (e.key !== 'Tab' || !panelRef) {
-        return;
-      }
-      const focusable = panelRef.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      const firstElement = focusable[0];
-      const lastElement = focusable[focusable.length - 1];
-      if (!firstElement || !lastElement) {
-        return;
-      }
-      if (e.shiftKey && document.activeElement === firstElement) {
-        e.preventDefault();
-        lastElement.focus();
-      } else if (!e.shiftKey && document.activeElement === lastElement) {
-        e.preventDefault();
-        firstElement.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    onCleanup(() => {
-      clearTimeout(focusTimer);
-      document.removeEventListener('keydown', handleKeyDown);
-      if (previouslyFocused instanceof HTMLElement) {
-        previouslyFocused.focus();
-      }
-    });
-  });
-
-  const copyToClipboard = (text: string): void => {
-    void navigator.clipboard.writeText(text);
+  const copyLicense = async (licenseKey: string): Promise<void> => {
+    await navigator.clipboard.writeText(licenseKey);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    window.setTimeout(() => setCopied(false), 1800);
   };
 
-  const handleClose = (): void => {
-    setShowSuccess(false);
+  const close = (): void => {
+    setOpen(false);
     setState({ _tag: 'verifying' });
-    setConfetti([]);
   };
 
   return (
-    <>
-      <For each={confetti()}>
-        {piece => (
-          <div
-            class="animate-confetti pointer-events-none fixed top-0 z-[200] h-3 w-3 rounded-full"
-            style={{
-              left: `${piece.left}%`,
-              background: piece.color,
-              'animation-delay': `${piece.delay}s`,
-            }}
-          />
-        )}
-      </For>
-
-      <Show when={showSuccess()}>
-        <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <button
-            type="button"
-            aria-label="Close payment success dialog"
-            class="absolute inset-0 bg-black/80 backdrop-blur-md"
-            onClick={handleClose}
-          />
-          <div
-            ref={el => (panelRef = el)}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="license-success-title"
-            class="relative w-full max-w-lg rounded-3xl border border-slate-700/50 bg-gradient-to-b from-slate-800 to-slate-900 p-8 shadow-2xl"
-          >
-            <button
-              type="button"
-              onClick={handleClose}
-              aria-label="Close license retrieval dialog"
-              class="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <title>Close</title>
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+    <Dialog.Root open={open()} onOpenChange={setOpen}>
+      <Dialog.Portal>
+        <Dialog.Overlay class="fixed inset-0 z-40 bg-[rgba(21,21,20,0.66)]" />
+        <div class="fixed inset-0 z-40 grid place-items-center overflow-y-auto p-4">
+          <Dialog.Content class="relative w-full max-w-2xl border border-[var(--ink)] bg-[var(--paper-raised)]">
+            <header class="flex items-start justify-between border-b border-[var(--ink)] p-5 sm:p-7">
+              <div>
+                <p class="manifest-index">LICENSE / FULFILLMENT</p>
+                <Dialog.Title
+                  id="license-success-title"
+                  class="mt-2 text-3xl font-black tracking-[-0.045em] uppercase"
+                >
+                  {state()._tag === 'ready' ? 'License ready' : 'Purchase status'}
+                </Dialog.Title>
+                <Dialog.Description class="mt-2 text-sm text-[var(--ink-muted)]">
+                  OMG verifies payment against your signed-in account before displaying a license.
+                </Dialog.Description>
+              </div>
+              <Dialog.CloseButton
+                class="grid h-10 w-10 place-items-center border border-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--paper)]"
+                aria-label="Close license status"
+              >
+                <X size={18} strokeWidth={1.5} />
+              </Dialog.CloseButton>
+            </header>
 
             <Show when={ready()}>
               {snapshot => (
-                <div class="text-center">
-                  <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500">
-                    <svg
-                      class="h-10 w-10 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <title>License key</title>
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.703l5.964-5.964A6 6 0 1121 9z"
-                      />
-                    </svg>
-                  </div>
-                  <h2 id="license-success-title" class="mb-2 text-3xl font-bold text-white">
-                    Your License Key
-                  </h2>
-                  <p class="mb-2 text-slate-400">
-                    <span class="font-semibold text-indigo-400 capitalize">{snapshot().tier}</span>{' '}
-                    Plan Activated
-                  </p>
-
-                  <div class="mb-6 rounded-xl bg-slate-800 p-4">
-                    <code class="font-mono text-sm break-all text-green-400">
+                <div class="grid md:grid-cols-[13rem_1fr]">
+                  <aside class="flex flex-col justify-between border-b border-[var(--ink)] bg-[var(--signal)] p-6 text-[var(--paper-raised)] md:border-r md:border-b-0">
+                    <KeyRound size={32} strokeWidth={1.25} />
+                    <div class="mt-20">
+                      <p class="manifest-label">Plan</p>
+                      <strong class="mt-2 block text-3xl uppercase">{snapshot().tier}</strong>
+                    </div>
+                  </aside>
+                  <div class="p-6 sm:p-8">
+                    <p class="manifest-label text-[var(--ink-muted)]">License key</p>
+                    <code class="mt-4 block border border-[var(--ink)] bg-[var(--paper-muted)] p-4 text-sm break-all text-[var(--ink)]">
                       {snapshot().licenseKey}
                     </code>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(snapshot().licenseKey)}
-                    class="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 py-3 font-semibold text-white transition-all hover:bg-slate-600"
-                  >
-                    {copied() ? (
-                      <>
-                        <svg
-                          class="h-5 w-10 text-green-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <title>Copied</title>
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <svg class="h-5 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <title>Copy license key</title>
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          />
-                        </svg>
-                        Copy to Clipboard
-                      </>
-                    )}
-                  </button>
-
-                  <div class="rounded-xl bg-slate-800/50 p-4 text-left">
-                    <p class="mb-2 text-sm text-slate-300">Activate your license:</p>
-                    <code class="font-mono text-xs break-all text-cyan-400">
+                    <button
+                      type="button"
+                      class="manifest-button manifest-button--primary mt-4 w-full"
+                      onClick={() => void copyLicense(snapshot().licenseKey)}
+                    >
+                      <Show
+                        when={copied()}
+                        fallback={
+                          <>
+                            <Copy size={16} strokeWidth={1.5} /> Copy key
+                          </>
+                        }
+                      >
+                        <Check size={16} strokeWidth={1.5} /> Copied
+                      </Show>
+                    </button>
+                    <p class="manifest-label mt-8 text-[var(--ink-muted)]">Activate</p>
+                    <code class="mt-3 block overflow-x-auto border-t border-[var(--rule)] pt-4 text-xs">
                       omg license activate {snapshot().licenseKey}
                     </code>
                   </div>
@@ -315,57 +155,43 @@ export const LicenseSuccessModal: Component = () => {
             </Show>
 
             <Show when={state()._tag !== 'ready'}>
-              <div class="text-center">
-                <div class="mx-auto mb-6 flex h-20 w-20 animate-pulse items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500">
-                  <svg
-                    class="h-10 w-10 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <title>Purchase received</title>
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </div>
-                <h2 id="license-success-title" class="mb-2 text-3xl font-bold text-white">
-                  Thank You for Your Purchase
-                </h2>
+              <div class="p-8 sm:p-12">
                 <Show when={state()._tag === 'verifying'}>
-                  <p class="text-slate-400">Verifying your payment…</p>
+                  <LoaderCircle
+                    class="h-8 w-8 animate-spin text-[var(--signal)]"
+                    strokeWidth={1.5}
+                  />
+                  <h3 class="mt-8 text-3xl font-black tracking-[-0.045em] uppercase">
+                    Verifying payment
+                  </h3>
+                  <p class="mt-3 text-[var(--ink-muted)]">
+                    This usually completes as soon as Stripe confirms the session.
+                  </p>
                 </Show>
                 <Show when={state()._tag === 'processing'}>
-                  <p class="mb-2 text-slate-400">
-                    Payment confirmed! Your license is being provisioned — it usually takes less
-                    than a minute.
+                  <h3 class="text-3xl font-black tracking-[-0.045em] uppercase">
+                    Provisioning license
+                  </h3>
+                  <p class="mt-3 text-[var(--ink-muted)]">
+                    Payment is confirmed. The signed webhook is creating the entitlement.
                   </p>
-                  <Show when={processing() !== undefined}>
-                    <p class="text-sm text-slate-500">A receipt is on its way to your inbox.</p>
-                  </Show>
                 </Show>
                 <Show when={state()._tag === 'unverified'}>
-                  <p class="mb-2 text-slate-400">
-                    We could not verify this checkout link. Your receipt and license key will arrive
-                    by email within a few minutes, or open your dashboard to view active licenses.
+                  <h3 class="text-3xl font-black tracking-[-0.045em] uppercase">
+                    Verification unavailable
+                  </h3>
+                  <p class="mt-3 text-[var(--ink-muted)]">
+                    Open the dashboard to inspect active licenses or use the receipt sent by Stripe.
                   </p>
                 </Show>
-
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  class="mt-6 w-full rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 py-3 font-semibold text-white transition-all hover:from-indigo-400 hover:to-purple-400"
-                >
-                  Done
+                <button type="button" class="manifest-button mt-8" onClick={close}>
+                  Close
                 </button>
               </div>
             </Show>
-          </div>
+          </Dialog.Content>
         </div>
-      </Show>
-    </>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 };

@@ -12,6 +12,11 @@
   "minimumReleaseAge": "5 days",
   "packageRules": [
     {
+      "description": "Keep the supported Node range aligned with CI instead of pinning one release",
+      "matchDepTypes": ["engines"],
+      "enabled": false
+    },
+    {
       "description": "Batch non-major dependency updates into a single weekly PR",
       "matchUpdateTypes": ["minor", "patch", "pin", "digest", "lockFileMaintenance"],
       "groupName": "non-major dependencies",

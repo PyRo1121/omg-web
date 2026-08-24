@@ -1,377 +1,229 @@
-import { type Component, createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js';
+import { Dialog, DropdownMenu } from '@kobalte/core';
 import { A, useNavigate } from '@solidjs/router';
+import { Keyboard, Menu, X } from 'lucide-solid';
+import { type Component, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { useSession } from '~/lib/auth-client';
+
+const NAV_ITEMS = [
+  { href: '/docs/', label: 'Docs', external: true },
+  { href: '/#features', label: 'System', external: false },
+  { href: '/#benchmarks', label: 'Benchmarks', external: false },
+  { href: '/#pricing', label: 'Plans', external: false },
+  { href: 'https://github.com/PyRo1121/omg/', label: 'Source', external: true },
+] as const;
 
 const Header: Component = () => {
   const [menuOpen, setMenuOpen] = createSignal(false);
-  const [showShortcuts, setShowShortcuts] = createSignal(false);
-  const [userMenuOpen, setUserMenuOpen] = createSignal(false);
+  const [shortcutsOpen, setShortcutsOpen] = createSignal(false);
   const navigate = useNavigate();
   const session = useSession();
 
-  let shortcutsPanelRef: HTMLDivElement | undefined;
-  let previouslyFocused: Element | null = null;
-
-  // Shortcuts-dialog lifecycle: initial focus, containment/restoration. Escape
-  // close is handled by the global key handler below.
-  createEffect(() => {
-    if (!showShortcuts()) {
-      return;
-    }
-    previouslyFocused = document.activeElement;
-    const focusTimer = setTimeout(() => {
-      shortcutsPanelRef?.querySelector<HTMLElement>('button')?.focus();
-    }, 0);
-
-    const handleTabKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab' || !shortcutsPanelRef) {
-        return;
-      }
-      const focusable = shortcutsPanelRef.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      const firstElement = focusable[0];
-      const lastElement = focusable[focusable.length - 1];
-      if (!firstElement || !lastElement) {
-        return;
-      }
-      if (e.shiftKey && document.activeElement === firstElement) {
-        e.preventDefault();
-        lastElement.focus();
-      } else if (!e.shiftKey && document.activeElement === lastElement) {
-        e.preventDefault();
-        firstElement.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleTabKey);
-    onCleanup(() => {
-      clearTimeout(focusTimer);
-      document.removeEventListener('keydown', handleTabKey);
-      if (previouslyFocused instanceof HTMLElement) {
-        previouslyFocused.focus();
-      }
-    });
-  });
-
-  // Global keyboard shortcuts and click outside handler
   onMount(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
         return;
       }
-
-      if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        setShowShortcuts(prev => !prev);
-      } else if (e.key === 'Escape') {
-        setShowShortcuts(false);
-        setUserMenuOpen(false);
-      } else if (e.key === 'd' && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
+      if (event.key === '?' && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        setShortcutsOpen(true);
+      }
+      if (event.key === 'd' && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
         navigate('/dashboard');
       }
     };
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target;
-      if (!(target instanceof Element)) {
-        return;
-      }
-      if (userMenuOpen() && !target.closest('.user-menu-container')) {
-        setUserMenuOpen(false);
-      }
-    };
-
     document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('click', handleClickOutside);
-
-    onCleanup(() => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('click', handleClickOutside);
-    });
+    onCleanup(() => document.removeEventListener('keydown', handleKeyDown));
   });
 
   return (
     <>
       <a
         href="#main-content"
-        class="sr-only fixed top-4 left-4 z-[70] rounded-md border border-indigo-500/50 bg-slate-950 px-3 py-2 text-sm text-indigo-200 focus:not-sr-only focus:outline-none"
+        class="manifest-button fixed top-3 left-3 z-50 -translate-y-24 bg-[var(--paper-raised)] focus:translate-y-0"
       >
-        Skip to main content
+        Skip to content
       </a>
-      <header class="pointer-events-auto fixed top-0 right-0 left-0 z-50 border-b border-white/5 bg-[#0f0f23]/80 backdrop-blur-lg">
-        <nav class="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <A href="/" class="flex items-center gap-3" aria-label="OMG Package Manager - Home">
-            <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg">
-              <img
-                src="/logo-globe.png"
-                alt="OMG Package Manager Logo"
-                class="h-8 w-8 object-cover"
-                width="32"
-                height="32"
-              />
-            </div>
-            <span class="text-xl font-bold">OMG</span>
+
+      <header class="relative z-30 border-b border-[var(--ink)] bg-[var(--paper)]">
+        <nav
+          class="manifest-shell grid min-h-18 grid-cols-[auto_1fr_auto] items-stretch"
+          aria-label="Primary navigation"
+        >
+          <A
+            href="/"
+            class="flex items-center gap-3 border-r border-[var(--rule)] px-4 no-underline sm:px-6"
+            aria-label="OMG Package Manager home"
+          >
+            <span class="grid h-9 w-9 place-items-center bg-[var(--ink)] font-mono text-sm font-semibold text-[var(--paper)]">
+              O/
+            </span>
+            <span class="text-lg font-black tracking-[-0.04em]">OMG</span>
           </A>
 
-          <div class="hidden items-center gap-8 md:flex">
-            <a
-              href="/docs/"
-              rel="external"
-              class="text-slate-400 transition-colors hover:text-white"
-            >
-              Docs
-            </a>
-            <a href="/#features" class="text-slate-400 transition-colors hover:text-white">
-              Features
-            </a>
-            <a href="/#benchmarks" class="text-slate-400 transition-colors hover:text-white">
-              Benchmarks
-            </a>
-            <a href="/#pricing" class="text-slate-400 transition-colors hover:text-white">
-              Pricing
-            </a>
-            <a
-              href="https://github.com/PyRo1121/omg/"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-slate-400 transition-colors hover:text-white"
-            >
-              GitHub
-            </a>
+          <div class="hidden items-stretch lg:flex">
+            {NAV_ITEMS.map(item => (
+              <a
+                href={item.href}
+                target={item.href.startsWith('http') ? '_blank' : undefined}
+                rel={item.external ? 'noopener noreferrer' : undefined}
+                class="manifest-label flex items-center border-r border-[var(--rule)] px-5 text-[var(--ink-muted)] no-underline hover:bg-[var(--ink)] hover:text-[var(--paper)]"
+              >
+                {item.label}
+              </a>
+            ))}
           </div>
 
-          <div class="hidden items-center gap-4 md:flex">
-            <button
-              onClick={() => setShowShortcuts(true)}
-              class="rounded border border-slate-700 px-2 py-1 text-xs text-slate-500 transition-colors hover:text-white"
-              title="Keyboard shortcuts (?)"
-              aria-label="Show keyboard shortcuts"
-            >
-              ?
-            </button>
+          <div class="ml-auto flex items-stretch">
+            <Dialog.Root open={shortcutsOpen()} onOpenChange={setShortcutsOpen}>
+              <Dialog.Trigger
+                class="hidden w-14 items-center justify-center border-l border-[var(--rule)] hover:bg-[var(--ink)] hover:text-[var(--paper)] sm:flex"
+                aria-label="Keyboard shortcuts"
+              >
+                <Keyboard size={17} strokeWidth={1.6} />
+              </Dialog.Trigger>
+              <Dialog.Portal>
+                <Dialog.Overlay class="fixed inset-0 z-40 bg-[rgba(21,21,20,0.55)]" />
+                <div class="fixed inset-0 z-40 grid place-items-center p-4">
+                  <Dialog.Content class="w-full max-w-lg border border-[var(--ink)] bg-[var(--paper-raised)]">
+                    <div class="flex items-center justify-between border-b border-[var(--ink)] p-5">
+                      <div>
+                        <p class="manifest-label m-0 text-[var(--signal)]">Input reference</p>
+                        <Dialog.Title class="mt-1 text-2xl font-black tracking-[-0.03em]">
+                          Keyboard
+                        </Dialog.Title>
+                      </div>
+                      <Dialog.CloseButton
+                        class="grid h-10 w-10 place-items-center border border-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--paper)]"
+                        aria-label="Close keyboard shortcuts"
+                      >
+                        <X size={18} strokeWidth={1.6} />
+                      </Dialog.CloseButton>
+                    </div>
+                    <Dialog.Description class="sr-only">
+                      Keyboard shortcuts available on the OMG website.
+                    </Dialog.Description>
+                    <dl class="m-0 divide-y divide-[var(--rule)] font-mono text-sm">
+                      <div class="grid grid-cols-[1fr_auto] p-5">
+                        <dt>Open dashboard</dt>
+                        <dd class="m-0">
+                          <kbd class="border border-[var(--ink)] px-2 py-1">D</kbd>
+                        </dd>
+                      </div>
+                      <div class="grid grid-cols-[1fr_auto] p-5">
+                        <dt>Open this reference</dt>
+                        <dd class="m-0">
+                          <kbd class="border border-[var(--ink)] px-2 py-1">?</kbd>
+                        </dd>
+                      </div>
+                      <div class="grid grid-cols-[1fr_auto] p-5">
+                        <dt>Close an overlay</dt>
+                        <dd class="m-0">
+                          <kbd class="border border-[var(--ink)] px-2 py-1">ESC</kbd>
+                        </dd>
+                      </div>
+                    </dl>
+                  </Dialog.Content>
+                </div>
+              </Dialog.Portal>
+            </Dialog.Root>
+
             <Show
               when={session()?.data?.user}
               fallback={
-                <A href="/login" class="btn-secondary px-4 py-2 text-sm">
-                  Sign In
+                <A
+                  href="/login"
+                  class="manifest-button hidden border-y-0 border-r-0 sm:inline-flex"
+                >
+                  Sign in
                 </A>
               }
             >
-              <div class="user-menu-container relative">
-                <button
-                  id="user-menu-trigger"
-                  onClick={() => setUserMenuOpen(!userMenuOpen())}
-                  class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 transition-colors hover:bg-slate-800/50 hover:text-white"
-                  aria-haspopup="menu"
-                  aria-expanded={userMenuOpen()}
-                  aria-controls="user-menu"
-                >
-                  <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400">
-                    {session()?.data?.user?.email?.[0]?.toUpperCase() ?? '?'}
-                  </div>
-                  <span class="max-w-[150px] truncate">{session()?.data?.user?.email}</span>
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-
-                <Show when={userMenuOpen()}>
-                  <div
-                    id="user-menu"
-                    role="menu"
-                    aria-labelledby="user-menu-trigger"
-                    class="absolute top-full right-0 mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-xl"
-                  >
-                    <A
-                      href="/dashboard"
-                      role="menuitem"
-                      class="block px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-800"
-                      onClick={() => setUserMenuOpen(false)}
-                    >
-                      Dashboard
-                    </A>
-                    <a
-                      href="/api/auth/sign-out"
-                      role="menuitem"
-                      class="block px-4 py-2 text-sm text-red-400 transition-colors hover:bg-slate-800"
-                    >
-                      Sign Out
-                    </a>
-                  </div>
-                </Show>
-              </div>
+              {user => (
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger class="manifest-button hidden max-w-56 border-y-0 border-r-0 sm:inline-flex">
+                    <span class="truncate">{user().email}</span>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content class="z-40 min-w-56 border border-[var(--ink)] bg-[var(--paper-raised)] p-1 font-mono text-xs shadow-none">
+                      <DropdownMenu.Item
+                        class="cursor-pointer px-3 py-2 outline-none data-[highlighted]:bg-[var(--ink)] data-[highlighted]:text-[var(--paper)]"
+                        onSelect={() => navigate('/dashboard')}
+                      >
+                        Dashboard
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        as="a"
+                        href="/api/auth/sign-out"
+                        class="block cursor-pointer px-3 py-2 text-[var(--signal)] outline-none data-[highlighted]:bg-[var(--signal)] data-[highlighted]:text-[var(--paper)]"
+                      >
+                        Sign out
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              )}
             </Show>
-            <a href="/#install" class="btn-secondary px-4 py-2 text-sm">
+
+            <a
+              href="/#install"
+              class="manifest-button manifest-button--primary hidden border-y-0 border-r-0 md:inline-flex"
+            >
               Install
             </a>
-            <a href="/#pricing" class="btn-primary px-4 py-2 text-sm">
-              Get Pro
-            </a>
+            <button
+              type="button"
+              class="grid w-16 place-items-center border-l border-[var(--rule)] lg:hidden"
+              onClick={() => setMenuOpen(open => !open)}
+              aria-label={menuOpen() ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={menuOpen()}
+            >
+              <Show when={menuOpen()} fallback={<Menu size={20} strokeWidth={1.6} />}>
+                <X size={20} strokeWidth={1.6} />
+              </Show>
+            </button>
           </div>
-
-          <button
-            class="text-slate-400 hover:text-white md:hidden"
-            onClick={() => setMenuOpen(!menuOpen())}
-            aria-label={menuOpen() ? 'Close navigation menu' : 'Open navigation menu'}
-            aria-expanded={menuOpen()}
-          >
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          </button>
         </nav>
 
-        {menuOpen() && (
-          <div class="border-t border-white/5 bg-[#1a1a2e] px-6 py-4 md:hidden">
-            <div class="flex flex-col gap-4">
-              <a
-                href="/docs/"
-                rel="external"
-                class="text-slate-400 hover:text-white"
-                onClick={() => setMenuOpen(false)}
-              >
-                Docs
-              </a>
-              <a
-                href="/#features"
-                class="text-slate-400 hover:text-white"
-                onClick={() => setMenuOpen(false)}
-              >
-                Features
-              </a>
-              <a
-                href="/#benchmarks"
-                class="text-slate-400 hover:text-white"
-                onClick={() => setMenuOpen(false)}
-              >
-                Benchmarks
-              </a>
-              <a
-                href="/#pricing"
-                class="text-slate-400 hover:text-white"
-                onClick={() => setMenuOpen(false)}
-              >
-                Pricing
-              </a>
-              <a href="https://github.com/PyRo1121/omg/" class="text-slate-400 hover:text-white">
-                GitHub
-              </a>
-              <Show
-                when={session()?.data?.user}
-                fallback={
-                  <A href="/login" class="text-slate-400 hover:text-white">
-                    Sign In
-                  </A>
-                }
-              >
-                <A href="/dashboard" class="text-slate-400 hover:text-white">
-                  Dashboard
-                </A>
-                <a href="/api/auth/sign-out" class="text-red-400 hover:text-red-300">
-                  Sign Out
-                </a>
-              </Show>
-              <a
-                href="/#install"
-                class="btn-secondary px-4 py-2 text-center text-sm"
-                onClick={() => setMenuOpen(false)}
-              >
-                Install
-              </a>
-              <a
-                href="/#pricing"
-                class="btn-primary px-4 py-2 text-center text-sm"
-                onClick={() => setMenuOpen(false)}
-              >
-                Get Pro
-              </a>
-            </div>
-          </div>
-        )}
-      </header>
-
-      {/* Keyboard Shortcuts Modal */}
-      <Show when={showShortcuts()}>
-        <div
-          class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={() => setShowShortcuts(false)}
-        >
-          <div
-            ref={el => (shortcutsPanelRef = el)}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="keyboard-shortcuts-title"
-            class="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
-            onClick={e => e.stopPropagation()}
+        <Show when={menuOpen()}>
+          <nav
+            class="manifest-shell grid border-t border-[var(--ink)] lg:hidden"
+            aria-label="Mobile"
           >
-            <div class="mb-6 flex items-center justify-between">
-              <h2
-                id="keyboard-shortcuts-title"
-                class="flex items-center gap-2 text-xl font-bold text-white"
+            {NAV_ITEMS.map(item => (
+              <a
+                href={item.href}
+                target={item.href.startsWith('http') ? '_blank' : undefined}
+                rel={item.external ? 'noopener noreferrer' : undefined}
+                class="manifest-label border-b border-[var(--rule)] px-6 py-4 text-[var(--ink)] no-underline hover:bg-[var(--ink)] hover:text-[var(--paper)]"
+                onClick={() => setMenuOpen(false)}
               >
-                ⌨️ Keyboard Shortcuts
-              </h2>
-              <button
-                onClick={() => setShowShortcuts(false)}
-                class="p-1 text-slate-400 hover:text-white"
-                aria-label="Close keyboard shortcuts"
-              >
-                <svg
-                  aria-hidden="true"
-                  class="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                {item.label}
+              </a>
+            ))}
+            <Show
+              when={session()?.data?.user}
+              fallback={
+                <A
+                  href="/login"
+                  class="manifest-label px-6 py-4"
+                  onClick={() => setMenuOpen(false)}
                 >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div class="space-y-4">
-              <div class="mb-4 text-sm text-slate-400">Website Navigation</div>
-              <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-300">Open Dashboard</span>
-                  <kbd class="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-300">
-                    D
-                  </kbd>
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-300">Show Shortcuts</span>
-                  <kbd class="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-300">
-                    ?
-                  </kbd>
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-300">Close Modal</span>
-                  <kbd class="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-300">
-                    Esc
-                  </kbd>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Show>
+                  Sign in
+                </A>
+              }
+            >
+              <A
+                href="/dashboard"
+                class="manifest-label px-6 py-4"
+                onClick={() => setMenuOpen(false)}
+              >
+                Dashboard
+              </A>
+            </Show>
+          </nav>
+        </Show>
+      </header>
     </>
   );
 };

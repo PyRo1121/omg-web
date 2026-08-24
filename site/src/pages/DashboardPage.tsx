@@ -62,7 +62,6 @@ import {
   type DashboardDateRange,
   type DashboardTab,
 } from '~/lib/dashboard-page';
-import BackgroundMesh from '~/components/3d/BackgroundMesh';
 
 // Lazily split so the entire admin surface stays out of non-admin users'
 // bundles; it is only rendered for admins on the 'admin' tab.
@@ -161,43 +160,28 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
   const totalPackages = createMemo(() => getTotalPackages(telemetryData()?.usage));
 
-  const pageBg =
-    'min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden relative';
-  const bgEffects = (
-    <>
-      <div class="animate-pulse-slow pointer-events-none fixed top-[-20%] left-[-10%] h-[50%] w-[50%] rounded-full bg-indigo-600/10 blur-[120px]" />
-      <div
-        class="animate-pulse-slow pointer-events-none fixed right-[-10%] bottom-[-20%] h-[50%] w-[50%] rounded-full bg-purple-600/10 blur-[120px]"
-        style={{ 'animation-delay': '1s' }}
-      />
-      <div
-        class="animate-pulse-slow pointer-events-none fixed top-[20%] right-[10%] h-[30%] w-[30%] rounded-full bg-cyan-600/5 blur-[100px]"
-        style={{ 'animation-delay': '2s' }}
-      />
-    </>
-  );
+  const pageBg = 'min-h-screen overflow-x-hidden bg-[var(--paper)] text-[var(--ink)]';
 
-  const glassPanel =
-    'bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl hover:border-indigo-500/30 transition-all duration-300';
+  const glassPanel = 'border border-[var(--rule)] bg-[var(--paper-raised)]';
 
   const tabs = createMemo(() => getDashboardTabs(telemetryData()?.user?.role));
 
   // Tailwind v4 extracts classes statically: color names must map to full
   // literal class strings, never template interpolation.
   const statColorClasses = {
-    emerald: { chip: 'from-emerald-500/20', icon: 'text-emerald-400' },
-    indigo: { chip: 'from-indigo-500/20', icon: 'text-indigo-400' },
-    purple: { chip: 'from-purple-500/20', icon: 'text-purple-400' },
-    cyan: { chip: 'from-cyan-500/20', icon: 'text-cyan-400' },
-    amber: { chip: 'from-amber-500/20', icon: 'text-amber-400' },
-    red: { chip: 'from-red-500/20', icon: 'text-red-400' },
-  } satisfies Record<string, { chip: string; icon: string }>;
+    emerald: { icon: 'text-emerald-700' },
+    indigo: { icon: 'text-[var(--signal)]' },
+    purple: { icon: 'text-[var(--signal)]' },
+    cyan: { icon: 'text-[var(--signal)]' },
+    amber: { icon: 'text-amber-700' },
+    red: { icon: 'text-red-700' },
+  } satisfies Record<string, { icon: string }>;
 
   type StatColor = keyof typeof statColorClasses;
   const StatCard = (cardProps: {
     title: string;
     value: string;
-    icon: Component<{ class?: string }>;
+    icon: Component<{ class?: string; strokeWidth?: number }>;
     color: StatColor;
     sub?: string;
     trend?: number | undefined;
@@ -207,44 +191,43 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     const trendColor = () => getTrendPresentation(cardProps.trend).color;
 
     return (
-      <div
-        class={`${glassPanel} group p-6 transition-all hover:scale-[1.02] hover:border-indigo-500/30`}
-      >
-        <div class="mb-4 flex items-start justify-between">
-          <div class={`rounded-xl bg-gradient-to-r p-3 ${colorClasses.chip} to-purple-500/20`}>
-            <cardProps.icon class={`h-6 w-6 ${colorClasses.icon}`} />
+      <section class="group border-t border-[var(--rule)] py-5 first:border-t-0">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <cardProps.icon class={`h-4 w-4 ${colorClasses.icon}`} strokeWidth={1.5} />
+            <h3 class="manifest-label text-[var(--ink-muted)]">{cardProps.title}</h3>
           </div>
           <Show when={cardProps.trend !== undefined}>
-            <div class={`flex items-center gap-1 text-xs font-medium ${trendColor()}`}>
-              <Dynamic component={trendIcon} class="h-4 w-4" />
+            <div class={`flex items-center gap-1 font-mono text-xs font-medium ${trendColor()}`}>
+              <Dynamic component={trendIcon} class="h-3.5 w-3.5" />
               <span>{formatTrendPercentage(cardProps.trend)}%</span>
             </div>
           </Show>
         </div>
-        <h3 class="mb-1 text-sm font-medium text-slate-400">{cardProps.title}</h3>
-        <div class="gradient-text mb-2 text-3xl font-bold">{cardProps.value}</div>
+        <data class="mt-5 block text-4xl font-semibold tracking-[-0.055em]">{cardProps.value}</data>
         <Show when={cardProps.sub}>
-          <p class="text-xs text-slate-500">{cardProps.sub}</p>
+          <p class="mt-1 text-xs text-[var(--ink-muted)]">{cardProps.sub}</p>
         </Show>
-      </div>
+      </section>
     );
   };
 
   return (
-    <div class={pageBg}>
-      <BackgroundMesh />
-      {bgEffects}
-      <div class="relative z-10 min-h-screen">
-        <div class="mx-auto max-w-7xl">
-          <header class="px-6 pt-6 pb-4">
-            <div class="flex items-start justify-between">
+    <div class={pageBg} data-ui="manifest-dashboard">
+      <div class="min-h-screen">
+        <div class="manifest-shell">
+          <header class="grid border-b border-[var(--ink)] p-6 sm:grid-cols-[1fr_auto] sm:p-10">
+            <div class="flex items-start justify-between gap-6 sm:contents">
               <div>
-                <h1 class="text-3xl font-bold">
-                  <span class="gradient-text">Dashboard</span>
+                <p class="manifest-index">ACCOUNT / OVERVIEW</p>
+                <h1 class="mt-4 text-5xl font-black tracking-[-0.06em] uppercase sm:text-7xl">
+                  Workspace
                 </h1>
-                <p class="mt-1 text-slate-400">Welcome back, {props.session.user.name}</p>
+                <p class="mt-3 font-mono text-xs text-[var(--ink-muted)]">
+                  Signed in as {props.session.user.name}
+                </p>
               </div>
-              <div class="flex items-center gap-3">
+              <div class="flex items-start gap-2">
                 <Show when={!telemetryLoading() && telemetryData()}>
                   <button
                     type="button"
@@ -270,25 +253,28 @@ const DashboardPage: Component<DashboardPageProps> = props => {
             </div>
           </header>
 
-          <div class="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-xl">
-            <div class="px-6">
-              <nav class="no-scrollbar flex gap-1 overflow-x-auto">
+          <div class="sticky top-0 z-20 border-b border-[var(--ink)] bg-[var(--paper)]">
+            <div>
+              <nav
+                class="no-scrollbar flex overflow-x-auto"
+                role="tablist"
+                aria-label="Workspace sections"
+              >
                 <For each={tabs()}>
                   {tab => (
                     <button
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      class={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all ${
-                        activeTab() === tab.id ? 'text-white' : 'text-slate-400 hover:text-white'
+                      class={`manifest-label relative flex items-center gap-2 border-r border-[var(--rule)] px-5 py-4 whitespace-nowrap ${
+                        activeTab() === tab.id
+                          ? 'bg-[var(--ink)] text-[var(--paper)]'
+                          : 'text-[var(--ink-muted)] hover:bg-[var(--paper-muted)] hover:text-[var(--ink)]'
                       }`}
                       role="tab"
                       aria-selected={activeTab() === tab.id}
                     >
                       <tab.icon class="h-4 w-4" />
                       <span>{tab.label}</span>
-                      <Show when={activeTab() === tab.id}>
-                        <div class="absolute right-0 bottom-0 left-0 h-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400" />
-                      </Show>
                     </button>
                   )}
                 </For>
@@ -296,7 +282,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
             </div>
           </div>
 
-          <div class="px-6 py-6">
+          <main class="p-6 sm:p-10">
             <Show when={loading() || telemetryLoading()}>
               <div class="animate-pulse space-y-6">
                 <div class="grid gap-6 lg:grid-cols-3">
@@ -1118,7 +1104,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                 </div>
               </div>
             </Show>
-          </div>
+          </main>
         </div>
       </div>
     </div>

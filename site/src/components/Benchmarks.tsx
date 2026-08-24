@@ -1,126 +1,117 @@
 import type { Component } from 'solid-js';
 
-const Benchmarks: Component = () => {
-  return (
-    <section
-      id="benchmarks"
-      class="bg-gradient-to-b from-transparent via-indigo-500/5 to-transparent px-6 py-24"
-    >
-      <div class="mx-auto max-w-7xl">
-        <div class="mb-16 text-center">
-          <h2 class="mb-4 text-4xl font-bold md:text-5xl">
-            Real-World <span class="gradient-text">Performance</span>
+const Benchmarks: Component = () => (
+  <section
+    id="benchmarks"
+    class="manifest-shell manifest-section"
+    aria-labelledby="benchmark-title"
+  >
+    <div class="manifest-grid">
+      <header class="col-span-5 flex flex-col justify-between border-r border-[var(--ink)] p-6 sm:p-10">
+        <span class="manifest-index">03 / BENCHMARK</span>
+        <div class="mt-24">
+          <h2
+            id="benchmark-title"
+            class="text-5xl leading-[0.9] font-black tracking-[-0.055em] uppercase sm:text-7xl"
+          >
+            Latency is a feature.
           </h2>
-          <p class="mx-auto max-w-2xl text-xl text-slate-400">
-            Benchmarked on Intel i9-14900K with 10 iterations. These aren't synthetic tests—this is
-            real package management.
+          <p class="mt-6 max-w-md text-[var(--ink-muted)]">
+            Intel i9-14900K, ten iterations. Values show measured command latency, not simulated
+            throughput.
           </p>
         </div>
+      </header>
 
-        <div class="grid gap-8 lg:grid-cols-2">
-          {/* Arch Linux */}
-          <div class="gradient-border p-8">
-            <h3 class="mb-6 flex items-center gap-3 text-2xl font-bold">
-              <span class="text-3xl">🐧</span>
-              Arch Linux (pacman/yay)
-            </h3>
-
-            <div class="space-y-4">
-              <div class="benchmark-row rounded-lg bg-indigo-500/10">
-                <span class="font-medium">Command</span>
-                <span class="font-mono text-cyan-400">OMG</span>
-                <span class="font-mono text-slate-400">pacman</span>
-                <span class="font-semibold text-green-400">Speedup</span>
-              </div>
-
-              <div class="benchmark-row">
-                <span>search</span>
-                <span class="font-mono font-bold text-cyan-400">6ms</span>
-                <span class="font-mono text-slate-400">133ms</span>
-                <span class="font-semibold text-green-400">22x</span>
-              </div>
-
-              <div class="benchmark-row">
-                <span>info</span>
-                <span class="font-mono font-bold text-cyan-400">6.5ms</span>
-                <span class="font-mono text-slate-400">138ms</span>
-                <span class="font-semibold text-green-400">21x</span>
-              </div>
-
-              <div class="benchmark-row">
-                <span>explicit</span>
-                <span class="font-mono font-bold text-cyan-400">1.2ms</span>
-                <span class="font-mono text-slate-400">14ms</span>
-                <span class="font-semibold text-green-400">12x</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Debian/Ubuntu */}
-          <div class="gradient-border p-8">
-            <h3 class="mb-6 flex items-center gap-3 text-2xl font-bold">
-              <span class="text-3xl">🍥</span>
-              Debian/Ubuntu (apt)
-            </h3>
-
-            <div class="space-y-4">
-              <div class="benchmark-row rounded-lg bg-indigo-500/10">
-                <span class="font-medium">Command</span>
-                <span class="font-mono text-cyan-400">OMG</span>
-                <span class="font-mono text-slate-400">apt-cache</span>
-                <span class="font-semibold text-green-400">Speedup</span>
-              </div>
-
-              <div class="benchmark-row">
-                <span>search</span>
-                <span class="font-mono font-bold text-cyan-400">11ms</span>
-                <span class="font-mono text-slate-400">652ms</span>
-                <span class="font-semibold text-green-400">59x</span>
-              </div>
-
-              <div class="benchmark-row">
-                <span>info</span>
-                <span class="font-mono font-bold text-cyan-400">27ms</span>
-                <span class="font-mono text-slate-400">462ms</span>
-                <span class="font-semibold text-green-400">17x</span>
-              </div>
-
-              <div class="benchmark-row">
-                <span>explicit</span>
-                <span class="font-mono font-bold text-cyan-400">2ms</span>
-                <span class="font-mono text-slate-400">601ms</span>
-                <span class="font-semibold text-green-400">300x</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Runtime switching */}
-        <div class="gradient-border mt-12 p-8">
-          <h3 class="mb-6 text-center text-2xl font-bold">Runtime Version Switching</h3>
-
-          <div class="grid gap-8 text-center md:grid-cols-4">
-            <div>
-              <div class="mb-2 text-4xl font-bold text-cyan-400">1.8ms</div>
-              <div class="text-slate-400">OMG</div>
-            </div>
-            <div>
-              <div class="mb-2 text-4xl font-bold text-slate-500">150ms</div>
-              <div class="text-slate-400">nvm</div>
-            </div>
-            <div>
-              <div class="mb-2 text-4xl font-bold text-slate-500">200ms</div>
-              <div class="text-slate-400">pyenv</div>
-            </div>
-            <div>
-              <div class="mb-2 text-4xl font-bold text-green-400">83-111x</div>
-              <div class="text-slate-400">Faster</div>
-            </div>
-          </div>
+      <div class="col-span-7 overflow-x-auto bg-[var(--paper-raised)]">
+        <table class="w-full min-w-[42rem] border-collapse text-left text-xs">
+          <caption class="sr-only">
+            OMG command latency compared with system package managers
+          </caption>
+          <thead>
+            <tr class="border-b border-[var(--ink)]">
+              <th scope="col" class="p-5 font-medium">
+                Platform / command
+              </th>
+              <th scope="col" class="p-5 font-medium">
+                OMG
+              </th>
+              <th scope="col" class="p-5 font-medium">
+                Reference
+              </th>
+              <th scope="col" class="p-5 text-right font-medium">
+                Difference
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-[var(--rule)] bg-[var(--paper-muted)]">
+              <th colSpan={4} scope="colgroup" class="p-3 text-[10px] tracking-[0.1em] uppercase">
+                Arch Linux / pacman
+              </th>
+            </tr>
+            <tr class="border-b border-[var(--rule)]">
+              <th scope="row" class="p-5 font-normal">
+                search
+              </th>
+              <td class="p-5 font-semibold text-[var(--signal)]">6 ms</td>
+              <td class="p-5">133 ms</td>
+              <td class="p-5 text-right font-semibold">22×</td>
+            </tr>
+            <tr class="border-b border-[var(--rule)]">
+              <th scope="row" class="p-5 font-normal">
+                info
+              </th>
+              <td class="p-5 font-semibold text-[var(--signal)]">6.5 ms</td>
+              <td class="p-5">138 ms</td>
+              <td class="p-5 text-right font-semibold">21×</td>
+            </tr>
+            <tr class="border-b border-[var(--rule)]">
+              <th scope="row" class="p-5 font-normal">
+                explicit
+              </th>
+              <td class="p-5 font-semibold text-[var(--signal)]">1.2 ms</td>
+              <td class="p-5">14 ms</td>
+              <td class="p-5 text-right font-semibold">12×</td>
+            </tr>
+            <tr class="border-b border-[var(--rule)] bg-[var(--paper-muted)]">
+              <th colSpan={4} scope="colgroup" class="p-3 text-[10px] tracking-[0.1em] uppercase">
+                Debian / apt-cache
+              </th>
+            </tr>
+            <tr class="border-b border-[var(--rule)]">
+              <th scope="row" class="p-5 font-normal">
+                search
+              </th>
+              <td class="p-5 font-semibold text-[var(--signal)]">11 ms</td>
+              <td class="p-5">652 ms</td>
+              <td class="p-5 text-right font-semibold">59×</td>
+            </tr>
+            <tr class="border-b border-[var(--rule)]">
+              <th scope="row" class="p-5 font-normal">
+                info
+              </th>
+              <td class="p-5 font-semibold text-[var(--signal)]">27 ms</td>
+              <td class="p-5">462 ms</td>
+              <td class="p-5 text-right font-semibold">17×</td>
+            </tr>
+            <tr>
+              <th scope="row" class="p-5 font-normal">
+                explicit
+              </th>
+              <td class="p-5 font-semibold text-[var(--signal)]">2 ms</td>
+              <td class="p-5">601 ms</td>
+              <td class="p-5 text-right font-semibold">300×</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="grid grid-cols-[1fr_auto] border-t border-[var(--ink)] p-5 font-mono text-xs">
+          <span>Runtime version switch</span>
+          <strong class="text-[var(--signal)]">OMG 1.8 ms / 83–111×</strong>
         </div>
       </div>
-    </section>
-  );
-};
+    </div>
+  </section>
+);
 
 export default Benchmarks;

@@ -1,11 +1,11 @@
-import { type Component, createMemo, createSignal, onCleanup, onMount, Show, For } from 'solid-js';
-import { Search, Users } from 'lucide-solid';
+import { createColumnHelper, tableFeatures } from '@tanstack/table-core';
+import { createTable } from '@tanstack/solid-table';
 import { debounce } from '@solid-primitives/scheduled';
-import { CardSkeleton } from '../../../ui/Skeleton';
-import ErrorCard from '../shared/ErrorCard';
-import { CRMProfileCard, CRMProfileCardTableRow } from '../../premium';
-import type { CRMCustomer } from '../../premium/types';
+import { Mail, Search, Users } from 'lucide-solid';
+import { type Component, createSignal, For, Show } from 'solid-js';
 import { openMailComposer } from '~/lib/mailto';
+import type { CRMCustomer } from '../../premium/types';
+import ErrorCard from '../shared/ErrorCard';
 
 interface CRMTabProps {
   customers: CRMCustomer[];
@@ -19,196 +19,252 @@ interface CRMTabProps {
   onRetry?: () => void;
 }
 
+const features = tableFeatures({});
+const columnHelper = createColumnHelper<typeof features, CRMCustomer>();
+
+const formatDate = (value: string): string =>
+  new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value));
+
+const statusClass = (status: CRMCustomer['status']): string => {
+  if (status === 'active') {
+    return 'text-emerald-700';
+  }
+  if (status === 'suspended') {
+    return 'text-amber-700';
+  }
+  return 'text-red-700';
+};
+
+const responsiveColumnClass = (id: string): string => {
+  if (id === 'machines' || id === 'commands' || id === 'joined') {
+    return 'hidden lg:table-cell';
+  }
+  if (id === 'health') {
+    return 'hidden md:table-cell';
+  }
+  return '';
+};
+
 export const CRMTab: Component<CRMTabProps> = props => {
-  const [viewMode, setViewMode] = createSignal<'table' | 'cards'>('cards');
   const [search, setSearch] = createSignal('');
-  const [isMobile, setIsMobile] = createSignal(false);
+  const debouncedSearch = debounce((value: string) => props.onSearchChange(value), 300);
 
-  onMount(() => {
-    const mediaQuery = window.matchMedia('(max-width: 767px)');
-    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+  const columns = columnHelper.columns([
+    columnHelper.accessor('email', {
+      header: 'Customer',
+      cell: context => (
+        <button
+          type="button"
+          class="max-w-64 text-left hover:text-[var(--signal)]"
+          onClick={() => props.onViewDetail(context.row.original.id)}
+        >
+          <strong class="block truncate font-sans text-sm">{context.getValue()}</strong>
+          <span class="mt-1 block truncate text-[10px] text-[var(--ink-muted)]">
+            {context.row.original.company ?? context.row.original.id}
+          </span>
+        </button>
+      ),
+    }),
+    columnHelper.accessor('tier', {
+      header: 'Tier',
+      cell: context => <span class="uppercase">{context.getValue()}</span>,
+    }),
+    columnHelper.accessor('status', {
+      header: 'Status',
+      cell: context => (
+        <span class={`font-semibold uppercase ${statusClass(context.getValue())}`}>
+          {context.getValue()}
+        </span>
+      ),
+    }),
+    columnHelper.accessor(customer => customer.health.overall_score, {
+      id: 'health',
+      header: 'Health',
+      cell: context => <data value={context.getValue()}>{context.getValue()} / 100</data>,
+    }),
+    columnHelper.accessor('machine_count', {
+      id: 'machines',
+      header: 'Machines',
+    }),
+    columnHelper.accessor('total_commands', {
+      id: 'commands',
+      header: 'Commands',
+      cell: context => context.getValue().toLocaleString(),
+    }),
+    columnHelper.accessor('created_at', {
+      id: 'joined',
+      header: 'Joined',
+      cell: context => <time dateTime={context.getValue()}>{formatDate(context.getValue())}</time>,
+    }),
+    columnHelper.display({
+      id: 'actions',
+      header: 'Action',
+      cell: context => (
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="manifest-button min-h-0 px-2 py-2"
+            onClick={() => openMailComposer(context.row.original.email)}
+            aria-label={`Email ${context.row.original.email}`}
+          >
+            <Mail size={14} strokeWidth={1.5} />
+          </button>
+          <button
+            type="button"
+            class="manifest-button min-h-0 px-3 py-2"
+            onClick={() => props.onViewDetail(context.row.original.id)}
+          >
+            Inspect
+          </button>
+        </div>
+      ),
+    }),
+  ]);
 
-    updateIsMobile();
-    mediaQuery.addEventListener('change', updateIsMobile);
-    onCleanup(() => mediaQuery.removeEventListener('change', updateIsMobile));
+  const table = createTable({
+    features,
+    columns,
+    get data() {
+      return props.customers;
+    },
   });
 
-  const effectiveViewMode = createMemo(() => (isMobile() ? 'cards' : viewMode()));
-
-  const debouncedSearch = debounce((value: string) => {
-    props.onSearchChange(value);
-  }, 300);
-
-  const handleSearchInput = (value: string) => {
+  const handleSearchInput = (value: string): void => {
     setSearch(value);
     debouncedSearch(value);
   };
 
   return (
-    <div class="space-y-6">
-      <div class="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+    <section aria-labelledby="crm-title">
+      <header class="grid gap-6 border-b border-[var(--ink)] pb-6 md:grid-cols-[1fr_minmax(18rem,28rem)] md:items-end">
         <div>
-          <h3 class="text-2xl font-black tracking-tight text-white">Customer CRM</h3>
-          <p class="text-sm font-medium text-slate-500">
-            {props.pagination?.total || 0} customers | Manage subscriptions and engagement
+          <p class="manifest-index">CUSTOMER INDEX</p>
+          <h3 id="crm-title" class="mt-3 text-3xl font-black tracking-[-0.045em] uppercase">
+            Accounts
+          </h3>
+          <p class="mt-2 font-mono text-xs text-[var(--ink-muted)]">
+            {(props.pagination?.total ?? 0).toLocaleString()} records
           </p>
         </div>
-
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div class="hidden rounded-xl border border-white/10 bg-white/[0.02] p-1 md:flex">
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              class={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
-                viewMode() === 'table' ? 'bg-white text-black' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Table
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('cards')}
-              class={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
-                viewMode() === 'cards' ? 'bg-white text-black' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Cards
-            </button>
-          </div>
-
-          <div class="relative w-full sm:max-w-md">
-            <Search class="absolute top-1/2 left-4 -translate-y-1/2 text-slate-500" size={18} />
-            <input
-              type="text"
-              placeholder="Search by email, company or ID..."
-              value={search()}
-              onInput={e => handleSearchInput(e.currentTarget.value)}
-              class="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pr-4 pl-12 text-white placeholder-slate-500 transition-all focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+        <label class="block">
+          <span class="manifest-label mb-2 block text-[var(--ink-muted)]">Search accounts</span>
+          <span class="relative block">
+            <Search
+              class="absolute top-1/2 left-3 -translate-y-1/2 text-[var(--ink-muted)]"
+              size={16}
+              strokeWidth={1.5}
             />
-          </div>
-        </div>
-      </div>
+            <input
+              type="search"
+              value={search()}
+              onInput={event => handleSearchInput(event.currentTarget.value)}
+              placeholder="Email, company, or account ID"
+              class="w-full border border-[var(--ink)] bg-[var(--paper-raised)] py-3 pr-4 pl-10 font-mono text-xs placeholder:text-[var(--ink-muted)]"
+            />
+          </span>
+        </label>
+      </header>
 
       <Show when={props.isLoading}>
-        <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
+        <div
+          class="divide-y divide-[var(--rule)] border-x border-b border-[var(--ink)]"
+          aria-label="Loading customers"
+        >
+          <For each={[1, 2, 3, 4, 5]}>
+            {() => <div class="h-16 animate-pulse bg-[rgba(21,21,20,0.035)]" />}
+          </For>
         </div>
       </Show>
 
       <Show when={props.isError}>
         <ErrorCard
-          title="Failed to Load Customers"
-          message="Unable to fetch customer data. Please check your connection and try again."
+          title="Failed to load customers"
+          message="Customer data is unavailable. Check the connection and try again."
           onRetry={props.onRetry}
         />
       </Show>
 
       <Show when={props.isSuccess}>
-        <Show when={effectiveViewMode() === 'cards'}>
-          <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            <For each={props.customers}>
-              {(customer, index) => (
-                <div
-                  class="animate-fade-in-up"
-                  style={{
-                    'animation-delay': `${index() * 50}ms`,
-                  }}
-                >
-                  <CRMProfileCard
-                    customer={customer}
-                    onViewDetail={customerId => props.onViewDetail(customerId)}
-                    onQuickAction={action => {
-                      if (action === 'email') {
-                        openMailComposer(customer.email);
-                      }
-                    }}
-                  />
-                </div>
-              )}
-            </For>
-          </div>
-        </Show>
-
-        <Show when={effectiveViewMode() === 'table'}>
-          <div class="bg-void-800 overflow-hidden rounded-[2rem] border border-white/5 shadow-2xl">
-            <div class="overflow-x-auto">
-              <table class="w-full text-left">
-                <thead>
-                  <tr class="border-b border-white/5 text-[10px] font-black tracking-widest text-slate-500 uppercase">
-                    <th class="px-6 py-4">User</th>
-                    <th class="px-6 py-4">Tier</th>
-                    <th class="px-6 py-4">Status</th>
-                    <th class="px-6 py-4">Health</th>
-                    <th class="px-6 py-4">Machines</th>
-                    <th class="px-6 py-4">Commands</th>
-                    <th class="px-6 py-4">Joined</th>
-                    <th class="px-6 py-4" />
+        <div class="overflow-x-auto border-x border-b border-[var(--ink)] bg-[var(--paper-raised)]">
+          <table class="w-full min-w-[44rem] border-collapse text-left font-mono text-xs">
+            <thead>
+              <For each={table.getHeaderGroups()}>
+                {group => (
+                  <tr class="border-b border-[var(--ink)]">
+                    <For each={group.headers}>
+                      {header => (
+                        <th
+                          scope="col"
+                          class={`p-4 text-[10px] font-semibold tracking-[0.09em] text-[var(--ink-muted)] uppercase ${responsiveColumnClass(header.column.id)}`}
+                        >
+                          <table.FlexRender header={header} />
+                        </th>
+                      )}
+                    </For>
                   </tr>
-                </thead>
-                <tbody class="divide-y divide-white/5">
-                  <For each={props.customers}>
-                    {customer => (
-                      <CRMProfileCardTableRow
-                        customer={customer}
-                        onViewDetail={customerId => props.onViewDetail(customerId)}
-                        onQuickAction={action => {
-                          if (action === 'email') {
-                            openMailComposer(customer.email);
-                          }
-                        }}
-                      />
-                    )}
-                  </For>
-                </tbody>
-              </table>
+                )}
+              </For>
+            </thead>
+            <tbody>
+              <For each={table.getRowModel().rows}>
+                {row => (
+                  <tr class="border-b border-[var(--rule)] last:border-b-0 hover:bg-[var(--paper-muted)]">
+                    <For each={row.getAllCells()}>
+                      {cell => (
+                        <td class={`p-4 align-middle ${responsiveColumnClass(cell.column.id)}`}>
+                          <table.FlexRender cell={cell} />
+                        </td>
+                      )}
+                    </For>
+                  </tr>
+                )}
+              </For>
+            </tbody>
+          </table>
+
+          <Show when={props.customers.length === 0}>
+            <div class="grid min-h-64 place-items-center border-t border-[var(--rule)] text-center">
+              <div>
+                <Users size={28} strokeWidth={1.25} class="mx-auto text-[var(--ink-muted)]" />
+                <p class="mt-4 font-medium">No customers found</p>
+                <p class="mt-1 font-mono text-xs text-[var(--ink-muted)]">
+                  {search() ? 'Change the search query.' : 'Customer records will appear here.'}
+                </p>
+              </div>
             </div>
+          </Show>
 
-            <Show when={props.customers.length === 0}>
-              <div class="py-12 text-center">
-                <Users size={48} class="mx-auto mb-4 text-slate-600" />
-                <p class="font-medium text-slate-500">No customers found</p>
-                <p class="mt-1 text-xs text-slate-600">
-                  {search() ? 'Try a different search term' : 'Customers will appear here'}
-                </p>
+          <Show when={(props.pagination?.pages ?? 1) > 1}>
+            <footer class="flex items-center justify-between border-t border-[var(--ink)] p-4">
+              <p class="font-mono text-xs text-[var(--ink-muted)]">
+                Page {props.pagination?.page ?? 1} / {props.pagination?.pages ?? 1}
+              </p>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="manifest-button"
+                  disabled={(props.pagination?.page ?? 1) === 1}
+                  onClick={() => props.onPageChange(Math.max(1, (props.pagination?.page ?? 1) - 1))}
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  class="manifest-button"
+                  disabled={(props.pagination?.page ?? 1) === (props.pagination?.pages ?? 1)}
+                  onClick={() =>
+                    props.onPageChange(
+                      Math.min(props.pagination?.pages ?? 1, (props.pagination?.page ?? 1) + 1)
+                    )
+                  }
+                >
+                  Next
+                </button>
               </div>
-            </Show>
-
-            <Show when={(props.pagination?.pages || 1) > 1}>
-              <div class="flex items-center justify-between border-t border-white/5 px-6 py-4">
-                <p class="text-sm text-slate-500">
-                  Page {props.pagination?.page || 1} of {props.pagination?.pages || 1}
-                </p>
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      props.onPageChange(Math.max(1, (props.pagination?.page || 1) - 1))
-                    }
-                    disabled={(props.pagination?.page || 1) === 1}
-                    class="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm font-bold text-white transition-all hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      props.onPageChange(
-                        Math.min(props.pagination?.pages || 1, (props.pagination?.page || 1) + 1)
-                      )
-                    }
-                    disabled={(props.pagination?.page || 1) === (props.pagination?.pages || 1)}
-                    class="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm font-bold text-white transition-all hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </Show>
-          </div>
-        </Show>
+            </footer>
+          </Show>
+        </div>
       </Show>
-    </div>
+    </section>
   );
 };

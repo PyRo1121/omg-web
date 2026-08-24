@@ -1,6 +1,4 @@
-import { createSignal, onMount, Show } from 'solid-js';
 import { Title, Meta, Link } from '@solidjs/meta';
-import { clientOnly } from '@solidjs/start';
 import Header from '../components/Header';
 import Hero from '../components/Hero';
 import FeatureGrid from '../components/landing/FeatureGrid';
@@ -11,23 +9,11 @@ import Installation from '../components/Installation';
 import Footer from '../components/Footer';
 import { LicenseSuccessModal } from '../components/landing/LicenseSuccessModal';
 
-const BackgroundMesh = clientOnly(() => import('../components/3d/BackgroundMesh'));
-
 /**
  * Landing page. Composes the marketing sections and defers post-checkout
  * license retrieval to {@link LicenseSuccessModal}.
  */
 export default function Home() {
-  const [show3D, setShow3D] = createSignal(false);
-
-  onMount(() => {
-    if ('requestIdleCallback' in window) {
-      window.requestIdleCallback(() => setShow3D(true), { timeout: 8000 });
-    } else {
-      setTimeout(() => setShow3D(true), 200);
-    }
-  });
-
   return (
     <>
       <Title>OMG - Fastest Linux Package Manager | 22x Faster Than Pacman</Title>
@@ -60,11 +46,8 @@ export default function Home() {
       <Meta name="twitter:image" content="https://omg.latham.cloud/og/omg-og.png" />
 
       <div class="min-h-screen">
-        <Show when={show3D()}>
-          <BackgroundMesh fallback={null} />
-        </Show>
         <Header />
-        <main>
+        <main id="main-content">
           <Hero />
           <div class="relative z-10">
             <FeatureGrid />

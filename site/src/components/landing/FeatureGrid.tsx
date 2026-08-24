@@ -1,93 +1,78 @@
+import { Boxes, GitCompareArrows, Gauge, PackageSearch } from 'lucide-solid';
 import type { Component } from 'solid-js';
 import { For } from 'solid-js';
-import GlassCard from '../ui/GlassCard';
 
-const features = [
+const FEATURES = [
   {
-    title: 'Universal',
-    description: 'One tool for Node, Python, Go, Rust, and 100+ more via mise integration.',
-    icon: (
-      <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9-9c1.657 0 3 4.03 3 9s-1.343 9-3 9m0-18c-1.657 0-3 4.03-3 9s1.343 9 3 9"
-        />
-      </svg>
-    ),
-    color: 'text-blue-400',
+    code: 'PKG-01',
+    title: 'One resolver',
+    description: 'Query system packages and language ecosystems without memorizing seven CLIs.',
+    icon: PackageSearch,
   },
   {
-    title: 'Sandboxed',
+    code: 'ENV-02',
+    title: 'Isolated installs',
+    description: 'Keep project environments reproducible and separate from the system toolchain.',
+    icon: Boxes,
+  },
+  {
+    code: 'RUN-03',
+    title: 'Native speed',
+    description: 'Resolve and switch without shell shims, startup hooks, or background daemons.',
+    icon: Gauge,
+  },
+  {
+    code: 'OPS-04',
+    title: 'Drift control',
     description:
-      "Every installation is isolated and reproducible. No more 'works on my machine' issues.",
-    icon: (
-      <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-        />
-      </svg>
-    ),
-    color: 'text-green-400',
+      'Compare declared and installed state before configuration diverges across a team.',
+    icon: GitCompareArrows,
   },
-  {
-    title: 'Blazing Fast',
-    description:
-      'Written in pure Rust with zero overhead. Up to 22x faster than traditional managers.',
-    icon: (
-      <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M13 10V3L4 14h7v7l9-11h-7z"
-        />
-      </svg>
-    ),
-    color: 'text-yellow-400',
-  },
-  {
-    title: 'Team Sync',
-    description: 'Share environment definitions across your team with built-in drift detection.',
-    icon: (
-      <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-        />
-      </svg>
-    ),
-    color: 'text-purple-400',
-  },
-];
+] as const;
 
-const FeatureGrid: Component = () => {
-  return (
-    <div class="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 py-20 md:grid-cols-2 lg:grid-cols-4">
-      <For each={features}>
-        {(feature, index) => (
-          <GlassCard
-            class="group animate-fade-in-up p-8 transition-all duration-300 hover:border-white/20"
-            style={{ 'animation-delay': `${index() * 100}ms` }}
+const FeatureGrid: Component = () => (
+  <section id="features" class="manifest-shell manifest-section" aria-labelledby="system-title">
+    <div class="manifest-grid">
+      <header class="col-span-4 flex min-h-80 flex-col justify-between border-r border-[var(--ink)] p-6 sm:p-10">
+        <span class="manifest-index">01 / SYSTEM</span>
+        <div>
+          <h2
+            id="system-title"
+            class="text-5xl leading-[0.92] font-black tracking-[-0.055em] uppercase"
           >
-            <div
-              class={`mb-4 ${feature.color} opacity-80 transition-opacity group-hover:opacity-100`}
-            >
-              {feature.icon}
-            </div>
-            <h3 class="mb-3 text-xl font-bold text-white">{feature.title}</h3>
-            <p class="text-sm leading-relaxed text-slate-400">{feature.description}</p>
-          </GlassCard>
-        )}
-      </For>
+            Fewer tools.
+            <br />
+            Less drift.
+          </h2>
+          <p class="mt-6 max-w-sm text-[var(--ink-muted)]">
+            OMG treats package and runtime management as one operational system.
+          </p>
+        </div>
+      </header>
+
+      <ol class="col-span-8 m-0 list-none p-0">
+        <For each={FEATURES}>
+          {feature => (
+            <li class="group grid min-h-36 grid-cols-[5rem_1fr_auto] items-center border-b border-[var(--rule)] px-6 last:border-b-0 sm:px-10">
+              <span class="font-mono text-xs text-[var(--signal)]">{feature.code}</span>
+              <div class="py-6">
+                <h3 class="text-2xl font-bold tracking-[-0.035em]">{feature.title}</h3>
+                <p class="mt-2 max-w-xl text-sm leading-relaxed text-[var(--ink-muted)]">
+                  {feature.description}
+                </p>
+              </div>
+              <feature.icon
+                size={28}
+                strokeWidth={1.35}
+                aria-hidden="true"
+                class="ml-4 transition-transform group-hover:translate-x-1"
+              />
+            </li>
+          )}
+        </For>
+      </ol>
     </div>
-  );
-};
+  </section>
+);
 
 export default FeatureGrid;
