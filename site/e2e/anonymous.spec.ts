@@ -29,6 +29,24 @@ test.describe('anonymous authorization', () => {
     await expect(page.getByRole('button', { name: 'Create my code' })).toBeVisible();
   });
 
+  test('renders the documentation entry surface', async ({ page }) => {
+    await page.goto('/docs/', { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByRole('heading', { name: 'Learn the parts you need.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Install OMG' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /CLI reference/ })).toHaveAttribute(
+      'href',
+      /github\.com\/PyRo1121\/omg\/blob\/main\/docs\/cli\.md/
+    );
+
+    const sitemap = await page.request.get('/sitemap.xml');
+    const sitemapText = await sitemap.text();
+    expect(sitemap.ok()).toBe(true);
+    expect(sitemapText).toContain('<loc>https://omg.latham.cloud/docs</loc>');
+    expect(sitemapText).not.toContain('/dashboard');
+    expect(sitemapText).not.toContain('/docs/getting-started');
+  });
+
   test('renders the complete login entry surface', async ({ page }) => {
     await page.goto('/login', { waitUntil: 'domcontentloaded' });
 

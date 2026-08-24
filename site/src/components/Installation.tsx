@@ -9,9 +9,8 @@ const INSTALL_OPTIONS = [
     label: 'Linux / macOS',
     command: 'curl -fsSL https://omg.latham.cloud/install.sh | bash',
   },
-  { id: 'windows', label: 'Windows', command: 'irm https://omg.latham.cloud/install.ps1 | iex' },
   { id: 'arch', label: 'Arch / AUR', command: 'yay -S omg-bin' },
-  { id: 'scoop', label: 'Scoop', command: 'scoop install omg' },
+  { id: 'source', label: 'From source', command: 'cargo install omg --locked' },
 ] as const;
 
 type InstallOption = (typeof INSTALL_OPTIONS)[number];
@@ -42,19 +41,19 @@ const Installation: Component = () => {
   return (
     <section
       id="install"
-      class="border-y border-[var(--rule)] py-28 sm:py-36"
+      class="manifest-shell border-x border-t border-[var(--rule)]"
       aria-labelledby="install-title"
     >
-      <div class="manifest-shell">
-        <header class="max-w-4xl">
+      <div class="grid lg:grid-cols-[0.72fr_1.28fr]">
+        <header class="border-b border-[var(--rule)] px-5 py-20 sm:px-8 lg:border-r lg:border-b-0 lg:px-12 lg:py-28">
           <h2
             id="install-title"
-            class="text-5xl leading-[0.94] font-medium tracking-[-0.055em] sm:text-7xl"
+            class="max-w-[8ch] text-5xl leading-[0.9] font-semibold tracking-[-0.065em] sm:text-7xl"
           >
-            Go from zero to installed.
+            Install once. Start simplifying.
           </h2>
-          <p class="mt-7 max-w-xl text-lg leading-relaxed text-[var(--ink-muted)]">
-            Choose your platform. Inspect the script before it runs.
+          <p class="mt-7 max-w-sm leading-relaxed text-[var(--ink-muted)]">
+            Choose your platform. Inspect every installer before it runs.
           </p>
         </header>
 
@@ -63,16 +62,16 @@ const Installation: Component = () => {
           onChange={value => {
             if (isInstallTabId(value)) setActiveTab(value);
           }}
-          class="mt-16"
+          class="flex min-w-0 flex-col bg-[var(--paper-raised)]"
         >
           <Tabs.List
-            class="no-scrollbar flex gap-2 overflow-x-auto"
+            class="no-scrollbar flex overflow-x-auto border-b border-[var(--rule)]"
             aria-label="Installation platform"
           >
             {INSTALL_OPTIONS.map(option => (
               <Tabs.Trigger
                 value={option.id}
-                class="rounded-full px-4 py-2.5 text-xs font-medium whitespace-nowrap text-[var(--ink-muted)] hover:text-[var(--ink)] data-[selected]:bg-white/[0.09] data-[selected]:text-[var(--ink)]"
+                class="min-h-14 shrink-0 border-r border-[var(--rule)] px-5 font-mono text-[10px] whitespace-nowrap text-[var(--ink-muted)] hover:text-[var(--ink)] data-[selected]:bg-[var(--signal)] data-[selected]:text-[var(--signal-ink)]"
               >
                 {option.label}
               </Tabs.Trigger>
@@ -81,25 +80,31 @@ const Installation: Component = () => {
           </Tabs.List>
 
           {INSTALL_OPTIONS.map(option => (
-            <Tabs.Content value={option.id} class="mt-5">
-              <figure class="m-0 flex min-h-44 flex-col justify-between gap-8 rounded-[1.75rem] border border-white/[0.1] bg-[#0b0f0c] p-6 shadow-[0_2rem_7rem_rgba(0,0,0,0.25)] sm:flex-row sm:items-center sm:p-9">
-                <code class="block overflow-x-auto text-sm text-[var(--ink)] sm:text-base">
+            <Tabs.Content
+              value={option.id}
+              class="flex flex-1 flex-col justify-between p-5 sm:p-8 lg:p-12"
+            >
+              <div>
+                <p class="m-0 font-mono text-[10px] tracking-[0.06em] text-[var(--signal)]">
+                  COPY AND RUN
+                </p>
+                <code class="mt-12 block overflow-x-auto text-sm leading-relaxed text-[var(--ink)] sm:text-base">
                   <span class="text-[var(--signal)]">$ </span>
                   {option.command}
                 </code>
-                <button
-                  type="button"
-                  class="manifest-button shrink-0 self-start sm:self-auto"
-                  onClick={() => void copyCommand()}
-                >
-                  {copied() ? (
-                    <Check size={16} strokeWidth={1.5} />
-                  ) : (
-                    <Copy size={16} strokeWidth={1.5} />
-                  )}
-                  {copied() ? 'Copied' : 'Copy'}
-                </button>
-              </figure>
+              </div>
+              <button
+                type="button"
+                class="manifest-button mt-16 self-start"
+                onClick={() => void copyCommand()}
+              >
+                {copied() ? (
+                  <Check size={16} strokeWidth={1.5} />
+                ) : (
+                  <Copy size={16} strokeWidth={1.5} />
+                )}
+                {copied() ? 'Copied' : 'Copy command'}
+              </button>
             </Tabs.Content>
           ))}
         </Tabs.Root>

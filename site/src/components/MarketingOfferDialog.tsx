@@ -53,11 +53,11 @@ const MarketingOfferDialog: Component<MarketingOfferDialogProps> = props => {
   return (
     <Dialog.Root open={props.open} onOpenChange={props.onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay class="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm" />
+        <Dialog.Overlay class="fixed inset-0 z-40 bg-black/85" />
         <div class="fixed inset-0 z-40 grid place-items-center overflow-y-auto p-4">
-          <Dialog.Content class="relative w-full max-w-2xl overflow-hidden rounded-[2rem] border border-[var(--rule-strong)] bg-[var(--paper-raised)] p-7 shadow-[0_3rem_10rem_rgba(0,0,0,0.55)] sm:p-10">
+          <Dialog.Content class="relative w-full max-w-2xl overflow-hidden border border-t-4 border-[var(--rule-strong)] border-t-[var(--signal)] bg-[var(--paper-raised)] p-7 shadow-[0_3rem_10rem_rgba(0,0,0,0.55)] sm:p-10">
             <Dialog.CloseButton
-              class="absolute top-5 right-5 grid h-10 w-10 place-items-center rounded-full text-[var(--ink-muted)] hover:bg-white/[0.06] hover:text-[var(--ink)]"
+              class="absolute top-5 right-5 grid h-10 w-10 place-items-center border border-[var(--rule)] text-[var(--ink-muted)] hover:bg-white/[0.06] hover:text-[var(--ink)]"
               aria-label="Close offer"
             >
               <X size={18} strokeWidth={1.5} />
@@ -87,7 +87,7 @@ const MarketingOfferDialog: Component<MarketingOfferDialogProps> = props => {
                         required
                         value={email()}
                         onInput={event => setEmail(event.currentTarget.value)}
-                        class="min-h-12 flex-1 rounded-full border border-[var(--rule-strong)] bg-white/[0.035] px-5 text-sm outline-none placeholder:text-[#657067] focus:border-[var(--signal)]"
+                        class="min-h-12 flex-1 border border-[var(--rule-strong)] bg-white/[0.035] px-5 text-sm outline-none placeholder:text-[#77736e] focus:border-[var(--signal)]"
                         placeholder="you@company.com"
                       />
                       <button
@@ -132,7 +132,7 @@ const MarketingOfferDialog: Component<MarketingOfferDialogProps> = props => {
                   <button
                     type="button"
                     onClick={() => void copyCode()}
-                    class="mt-9 flex w-full items-center justify-between rounded-2xl border border-[var(--rule-strong)] bg-[#0a0e0b] px-5 py-5 text-left font-mono text-lg tracking-[0.08em] text-[var(--ink)] hover:border-[var(--signal)]"
+                    class="mt-9 flex w-full items-center justify-between border border-[var(--rule-strong)] bg-[var(--paper)] px-5 py-5 text-left font-mono text-lg tracking-[0.08em] text-[var(--ink)] hover:border-[var(--signal)]"
                   >
                     {current().code}
                     <Show when={copied()} fallback={<Copy size={18} strokeWidth={1.5} />}>

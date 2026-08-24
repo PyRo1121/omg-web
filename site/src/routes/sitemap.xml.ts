@@ -17,35 +17,6 @@ const STATIC_PAGES: PageEntry[] = [
   { path: '/terms', priority: 0.3, changefreq: 'yearly' },
 ];
 
-// Documentation pages - these would ideally be generated dynamically
-// but we'll define common ones here for now
-const DOC_PAGES: PageEntry[] = [
-  { path: '/docs/getting-started', priority: 0.8, changefreq: 'weekly' },
-  { path: '/docs/installation', priority: 0.8, changefreq: 'weekly' },
-  { path: '/docs/commands', priority: 0.8, changefreq: 'weekly' },
-  { path: '/docs/configuration', priority: 0.7, changefreq: 'weekly' },
-  { path: '/docs/runtimes', priority: 0.7, changefreq: 'weekly' },
-  { path: '/docs/runtimes/nodejs', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/runtimes/python', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/runtimes/go', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/runtimes/rust', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/runtimes/ruby', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/runtimes/java', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/runtimes/bun', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/package-managers', priority: 0.7, changefreq: 'weekly' },
-  { path: '/docs/package-managers/arch', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/package-managers/debian', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/package-managers/fedora', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/aur', priority: 0.7, changefreq: 'weekly' },
-  { path: '/docs/fleet', priority: 0.7, changefreq: 'weekly' },
-  { path: '/docs/daemon', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/security', priority: 0.6, changefreq: 'monthly' },
-  { path: '/docs/faq', priority: 0.5, changefreq: 'monthly' },
-  { path: '/docs/changelog', priority: 0.5, changefreq: 'weekly' },
-  { path: '/docs/contributing', priority: 0.4, changefreq: 'monthly' },
-  { path: '/docs/license', priority: 0.3, changefreq: 'yearly' },
-];
-
 /**
  * Generate XML for a single URL entry
  */
@@ -75,7 +46,7 @@ function escapeXml(str: string): string {
  * Generate the complete sitemap XML
  */
 function generateSitemap(): string {
-  const allPages = [...STATIC_PAGES, ...DOC_PAGES];
+  const allPages = STATIC_PAGES;
 
   const urlEntries = allPages.map(page => generateUrlEntry(page, SITE_URL)).join('\n');
 

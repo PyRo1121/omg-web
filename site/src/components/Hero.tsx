@@ -1,67 +1,76 @@
-import { ArrowDown, ArrowUpRight } from 'lucide-solid';
+import { ArrowDown, ArrowRight } from 'lucide-solid';
 import type { Component } from 'solid-js';
-import HeroTerminal from './hero/HeroTerminal';
+
+const INPUTS = ['System packages', 'Language runtimes', 'Project toolchains'] as const;
 
 const Hero: Component = () => (
-  <section
-    class="relative isolate min-h-[100dvh] overflow-hidden pt-28"
-    aria-labelledby="hero-title"
-  >
-    <span
-      aria-hidden="true"
-      class="pointer-events-none absolute top-[18%] left-[54%] -z-10 hidden -translate-x-1/2 text-[clamp(16rem,32vw,35rem)] leading-none font-black tracking-[-0.12em] text-white/[0.018] lg:block"
-    >
-      OMG
-    </span>
+  <section class="manifest-shell" aria-labelledby="hero-title">
+    <div class="grid min-h-[calc(100dvh-4.5rem)] grid-rows-[1fr_auto] border-x border-[var(--rule)]">
+      <div class="grid items-end gap-10 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[1.45fr_0.55fr] lg:gap-20 lg:px-12 lg:py-24">
+        <header class="editorial-reveal max-w-5xl">
+          <h1
+            id="hero-title"
+            class="max-w-[17ch] text-[clamp(3.1rem,7.1vw,7rem)] leading-[0.86] font-semibold tracking-[-0.08em]"
+          >
+            Stop managing package managers.
+          </h1>
+        </header>
 
-    <div class="manifest-shell grid min-h-[calc(100dvh-7rem)] items-center gap-14 pb-12 lg:grid-cols-[1.12fr_0.88fr] lg:gap-20">
-      <header class="max-w-3xl py-12 lg:py-20">
-        <h1
-          id="hero-title"
-          class="text-[clamp(3.4rem,7.4vw,7.4rem)] leading-[0.88] font-semibold tracking-[-0.075em]"
-        >
-          One package manager.
-          <br />
-          <em class="font-normal text-[var(--signal)]">Every toolchain.</em>
-        </h1>
-        <p class="mt-8 max-w-[38rem] text-lg leading-relaxed text-[var(--ink-muted)] sm:text-xl">
-          Install Linux packages, switch language runtimes, and reproduce a project environment
-          without juggling seven different managers.
-        </p>
-        <p class="mt-9 flex flex-wrap gap-3">
-          <a href="#install" class="manifest-button manifest-button--primary group">
-            Install OMG
-            <ArrowDown
-              class="h-4 w-4 transition-transform group-hover:translate-y-0.5"
-              strokeWidth={1.5}
-            />
-          </a>
-          <a href="/docs/" class="manifest-button group">
-            Read the docs
-            <ArrowUpRight
-              class="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-              strokeWidth={1.5}
-            />
-          </a>
-        </p>
+        <aside class="editorial-reveal editorial-reveal--late border-t border-[var(--rule-strong)] pt-6 lg:mb-2">
+          <p class="m-0 max-w-sm text-lg leading-relaxed text-[var(--ink-muted)]">
+            System packages, language runtimes, and project toolchains through one Rust CLI.
+          </p>
+          <p class="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <a href="#install" class="manifest-button manifest-button--primary group">
+              Install OMG
+              <ArrowDown
+                class="h-4 w-4 transition-transform group-hover:translate-y-0.5"
+                strokeWidth={1.5}
+              />
+            </a>
+            <a
+              href="#workflow"
+              class="group inline-flex items-center gap-2 text-sm font-medium text-[var(--ink)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
+            >
+              See the workflow
+              <ArrowRight
+                class="h-4 w-4 transition-transform group-hover:translate-x-1"
+                strokeWidth={1.5}
+              />
+            </a>
+          </p>
+        </aside>
+      </div>
 
-        <dl class="mt-14 grid max-w-2xl grid-cols-3 gap-5 border-t border-[var(--rule)] pt-5">
-          <div>
-            <dt class="text-xs text-[var(--ink-muted)]">Measured search</dt>
-            <dd class="m-0 mt-2 font-mono text-2xl text-[var(--ink)]">22×</dd>
-          </div>
-          <div>
-            <dt class="text-xs text-[var(--ink-muted)]">Runtime catalog</dt>
-            <dd class="m-0 mt-2 font-mono text-2xl text-[var(--ink)]">100+</dd>
-          </div>
-          <div>
-            <dt class="text-xs text-[var(--ink-muted)]">Core</dt>
-            <dd class="m-0 mt-2 font-mono text-2xl text-[var(--ink)]">Rust</dd>
-          </div>
-        </dl>
-      </header>
+      <figure class="m-0 border-t border-[var(--rule-strong)]">
+        <figcaption class="sr-only">
+          OMG combines system packages, language runtimes, and project toolchains into one declared
+          environment.
+        </figcaption>
+        <div class="grid lg:grid-cols-[1fr_5.5rem_1fr]">
+          <ul class="m-0 grid list-none sm:grid-cols-3 lg:grid-cols-1">
+            {INPUTS.map((input, index) => (
+              <li class="flex items-center justify-between border-b border-[var(--rule)] px-5 py-4 font-mono text-[11px] text-[var(--ink-muted)] last:border-b-0 sm:border-r sm:border-b-0 sm:last:border-r-0 lg:border-r-0 lg:border-b lg:last:border-b-0">
+                <span>{input}</span>
+                <span aria-hidden="true">0{index + 1}</span>
+              </li>
+            ))}
+          </ul>
 
-      <HeroTerminal />
+          <div class="grid min-h-24 place-items-center bg-[var(--signal)] text-[var(--signal-ink)] lg:min-h-full">
+            <span class="text-2xl font-bold tracking-[-0.08em]">O/</span>
+          </div>
+
+          <div class="flex min-h-40 flex-col justify-between bg-[var(--paper-raised)] p-5 sm:p-7 lg:min-h-full">
+            <span class="font-mono text-[10px] tracking-[0.06em] text-[var(--signal)]">
+              ONE STATE MODEL
+            </span>
+            <p class="m-0 max-w-lg text-2xl leading-tight font-medium tracking-[-0.04em] sm:text-3xl">
+              Search once. Declare versions. Rebuild the same environment anywhere.
+            </p>
+          </div>
+        </div>
+      </figure>
     </div>
   </section>
 );

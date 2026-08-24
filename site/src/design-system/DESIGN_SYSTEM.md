@@ -1,17 +1,20 @@
-# OMG Nightshift interface
+# OMG command interface
 
 ## Design read
 
-OMG is a developer tool for people who care about speed, control, and knowing what changed on their machine. The interface is dark, spatial, and product-led: open composition, oversized but disciplined typography, precise command surfaces, and a single chartreuse signal color. It must not resemble a brutalist manual, purple SaaS template, or wall of dashboard cards.
+OMG is a developer tool for people who want fewer commands, fewer hidden state transitions, and less setup documentation. The interface is concise and command-led: graphite surfaces, bone typography, construction orange, sharp geometry, and large editorial statements supported by inspectable product evidence.
+
+It must not resemble a floating-card SaaS template, a terminal-themed hacker page, or a documentation manual pasted onto the homepage.
 
 ## Principles
 
-1. **Space groups information.** Prefer semantic sections, lists, tables, and typography over nested containers.
-2. **One dark world.** Cool off-black surfaces, soft white text, and chartreuse (`--signal`) define the brand. Green, amber, and red remain state-only colors.
-3. **Tools may have surfaces.** Terminals, forms, menus, and dialogs can use soft containers because their boundaries communicate interaction. Marketing copy and metrics should remain open.
-4. **One radius rule.** Interactive surfaces use 12–24px corners; action buttons are pills; data rows and prose have no surrounding card.
-5. **Data stays legible.** IBM Plex Mono and tabular figures are used for metrics, commands, and tables. Dense records use semantic tables rather than responsive card duplicates.
-6. **Motion explains state.** Short transform and opacity transitions communicate entry, hover, and completion. Reduced-motion preferences collapse them.
+1. **Lead with the reduction.** Marketing pages explain the problem, show the changed workflow, prove the speed, state the price, and provide one installation path. Detailed capability coverage belongs in Docs.
+2. **Typography is the image.** Archivo carries the visual identity. Diagrams and tables represent real product behavior; decorative fake terminals and abstract gradients are prohibited.
+3. **One decisive signal.** Construction orange (`--signal`) identifies actions, active state, and the OMG control point. Green, amber, and red remain status-only colors.
+4. **Rules create structure.** Hairlines connect related information into one composition. They must not turn independent prose into a wall of cards.
+5. **Sharp means precise.** Marketing controls and tool surfaces use 2–6px corners. Pills are reserved for semantic chips that genuinely need them.
+6. **Data stays inspectable.** IBM Plex Mono and tabular figures are used for commands, metrics, metadata, and tables.
+7. **Motion establishes hierarchy.** A short first-view entrance is allowed. State changes use transform and opacity, respect reduced motion, and never become decoration.
 
 ## Foundations
 
@@ -20,26 +23,25 @@ OMG is a developer tool for people who care about speed, control, and knowing wh
 - Accessible primitives: Kobalte.
 - Server state: TanStack Solid Query.
 - Data grids: TanStack Solid Table v9.
-- Icons: existing Lucide Solid icons at 1.25–1.6 stroke width, always paired with accessible labels when meaning is not obvious.
+- Icons: existing Lucide Solid icons at 1.25–1.6 stroke width, with accessible labels where meaning is not obvious.
 
 ## Layout
 
-- `.manifest-shell` is retained as the compatibility name for an open `88rem` canvas. It does not draw a box around the page.
-- Marketing layouts alternate asymmetric hero, editorial rows, flowing runtime type, an open benchmark table, one installation workbench, and plan rows.
-- Dashboard navigation is horizontal. KPIs may use columns and rules; repeated bordered cards are prohibited.
-- Below 768px, asymmetric compositions become a strict single column with reduced type scale and no overlap or rotation.
+- `.manifest-shell` is retained as a compatibility name for an `82rem` canvas.
+- The marketing page uses five chapters: reduction, workflow, evidence, plans, and install.
+- Landing-page information is deliberately bounded; deep product explanations link to Docs.
+- Dashboard navigation remains horizontal. Dense records use semantic tables and sparse rules rather than repeated KPI cards.
+- Below 768px, asymmetric compositions become one column. Wide comparison tables use intentional horizontal overflow.
 
 ## Reusable classes
 
-- `.manifest-shell`: constrained open canvas.
+- `.manifest-shell`: constrained canvas.
 - `.manifest-section`: subtle section boundary.
 - `.manifest-grid`: responsive 12-column compatibility grid.
 - `.manifest-label`: compact mono metadata.
 - `.manifest-index`: signal-colored identifier.
-- `.manifest-button`: soft pill action.
-- `.manifest-button--primary`: chartreuse primary action with dark text.
-
-The compatibility names avoid a broad class migration; they no longer imply the former manifest aesthetic.
+- `.manifest-button`: sharp secondary action.
+- `.manifest-button--primary`: orange primary action with dark text.
 
 ## Interaction requirements
 
@@ -52,12 +54,13 @@ The compatibility names avoid a broad class migration; they no longer imply the 
 
 ## Prohibited patterns
 
-- Brutalist grids, square button systems, paper backgrounds, and borders around every region.
-- Purple/blue mesh gradients, gradient headlines, glow shadows, or decorative floating blobs.
-- Equal feature-card rows, KPI card walls, and nested container stacks.
+- Floating capsule navigation, pill-button systems, glass cards, and decorative fake terminals.
+- Purple/blue mesh gradients, gradient headlines, glow shadows, or decorative blobs.
+- Centered hero stacks, equal feature-card rows, pricing towers, and KPI card walls.
+- Italic accent words, tiny labels above every heading, or invented product screenshots.
 - Fake activity, fake precision, placeholder companies, or invented trend lines.
-- More than one accent color, continuous decorative animation, or scroll event listeners.
-- SEO copy written for crawlers instead of people; structured data must match visible content.
+- More than one marketing accent, continuous decorative animation, or scroll event listeners.
+- SEO copy written for crawlers; structured data must match visible content.
 
 ## Verification
 
@@ -65,4 +68,4 @@ The compatibility names avoid a broad class migration; they no longer imply the 
 2. Inspect desktop at 1440px and mobile at 390px.
 3. Exercise keyboard navigation, focus restoration, loading, empty, error, and overflow states.
 4. Validate metadata, canonical URLs, structured data, heading order, and meaningful internal links.
-5. Confirm the interface contains no unintended light sections, brutalist border cages, or card stacks.
+5. Confirm the landing page reads in one glance before asking the user to open Docs.

@@ -33,8 +33,8 @@ export default function App() {
 
 function PageLoader() {
   return (
-    <div class="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-      <div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+    <div class="grid min-h-screen place-items-center bg-[var(--paper)]" aria-label="Loading page">
+      <span class="font-mono text-xs tracking-[0.08em] text-[var(--signal)]">OMG/ LOADING</span>
     </div>
   );
 }

@@ -1,24 +1,24 @@
 <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title description">
   <title id="title">OMG Package Manager</title>
-  <desc id="description">Your machine, one command away. A fast package and runtime manager for Linux.</desc>
-  <rect width="1200" height="630" fill="#080b09"/>
-  <circle cx="1070" cy="-10" r="280" fill="#9fe3c6" opacity="0.035"/>
-  <circle cx="104" cy="92" r="34" fill="#9fe3c6"/>
-  <text x="104" y="99" text-anchor="middle" font-family="ui-monospace, monospace" font-size="17" font-weight="700" fill="#08130e">O/</text>
-  <text x="158" y="100" font-family="system-ui, sans-serif" font-size="25" font-weight="650" letter-spacing="-1" fill="#edf1ed">OMG Package Manager</text>
+  <desc id="description">Stop managing package managers. One CLI for packages, runtimes, and project toolchains.</desc>
+  <rect width="1200" height="630" fill="#090909"/>
+  <line x1="72" y1="82" x2="1128" y2="82" stroke="#f2f0ea" stroke-opacity="0.22"/>
+  <line x1="72" y1="520" x2="1128" y2="520" stroke="#f2f0ea" stroke-opacity="0.22"/>
+  <text x="72" y="58" font-family="system-ui, sans-serif" font-size="24" font-weight="750" letter-spacing="-1" fill="#f2f0ea">OMG<tspan fill="#ff5f38">/</tspan></text>
+  <text x="1128" y="58" text-anchor="end" font-family="ui-monospace, monospace" font-size="14" fill="#9f9b95">PACKAGE CONTROL / ONE CLI</text>
 
-  <text x="82" y="252" font-family="system-ui, sans-serif" font-size="82" font-weight="620" letter-spacing="-5" fill="#edf1ed">Your machine.</text>
-  <text x="82" y="340" font-family="system-ui, sans-serif" font-size="82" font-style="italic" font-weight="420" letter-spacing="-5" fill="#9fe3c6">One command away.</text>
-  <text x="86" y="406" font-family="system-ui, sans-serif" font-size="24" fill="#98a39a">Linux packages and 100+ language runtimes through one fast Rust CLI.</text>
+  <text x="72" y="218" font-family="system-ui, sans-serif" font-size="94" font-weight="700" letter-spacing="-7" fill="#f2f0ea">Stop managing</text>
+  <text x="72" y="310" font-family="system-ui, sans-serif" font-size="94" font-weight="700" letter-spacing="-7" fill="#f2f0ea">package managers.</text>
+  <text x="76" y="376" font-family="system-ui, sans-serif" font-size="24" fill="#9f9b95">Packages, runtimes, and project toolchains through one Rust CLI.</text>
 
-  <g transform="translate(765 468) rotate(1)">
-    <text x="0" y="0" font-family="ui-monospace, monospace" font-size="18" fill="#69736b">$</text>
-    <text x="28" y="0" font-family="ui-monospace, monospace" font-size="18" fill="#edf1ed">omg install bun</text>
-    <text x="0" y="42" font-family="ui-monospace, monospace" font-size="18" fill="#9fe3c6">✓</text>
-    <text x="28" y="42" font-family="ui-monospace, monospace" font-size="18" fill="#aeb7af">installed bun</text>
+  <g transform="translate(72 430)">
+    <rect width="736" height="56" fill="#111111" stroke="#f2f0ea" stroke-opacity="0.16"/>
+    <text x="24" y="35" font-family="ui-monospace, monospace" font-size="17" fill="#ff5f38">$</text>
+    <text x="54" y="35" font-family="ui-monospace, monospace" font-size="17" fill="#f2f0ea">omg env check</text>
+    <rect x="736" width="320" height="56" fill="#ff5f38"/>
+    <text x="1032" y="35" text-anchor="end" font-family="ui-monospace, monospace" font-size="15" font-weight="700" fill="#090909">SAME MACHINE STATE →</text>
   </g>
 
-  <line x1="82" y1="520" x2="1118" y2="520" stroke="#edf1ed" stroke-opacity="0.12"/>
-  <text x="82" y="570" font-family="ui-monospace, monospace" font-size="16" fill="#69736b">ARCH · DEBIAN · UBUNTU</text>
-  <text x="1118" y="570" text-anchor="end" font-family="ui-monospace, monospace" font-size="16" fill="#9fe3c6">omg.latham.cloud</text>
+  <text x="72" y="566" font-family="ui-monospace, monospace" font-size="14" fill="#9f9b95">ARCH · DEBIAN · UBUNTU · MACOS · WINDOWS</text>
+  <text x="1128" y="566" text-anchor="end" font-family="ui-monospace, monospace" font-size="14" fill="#ff5f38">omg.latham.cloud</text>
 </svg>

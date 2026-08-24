@@ -63,11 +63,10 @@ export default function LoginPage() {
 
       <main class="manifest-shell grid min-h-[100dvh] items-center gap-14 py-20 lg:grid-cols-[0.9fr_1.1fr] lg:gap-28">
         <header class="max-w-xl">
-          <A href="/" class="mb-20 flex items-center gap-3 text-[var(--ink)] no-underline">
-            <span class="grid h-10 w-10 place-items-center rounded-full bg-[var(--signal)] font-mono text-sm font-semibold text-[var(--signal-ink)]">
-              O/
-            </span>
-            <strong class="text-xl tracking-[-0.035em]">OMG</strong>
+          <A href="/" class="mb-20 inline-block text-[var(--ink)] no-underline">
+            <strong class="text-xl tracking-[-0.055em]">
+              OMG<span class="text-[var(--signal)]">/</span>
+            </strong>
           </A>
           <p class="font-mono text-xs text-[var(--signal)]">Account access</p>
           <h1 class="mt-6 text-6xl leading-[0.9] font-medium tracking-[-0.065em] sm:text-8xl">

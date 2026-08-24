@@ -1,73 +1,102 @@
 import type { Component } from 'solid-js';
 import { For } from 'solid-js';
 
-const FEATURES = [
+const WORKFLOWS = [
   {
-    title: 'Search once',
-    description:
-      'Find system packages and language tools without remembering which registry owns them.',
+    job: 'Install a package',
+    before: 'apt · pacman · brew',
+    command: 'omg install ripgrep',
+    result: 'Native package, one command',
   },
   {
-    title: 'Install without drift',
-    description: 'Keep project toolchains isolated, declared, and repeatable across every machine.',
+    job: 'Pin a runtime',
+    before: 'nvm · pyenv · rustup',
+    command: 'omg use node 22',
+    result: 'Runtime installed and selected',
   },
   {
-    title: 'Stay out of the shell',
-    description:
-      'Switch versions without startup hooks, shim forests, or a resident background process.',
-  },
-  {
-    title: 'See the transaction',
-    description: 'Preview the operation before OMG changes package or runtime state.',
+    job: 'Restore a toolchain',
+    before: 'README · shell hooks · memory',
+    command: 'omg env sync <share-url>',
+    result: 'The shared environment restored',
   },
 ] as const;
 
 const FeatureGrid: Component = () => (
-  <section id="features" class="manifest-shell py-28 sm:py-36" aria-labelledby="system-title">
-    <header class="max-w-3xl">
+  <section
+    id="workflow"
+    class="manifest-shell border-x border-[var(--rule)]"
+    aria-labelledby="workflow-title"
+  >
+    <header class="grid gap-8 border-b border-[var(--rule-strong)] px-5 py-24 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:px-12 lg:py-32">
       <h2
-        id="system-title"
-        class="text-5xl leading-[0.95] font-medium tracking-[-0.055em] sm:text-7xl"
+        id="workflow-title"
+        class="max-w-[10ch] text-5xl leading-[0.9] font-semibold tracking-[-0.065em] sm:text-7xl"
       >
-        Seven package managers is not a workflow.
+        One interface. Three jobs.
       </h2>
-      <p class="mt-7 max-w-2xl text-lg leading-relaxed text-[var(--ink-muted)]">
-        OMG gives the whole machine one predictable interface without hiding what changes
-        underneath.
-      </p>
+      <div class="max-w-xl lg:justify-self-end">
+        <p class="m-0 text-lg leading-relaxed text-[var(--ink-muted)]">
+          OMG does not replace the package repositories you trust. It replaces the commands, version
+          managers, and setup notes you have to remember.
+        </p>
+        <a
+          href="/docs/"
+          class="mt-7 inline-block font-mono text-[11px] text-[var(--signal)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
+        >
+          Read the technical details →
+        </a>
+      </div>
     </header>
 
-    <figure class="mt-20 grid gap-10 border-y border-[var(--rule-strong)] py-10 lg:grid-cols-2 lg:gap-20">
-      <figcaption class="sr-only">
-        Package management workflow before and after adopting OMG
-      </figcaption>
-      <section>
-        <h3 class="text-sm font-medium text-[var(--ink-muted)]">The usual setup</h3>
-        <p class="mt-6 font-mono text-sm leading-8 text-[#657067] line-through decoration-white/20">
-          apt install · nvm use · pyenv local · rustup override · mise activate · remember what
-          changed
-        </p>
-      </section>
-      <section>
-        <h3 class="text-sm font-medium text-[var(--signal)]">The OMG setup</h3>
-        <p class="mt-6 font-mono text-sm leading-8 text-[var(--ink)]">
-          omg install · omg runtime use · omg env apply
-        </p>
-      </section>
-    </figure>
-
-    <ol class="m-0 mt-12 list-none border-t border-[var(--rule-strong)] p-0">
-      <For each={FEATURES}>
-        {feature => (
-          <li class="grid gap-4 border-b border-[var(--rule)] py-8 sm:grid-cols-[0.8fr_1.2fr] sm:items-baseline sm:py-10">
-            <h3 class="text-2xl font-medium tracking-[-0.035em] sm:text-3xl">{feature.title}</h3>
-            <p class="m-0 max-w-xl leading-relaxed text-[var(--ink-muted)]">
-              {feature.description}
-            </p>
-          </li>
-        )}
-      </For>
-    </ol>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[52rem] border-collapse text-left">
+        <caption class="sr-only">Common package-management workflows before and after OMG</caption>
+        <thead class="font-mono text-[10px] tracking-[0.05em] text-[var(--ink-muted)]">
+          <tr class="border-b border-[var(--rule)]">
+            <th scope="col" class="px-5 py-4 font-normal sm:px-8 lg:px-12">
+              Job
+            </th>
+            <th scope="col" class="border-l border-[var(--rule)] px-6 py-4 font-normal">
+              Before
+            </th>
+            <th scope="col" class="border-l border-[var(--rule)] px-6 py-4 font-normal">
+              With OMG
+            </th>
+            <th scope="col" class="border-l border-[var(--rule)] px-6 py-4 font-normal">
+              Result
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <For each={WORKFLOWS}>
+            {(workflow, index) => (
+              <tr class="border-b border-[var(--rule)] last:border-b-0">
+                <th
+                  scope="row"
+                  class="px-5 py-8 text-xl font-medium tracking-[-0.035em] sm:px-8 lg:px-12"
+                >
+                  <span class="mr-5 font-mono text-[10px] text-[var(--signal)]">
+                    0{index() + 1}
+                  </span>
+                  {workflow.job}
+                </th>
+                <td class="border-l border-[var(--rule)] px-6 py-8 font-mono text-xs text-[var(--ink-muted)]">
+                  {workflow.before}
+                </td>
+                <td class="border-l border-[var(--rule)] bg-[var(--paper-raised)] px-6 py-8 font-mono text-xs text-[var(--ink)]">
+                  <span class="text-[var(--signal)]">$ </span>
+                  {workflow.command}
+                </td>
+                <td class="border-l border-[var(--rule)] px-6 py-8 text-sm text-[var(--ink-muted)]">
+                  {workflow.result}
+                </td>
+              </tr>
+            )}
+          </For>
+        </tbody>
+      </table>
+    </div>
   </section>
 );
 

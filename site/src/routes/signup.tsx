@@ -39,11 +39,10 @@ export default function SignupPage() {
 
       <main class="manifest-shell grid min-h-[100dvh] items-center gap-14 py-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-28">
         <section class="max-w-2xl" aria-labelledby="signup-title">
-          <A href="/" class="mb-20 flex items-center gap-3 text-[var(--ink)] no-underline">
-            <span class="grid h-10 w-10 place-items-center rounded-full bg-[var(--signal)] font-mono text-sm font-semibold text-[var(--signal-ink)]">
-              O/
-            </span>
-            <strong class="text-xl tracking-[-0.035em]">OMG</strong>
+          <A href="/" class="mb-20 inline-block text-[var(--ink)] no-underline">
+            <strong class="text-xl tracking-[-0.055em]">
+              OMG<span class="text-[var(--signal)]">/</span>
+            </strong>
           </A>
           <p class="font-mono text-xs text-[var(--signal)]">New account</p>
           <h1
