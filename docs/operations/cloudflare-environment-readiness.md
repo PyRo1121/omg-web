@@ -63,7 +63,7 @@ Stripe live mode is active on account `acct_1TpcWPPI6tkdUQSc`; charges and payou
 - Live webhook endpoint `we_1U7uexPI6tkdUQSclmocHNWo` targets `https://omg-api.latham.cloud/api/stripe/webhook` for `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`, and `customer.created`.
 - `STRIPE_SECRET_KEY` is a dedicated restricted live key; its value and the endpoint signing secret are stored only as `omg-saas` Wrangler secrets.
 
-The historical test-mode catalog remains isolated in Stripe and is not referenced by production. Automated production E2E never creates live Checkout Sessions; controlled release verification must expire its unpaid smoke-test session through Stripe CLI.
+The historical test-mode catalog remains isolated in Stripe and is not referenced by production. A signed live `customer.created` delivery was processed by the D1 webhook inbox on 2026-08-24 (`status=processed`, one attempt, no error); the no-email smoke customer was deleted immediately. Automated production E2E never creates live Checkout Sessions; controlled release verification must expire its unpaid smoke-test session through Stripe CLI.
 
 ## Free-tier ceilings that gate this design
 
