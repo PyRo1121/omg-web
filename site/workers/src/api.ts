@@ -20,9 +20,11 @@ export interface Env extends Pick<Cloudflare.Env, 'DB'> {
   STRIPE_PRO_PRICE_ID?: string;
   STRIPE_TEAM_PRICE_ID?: string;
   STRIPE_ENT_PRICE_ID?: string;
+  STRIPE_INTRO_COUPON_ID?: string;
   ADMIN_RATE_LIMITER?: RateLimit;
   AUTH_RATE_LIMITER?: RateLimit;
   API_RATE_LIMITER?: RateLimit;
+  OFFER_RATE_LIMITER?: RateLimit;
   TURNSTILE_SECRET_KEY?: string;
   SENTRY_DSN?: string;
   ADMIN_API_SECRET?: string;

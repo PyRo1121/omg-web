@@ -16,12 +16,10 @@ export default function TermsPage() {
 
       <div class="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
         <Header />
-        <main class="manifest-shell px-6 py-16 sm:px-10 sm:py-24">
-          <p class="manifest-index">LEGAL / TERMS</p>
-          <h1 class="mt-4 text-6xl font-black tracking-[-0.06em] uppercase sm:text-8xl">
-            Terms of service
-          </h1>
-          <p class="mt-4 border-b border-[var(--ink)] pb-8 font-mono text-xs text-[var(--ink-muted)]">
+        <main class="manifest-shell px-2 pt-32 pb-24 sm:px-0 sm:pt-40">
+          <p class="font-mono text-xs text-[var(--signal)]">Service agreement</p>
+          <h1 class="mt-6 text-6xl font-medium tracking-[-0.06em] sm:text-8xl">Terms of service</h1>
+          <p class="mt-6 border-b border-[var(--rule)] pb-8 font-mono text-xs text-[var(--ink-muted)]">
             Last updated February 7, 2026
           </p>
 

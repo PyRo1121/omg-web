@@ -1,79 +1,68 @@
-# OMG Manifest interface
+# OMG Nightshift interface
 
 ## Design read
 
-OMG is a technical operations product for Linux developers and engineering teams. Its interface uses a Swiss-industrial “package manifest” language: rigid information grids, high-contrast typography, semantic tables, and one signal color. It must resemble a carefully typeset operations manual rather than a generic SaaS dashboard.
+OMG is a developer tool for people who care about speed, control, and knowing what changed on their machine. The interface is dark, spatial, and product-led: open composition, oversized but disciplined typography, precise command surfaces, and a single chartreuse signal color. It must not resemble a brutalist manual, purple SaaS template, or wall of dashboard cards.
 
 ## Principles
 
-1. **Information before containers.** Group related data with headings, rules, table semantics, and whitespace. Do not wrap every metric in a card.
-2. **One visual language.** Paper (`--paper`), carbon (`--ink`), rules, and signal red (`--signal`) are the visual palette. Green, amber, and red are reserved for state.
-3. **Data is tabular.** Numeric values use IBM Plex Mono with tabular figures. Customer and operational records use semantic tables, not responsive card duplicates.
-4. **Geometry communicates structure.** Corners are square. Shadows, glass blur, gradients, and decorative glows are prohibited.
-5. **Progressive disclosure.** Primary pages show summaries and tables. Kobalte dialogs, menus, and tabs handle focused interaction and keyboard behavior.
-6. **Motion is feedback.** Only short transform/opacity transitions are allowed. Reduced-motion preferences disable them.
+1. **Space groups information.** Prefer semantic sections, lists, tables, and typography over nested containers.
+2. **One dark world.** Cool off-black surfaces, soft white text, and chartreuse (`--signal`) define the brand. Green, amber, and red remain state-only colors.
+3. **Tools may have surfaces.** Terminals, forms, menus, and dialogs can use soft containers because their boundaries communicate interaction. Marketing copy and metrics should remain open.
+4. **One radius rule.** Interactive surfaces use 12–24px corners; action buttons are pills; data rows and prose have no surrounding card.
+5. **Data stays legible.** IBM Plex Mono and tabular figures are used for metrics, commands, and tables. Dense records use semantic tables rather than responsive card duplicates.
+6. **Motion explains state.** Short transform and opacity transitions communicate entry, hover, and completion. Reduced-motion preferences collapse them.
 
 ## Foundations
 
-- Display/body: Archivo Variable, self-hosted with `font-display: swap`.
+- Display/body: Archivo Variable, self-hosted.
 - Data/code: IBM Plex Mono, self-hosted at weights 400–600.
 - Accessible primitives: Kobalte.
 - Server state: TanStack Solid Query.
-- Data grids: TanStack Solid Table v9 with reactive getters and semantic markup.
-- Icons: the existing Lucide Solid set at 1.25–1.6 stroke width. Icons supplement labels; they never replace ambiguous text.
+- Data grids: TanStack Solid Table v9.
+- Icons: existing Lucide Solid icons at 1.25–1.6 stroke width, always paired with accessible labels when meaning is not obvious.
 
 ## Layout
 
-- Maximum canvas: `96rem`, represented by `.manifest-shell`.
-- Structural pages use a 12-column `.manifest-grid` and collapse to one column below 768px.
-- Sections meet at visible 1px rules. Nested groups use `--rule`; major boundaries use `--ink`.
-- Marketing sections alternate information structures: hero split, feature ledger, runtime catalog, benchmark table, install workbench, and plan matrix.
-- Dashboard tabs form a single horizontal index. Data regions use lists, definitions, and tables before panels.
+- `.manifest-shell` is retained as the compatibility name for an open `88rem` canvas. It does not draw a box around the page.
+- Marketing layouts alternate asymmetric hero, editorial rows, flowing runtime type, an open benchmark table, one installation workbench, and plan rows.
+- Dashboard navigation is horizontal. KPIs may use columns and rules; repeated bordered cards are prohibited.
+- Below 768px, asymmetric compositions become a strict single column with reduced type scale and no overlap or rotation.
 
 ## Reusable classes
 
-- `.manifest-shell`: constrained page canvas with side rules.
-- `.manifest-section`: major top boundary.
-- `.manifest-grid`: responsive 12-column structural grid.
-- `.manifest-label`: 11px uppercase operational metadata.
-- `.manifest-index`: signal-red section or record identifier.
-- `.manifest-button`: square, high-contrast action.
-- `.manifest-button--primary`: signal-red primary action.
+- `.manifest-shell`: constrained open canvas.
+- `.manifest-section`: subtle section boundary.
+- `.manifest-grid`: responsive 12-column compatibility grid.
+- `.manifest-label`: compact mono metadata.
+- `.manifest-index`: signal-colored identifier.
+- `.manifest-button`: soft pill action.
+- `.manifest-button--primary`: chartreuse primary action with dark text.
 
-These are structural vocabulary, not a substitute for semantic HTML.
+The compatibility names avoid a broad class migration; they no longer imply the former manifest aesthetic.
 
 ## Interaction requirements
 
 - Every icon-only control has an accessible name.
-- Every input has a visible label.
+- Every input has a visible label and readable error state.
 - Tabs, menus, and dialogs use Kobalte unless native HTML provides the complete interaction.
-- Tables include a caption (visible or screen-reader-only), scoped headers, and horizontal overflow on narrow screens.
-- Loading states resemble the destination structure. Empty and error states explain the next action.
-- Disabled controls retain readable contrast and expose the native `disabled` state.
+- Tables include captions and scoped headers, with horizontal overflow where required.
+- Loading, empty, and error states preserve the destination hierarchy.
+- Focus indicators and text meet WCAG AA at minimum.
 
 ## Prohibited patterns
 
-- Gradient text or multicolor accents.
-- Glass surfaces, backdrop blur on scrolling content, glow shadows, or floating color blobs.
-- Equal-height feature cards, KPI card walls, and separate mobile card/table implementations.
-- Decorative badges such as “Popular” or “Best value” without operational meaning.
+- Brutalist grids, square button systems, paper backgrounds, and borders around every region.
+- Purple/blue mesh gradients, gradient headlines, glow shadows, or decorative floating blobs.
+- Equal feature-card rows, KPI card walls, and nested container stacks.
 - Fake activity, fake precision, placeholder companies, or invented trend lines.
-- Manual focus traps when Kobalte provides the primitive.
-- Continuous animation, confetti, or scroll listeners.
+- More than one accent color, continuous decorative animation, or scroll event listeners.
+- SEO copy written for crawlers instead of people; structured data must match visible content.
 
 ## Verification
-
-Before shipping a UI change:
 
 1. Run strict typecheck, lint, formatting, focused tests, and bundle budgets.
 2. Inspect desktop at 1440px and mobile at 390px.
 3. Exercise keyboard navigation, focus restoration, loading, empty, error, and overflow states.
-4. Confirm body text meets WCAG AA and controls have visible focus.
-5. Confirm the page contains no unintended gradients, blur, or rounded card stacks.
-
-## References
-
-- Kobalte component guidance: <https://kobalte.dev/docs/core/overview/introduction/>
-- TanStack Solid Table: <https://tanstack.com/table/latest/docs/framework/solid>
-- Carbon dashboard guidance: <https://carbondesignsystem.com/data-visualization/dashboards/>
-- Carbon data-table guidance: <https://carbondesignsystem.com/components/data-table/usage/>
+4. Validate metadata, canonical URLs, structured data, heading order, and meaningful internal links.
+5. Confirm the interface contains no unintended light sections, brutalist border cages, or card stacks.

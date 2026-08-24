@@ -1,115 +1,81 @@
 import type { Component } from 'solid-js';
 
 const Benchmarks: Component = () => (
-  <section
-    id="benchmarks"
-    class="manifest-shell manifest-section"
-    aria-labelledby="benchmark-title"
-  >
-    <div class="manifest-grid">
-      <header class="col-span-5 flex flex-col justify-between border-r border-[var(--ink)] p-6 sm:p-10">
-        <span class="manifest-index">03 / BENCHMARK</span>
-        <div class="mt-24">
-          <h2
-            id="benchmark-title"
-            class="text-5xl leading-[0.9] font-black tracking-[-0.055em] uppercase sm:text-7xl"
-          >
-            Latency is a feature.
-          </h2>
-          <p class="mt-6 max-w-md text-[var(--ink-muted)]">
-            Intel i9-14900K, ten iterations. Values show measured command latency, not simulated
-            throughput.
-          </p>
-        </div>
-      </header>
+  <section id="benchmarks" class="manifest-shell py-28 sm:py-36" aria-labelledby="benchmark-title">
+    <header class="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
+      <h2
+        id="benchmark-title"
+        class="text-5xl leading-[0.94] font-medium tracking-[-0.055em] sm:text-7xl"
+      >
+        Fast enough to disappear.
+      </h2>
+      <p class="m-0 max-w-2xl text-lg leading-relaxed text-[var(--ink-muted)]">
+        Measured on an Intel i9-14900K over ten iterations. Command latency, not simulated
+        throughput.
+      </p>
+    </header>
 
-      <div class="col-span-7 overflow-x-auto bg-[var(--paper-raised)]">
-        <table class="w-full min-w-[42rem] border-collapse text-left text-xs">
-          <caption class="sr-only">
-            OMG command latency compared with system package managers
-          </caption>
-          <thead>
-            <tr class="border-b border-[var(--ink)]">
-              <th scope="col" class="p-5 font-medium">
-                Platform / command
-              </th>
-              <th scope="col" class="p-5 font-medium">
-                OMG
-              </th>
-              <th scope="col" class="p-5 font-medium">
-                Reference
-              </th>
-              <th scope="col" class="p-5 text-right font-medium">
-                Difference
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="border-b border-[var(--rule)] bg-[var(--paper-muted)]">
-              <th colSpan={4} scope="colgroup" class="p-3 text-[10px] tracking-[0.1em] uppercase">
-                Arch Linux / pacman
-              </th>
-            </tr>
-            <tr class="border-b border-[var(--rule)]">
-              <th scope="row" class="p-5 font-normal">
-                search
-              </th>
-              <td class="p-5 font-semibold text-[var(--signal)]">6 ms</td>
-              <td class="p-5">133 ms</td>
-              <td class="p-5 text-right font-semibold">22×</td>
-            </tr>
-            <tr class="border-b border-[var(--rule)]">
-              <th scope="row" class="p-5 font-normal">
-                info
-              </th>
-              <td class="p-5 font-semibold text-[var(--signal)]">6.5 ms</td>
-              <td class="p-5">138 ms</td>
-              <td class="p-5 text-right font-semibold">21×</td>
-            </tr>
-            <tr class="border-b border-[var(--rule)]">
-              <th scope="row" class="p-5 font-normal">
-                explicit
-              </th>
-              <td class="p-5 font-semibold text-[var(--signal)]">1.2 ms</td>
-              <td class="p-5">14 ms</td>
-              <td class="p-5 text-right font-semibold">12×</td>
-            </tr>
-            <tr class="border-b border-[var(--rule)] bg-[var(--paper-muted)]">
-              <th colSpan={4} scope="colgroup" class="p-3 text-[10px] tracking-[0.1em] uppercase">
-                Debian / apt-cache
-              </th>
-            </tr>
-            <tr class="border-b border-[var(--rule)]">
-              <th scope="row" class="p-5 font-normal">
-                search
-              </th>
-              <td class="p-5 font-semibold text-[var(--signal)]">11 ms</td>
-              <td class="p-5">652 ms</td>
-              <td class="p-5 text-right font-semibold">59×</td>
-            </tr>
-            <tr class="border-b border-[var(--rule)]">
-              <th scope="row" class="p-5 font-normal">
-                info
-              </th>
-              <td class="p-5 font-semibold text-[var(--signal)]">27 ms</td>
-              <td class="p-5">462 ms</td>
-              <td class="p-5 text-right font-semibold">17×</td>
-            </tr>
-            <tr>
-              <th scope="row" class="p-5 font-normal">
-                explicit
-              </th>
-              <td class="p-5 font-semibold text-[var(--signal)]">2 ms</td>
-              <td class="p-5">601 ms</td>
-              <td class="p-5 text-right font-semibold">300×</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="grid grid-cols-[1fr_auto] border-t border-[var(--ink)] p-5 font-mono text-xs">
-          <span>Runtime version switch</span>
-          <strong class="text-[var(--signal)]">OMG 1.8 ms / 83–111×</strong>
-        </div>
-      </div>
+    <p
+      class="my-20 text-[clamp(6rem,22vw,18rem)] leading-[0.72] font-semibold tracking-[-0.095em] text-[var(--signal)]"
+      aria-label="Twenty-two times faster"
+    >
+      22×
+    </p>
+
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[42rem] border-collapse text-left">
+        <caption class="sr-only">OMG command latency compared with pacman and apt-cache</caption>
+        <thead class="font-mono text-[10px] text-[var(--ink-muted)]">
+          <tr class="border-b border-[var(--rule-strong)]">
+            <th scope="col" class="py-4 font-normal">
+              Command
+            </th>
+            <th scope="col" class="py-4 font-normal">
+              OMG
+            </th>
+            <th scope="col" class="py-4 font-normal">
+              Reference
+            </th>
+            <th scope="col" class="py-4 text-right font-normal">
+              Difference
+            </th>
+          </tr>
+        </thead>
+        <tbody class="font-mono text-sm">
+          <tr class="border-b border-[var(--rule)]">
+            <th scope="row" class="py-6 font-normal">
+              pacman search
+            </th>
+            <td class="py-6 text-[var(--signal)]">6 ms</td>
+            <td class="py-6 text-[var(--ink-muted)]">133 ms</td>
+            <td class="py-6 text-right">22×</td>
+          </tr>
+          <tr class="border-b border-[var(--rule)]">
+            <th scope="row" class="py-6 font-normal">
+              pacman info
+            </th>
+            <td class="py-6 text-[var(--signal)]">6.5 ms</td>
+            <td class="py-6 text-[var(--ink-muted)]">138 ms</td>
+            <td class="py-6 text-right">21×</td>
+          </tr>
+          <tr class="border-b border-[var(--rule)]">
+            <th scope="row" class="py-6 font-normal">
+              apt-cache search
+            </th>
+            <td class="py-6 text-[var(--signal)]">11 ms</td>
+            <td class="py-6 text-[var(--ink-muted)]">652 ms</td>
+            <td class="py-6 text-right">59×</td>
+          </tr>
+          <tr>
+            <th scope="row" class="py-6 font-normal">
+              apt-cache explicit
+            </th>
+            <td class="py-6 text-[var(--signal)]">2 ms</td>
+            <td class="py-6 text-[var(--ink-muted)]">601 ms</td>
+            <td class="py-6 text-right">300×</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 );

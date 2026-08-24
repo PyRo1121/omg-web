@@ -162,7 +162,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
 
   const pageBg = 'min-h-screen overflow-x-hidden bg-[var(--paper)] text-[var(--ink)]';
 
-  const glassPanel = 'border border-[var(--rule)] bg-[var(--paper-raised)]';
+  const glassPanel = 'rounded-2xl border border-[var(--rule)] bg-white/[0.025]';
 
   const tabs = createMemo(() => getDashboardTabs(telemetryData()?.user?.role));
 
@@ -215,13 +215,13 @@ const DashboardPage: Component<DashboardPageProps> = props => {
   return (
     <div class={pageBg} data-ui="manifest-dashboard">
       <div class="min-h-screen">
-        <div class="manifest-shell">
-          <header class="grid border-b border-[var(--ink)] p-6 sm:grid-cols-[1fr_auto] sm:p-10">
+        <div class="manifest-shell py-8 sm:py-12">
+          <header class="grid border-b border-[var(--rule)] pb-8 sm:grid-cols-[1fr_auto]">
             <div class="flex items-start justify-between gap-6 sm:contents">
               <div>
-                <p class="manifest-index">ACCOUNT / OVERVIEW</p>
-                <h1 class="mt-4 text-5xl font-black tracking-[-0.06em] uppercase sm:text-7xl">
-                  Workspace
+                <p class="font-mono text-xs text-[var(--signal)]">Account overview</p>
+                <h1 class="mt-4 text-5xl font-medium tracking-[-0.06em] sm:text-7xl">
+                  Your workspace
                 </h1>
                 <p class="mt-3 font-mono text-xs text-[var(--ink-muted)]">
                   Signed in as {props.session.user.name}
@@ -253,7 +253,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
             </div>
           </header>
 
-          <div class="sticky top-0 z-20 border-b border-[var(--ink)] bg-[var(--paper)]">
+          <div class="sticky top-0 z-20 border-b border-[var(--rule)] bg-[rgba(8,11,9,0.9)] backdrop-blur-xl">
             <div>
               <nav
                 class="no-scrollbar flex overflow-x-auto"
@@ -267,8 +267,8 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                       onClick={() => setActiveTab(tab.id)}
                       class={`manifest-label relative flex items-center gap-2 border-r border-[var(--rule)] px-5 py-4 whitespace-nowrap ${
                         activeTab() === tab.id
-                          ? 'bg-[var(--ink)] text-[var(--paper)]'
-                          : 'text-[var(--ink-muted)] hover:bg-[var(--paper-muted)] hover:text-[var(--ink)]'
+                          ? 'bg-[var(--signal)] text-[var(--signal-ink)]'
+                          : 'text-[var(--ink-muted)] hover:bg-white/[0.05] hover:text-[var(--ink)]'
                       }`}
                       role="tab"
                       aria-selected={activeTab() === tab.id}
@@ -282,7 +282,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
             </div>
           </div>
 
-          <main class="p-6 sm:p-10">
+          <main class="py-8 sm:py-12">
             <Show when={loading() || telemetryLoading()}>
               <div class="animate-pulse space-y-6">
                 <div class="grid gap-6 lg:grid-cols-3">

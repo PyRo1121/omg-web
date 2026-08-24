@@ -50,8 +50,8 @@ const requireAdminPageQuery = query(requireAdminPage, 'admin-page-authorization'
 function LoadingScreen() {
   return (
     <div class="grid min-h-screen place-items-center bg-[var(--paper)]">
-      <div class="border border-[var(--ink)] bg-[var(--paper-raised)] p-8">
-        <p class="manifest-index">ADMIN / AUTHORIZATION</p>
+      <div class="rounded-2xl border border-[var(--rule)] bg-[var(--paper-raised)] p-8">
+        <p class="font-mono text-xs text-[var(--signal)]">Admin authorization</p>
         <p class="mt-4 font-mono text-xs text-[var(--ink-muted)]">Loading control ledger…</p>
       </div>
     </div>
@@ -75,22 +75,22 @@ function AuthorizedAdminPage() {
 
   return (
     <div class="min-h-screen bg-[var(--paper)] text-[var(--ink)]" data-ui="manifest-dashboard">
-      <nav class="sticky top-0 z-30 border-b border-[var(--ink)] bg-[var(--paper)]">
-        <div class="mx-auto flex max-w-[112rem] items-stretch justify-between border-x border-[var(--rule)]">
+      <nav class="sticky top-0 z-30 border-b border-[var(--rule)] bg-[rgba(8,11,9,0.9)] backdrop-blur-xl">
+        <div class="mx-auto flex max-w-[112rem] items-center justify-between px-4 py-3">
           <div class="flex items-stretch">
-            <A href="/" class="manifest-button border-y-0 border-l-0">
+            <A href="/" class="manifest-button border-0 bg-transparent">
               <Shield class="h-4 w-4" strokeWidth={1.5} /> OMG Admin
             </A>
-            <A href="/dashboard" class="manifest-button border-y-0 border-l-0">
+            <A href="/dashboard" class="manifest-button border-0 bg-transparent">
               <LayoutDashboard class="h-4 w-4" strokeWidth={1.5} /> Account
             </A>
           </div>
           <Show when={session()?.data?.user}>
             <div class="flex items-stretch">
-              <span class="manifest-label hidden items-center border-l border-[var(--rule)] px-4 text-[var(--ink-muted)] md:flex">
+              <span class="manifest-label hidden items-center px-4 text-[var(--ink-muted)] md:flex">
                 {session()?.data?.user?.email}
               </span>
-              <button onClick={handleSignOut} class="manifest-button border-y-0 border-r-0">
+              <button onClick={handleSignOut} class="manifest-button">
                 <LogOut class="h-4 w-4" strokeWidth={1.5} /> Sign out
               </button>
             </div>
@@ -98,7 +98,7 @@ function AuthorizedAdminPage() {
         </div>
       </nav>
 
-      <main class="mx-auto max-w-[112rem] border-x border-[var(--rule)] px-6 py-8">
+      <main class="mx-auto max-w-[112rem] px-6 py-10">
         <Suspense fallback={<LoadingScreen />}>
           <AdminDashboard />
         </Suspense>

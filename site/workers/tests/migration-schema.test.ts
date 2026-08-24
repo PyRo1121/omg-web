@@ -39,6 +39,7 @@ describe('canonical D1 migrations', () => {
       '017_subscription_status_rank.sql',
       '018_stripe_event_claim_tokens.sql',
       '019_license_usage_dimensions.sql',
+      '020_marketing_offer_leads.sql',
     ]);
   });
 
@@ -60,6 +61,15 @@ describe('canonical D1 migrations', () => {
     );
     expect(await tableColumns('auth_verification')).toEqual(
       expect.arrayContaining(['id', 'identifier', 'value', 'expires_at'])
+    );
+    expect(await tableColumns('marketing_offer_leads')).toEqual(
+      expect.arrayContaining([
+        'email',
+        'status',
+        'stripe_promotion_code_id',
+        'promotion_code',
+        'expires_at',
+      ])
     );
   });
 });

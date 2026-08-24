@@ -21,6 +21,24 @@ describe('billing offer contract', () => {
     expect(Exit.isFailure(exit)).toBe(true);
   });
 
+  it('accepts only bounded introductory promotion codes', async () => {
+    await expect(
+      Effect.runPromise(
+        Schema.decodeUnknown(CheckoutRequestSchema)({
+          offer: 'pro',
+          promotionCode: 'OMG20-ABCD2345',
+        })
+      )
+    ).resolves.toMatchObject({ promotionCode: 'OMG20-ABCD2345' });
+    const invalid = await Effect.runPromiseExit(
+      Schema.decodeUnknown(CheckoutRequestSchema)({
+        offer: 'pro',
+        promotionCode: 'arbitrary-stripe-object-id',
+      })
+    );
+    expect(Exit.isFailure(invalid)).toBe(true);
+  });
+
   it('maps a Pro offer to the server-owned Stripe price', async () => {
     const request = await Effect.runPromise(
       Schema.decodeUnknown(CheckoutRequestSchema)({ offer: 'pro' })

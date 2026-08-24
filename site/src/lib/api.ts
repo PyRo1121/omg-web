@@ -11,6 +11,11 @@ import {
 } from './worker-api';
 import * as Http from './contracts/worker-http';
 import { LicensingRoutes } from '../../shared/licensing-routes';
+import {
+  MarketingOfferResponseSchema,
+  type MarketingOfferResponse,
+  type MarketingPromotionCode,
+} from '../../shared/marketing-offer';
 
 type WorkerBody<S extends Schema.Schema.AnyNoContext> = Schema.Schema.Type<S>;
 
@@ -90,6 +95,22 @@ function withQuery(
 }
 
 /** A classified HTTP/API failure surfaced through TanStack Query. See {@link runWorkerRequest}. */
+export async function claimMarketingOffer(email: string): Promise<MarketingOfferResponse> {
+  return runWorkerRequest(
+    requestDecodedJson(
+      browserWorkerFetcher,
+      '/api/offer',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      },
+      MarketingOfferResponseSchema,
+      'Marketing offer response has an invalid shape'
+    )
+  );
+}
+
 export class ApiError extends Error {
   readonly _tag = 'ApiError';
 
@@ -359,10 +380,13 @@ export const openAdminBillingPortal = (
     body: JSON.stringify({ email }),
   });
 
-export const createCheckout = (offer: 'pro' | 'team'): Promise<{ url: string }> =>
+export const createCheckout = (
+  offer: 'pro' | 'team',
+  promotionCode?: MarketingPromotionCode
+): Promise<{ url: string }> =>
   apiRequest(Http.CheckoutUrlSchema, LicensingRoutes.billingCheckout.path, {
     method: 'POST',
-    body: JSON.stringify({ offer }),
+    body: JSON.stringify(promotionCode === undefined ? { offer } : { offer, promotionCode }),
   });
 
 export type AdminOverview = WorkerBody<typeof Http.AdminOverviewSchema>;

@@ -1,8 +1,4 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/archivo/wght.css';
-@import '@fontsource/ibm-plex-mono/400.css';
-@import '@fontsource/ibm-plex-mono/500.css';
-@import '@fontsource/ibm-plex-mono/600.css';
 @import './design-system/tokens.css';
 
 * {
@@ -18,25 +14,33 @@ body {
   margin: 0;
   min-width: 20rem;
   background:
-    linear-gradient(rgba(21, 21, 20, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(21, 21, 20, 0.035) 1px, transparent 1px), var(--paper);
-  background-size: 2rem 2rem;
+    radial-gradient(circle at 78% 7%, rgba(159, 227, 198, 0.055), transparent 24rem),
+    radial-gradient(circle at 12% 38%, rgba(109, 143, 117, 0.045), transparent 32rem), var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
-  font-variation-settings: 'wdth' 96;
+  font-variation-settings: 'wdth' 100;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-::selection {
-  background: var(--signal);
-  color: var(--paper-raised);
+body::after {
+  position: fixed;
+  z-index: 35;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
 }
 
+::selection {
+  background: var(--signal);
+  color: var(--signal-ink);
+}
 :focus-visible {
   outline: 2px solid var(--signal);
-  outline-offset: 3px;
+  outline-offset: 4px;
 }
 
 h1,
@@ -53,7 +57,6 @@ h6 {
 p {
   text-wrap: pretty;
 }
-
 code,
 pre,
 kbd,
@@ -71,28 +74,26 @@ input,
 select,
 textarea {
   transition:
-    color 160ms cubic-bezier(0.16, 1, 0.3, 1),
-    background-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 160ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+    color 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 button:active,
 a[role='button']:active {
-  transform: translateY(1px);
+  transform: scale(0.98);
 }
 
 .manifest-shell {
-  width: min(100%, 96rem);
+  width: min(calc(100% - 2rem), 88rem);
   margin-inline: auto;
-  border-inline: 1px solid var(--rule);
 }
 
 .manifest-section {
-  border-top: 1px solid var(--rule-strong);
+  border-top: 1px solid var(--rule);
 }
-
 .manifest-grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -102,59 +103,58 @@ a[role='button']:active {
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.045em;
   line-height: 1.2;
-  text-transform: uppercase;
 }
 
 .manifest-index {
   color: var(--signal);
   font-family: var(--font-mono);
   font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 .manifest-button,
 .btn-primary,
 .btn-secondary {
   display: inline-flex;
-  min-height: 2.75rem;
+  min-height: 2.875rem;
   align-items: center;
   justify-content: center;
   gap: 0.625rem;
-  border: 1px solid var(--ink);
-  border-radius: 0;
-  padding: 0.75rem 1rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  padding: 0.78rem 1.15rem;
   color: var(--ink);
-  background: transparent;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
+  background: rgba(237, 241, 237, 0.035);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
   line-height: 1;
   text-decoration: none;
-  text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .manifest-button:hover,
 .btn-secondary:hover {
-  background: var(--ink);
-  color: var(--paper-raised);
+  border-color: rgba(237, 241, 237, 0.4);
+  background: rgba(237, 241, 237, 0.08);
 }
 
 .manifest-button--primary,
 .btn-primary {
   border-color: var(--signal);
   background: var(--signal);
-  color: var(--paper-raised);
+  color: var(--signal-ink);
 }
 
 .manifest-button--primary:hover,
 .btn-primary:hover {
-  border-color: var(--ink);
-  background: var(--ink);
+  border-color: #b9efd8;
+  background: #b9efd8;
+  transform: translateY(-2px);
 }
 
 .gradient-text,
@@ -172,8 +172,7 @@ a[role='button']:active {
 .pricing-card,
 .premium-card {
   position: relative;
-  border: 0;
-  border-radius: 0;
+  border-color: var(--rule);
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
@@ -184,12 +183,9 @@ a[role='button']:active {
   border-top: 1px solid var(--rule);
   padding: 1.5rem 0;
 }
-
 .pricing-card.featured {
   border-color: var(--signal);
-  box-shadow: none;
 }
-
 .glow,
 .glow-strong,
 .radar-glow {
@@ -199,60 +195,56 @@ a[role='button']:active {
 
 .terminal {
   overflow: hidden;
-  border: 1px solid var(--ink);
-  border-radius: 0;
-  background: var(--ink);
-  color: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: 1.25rem;
+  background: #0b0f0c;
+  color: var(--ink);
+  box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.3);
 }
 
 .terminal-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  border-bottom: 1px solid #4a4945;
+  border-bottom: 1px solid var(--rule);
   padding: 0.75rem 1rem;
-  background: #242321;
+  background: #101511;
 }
 
 .terminal-header::after {
   content: 'OMG / LOCAL';
   margin-left: auto;
-  color: #aaa59a;
+  color: var(--ink-muted);
   font-family: var(--font-mono);
   font-size: 0.625rem;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
 }
 
 .terminal-dot {
   width: 0.5rem;
   height: 0.5rem;
-  border-radius: 0;
-  background: #6d6962;
+  border-radius: 999px;
+  background: #39423b;
 }
-
 .terminal-dot.red,
 .terminal-dot.yellow,
 .terminal-dot.green {
   background: var(--signal);
 }
-
 .terminal-body {
   padding: 1.25rem;
   font-size: 0.8125rem;
   line-height: 1.75;
 }
-
 .terminal-prompt,
 .terminal-highlight {
-  color: #ff6a58;
+  color: var(--signal);
 }
-
 .terminal-command {
-  color: var(--paper-raised);
+  color: var(--ink);
 }
-
 .terminal-output {
-  color: #aaa59a;
+  color: var(--ink-muted);
 }
 
 .benchmark-row {
@@ -265,103 +257,78 @@ a[role='button']:active {
 .font-display {
   font-family: var(--font-display);
 }
-
 .font-data {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums lining-nums;
 }
-
 .shiki-wrapper pre {
   margin: 0 !important;
   overflow-x: auto;
   padding: 1.25rem !important;
   background: transparent !important;
 }
-
 .shiki-wrapper code {
   padding: 0 !important;
   background: transparent !important;
   font-size: 0.8125rem !important;
   line-height: 1.7 !important;
 }
-
 .prose pre {
-  border: 1px solid var(--ink);
-  border-radius: 0;
-  background: var(--ink) !important;
+  border: 1px solid var(--rule);
+  border-radius: 1rem;
+  background: #0b0f0c !important;
 }
-
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-
 .no-scrollbar {
   scrollbar-width: none;
 }
-
 .health-ring-excellent {
   stroke: var(--success);
 }
-
 .health-ring-good {
-  stroke: #4f7a5e;
+  stroke: #7dd8b4;
 }
-
 .health-ring-warning {
   stroke: var(--warning);
 }
-
 .health-ring-critical {
   stroke: var(--danger);
 }
-
 .kpi-emerald,
 .kpi-indigo,
 .kpi-rose,
 .kpi-amber {
   background: transparent;
 }
-
 .heatmap-cell {
   transition:
     opacity 120ms cubic-bezier(0.16, 1, 0.3, 1),
     transform 120ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-
 .heatmap-cell:hover {
   position: relative;
   z-index: 1;
   transform: scale(1.08);
 }
 
-/* Migration guardrail for the account/admin surfaces. It neutralizes the old
- * glass-card vocabulary while each view moves to semantic ledger layouts. */
-[data-ui='manifest-dashboard'] :where(.rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl) {
-  border-radius: 0;
-}
-
+/* Legacy dashboard vocabulary resolves into the same dark system while each
+ * data view is progressively flattened into rows and semantic tables. */
 [data-ui='manifest-dashboard'] :where(.shadow-lg, .shadow-xl, .shadow-2xl) {
   box-shadow: none;
 }
-
-[data-ui='manifest-dashboard'] .text-white {
-  color: var(--ink);
-}
-
 [data-ui='manifest-dashboard'] .border-white\/5,
 [data-ui='manifest-dashboard'] .border-white\/10,
 [data-ui='manifest-dashboard'] .border-white\/20 {
   border-color: var(--rule);
 }
-
 [data-ui='manifest-dashboard'] .bg-white\/5 {
-  background-color: rgba(21, 21, 20, 0.035);
+  background-color: rgba(237, 241, 237, 0.035);
 }
-
 [data-ui='manifest-dashboard'] .bg-white\/10 {
-  background-color: rgba(21, 21, 20, 0.07);
+  background-color: rgba(237, 241, 237, 0.07);
 }
-
 [data-ui='manifest-dashboard'] :where(.backdrop-blur-sm, .backdrop-blur-lg, .backdrop-blur-xl) {
   backdrop-filter: none;
 }
@@ -369,32 +336,26 @@ a[role='button']:active {
 @utility perspective-1000 {
   perspective: 1000px;
 }
-
 @utility preserve-3d {
   transform-style: preserve-3d;
 }
-
 @utility backface-hidden {
   backface-visibility: hidden;
 }
-
 @utility rotate-y-180 {
   transform: rotateY(180deg);
 }
 
 @media (max-width: 767px) {
   .manifest-shell {
-    border-inline: 0;
+    width: min(calc(100% - 1.25rem), 88rem);
   }
-
   .manifest-grid {
     grid-template-columns: 1fr;
   }
-
   .manifest-grid > * {
     grid-column: 1;
   }
-
   .benchmark-row {
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem 1rem;

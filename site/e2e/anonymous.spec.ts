@@ -16,6 +16,19 @@ test.describe('anonymous authorization', () => {
     await expect(page.getByRole('button', { name: AUTH_FIELDS.signInButton })).toBeVisible();
   });
 
+  test('opens the introductory offer only from pricing intent', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Get a private code' }).click();
+      await expect(
+        page.getByRole('heading', { name: 'Take 20% off your first three months.' })
+      ).toBeVisible();
+    }).toPass();
+    await expect(page.getByLabel('Email address')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create my code' })).toBeVisible();
+  });
+
   test('renders the complete login entry surface', async ({ page }) => {
     await page.goto('/login', { waitUntil: 'domcontentloaded' });
 

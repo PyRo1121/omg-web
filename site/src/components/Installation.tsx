@@ -31,93 +31,78 @@ const Installation: Component = () => {
   const copyCommand = async (): Promise<void> => {
     await navigator.clipboard.writeText(commandFor(activeTab()));
     setCopied(true);
-    if (resetTimer !== undefined) {
-      window.clearTimeout(resetTimer);
-    }
+    if (resetTimer !== undefined) window.clearTimeout(resetTimer);
     resetTimer = window.setTimeout(() => setCopied(false), 1800);
   };
 
   onCleanup(() => {
-    if (resetTimer !== undefined) {
-      window.clearTimeout(resetTimer);
-    }
+    if (resetTimer !== undefined) window.clearTimeout(resetTimer);
   });
 
   return (
-    <section id="install" class="manifest-shell manifest-section" aria-labelledby="install-title">
-      <div class="manifest-grid">
-        <header class="col-span-5 flex flex-col justify-between border-r border-[var(--ink)] bg-[var(--signal)] p-6 text-[var(--paper-raised)] sm:p-10">
-          <span class="manifest-label">04 / INSTALL</span>
-          <div class="mt-28">
-            <h2
-              id="install-title"
-              class="text-6xl leading-[0.88] font-black tracking-[-0.065em] uppercase sm:text-8xl"
-            >
-              Ready in one command.
-            </h2>
-            <p class="mt-6 max-w-sm text-[#fae0dc]">
-              Select a platform, inspect the command, then install without a privileged system-wide
-              bootstrapper.
-            </p>
-          </div>
+    <section
+      id="install"
+      class="border-y border-[var(--rule)] py-28 sm:py-36"
+      aria-labelledby="install-title"
+    >
+      <div class="manifest-shell">
+        <header class="max-w-4xl">
+          <h2
+            id="install-title"
+            class="text-5xl leading-[0.94] font-medium tracking-[-0.055em] sm:text-7xl"
+          >
+            Go from zero to installed.
+          </h2>
+          <p class="mt-7 max-w-xl text-lg leading-relaxed text-[var(--ink-muted)]">
+            Choose your platform. Inspect the script before it runs.
+          </p>
         </header>
 
-        <div class="col-span-7 bg-[var(--paper-raised)] p-6 sm:p-10">
-          <Tabs.Root
-            value={activeTab()}
-            onChange={value => {
-              if (isInstallTabId(value)) {
-                setActiveTab(value);
-              }
-            }}
-            class="grid min-h-full lg:grid-cols-[13rem_1fr]"
+        <Tabs.Root
+          value={activeTab()}
+          onChange={value => {
+            if (isInstallTabId(value)) setActiveTab(value);
+          }}
+          class="mt-16"
+        >
+          <Tabs.List
+            class="no-scrollbar flex gap-2 overflow-x-auto"
+            aria-label="Installation platform"
           >
-            <Tabs.List
-              class="border border-[var(--ink)] lg:border-r-0"
-              aria-label="Installation platform"
-            >
-              {INSTALL_OPTIONS.map(option => (
-                <Tabs.Trigger
-                  value={option.id}
-                  class="manifest-label block w-full border-b border-[var(--rule)] px-4 py-5 text-left last:border-b-0 hover:bg-[var(--paper-muted)] data-[selected]:bg-[var(--ink)] data-[selected]:text-[var(--paper)]"
-                >
-                  {option.label}
-                </Tabs.Trigger>
-              ))}
-              <Tabs.Indicator class="hidden" />
-            </Tabs.List>
+            {INSTALL_OPTIONS.map(option => (
+              <Tabs.Trigger
+                value={option.id}
+                class="rounded-full px-4 py-2.5 text-xs font-medium whitespace-nowrap text-[var(--ink-muted)] hover:text-[var(--ink)] data-[selected]:bg-white/[0.09] data-[selected]:text-[var(--ink)]"
+              >
+                {option.label}
+              </Tabs.Trigger>
+            ))}
+            <Tabs.Indicator class="hidden" />
+          </Tabs.List>
 
-            <div class="border border-[var(--ink)] bg-[var(--ink)] text-[var(--paper-raised)]">
-              {INSTALL_OPTIONS.map(option => (
-                <Tabs.Content
-                  value={option.id}
-                  class="flex min-h-80 flex-col justify-between p-6 sm:p-8"
+          {INSTALL_OPTIONS.map(option => (
+            <Tabs.Content value={option.id} class="mt-5">
+              <figure class="m-0 flex min-h-44 flex-col justify-between gap-8 rounded-[1.75rem] border border-white/[0.1] bg-[#0b0f0c] p-6 shadow-[0_2rem_7rem_rgba(0,0,0,0.25)] sm:flex-row sm:items-center sm:p-9">
+                <code class="block overflow-x-auto text-sm text-[var(--ink)] sm:text-base">
+                  <span class="text-[var(--signal)]">$ </span>
+                  {option.command}
+                </code>
+                <button
+                  type="button"
+                  class="manifest-button shrink-0 self-start sm:self-auto"
+                  onClick={() => void copyCommand()}
                 >
-                  <div class="manifest-label flex justify-between text-[#aaa59a]">
-                    <span>Shell input</span>
-                    <span>{option.id.toUpperCase()}</span>
-                  </div>
-                  <code class="my-12 block overflow-x-auto text-sm leading-7 text-[var(--paper-raised)] sm:text-base">
-                    <span class="text-[#ff6a58]">$ </span>
-                    {option.command}
-                  </code>
-                  <button
-                    type="button"
-                    class="manifest-button self-start border-[#aaa59a] text-[var(--paper-raised)] hover:border-[var(--paper-raised)] hover:bg-[var(--paper-raised)] hover:text-[var(--ink)]"
-                    onClick={() => void copyCommand()}
-                  >
-                    {copied() ? (
-                      <Check size={16} strokeWidth={1.6} />
-                    ) : (
-                      <Copy size={16} strokeWidth={1.6} />
-                    )}
-                    {copied() ? 'Copied' : 'Copy command'}
-                  </button>
-                </Tabs.Content>
-              ))}
-            </div>
-          </Tabs.Root>
-        </div>
+                  {copied() ? (
+                    <Check size={16} strokeWidth={1.5} />
+                  ) : (
+                    <Copy size={16} strokeWidth={1.5} />
+                  )}
+                  {copied() ? 'Copied' : 'Copy'}
+                </button>
+              </figure>
+            </Tabs.Content>
+          ))}
+        </Tabs.Root>
       </div>
     </section>
   );

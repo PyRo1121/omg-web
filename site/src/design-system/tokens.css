@@ -1,213 +1,201 @@
 /*
- * OMG / Manifest design system
+ * OMG / Nightshift design system
  *
- * A Swiss-industrial interface for package operations: paper, carbon ink,
- * signal red, strict grid lines, and tabular data. Decorative gradients,
- * glass surfaces, glow effects, and elevation are intentionally absent.
+ * A dark, product-led interface for package operations. Surfaces use one cool
+ * charcoal family and one chartreuse signal color. Rows and whitespace group
+ * information; containers are reserved for interactive tools and overlays.
  */
 
 @theme static {
-  /* The legacy color namespaces remain while the component migration is in
-   * progress. They now resolve to one coherent print palette. */
-  --color-void-950: #f2f0ea;
-  --color-void-900: #ebe8e0;
-  --color-void-850: #e5e2da;
-  --color-void-800: #dedbd2;
-  --color-void-750: #d6d2c8;
-  --color-void-700: #cbc7bc;
-  --color-void-650: #bdb8ac;
-  --color-void-600: #aaa599;
-  --color-void-500: #8c877d;
-  --color-void-400: #6d6962;
-  --color-void-300: #514e49;
-  --color-void-200: #363432;
-  --color-void-100: #1b1a19;
+  --color-void-950: #070908;
+  --color-void-900: #0b0e0c;
+  --color-void-850: #0f1310;
+  --color-void-800: #141915;
+  --color-void-750: #19201b;
+  --color-void-700: #202821;
+  --color-void-650: #2a332c;
+  --color-void-600: #39423b;
+  --color-void-500: #59635b;
+  --color-void-400: #7c877e;
+  --color-void-300: #a3ada5;
+  --color-void-200: #cbd2cc;
+  --color-void-100: #edf1ed;
 
-  --color-nebula-950: #0e0e0d;
-  --color-nebula-900: #151514;
-  --color-nebula-800: #252422;
-  --color-nebula-700: #393735;
-  --color-nebula-600: #514e49;
-  --color-nebula-500: #6d6962;
-  --color-nebula-400: #817d74;
-  --color-nebula-300: #aaa599;
-  --color-nebula-200: #d6d2c8;
-  --color-nebula-100: #151514;
-  --color-nebula-50: #0e0e0d;
+  --color-nebula-950: #070908;
+  --color-nebula-900: #0b0e0c;
+  --color-nebula-800: #141915;
+  --color-nebula-700: #202821;
+  --color-nebula-600: #39423b;
+  --color-nebula-500: #59635b;
+  --color-nebula-400: #7c877e;
+  --color-nebula-300: #a3ada5;
+  --color-nebula-200: #cbd2cc;
+  --color-nebula-100: #edf1ed;
+  --color-nebula-50: #f7f9f7;
 
-  /* Historical brand aliases collapse to signal red. */
-  --color-plasma-950: #3a0c07;
-  --color-plasma-900: #5d130c;
-  --color-plasma-800: #7e1b11;
-  --color-plasma-700: #a32316;
-  --color-plasma-600: #c92d1d;
-  --color-plasma-500: #e33a28;
-  --color-plasma-400: #e95e4e;
-  --color-plasma-300: #ef8a7d;
-  --color-plasma-200: #f5bbb3;
-  --color-plasma-100: #fae0dc;
-  --color-plasma-50: #fff1ee;
+  --color-plasma-950: #062219;
+  --color-plasma-900: #0a3528;
+  --color-plasma-800: #0f4a38;
+  --color-plasma-700: #17634b;
+  --color-plasma-600: #247d5f;
+  --color-plasma-500: #3b9c79;
+  --color-plasma-400: #67b99a;
+  --color-plasma-300: #9fe3c6;
+  --color-plasma-200: #c6f1df;
+  --color-plasma-100: #e4f9ef;
+  --color-plasma-50: #f2fcf8;
 
-  --color-electric-950: #3a0c07;
-  --color-electric-900: #5d130c;
-  --color-electric-800: #7e1b11;
-  --color-electric-700: #a32316;
-  --color-electric-600: #c92d1d;
-  --color-electric-500: #e33a28;
-  --color-electric-400: #e95e4e;
-  --color-electric-300: #ef8a7d;
-  --color-electric-200: #f5bbb3;
-  --color-electric-100: #fae0dc;
-  --color-electric-50: #fff1ee;
+  --color-electric-950: #062219;
+  --color-electric-900: #0a3528;
+  --color-electric-800: #0f4a38;
+  --color-electric-700: #17634b;
+  --color-electric-600: #247d5f;
+  --color-electric-500: #3b9c79;
+  --color-electric-400: #67b99a;
+  --color-electric-300: #9fe3c6;
+  --color-electric-200: #c6f1df;
+  --color-electric-100: #e4f9ef;
+  --color-electric-50: #f2fcf8;
 
-  --color-photon-950: #3a0c07;
-  --color-photon-900: #5d130c;
-  --color-photon-800: #7e1b11;
-  --color-photon-700: #a32316;
-  --color-photon-600: #c92d1d;
-  --color-photon-500: #e33a28;
-  --color-photon-400: #e95e4e;
-  --color-photon-300: #ef8a7d;
-  --color-photon-200: #f5bbb3;
-  --color-photon-100: #fae0dc;
-  --color-photon-50: #fff1ee;
+  --color-photon-950: #062219;
+  --color-photon-900: #0a3528;
+  --color-photon-800: #0f4a38;
+  --color-photon-700: #17634b;
+  --color-photon-600: #247d5f;
+  --color-photon-500: #3b9c79;
+  --color-photon-400: #67b99a;
+  --color-photon-300: #9fe3c6;
+  --color-photon-200: #c6f1df;
+  --color-photon-100: #e4f9ef;
+  --color-photon-50: #f2fcf8;
 
-  /* Tailwind's historical slate/blue/purple/cyan utilities are normalized so
-   * untouched screens cannot reintroduce the old multi-accent glass theme. */
-  --color-slate-950: #f2f0ea;
-  --color-slate-900: #ebe8e0;
-  --color-slate-800: #e5e2da;
-  --color-slate-700: #cbc7bc;
-  --color-slate-600: #817d74;
-  --color-slate-500: #625f58;
-  --color-slate-400: #514e49;
-  --color-slate-300: #393735;
-  --color-slate-200: #252422;
-  --color-slate-100: #151514;
-  --color-slate-50: #0e0e0d;
+  --color-slate-950: #070908;
+  --color-slate-900: #0b0e0c;
+  --color-slate-800: #141915;
+  --color-slate-700: #202821;
+  --color-slate-600: #39423b;
+  --color-slate-500: #59635b;
+  --color-slate-400: #7c877e;
+  --color-slate-300: #a3ada5;
+  --color-slate-200: #cbd2cc;
+  --color-slate-100: #edf1ed;
+  --color-slate-50: #f7f9f7;
 
-  --color-indigo-950: #3a0c07;
-  --color-indigo-900: #5d130c;
-  --color-indigo-800: #7e1b11;
-  --color-indigo-700: #a32316;
-  --color-indigo-600: #c92d1d;
-  --color-indigo-500: #e33a28;
-  --color-indigo-400: #e95e4e;
-  --color-indigo-300: #ef8a7d;
-  --color-indigo-200: #f5bbb3;
-  --color-indigo-100: #fae0dc;
-  --color-indigo-50: #fff1ee;
+  /* Historical decorative aliases resolve to the single brand signal. */
+  --color-indigo-950: #062219;
+  --color-indigo-900: #0a3528;
+  --color-indigo-800: #0f4a38;
+  --color-indigo-700: #17634b;
+  --color-indigo-600: #247d5f;
+  --color-indigo-500: #3b9c79;
+  --color-indigo-400: #67b99a;
+  --color-indigo-300: #9fe3c6;
+  --color-indigo-200: #c6f1df;
+  --color-indigo-100: #e4f9ef;
+  --color-indigo-50: #f2fcf8;
+  --color-purple-950: #062219;
+  --color-purple-900: #0a3528;
+  --color-purple-800: #0f4a38;
+  --color-purple-700: #17634b;
+  --color-purple-600: #247d5f;
+  --color-purple-500: #3b9c79;
+  --color-purple-400: #67b99a;
+  --color-purple-300: #9fe3c6;
+  --color-purple-200: #c6f1df;
+  --color-purple-100: #e4f9ef;
+  --color-purple-50: #f2fcf8;
+  --color-cyan-950: #062219;
+  --color-cyan-900: #0a3528;
+  --color-cyan-800: #0f4a38;
+  --color-cyan-700: #17634b;
+  --color-cyan-600: #247d5f;
+  --color-cyan-500: #3b9c79;
+  --color-cyan-400: #67b99a;
+  --color-cyan-300: #9fe3c6;
+  --color-cyan-200: #c6f1df;
+  --color-cyan-100: #e4f9ef;
+  --color-cyan-50: #f2fcf8;
+  --color-blue-950: #062219;
+  --color-blue-900: #0a3528;
+  --color-blue-800: #0f4a38;
+  --color-blue-700: #17634b;
+  --color-blue-600: #247d5f;
+  --color-blue-500: #3b9c79;
+  --color-blue-400: #67b99a;
+  --color-blue-300: #9fe3c6;
+  --color-blue-200: #c6f1df;
+  --color-blue-100: #e4f9ef;
+  --color-blue-50: #f2fcf8;
 
-  --color-purple-950: #3a0c07;
-  --color-purple-900: #5d130c;
-  --color-purple-800: #7e1b11;
-  --color-purple-700: #a32316;
-  --color-purple-600: #c92d1d;
-  --color-purple-500: #e33a28;
-  --color-purple-400: #e95e4e;
-  --color-purple-300: #ef8a7d;
-  --color-purple-200: #f5bbb3;
-  --color-purple-100: #fae0dc;
-  --color-purple-50: #fff1ee;
+  --color-aurora-950: #062119;
+  --color-aurora-900: #08372a;
+  --color-aurora-800: #0b4d3a;
+  --color-aurora-700: #0f684c;
+  --color-aurora-600: #178461;
+  --color-aurora-500: #22a477;
+  --color-aurora-400: #49c496;
+  --color-aurora-300: #7dd8b4;
+  --color-aurora-200: #b2ead3;
+  --color-aurora-100: #d9f5e8;
+  --color-aurora-50: #eefbf5;
+  --color-solar-950: #291d04;
+  --color-solar-900: #443007;
+  --color-solar-800: #61450a;
+  --color-solar-700: #805c0f;
+  --color-solar-600: #a27618;
+  --color-solar-500: #c59224;
+  --color-solar-400: #dda942;
+  --color-solar-300: #e9c675;
+  --color-solar-200: #f2dda9;
+  --color-solar-100: #f9efd2;
+  --color-solar-50: #fdf8e9;
+  --color-flare-950: #360b0d;
+  --color-flare-900: #581116;
+  --color-flare-800: #781923;
+  --color-flare-700: #9d2330;
+  --color-flare-600: #c4313f;
+  --color-flare-500: #df4c58;
+  --color-flare-400: #ed707a;
+  --color-flare-300: #f49ba2;
+  --color-flare-200: #f9c5c9;
+  --color-flare-100: #fce4e6;
+  --color-flare-50: #fff2f3;
 
-  --color-cyan-950: #3a0c07;
-  --color-cyan-900: #5d130c;
-  --color-cyan-800: #7e1b11;
-  --color-cyan-700: #a32316;
-  --color-cyan-600: #c92d1d;
-  --color-cyan-500: #e33a28;
-  --color-cyan-400: #e95e4e;
-  --color-cyan-300: #ef8a7d;
-  --color-cyan-200: #f5bbb3;
-  --color-cyan-100: #fae0dc;
-  --color-cyan-50: #fff1ee;
-
-  --color-blue-950: #3a0c07;
-  --color-blue-900: #5d130c;
-  --color-blue-800: #7e1b11;
-  --color-blue-700: #a32316;
-  --color-blue-600: #c92d1d;
-  --color-blue-500: #e33a28;
-  --color-blue-400: #e95e4e;
-  --color-blue-300: #ef8a7d;
-  --color-blue-200: #f5bbb3;
-  --color-blue-100: #fae0dc;
-  --color-blue-50: #fff1ee;
-
-  /* Semantic colors are reserved for state, never decoration. */
-  --color-aurora-950: #082218;
-  --color-aurora-900: #0d3928;
-  --color-aurora-800: #115036;
-  --color-aurora-700: #166845;
-  --color-aurora-600: #1c7e53;
-  --color-aurora-500: #24935f;
-  --color-aurora-400: #4ca979;
-  --color-aurora-300: #79c09a;
-  --color-aurora-200: #aed8bf;
-  --color-aurora-100: #dcece2;
-  --color-aurora-50: #eff7f1;
-
-  --color-solar-950: #2e2100;
-  --color-solar-900: #4a3600;
-  --color-solar-800: #684c00;
-  --color-solar-700: #866300;
-  --color-solar-600: #a77c00;
-  --color-solar-500: #c89508;
-  --color-solar-400: #d7aa35;
-  --color-solar-300: #e4c46e;
-  --color-solar-200: #efdcaa;
-  --color-solar-100: #f7edcf;
-  --color-solar-50: #fcf7e9;
-
-  --color-flare-950: #3a0c07;
-  --color-flare-900: #5d130c;
-  --color-flare-800: #7e1b11;
-  --color-flare-700: #a32316;
-  --color-flare-600: #c92d1d;
-  --color-flare-500: #e33a28;
-  --color-flare-400: #e95e4e;
-  --color-flare-300: #ef8a7d;
-  --color-flare-200: #f5bbb3;
-  --color-flare-100: #fae0dc;
-  --color-flare-50: #fff1ee;
-
-  --font-display: 'Archivo Variable', 'Arial Narrow', system-ui, sans-serif;
+  --font-display: 'Archivo Variable', system-ui, sans-serif;
   --font-body: 'Archivo Variable', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
-
   --text-2xs: 0.625rem;
   --text-2xs--line-height: 0.875rem;
 
-  --radius-xl: 0;
-  --radius-2xl: 0;
-  --radius-3xl: 0;
-  --radius-4xl: 0;
-  --radius-5xl: 0;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+  --radius-5xl: 2.5rem;
 
-  --shadow-card: none;
-  --shadow-card-hover: none;
+  --shadow-card: 0 1.5rem 4rem rgba(0, 0, 0, 0.18);
+  --shadow-card-hover: 0 2rem 5rem rgba(0, 0, 0, 0.24);
   --shadow-glow-sm: none;
   --shadow-glow-md: none;
   --shadow-glow-lg: none;
   --shadow-glow-electric: none;
   --shadow-glow-aurora: none;
   --shadow-glow-flare: none;
-  --shadow-3xl: none;
+  --shadow-3xl: 0 2.5rem 7rem rgba(0, 0, 0, 0.3);
 
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-bounce: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-swift: cubic-bezier(0.16, 1, 0.3, 1);
-
   --animate-pulse-slow: none;
-  --animate-fade-up: manifest-enter 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-fade-in: manifest-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-fade-in-up: manifest-enter 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-slide-in-right: manifest-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-slide-in-bottom: manifest-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-scale-in: manifest-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-up: nightshift-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: nightshift-enter 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in-up: nightshift-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-in-right: nightshift-enter 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-in-bottom: nightshift-enter 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-scale-in: nightshift-enter 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-data-pulse: none;
-  --animate-stream-in: manifest-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-stream-in: nightshift-enter 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-gauge-fill: gauge-fill 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-ring-expand: none;
   --animate-pulse-glow: none;
@@ -218,47 +206,45 @@
 }
 
 :root {
-  color-scheme: light;
-  --paper: #f2f0ea;
-  --paper-raised: #faf9f5;
-  --paper-muted: #e5e2da;
-  --ink: #151514;
-  --ink-muted: #625f58;
-  --rule: #aaa59a;
-  --rule-strong: #151514;
-  --signal: #e33a28;
-  --success: #166845;
-  --warning: #866300;
-  --danger: #c92d1d;
-
+  color-scheme: dark;
+  --paper: #080b09;
+  --paper-raised: #0e1310;
+  --paper-muted: #151b17;
+  --ink: #edf1ed;
+  --ink-muted: #98a39a;
+  --rule: rgba(237, 241, 237, 0.12);
+  --rule-strong: rgba(237, 241, 237, 0.24);
+  --signal: #9fe3c6;
+  --signal-ink: #08130e;
+  --success: #49c496;
+  --warning: #dda942;
+  --danger: #ed707a;
   --bg-void: var(--paper);
-  --bg-overlay: rgba(242, 240, 234, 0.94);
-  --bg-interactive: #e5e2da;
+  --bg-overlay: rgba(8, 11, 9, 0.92);
+  --bg-interactive: #151b17;
   --text-primary: var(--ink);
   --text-secondary: var(--ink-muted);
-  --text-tertiary: #817d74;
+  --text-tertiary: #6f7a71;
   --border-default: var(--rule);
-  --border-subtle: #cbc7bc;
-
+  --border-subtle: rgba(237, 241, 237, 0.07);
   --health-excellent: var(--success);
-  --health-good: #4f7a5e;
+  --health-good: #7dd8b4;
   --health-fair: var(--warning);
-  --health-poor: #a65722;
+  --health-poor: #df8a4c;
   --health-critical: var(--danger);
-  --gauge-track-color: #d6d2c8;
-
+  --gauge-track-color: #202821;
   --space-6: 1.5rem;
   --space-8: 2rem;
   --duration-fast: 120ms;
-  --duration-normal: 220ms;
+  --duration-normal: 260ms;
   --ease-in-out: cubic-bezier(0.16, 1, 0.3, 1);
   --z-tooltip: 40;
 }
 
-@keyframes manifest-enter {
+@keyframes nightshift-enter {
   from {
     opacity: 0;
-    transform: translateY(0.5rem);
+    transform: translateY(0.75rem);
   }
   to {
     opacity: 1;

@@ -1,28 +1,48 @@
 import type { Component } from 'solid-js';
 import { createSignal, For, Show } from 'solid-js';
+import type { MarketingPromotionCode } from '../../shared/marketing-offer';
+import MarketingOfferDialog from './MarketingOfferDialog';
 import UpgradeModal from './UpgradeModal';
 
 const PLANS = [
-  { id: 'free', name: 'Free', price: '$0', cadence: 'forever' },
-  { id: 'pro', name: 'Pro', price: '$9', cadence: 'per month' },
-  { id: 'team', name: 'Team', price: '$200', cadence: 'per month' },
-  { id: 'enterprise', name: 'Enterprise', price: 'Custom', cadence: 'annual terms' },
-] as const;
-
-const FEATURES = [
   {
-    label: 'Package and runtime management',
-    values: ['Included', 'Included', 'Included', 'Included'],
+    id: 'free',
+    name: 'Free',
+    price: '$0',
+    cadence: 'forever',
+    description: 'The complete package and runtime manager.',
+    features: 'Packages · runtimes · project manifests',
   },
-  { label: 'SBOM and vulnerability scanning', values: ['—', 'Included', 'Included', 'Included'] },
-  { label: 'Secret detection', values: ['—', 'Included', 'Included', 'Included'] },
-  { label: 'Environment sync', values: ['—', '—', '25 members', 'Custom'] },
-  { label: 'Tamper-resistant audit log', values: ['—', '—', 'Included', 'Included'] },
-  { label: 'SSO, policy, and provenance', values: ['—', '—', '—', 'Included'] },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: '$9',
+    cadence: 'monthly',
+    description: 'Security and visibility for an individual developer.',
+    features: 'SBOM · vulnerability scan · secret detection',
+  },
+  {
+    id: 'team',
+    name: 'Team',
+    price: '$200',
+    cadence: 'monthly',
+    description: 'Shared policy and auditability for up to 10 people.',
+    features: 'Environment sync · audit log · team controls',
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    price: 'Custom',
+    cadence: 'annual terms',
+    description: 'Identity, policy, and provenance for larger organizations.',
+    features: 'SSO · policy enforcement · provenance',
+  },
 ] as const;
 
 const Pricing: Component = () => {
   const [showUpgradeModal, setShowUpgradeModal] = createSignal(false);
+  const [showOffer, setShowOffer] = createSignal(false);
+  const [promotionCode, setPromotionCode] = createSignal<MarketingPromotionCode>();
   const [initialTier, setInitialTier] = createSignal<'pro' | 'team'>('pro');
 
   const openUpgrade = (tier: 'pro' | 'team'): void => {
@@ -31,112 +51,90 @@ const Pricing: Component = () => {
   };
 
   return (
-    <section id="pricing" class="manifest-shell manifest-section" aria-labelledby="pricing-title">
-      <header class="grid border-b border-[var(--ink)] lg:grid-cols-[1fr_2fr]">
-        <div class="border-b border-[var(--rule)] p-6 sm:p-10 lg:border-r lg:border-b-0">
-          <span class="manifest-index">05 / PLANS</span>
-        </div>
-        <div class="p-6 sm:p-10">
-          <h2
-            id="pricing-title"
-            class="text-5xl font-black tracking-[-0.055em] uppercase sm:text-7xl"
-          >
-            Pay for operational control.
-          </h2>
-          <p class="mt-5 max-w-2xl text-[var(--ink-muted)]">
-            The package manager stays free. Paid plans add security, coordination, and policy.
-          </p>
-        </div>
+    <section id="pricing" class="manifest-shell py-28 sm:py-36" aria-labelledby="pricing-title">
+      <header class="max-w-3xl">
+        <h2
+          id="pricing-title"
+          class="text-5xl leading-[0.94] font-medium tracking-[-0.055em] sm:text-7xl"
+        >
+          Start free. Add control when it matters.
+        </h2>
+        <p class="mt-7 max-w-xl text-lg leading-relaxed text-[var(--ink-muted)]">
+          Package and runtime management stays free. Paid plans add security, coordination, and
+          policy.
+        </p>
       </header>
 
-      <p class="manifest-label border-b border-[var(--ink)] p-4 text-[var(--ink-muted)] md:hidden">
-        Swipe horizontally to compare plans →
-      </p>
-      <div class="overflow-x-auto bg-[var(--paper-raised)]">
-        <table class="w-full min-w-[60rem] border-collapse text-left">
-          <caption class="sr-only">OMG plan and feature comparison</caption>
-          <thead>
-            <tr class="border-b border-[var(--ink)] align-top">
-              <th scope="col" class="w-1/4 p-6 font-normal">
-                <span class="manifest-label text-[var(--ink-muted)]">Capability</span>
-              </th>
-              <For each={PLANS}>
-                {plan => (
-                  <th
-                    scope="col"
-                    class={`border-l p-6 ${plan.id === 'pro' ? 'border-[var(--signal)] bg-[#fff1ee]' : 'border-[var(--rule)]'}`}
-                  >
-                    <span class="manifest-label text-[var(--ink-muted)]">{plan.name}</span>
-                    <strong class="mt-4 block text-4xl tracking-[-0.05em]">{plan.price}</strong>
-                    <span class="mt-1 block font-mono text-[10px] font-normal tracking-[0.08em] text-[var(--ink-muted)] uppercase">
-                      {plan.cadence}
-                    </span>
-                  </th>
-                )}
-              </For>
-            </tr>
-          </thead>
-          <tbody class="font-mono text-xs">
-            <For each={FEATURES}>
-              {feature => (
-                <tr class="border-b border-[var(--rule)]">
-                  <th scope="row" class="p-5 font-medium">
-                    {feature.label}
-                  </th>
-                  <For each={feature.values}>
-                    {(value, index) => (
-                      <td
-                        class={`border-l p-5 ${index() === 1 ? 'border-[var(--signal)] bg-[#fff1ee]' : 'border-[var(--rule)]'} ${value === '—' ? 'text-[var(--ink-muted)]' : ''}`}
-                      >
-                        {value}
-                      </td>
-                    )}
-                  </For>
-                </tr>
-              )}
-            </For>
-            <tr>
-              <th scope="row" class="p-5 font-medium">
-                Action
-              </th>
-              <td class="border-l border-[var(--rule)] p-5">
-                <a href="#install" class="manifest-button w-full">
-                  Install free
-                </a>
-              </td>
-              <td class="border-l border-[var(--signal)] bg-[#fff1ee] p-5">
+      <aside class="mt-20 grid gap-6 border-y border-[var(--rule-strong)] py-8 sm:grid-cols-[1fr_auto] sm:items-center sm:py-10">
+        <p class="m-0 max-w-2xl text-2xl leading-tight font-medium tracking-[-0.035em] sm:text-3xl">
+          Considering Pro or Team? Take 20% off the first three months.
+        </p>
+        <button type="button" class="manifest-button" onClick={() => setShowOffer(true)}>
+          Get a private code
+        </button>
+      </aside>
+
+      <ol class="m-0 list-none p-0">
+        <For each={PLANS}>
+          {plan => (
+            <li class="grid gap-5 border-b border-[var(--rule)] py-8 sm:grid-cols-[0.55fr_0.7fr_1.35fr_auto] sm:items-center sm:py-10">
+              <header>
+                <h3 class="text-2xl font-medium tracking-[-0.035em]">{plan.name}</h3>
+                <p class="m-0 mt-1 font-mono text-[10px] text-[var(--ink-muted)]">{plan.cadence}</p>
+              </header>
+              <p
+                class={`m-0 text-4xl font-medium tracking-[-0.05em] ${plan.id === 'pro' ? 'text-[var(--signal)]' : ''}`}
+              >
+                {plan.price}
+              </p>
+              <span>
+                <p class="m-0 max-w-md text-sm text-[var(--ink-muted)]">{plan.description}</p>
+                <p class="m-0 mt-2 font-mono text-[10px] text-[#69736b]">{plan.features}</p>
+              </span>
+              <Show
+                when={plan.id === 'pro' || plan.id === 'team'}
+                fallback={
+                  plan.id === 'free' ? (
+                    <a href="#install" class="manifest-button">
+                      Install free
+                    </a>
+                  ) : (
+                    <a href="mailto:enterprise@latham.cloud" class="manifest-button">
+                      Contact sales
+                    </a>
+                  )
+                }
+              >
                 <button
                   type="button"
-                  class="manifest-button manifest-button--primary w-full"
-                  onClick={() => openUpgrade('pro')}
+                  class={
+                    plan.id === 'pro'
+                      ? 'manifest-button manifest-button--primary'
+                      : 'manifest-button'
+                  }
+                  onClick={() => openUpgrade(plan.id === 'team' ? 'team' : 'pro')}
                 >
-                  Choose Pro
+                  Choose {plan.name}
                 </button>
-              </td>
-              <td class="border-l border-[var(--rule)] p-5">
-                <button
-                  type="button"
-                  class="manifest-button w-full"
-                  onClick={() => openUpgrade('team')}
-                >
-                  Choose Team
-                </button>
-              </td>
-              <td class="border-l border-[var(--rule)] p-5">
-                <a href="mailto:enterprise@latham.cloud" class="manifest-button w-full">
-                  Contact sales
-                </a>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              </Show>
+            </li>
+          )}
+        </For>
+      </ol>
+
+      <MarketingOfferDialog
+        open={showOffer()}
+        onOpenChange={setShowOffer}
+        onOfferCreated={offer => setPromotionCode(offer.code)}
+        onChoosePro={() => openUpgrade('pro')}
+      />
 
       <Show when={showUpgradeModal()}>
         <UpgradeModal
           isOpen={showUpgradeModal()}
           onClose={() => setShowUpgradeModal(false)}
           initialTier={initialTier()}
+          promotionCode={promotionCode()}
         />
       </Show>
     </section>

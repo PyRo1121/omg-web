@@ -154,6 +154,12 @@ export const LicensingRoutes = {
     authentication: 'admin-secret',
     transport: 'internal',
   },
+  marketingOffer: {
+    method: 'POST',
+    path: '/api/internal/marketing-offer',
+    authentication: 'admin-secret',
+    transport: 'internal',
+  },
   dashboard: {
     method: 'GET',
     path: '/api/dashboard',

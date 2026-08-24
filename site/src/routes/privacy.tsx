@@ -20,12 +20,10 @@ export default function PrivacyPage() {
 
       <div class="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
         <Header />
-        <main class="manifest-shell px-6 py-16 sm:px-10 sm:py-24">
-          <p class="manifest-index">LEGAL / PRIVACY</p>
-          <h1 class="mt-4 text-6xl font-black tracking-[-0.06em] uppercase sm:text-8xl">
-            Privacy policy
-          </h1>
-          <p class="mt-4 border-b border-[var(--ink)] pb-8 font-mono text-xs text-[var(--ink-muted)]">
+        <main class="manifest-shell px-2 pt-32 pb-24 sm:px-0 sm:pt-40">
+          <p class="font-mono text-xs text-[var(--signal)]">Privacy and data rights</p>
+          <h1 class="mt-6 text-6xl font-medium tracking-[-0.06em] sm:text-8xl">Privacy policy</h1>
+          <p class="mt-6 border-b border-[var(--rule)] pb-8 font-mono text-xs text-[var(--ink-muted)]">
             Version 2.0 / Last updated February 7, 2026
           </p>
 
@@ -44,6 +42,11 @@ export default function PrivacyPage() {
                   tier, seat assignments, machine registrations, and Stripe payment records.
                 </li>
                 <li>
+                  <strong class="text-[var(--ink)]">Introductory offers:</strong> the email address
+                  submitted to request a promotion, the issued code, and its expiration. Requesting
+                  a code does not subscribe the address to marketing email.
+                </li>
+                <li>
                   <strong class="text-[var(--ink)]">Telemetry (opt-out):</strong> anonymized CLI
                   usage such as command counts, package names, durations, and platform info, tied to
                   your license. Customers can disable telemetry at any time from the dashboard or
@@ -60,6 +63,7 @@ export default function PrivacyPage() {
                 <li>Telemetry events: 90 days</li>
                 <li>Audit logs: 30 days</li>
                 <li>Usage statistics: 12 months</li>
+                <li>Introductory offer requests: 12 months</li>
                 <li>Payment records: retained per Stripe requirements</li>
               </ul>
             </section>

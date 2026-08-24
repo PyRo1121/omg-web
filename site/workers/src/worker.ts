@@ -71,6 +71,7 @@ import {
 import { handleGitHubProxy } from './handlers/github-proxy';
 import { handleGetDashboard } from './handlers/account-dashboard';
 import { handleCreateSiteSession } from './handlers/site-session';
+import { cleanupMarketingOfferLeads, handleMarketingOffer } from './handlers/marketing-offer';
 import { reportError, reportWarning } from './observability';
 import {
   handleTrackEvent,
@@ -265,6 +266,8 @@ export default Sentry.withSentry(
             // ADMIN_API_SECRET. A second presence-only check here would just
             // be a weaker duplicate of that rule.
             return handleCreateSiteSession(request, env);
+          case '/api/internal/marketing-offer':
+            return handleMarketingOffer(request, env);
           case '/api/dashboard':
             return handleGetDashboard(request, env);
           case '/api/user/profile':
@@ -366,6 +369,12 @@ export default Sentry.withSentry(
       ctx.waitUntil(
         cleanupStripeEvents(env.DB).catch(error => {
           reportError('stripe_events.cleanup_failed', error);
+          Sentry.captureException(error);
+        })
+      );
+      ctx.waitUntil(
+        cleanupMarketingOfferLeads(env.DB).catch(error => {
+          reportError('marketing_offer.cleanup_failed', error);
           Sentry.captureException(error);
         })
       );

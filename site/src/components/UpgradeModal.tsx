@@ -1,12 +1,14 @@
 import { Dialog } from '@kobalte/core';
 import { ArrowLeft, Check, LoaderCircle, X } from 'lucide-solid';
 import { type Component, createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
+import type { MarketingPromotionCode } from '../../shared/marketing-offer';
 import { ApiError, createCheckout } from '../lib/api';
 
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTier?: 'pro' | 'team';
+  promotionCode: MarketingPromotionCode | undefined;
 }
 
 const TIERS = {
@@ -20,7 +22,7 @@ const TIERS = {
     name: 'Team',
     price: 200,
     description: 'Shared controls for teams and organizations',
-    features: ['Everything in Pro', 'Environment sync', 'Audit log', 'Up to 25 members'],
+    features: ['Everything in Pro', 'Environment sync', 'Audit log', 'Up to 10 members'],
   },
 } as const;
 
@@ -68,7 +70,7 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
     setStep('processing');
 
     try {
-      const checkout = await createCheckout(selectedTier());
+      const checkout = await createCheckout(selectedTier(), props.promotionCode);
       if (!URL.canParse(checkout.url)) {
         setError('Checkout returned an invalid redirect.');
         setStep('details');
@@ -97,7 +99,9 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
       setError(
         cause instanceof ApiError && cause.status === 401
           ? 'Sign in before starting checkout.'
-          : 'Unable to start checkout. Please try again.'
+          : cause instanceof ApiError && cause.status === 400 && props.promotionCode !== undefined
+            ? 'This offer must be used with the same account email that requested it.'
+            : 'Unable to start checkout. Please try again.'
       );
       setStep('details');
     }
@@ -106,13 +110,13 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
   return (
     <Dialog.Root open={props.isOpen} onOpenChange={open => !open && close()}>
       <Dialog.Portal>
-        <Dialog.Overlay class="fixed inset-0 z-40 bg-[rgba(21,21,20,0.66)]" />
+        <Dialog.Overlay class="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" />
         <div class="fixed inset-0 z-40 grid place-items-center overflow-y-auto p-4">
-          <Dialog.Content class="relative w-full max-w-4xl border border-[var(--ink)] bg-[var(--paper-raised)]">
-            <header class="flex items-start justify-between border-b border-[var(--ink)] p-5 sm:p-7">
+          <Dialog.Content class="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-[var(--rule-strong)] bg-[var(--paper-raised)] shadow-[0_3rem_10rem_rgba(0,0,0,0.5)]">
+            <header class="flex items-start justify-between border-b border-[var(--rule)] p-5 sm:p-7">
               <div>
-                <p class="manifest-index">BILLING / CHECKOUT</p>
-                <Dialog.Title class="mt-2 text-3xl font-black tracking-[-0.045em] uppercase">
+                <p class="font-mono text-xs text-[var(--signal)]">Secure checkout</p>
+                <Dialog.Title class="mt-2 text-3xl font-medium tracking-[-0.045em]">
                   {step() === 'select' ? 'Choose a plan' : 'Review the order'}
                 </Dialog.Title>
                 <Dialog.Description class="mt-2 text-sm text-[var(--ink-muted)]">
@@ -120,7 +124,7 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
                 </Dialog.Description>
               </div>
               <Dialog.CloseButton
-                class="grid h-10 w-10 place-items-center border border-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--paper)]"
+                class="grid h-10 w-10 place-items-center rounded-full border border-[var(--rule-strong)] hover:bg-white/[0.07]"
                 aria-label="Close checkout"
               >
                 <X size={18} strokeWidth={1.5} />
@@ -135,7 +139,7 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
                     return (
                       <button
                         type="button"
-                        class="group min-h-96 border-b border-[var(--ink)] p-6 text-left hover:bg-[var(--paper-muted)] sm:p-8 md:border-r md:border-b-0 md:last:border-r-0"
+                        class="group min-h-96 border-b border-[var(--rule)] p-6 text-left hover:bg-white/[0.035] sm:p-8 md:border-r md:border-b-0 md:last:border-r-0"
                         onClick={() => chooseTier(tierKey)}
                       >
                         <span class="manifest-label text-[var(--signal)]">{tier.name}</span>
@@ -170,7 +174,7 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
 
             <Show when={step() !== 'select'}>
               <div class="grid md:grid-cols-[1fr_1.2fr]">
-                <aside class="border-b border-[var(--ink)] bg-[var(--ink)] p-6 text-[var(--paper-raised)] sm:p-8 md:border-r md:border-b-0">
+                <aside class="border-b border-[var(--rule)] bg-[var(--paper-muted)] p-6 text-[var(--ink)] sm:p-8 md:border-r md:border-b-0">
                   <button
                     type="button"
                     class="manifest-label flex items-center gap-2 text-[#aaa59a] hover:text-[var(--paper-raised)]"
@@ -201,10 +205,18 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
                     </For>
                   </ul>
 
+                  <Show when={props.promotionCode}>
+                    {code => (
+                      <p class="mt-5 rounded-xl border border-[var(--signal)]/30 bg-[var(--signal)]/8 px-4 py-3 text-sm text-[var(--signal)]">
+                        Introductory 20% discount ready · <span class="font-mono">{code()}</span>
+                      </p>
+                    )}
+                  </Show>
+
                   <Show when={error()}>
                     <div
                       role="alert"
-                      class="mt-5 border border-[var(--danger)] bg-[#fff1ee] p-4 text-sm text-[var(--danger)]"
+                      class="mt-5 rounded-xl border border-[var(--danger)]/40 bg-[var(--danger)]/8 p-4 text-sm text-[var(--danger)]"
                     >
                       {error()}
                     </div>

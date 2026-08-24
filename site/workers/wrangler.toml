@@ -35,11 +35,19 @@ name = "API_RATE_LIMITER"
 namespace_id = "1003"
 simple = { limit = 100, period = 60 }
 
+# Public introductory-offer claims are intentionally much tighter than telemetry.
+[[ratelimits]]
+name = "OFFER_RATE_LIMITER"
+namespace_id = "1004"
+simple = { limit = 3, period = 60 }
+
 # Secrets are set via: npx wrangler secret put <NAME>
 # Required: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, JWT_SECRET,
 # JWT_PRIVATE_KEY (Ed25519 PKCS#8 PEM), and ADMIN_API_SECRET.
 # OTP email uses the EMAIL binding above.
 # Optional: TURNSTILE_SECRET_KEY, SENTRY_DSN
+# STRIPE_INTRO_COUPON_ID references the server-owned 20%-for-3-months coupon
+# restricted to the OMG Pro and Team products.
 
 [observability]
 enabled = true
@@ -61,6 +69,7 @@ mode = "smart"
 [vars]
 STRIPE_PRO_PRICE_ID = "price_1U7ub2PI6tkdUQScfVcPeLY9"
 STRIPE_TEAM_PRICE_ID = "price_1U7ub3PI6tkdUQScFqTRFgv8"
+STRIPE_INTRO_COUPON_ID = "omg_intro_20_3mo_v1"
 
 [triggers]
 crons = ["0 2 * * *"]

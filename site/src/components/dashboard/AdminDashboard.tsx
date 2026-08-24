@@ -469,10 +469,10 @@ const AdminDashboard: Component = () => {
         tabindex={isActive() ? 0 : -1}
         onClick={() => actions.setTab(props.id)}
         onKeyDown={e => handleTabKeyDown(e, props.id)}
-        class={`manifest-label relative flex items-center gap-2 border-r border-[var(--rule)] px-4 py-3 ${
+        class={`manifest-label relative flex items-center gap-2 rounded-xl px-4 py-3 ${
           isActive()
-            ? 'bg-[var(--ink)] text-[var(--paper)]'
-            : 'text-[var(--ink-muted)] hover:bg-[var(--paper-muted)] hover:text-[var(--ink)]'
+            ? 'bg-[var(--signal)] text-[var(--signal-ink)]'
+            : 'text-[var(--ink-muted)] hover:bg-white/[0.05] hover:text-[var(--ink)]'
         }`}
       >
         <span class="relative">
@@ -494,11 +494,11 @@ const AdminDashboard: Component = () => {
 
   return (
     <div class="space-y-8 pb-20">
-      <div class="grid gap-6 border-b border-[var(--ink)] pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
+      <header class="grid gap-6 border-b border-[var(--rule)] pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
-          <p class="manifest-index">ADMIN / OPERATIONS</p>
-          <h1 class="font-display mt-3 text-5xl font-black tracking-[-0.055em] text-[var(--ink)] uppercase">
-            Control ledger
+          <p class="font-mono text-xs text-[var(--signal)]">Admin operations</p>
+          <h1 class="font-display mt-3 text-5xl font-medium tracking-[-0.055em] text-[var(--ink)]">
+            Control center
           </h1>
           <p class="mt-2 font-mono text-xs text-[var(--ink-muted)]">
             Infrastructure / revenue / fleet telemetry
@@ -608,7 +608,7 @@ const AdminDashboard: Component = () => {
             </Show>
           </div>
         </div>
-      </div>
+      </header>
 
       <Show when={store.filters.compareEnabled}>
         <div class="flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3">
@@ -644,7 +644,7 @@ const AdminDashboard: Component = () => {
       <div
         role="tablist"
         aria-label="Dashboard sections"
-        class="no-scrollbar flex items-center overflow-x-auto border border-[var(--ink)] bg-[var(--paper-raised)]"
+        class="no-scrollbar flex items-center overflow-x-auto rounded-2xl border border-[var(--rule)] bg-white/[0.025] p-1"
       >
         <TabButton id="overview" icon={Activity} label="Overview" />
         <TabButton id="crm" icon={Users} label="CRM" count={tabCounts().crm} />

@@ -2,56 +2,61 @@ import type { Component } from 'solid-js';
 import { GitHubIcon } from './ui/BrandIcons';
 
 const Footer: Component = () => (
-  <footer class="manifest-shell border-y border-[var(--ink)]">
-    <div class="grid lg:grid-cols-[2fr_1fr]">
-      <div class="flex min-h-64 flex-col justify-between border-b border-[var(--ink)] p-6 sm:p-10 lg:border-r lg:border-b-0">
-        <div class="flex items-center gap-3">
-          <span class="grid h-10 w-10 place-items-center bg-[var(--ink)] font-mono text-sm font-semibold text-[var(--paper)]">
+  <footer class="border-t border-[var(--rule)] py-10">
+    <div class="manifest-shell grid gap-10 sm:grid-cols-[1fr_auto] sm:items-end">
+      <section aria-labelledby="footer-brand">
+        <h2
+          id="footer-brand"
+          class="flex items-center gap-3 text-lg font-semibold tracking-[-0.035em]"
+        >
+          <span class="grid h-9 w-9 place-items-center rounded-full bg-[var(--signal)] font-mono text-xs text-[var(--signal-ink)]">
             O/
           </span>
-          <strong class="text-xl tracking-[-0.04em]">OMG Package Manager</strong>
-        </div>
-        <p class="max-w-xl text-3xl leading-tight font-semibold tracking-[-0.04em]">
-          One operational interface for packages, runtimes, and reproducible environments.
+          OMG Package Manager
+        </h2>
+        <p class="mt-5 max-w-lg text-sm leading-relaxed text-[var(--ink-muted)]">
+          One interface for Linux packages, language runtimes, and reproducible development
+          environments.
         </p>
-      </div>
+      </section>
 
-      <nav class="grid grid-cols-2" aria-label="Footer navigation">
-        <a
-          href="/docs/"
-          class="manifest-label flex items-center border-r border-b border-[var(--rule)] p-5 hover:bg-[var(--ink)] hover:text-[var(--paper)]"
-        >
-          Manual
-        </a>
-        <a
-          href="https://github.com/PyRo1121/omg"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="manifest-label flex items-center gap-2 border-b border-[var(--rule)] p-5 hover:bg-[var(--ink)] hover:text-[var(--paper)]"
-        >
-          <GitHubIcon class="h-4 w-4" />
-          Source
-        </a>
-        <a
-          href="/privacy"
-          class="manifest-label flex items-center border-r border-[var(--rule)] p-5 hover:bg-[var(--ink)] hover:text-[var(--paper)]"
-        >
-          Privacy
-        </a>
-        <a
-          href="/terms"
-          class="manifest-label flex items-center p-5 hover:bg-[var(--ink)] hover:text-[var(--paper)]"
-        >
-          Terms
-        </a>
+      <nav aria-label="Footer navigation">
+        <ul class="m-0 flex list-none flex-wrap gap-x-6 gap-y-3 p-0 text-sm text-[var(--ink-muted)]">
+          <li>
+            <a href="/docs/" class="hover:text-[var(--ink)]">
+              Docs
+            </a>
+          </li>
+          <li>
+            <a
+              href="https://github.com/PyRo1121/omg"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center gap-2 hover:text-[var(--ink)]"
+            >
+              <GitHubIcon class="h-4 w-4" /> GitHub
+            </a>
+          </li>
+          <li>
+            <a href="/privacy" class="hover:text-[var(--ink)]">
+              Privacy
+            </a>
+          </li>
+          <li>
+            <a href="/terms" class="hover:text-[var(--ink)]">
+              Terms
+            </a>
+          </li>
+        </ul>
       </nav>
     </div>
-    <div class="manifest-label flex flex-col justify-between gap-3 border-t border-[var(--ink)] px-6 py-4 text-[var(--ink-muted)] sm:flex-row sm:px-10">
+
+    <p class="manifest-shell mt-10 flex flex-col justify-between gap-3 border-t border-[var(--rule)] pt-6 font-mono text-[10px] text-[#69736b] sm:flex-row">
       <span>AGPL-3.0-or-later © 2026 OMG Team</span>
-      <a href="mailto:support@latham.cloud" class="text-[var(--ink)] hover:text-[var(--signal)]">
+      <a href="mailto:support@latham.cloud" class="hover:text-[var(--ink)]">
         support@latham.cloud
       </a>
-    </div>
+    </p>
   </footer>
 );
 

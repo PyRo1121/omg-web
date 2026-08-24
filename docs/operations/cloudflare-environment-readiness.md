@@ -60,20 +60,21 @@ Stripe live mode is active on account `acct_1TpcWPPI6tkdUQSc`; charges and payou
 - Live prices, set as server-owned vars in `site/workers/wrangler.toml`:
   - `STRIPE_PRO_PRICE_ID=price_1U7ub2PI6tkdUQScfVcPeLY9` ($9/month Pro)
   - `STRIPE_TEAM_PRICE_ID=price_1U7ub3PI6tkdUQScFqTRFgv8` ($200/month Team)
+- Introductory offer coupon `omg_intro_20_3mo_v1` provides 20% off for three months and is restricted to those two products. The Worker creates one first-transaction, single-redemption promotion code per normalized email; checkout applies it only when the authenticated account uses that same email.
 - Live webhook endpoint `we_1U7uexPI6tkdUQSclmocHNWo` targets `https://omg-api.latham.cloud/api/stripe/webhook` for `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`, and `customer.created`.
-- `STRIPE_SECRET_KEY` is a dedicated restricted live key; its value and the endpoint signing secret are stored only as `omg-saas` Wrangler secrets.
+- `STRIPE_SECRET_KEY` is a dedicated restricted live key with Promotion Codes Write access; its value and the endpoint signing secret are stored only as `omg-saas` Wrangler secrets.
 
 The historical test-mode catalog remains isolated in Stripe and is not referenced by production. A signed live `customer.created` delivery was processed by the D1 webhook inbox on 2026-08-24 (`status=processed`, one attempt, no error); the no-email smoke customer was deleted immediately. Automated production E2E never creates live Checkout Sessions; controlled release verification must expire its unpaid smoke-test session through Stripe CLI.
 
 ## Free-tier ceilings that gate this design
 
-| Service              | Free allowance                       | How this deployment stays under it                                                                                                                                                                                             |
-| -------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Workers requests     | 100,000/day; 10 ms CPU               | Static asset requests are free; only SSR/API invokes a Worker. Rate limiters bound abusive routes.                                                                                                                             |
-| D1 rows read/written | 5M read / 100k written per day       | Single indexed database. Retention pruning currently covers only docs analytics tables (`cleanupDocsAnalytics`); licensing, telemetry, session, and audit tables are NOT yet pruned and grow unbounded — see observability.md. |
-| D1 storage           | 5 GB account total; 500 MB/database  | One platform database; analytics tables are prunable.                                                                                                                                                                          |
-| Workers Logs/Traces  | ~200k events/day, 3-day retention    | Logs at 100%, traces sampled at 1%.                                                                                                                                                                                            |
-| R2 / Workers AI      | metered beyond small free allowances | Not used at all.                                                                                                                                                                                                               |
+| Service              | Free allowance                       | How this deployment stays under it                                                                                                                                                                                    |
+| -------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workers requests     | 100,000/day; 10 ms CPU               | Static asset requests are free; only SSR/API invokes a Worker. Rate limiters bound abusive routes.                                                                                                                    |
+| D1 rows read/written | 5M read / 100k written per day       | Single indexed database. Retention pruning covers docs analytics and 12-month introductory-offer leads; licensing, telemetry, session, and audit tables are NOT yet pruned and grow unbounded — see observability.md. |
+| D1 storage           | 5 GB account total; 500 MB/database  | One platform database; analytics tables are prunable.                                                                                                                                                                 |
+| Workers Logs/Traces  | ~200k events/day, 3-day retention    | Logs at 100%, traces sampled at 1%.                                                                                                                                                                                   |
+| R2 / Workers AI      | metered beyond small free allowances | Not used at all.                                                                                                                                                                                                      |
 
 If sustained traffic approaches any ceiling, the correct response is a capacity decision, not silent overage: reduce ingestion, tighten sampling, or upgrade the plan explicitly.
 

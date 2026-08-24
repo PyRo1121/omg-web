@@ -1,87 +1,79 @@
 import type { Component } from 'solid-js';
 import { For } from 'solid-js';
 
-const RUNTIME_GROUPS = [
-  {
-    index: 'A',
-    label: 'Native',
-    values: ['Node.js', 'Python', 'Go', 'Rust', 'Ruby', 'Java', 'Bun'],
-  },
-  { index: 'B', label: 'Systems', values: ['Zig', 'Deno', 'PHP', '.NET', 'Lua', 'Swift'] },
-  {
-    index: 'C',
-    label: 'Extended',
-    values: ['Elixir', 'Erlang', 'Scala', 'Kotlin', 'Clojure', 'Haskell'],
-  },
+const PRIMARY_RUNTIMES = ['Node.js', 'Python', 'Go', 'Rust', 'Ruby', 'Java', 'Bun'] as const;
+const EXTENDED_RUNTIMES = [
+  'Zig',
+  'Deno',
+  'PHP',
+  '.NET',
+  'Lua',
+  'Swift',
+  'Elixir',
+  'Erlang',
+  'Scala',
+  'Kotlin',
+  'Clojure',
+  'Haskell',
 ] as const;
 
 const RuntimeEcosystem: Component = () => (
-  <section id="runtimes" class="manifest-shell manifest-section" aria-labelledby="runtime-title">
-    <header class="grid border-b border-[var(--ink)] lg:grid-cols-[1fr_2fr]">
-      <div class="border-b border-[var(--rule)] p-6 sm:p-10 lg:border-r lg:border-b-0">
-        <span class="manifest-index">02 / RUNTIMES</span>
-      </div>
-      <div class="p-6 sm:p-10">
-        <h2 id="runtime-title" class="text-4xl font-black tracking-[-0.05em] uppercase sm:text-6xl">
-          The runtime catalog follows the repository.
+  <section
+    id="runtimes"
+    class="overflow-hidden border-y border-[var(--rule)] py-28 sm:py-36"
+    aria-labelledby="runtime-title"
+  >
+    <div class="manifest-shell grid gap-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-24">
+      <header>
+        <h2
+          id="runtime-title"
+          class="text-5xl leading-[0.94] font-medium tracking-[-0.055em] sm:text-7xl"
+        >
+          The repository chooses the runtime.
         </h2>
-        <p class="mt-5 max-w-2xl text-[var(--ink-muted)]">
-          Native managers cover the common toolchains. Mise extends the same workflow across more
-          than one hundred runtimes.
+        <p class="mt-7 max-w-xl text-lg leading-relaxed text-[var(--ink-muted)]">
+          Walk into a project and activate its declared toolchain. Mise extends the same workflow to
+          more than one hundred runtimes.
         </p>
-      </div>
-    </header>
+      </header>
 
-    <div class="grid lg:grid-cols-[3fr_2fr]">
-      <dl class="m-0 border-b border-[var(--ink)] lg:border-r lg:border-b-0">
-        <For each={RUNTIME_GROUPS}>
-          {group => (
-            <div class="grid grid-cols-[4rem_8rem_1fr] border-b border-[var(--rule)] last:border-b-0">
-              <dt class="grid place-items-center border-r border-[var(--rule)] font-mono text-sm text-[var(--signal)]">
-                {group.index}
-              </dt>
-              <dd class="manifest-label m-0 flex items-center border-r border-[var(--rule)] px-4 text-[var(--ink-muted)]">
-                {group.label}
-              </dd>
-              <dd class="m-0 grid grid-cols-2 sm:grid-cols-3">
-                <For each={group.values}>
-                  {runtime => (
-                    <span class="border-r border-b border-[var(--rule)] px-4 py-5 font-mono text-xs last:border-r-0">
-                      {runtime}
-                    </span>
-                  )}
-                </For>
-              </dd>
-            </div>
-          )}
-        </For>
-      </dl>
-
-      <aside
-        class="bg-[var(--ink)] p-6 text-[var(--paper-raised)] sm:p-10"
-        aria-label="Runtime command example"
-      >
-        <div class="manifest-label flex justify-between text-[#aaa59a]">
-          <span>Project manifest</span>
-          <span>omg.toml</span>
-        </div>
-        <pre class="mt-12 overflow-x-auto text-sm leading-8">
-          <code>
-            <span class="text-[#ff6a58]">[runtimes]</span>
-            {'\n'}node = <span class="text-[#d6d2c8]">&quot;22&quot;</span>
-            {'\n'}python = <span class="text-[#d6d2c8]">&quot;3.13&quot;</span>
-            {'\n'}rust = <span class="text-[#d6d2c8]">&quot;stable&quot;</span>
-            {'\n\n'}
-            <span class="text-[#ff6a58]">[policy]</span>
-            {'\n'}lock = <span class="text-[#d6d2c8]">true</span>
-            {'\n'}auto_switch = <span class="text-[#d6d2c8]">true</span>
-          </code>
-        </pre>
-        <p class="mt-12 border-t border-[#4a4945] pt-5 font-mono text-xs leading-relaxed text-[#aaa59a]">
-          Enter the repository. OMG reads the manifest and activates the declared toolchain.
+      <article class="self-end">
+        <ul class="m-0 flex list-none flex-wrap gap-x-7 gap-y-4 p-0" aria-label="Native runtimes">
+          <For each={PRIMARY_RUNTIMES}>
+            {runtime => (
+              <li class="text-3xl font-medium tracking-[-0.04em] text-[var(--ink)] sm:text-5xl">
+                {runtime}
+              </li>
+            )}
+          </For>
+        </ul>
+        <p class="mt-10 max-w-2xl font-mono text-xs leading-7 text-[var(--ink-muted)]">
+          <For each={EXTENDED_RUNTIMES}>
+            {(runtime, index) => (
+              <>
+                <span>{runtime}</span>
+                {index() < EXTENDED_RUNTIMES.length - 1 ? (
+                  <span aria-hidden="true"> · </span>
+                ) : null}
+              </>
+            )}
+          </For>
         </p>
-      </aside>
+      </article>
     </div>
+
+    <pre class="manifest-shell mt-20 overflow-x-auto rounded-[1.75rem] border border-white/[0.1] bg-[#0b0f0c] p-7 text-sm leading-8 shadow-[0_2rem_7rem_rgba(0,0,0,0.25)] sm:p-10">
+      <code>
+        <span class="text-[var(--signal)]">[runtimes]</span>
+        {'\n'}node = <span class="text-[#cbd2cc]">&quot;22&quot;</span>
+        {'\n'}python = <span class="text-[#cbd2cc]">&quot;3.13&quot;</span>
+        {'\n'}rust = <span class="text-[#cbd2cc]">&quot;stable&quot;</span>
+        {'\n\n'}
+        <span class="text-[var(--signal)]">[policy]</span>
+        {'\n'}lock = <span class="text-[#cbd2cc]">true</span>{' '}
+        <span class="text-[#667067]"># committed with the project</span>
+      </code>
+    </pre>
   </section>
 );
 

@@ -90,15 +90,15 @@ export const LicenseSuccessModal: Component = () => {
   return (
     <Dialog.Root open={open()} onOpenChange={setOpen}>
       <Dialog.Portal>
-        <Dialog.Overlay class="fixed inset-0 z-40 bg-[rgba(21,21,20,0.66)]" />
+        <Dialog.Overlay class="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" />
         <div class="fixed inset-0 z-40 grid place-items-center overflow-y-auto p-4">
-          <Dialog.Content class="relative w-full max-w-2xl border border-[var(--ink)] bg-[var(--paper-raised)]">
-            <header class="flex items-start justify-between border-b border-[var(--ink)] p-5 sm:p-7">
+          <Dialog.Content class="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-[var(--rule-strong)] bg-[var(--paper-raised)] shadow-[0_3rem_10rem_rgba(0,0,0,0.5)]">
+            <header class="flex items-start justify-between border-b border-[var(--rule)] p-5 sm:p-7">
               <div>
-                <p class="manifest-index">LICENSE / FULFILLMENT</p>
+                <p class="font-mono text-xs text-[var(--signal)]">License fulfillment</p>
                 <Dialog.Title
                   id="license-success-title"
-                  class="mt-2 text-3xl font-black tracking-[-0.045em] uppercase"
+                  class="mt-2 text-3xl font-medium tracking-[-0.045em]"
                 >
                   {state()._tag === 'ready' ? 'License ready' : 'Purchase status'}
                 </Dialog.Title>
@@ -107,7 +107,7 @@ export const LicenseSuccessModal: Component = () => {
                 </Dialog.Description>
               </div>
               <Dialog.CloseButton
-                class="grid h-10 w-10 place-items-center border border-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--paper)]"
+                class="grid h-10 w-10 place-items-center rounded-full border border-[var(--rule-strong)] hover:bg-white/[0.07]"
                 aria-label="Close license status"
               >
                 <X size={18} strokeWidth={1.5} />
@@ -117,11 +117,11 @@ export const LicenseSuccessModal: Component = () => {
             <Show when={ready()}>
               {snapshot => (
                 <div class="grid md:grid-cols-[13rem_1fr]">
-                  <aside class="flex flex-col justify-between border-b border-[var(--ink)] bg-[var(--signal)] p-6 text-[var(--paper-raised)] md:border-r md:border-b-0">
+                  <aside class="flex flex-col justify-between border-b border-[var(--rule)] bg-[var(--signal)] p-6 text-[var(--signal-ink)] md:border-r md:border-b-0">
                     <KeyRound size={32} strokeWidth={1.25} />
                     <div class="mt-20">
                       <p class="manifest-label">Plan</p>
-                      <strong class="mt-2 block text-3xl uppercase">{snapshot().tier}</strong>
+                      <strong class="mt-2 block text-3xl">{snapshot().tier}</strong>
                     </div>
                   </aside>
                   <div class="p-6 sm:p-8">

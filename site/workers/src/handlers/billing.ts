@@ -54,6 +54,10 @@ const LicenseKeyTierRowSchema = Schema.Struct({
   tier: Schema.String,
 });
 
+const MarketingPromotionRowSchema = Schema.Struct({
+  stripe_promotion_code_id: Schema.String.pipe(Schema.pattern(/^promo_[A-Za-z0-9_]+$/)),
+});
+
 /** Checkout Session ids are high-entropy Stripe capabilities; bound the shape. */
 const CheckoutSessionIdPattern = /^cs_[A-Za-z0-9]{10,200}$/;
 
@@ -414,15 +418,25 @@ async function verifyStripeSignature(
  * Checkout Session instead of minting a new one per click. Rotates daily so a
  * deliberate later purchase of the same offer is never blocked.
  */
-async function checkoutIdempotencyKey(userId: string, offer: string): Promise<string> {
+async function checkoutIdentity(
+  userId: string,
+  offer: string,
+  promotionCode: string | undefined
+): Promise<{ readonly idempotencyKey: string; readonly integrationIdentifier: string }> {
   const day = new Date().toISOString().slice(0, 10);
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(`checkout:${userId}:${offer}:${day}`)
+  const digest = new Uint8Array(
+    await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(`checkout:${userId}:${offer}:${promotionCode ?? 'standard'}:${day}`)
+    )
   );
-  return Array.from(new Uint8Array(digest).slice(0, 16))
-    .map(b => b.toString(16).padStart(2, '0'))
+  const idempotencyKey = Array.from(digest.slice(0, 16))
+    .map(byte => byte.toString(16).padStart(2, '0'))
     .join('');
+  const suffix = Array.from(digest.slice(16, 24), byte =>
+    String.fromCharCode('a'.charCodeAt(0) + (byte % 26))
+  ).join('');
+  return { idempotencyKey, integrationIdentifier: `omg_checkout_${suffix}` };
 }
 
 /** Stored Stripe customer id for an email, or a read failure marker. */
@@ -496,7 +510,11 @@ function buildInvoiceUpsert(
     );
 }
 
-export async function handleCreateCheckout(request: Request, env: Env): Promise<Response> {
+export async function handleCreateCheckout(
+  request: Request,
+  env: Env,
+  stripeFetch: typeof fetch = fetch
+): Promise<Response> {
   const authOrDenied = await authenticate(request, env);
   if (authOrDenied instanceof Response) return authOrDenied;
   const auth = authOrDenied;
@@ -514,7 +532,7 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   if (Exit.isFailure(decoded)) {
     return errorResponse('Invalid billing offer', 400);
   }
-  const { offer } = decoded.value;
+  const { offer, promotionCode } = decoded.value;
   const priceExit = await Effect.runPromiseExit(resolveBillingPrice(offer, billingCatalog(env)));
   if (Exit.isFailure(priceExit)) {
     return errorResponse('Billing offer unavailable', 503);
@@ -530,16 +548,46 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     return errorResponse('Failed to load billing account', 500);
   }
 
+  let stripePromotionCodeId: string | null = null;
+  if (promotionCode !== undefined) {
+    const promotionRow = await env.DB.prepare(
+      `SELECT stripe_promotion_code_id
+       FROM marketing_offer_leads
+       WHERE email = ? AND promotion_code = ? AND status = 'ready'
+         AND datetime(expires_at) > CURRENT_TIMESTAMP`
+    )
+      .bind(email, promotionCode)
+      .first();
+    const promotionLookup = await readOptionalExtraRow(
+      MarketingPromotionRowSchema,
+      'Marketing promotion row has an invalid shape',
+      promotionRow
+    );
+    if (promotionLookup._tag === 'invalid') {
+      return errorResponse('Failed to load promotion code', 500);
+    }
+    const promotion = optionalRowValue(promotionLookup);
+    if (promotion === undefined) {
+      return errorResponse('Promotion code is not valid for this account', 400);
+    }
+    stripePromotionCodeId = promotion.stripe_promotion_code_id;
+  }
+
+  const identity = await checkoutIdentity(auth.user.id, offer, promotionCode);
   const params = new URLSearchParams({
     mode: 'subscription',
     'line_items[0][price]': priceId,
     'line_items[0][quantity]': '1',
+    integration_identifier: identity.integrationIdentifier,
     // The landing page hosts the post-checkout modal; the template lets it
     // correlate the redirect with a real Checkout Session instead of trusting
     // a forgeable ?success=true flag.
     success_url: 'https://omg.latham.cloud/?success=true&session_id={CHECKOUT_SESSION_ID}',
     cancel_url: 'https://omg.latham.cloud/#pricing',
   });
+  if (stripePromotionCodeId !== null) {
+    params.set('discounts[0][promotion_code]', stripePromotionCodeId);
+  }
   // Known buyers attach the stored Stripe customer so repeated checkouts do
   // not mint a fresh pending Customer object per attempt.
   if (storedCustomer.stripeCustomerId === null) {
@@ -557,10 +605,12 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Idempotency-Key': await checkoutIdempotencyKey(auth.user.id, offer),
+        'Idempotency-Key': identity.idempotencyKey,
+        'Stripe-Version': '2026-07-29.dahlia',
       },
       body: params,
-    }
+    },
+    stripeFetch
   );
   if (!session) {
     return errorResponse('Failed to create checkout session', 502);

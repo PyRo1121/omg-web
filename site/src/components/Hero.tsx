@@ -1,63 +1,67 @@
+import { ArrowDown, ArrowUpRight } from 'lucide-solid';
 import type { Component } from 'solid-js';
 import HeroTerminal from './hero/HeroTerminal';
 
 const Hero: Component = () => (
-  <section class="manifest-shell border-b border-[var(--ink)]" aria-labelledby="hero-title">
-    <div class="manifest-grid min-h-[calc(100dvh-4.5rem)]">
-      <div class="col-span-7 flex flex-col justify-between border-r border-[var(--ink)] p-6 sm:p-10 lg:p-14">
-        <div class="manifest-label flex items-center justify-between">
-          <span class="text-[var(--signal)]">Package operations / Linux</span>
-          <span>REV. 01</span>
-        </div>
+  <section
+    class="relative isolate min-h-[100dvh] overflow-hidden pt-28"
+    aria-labelledby="hero-title"
+  >
+    <span
+      aria-hidden="true"
+      class="pointer-events-none absolute top-[18%] left-[54%] -z-10 hidden -translate-x-1/2 text-[clamp(16rem,32vw,35rem)] leading-none font-black tracking-[-0.12em] text-white/[0.018] lg:block"
+    >
+      OMG
+    </span>
 
-        <div class="py-16 lg:py-10">
-          <h1
-            id="hero-title"
-            class="max-w-5xl text-[clamp(3.7rem,8.6vw,8.6rem)] leading-[0.82] font-black tracking-[-0.075em] uppercase"
-          >
-            One command.
-            <br />
-            Every package.
-          </h1>
-          <p class="mt-8 max-w-xl text-lg leading-relaxed text-[var(--ink-muted)] sm:text-xl">
-            Install system packages and language runtimes through one fast, reproducible Rust CLI.
-          </p>
-          <div class="mt-9 flex flex-wrap gap-3">
-            <a href="#install" class="manifest-button manifest-button--primary">
-              Install OMG
-            </a>
-            <a href="/docs/" class="manifest-button">
-              Read the manual
-            </a>
-          </div>
-        </div>
+    <div class="manifest-shell grid min-h-[calc(100dvh-7rem)] items-center gap-14 pb-12 lg:grid-cols-[1.12fr_0.88fr] lg:gap-20">
+      <header class="max-w-3xl py-12 lg:py-20">
+        <h1
+          id="hero-title"
+          class="text-[clamp(3.4rem,7.4vw,7.4rem)] leading-[0.88] font-semibold tracking-[-0.075em]"
+        >
+          One package manager.
+          <br />
+          <em class="font-normal text-[var(--signal)]">Every toolchain.</em>
+        </h1>
+        <p class="mt-8 max-w-[38rem] text-lg leading-relaxed text-[var(--ink-muted)] sm:text-xl">
+          Install Linux packages, switch language runtimes, and reproduce a project environment
+          without juggling seven different managers.
+        </p>
+        <p class="mt-9 flex flex-wrap gap-3">
+          <a href="#install" class="manifest-button manifest-button--primary group">
+            Install OMG
+            <ArrowDown
+              class="h-4 w-4 transition-transform group-hover:translate-y-0.5"
+              strokeWidth={1.5}
+            />
+          </a>
+          <a href="/docs/" class="manifest-button group">
+            Read the docs
+            <ArrowUpRight
+              class="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              strokeWidth={1.5}
+            />
+          </a>
+        </p>
 
-        <div class="grid grid-cols-3 border-t border-[var(--rule)] pt-4 font-mono text-[10px] tracking-[0.08em] uppercase sm:text-xs">
-          <span>Arch / Debian / Ubuntu</span>
-          <span class="text-center">Pure Rust</span>
-          <span class="text-right">No sudo required</span>
-        </div>
-      </div>
+        <dl class="mt-14 grid max-w-2xl grid-cols-3 gap-5 border-t border-[var(--rule)] pt-5">
+          <div>
+            <dt class="text-xs text-[var(--ink-muted)]">Measured search</dt>
+            <dd class="m-0 mt-2 font-mono text-2xl text-[var(--ink)]">22×</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-[var(--ink-muted)]">Runtime catalog</dt>
+            <dd class="m-0 mt-2 font-mono text-2xl text-[var(--ink)]">100+</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-[var(--ink-muted)]">Core</dt>
+            <dd class="m-0 mt-2 font-mono text-2xl text-[var(--ink)]">Rust</dd>
+          </div>
+        </dl>
+      </header>
 
-      <div class="col-span-5 grid grid-rows-[auto_1fr_auto] bg-[var(--paper-raised)]">
-        <div class="grid grid-cols-2 border-b border-[var(--ink)] font-mono text-xs">
-          <div class="border-r border-[var(--rule)] p-5">
-            <span class="manifest-label block text-[var(--ink-muted)]">Measured peak</span>
-            <strong class="mt-2 block text-5xl font-semibold tracking-[-0.06em]">22×</strong>
-          </div>
-          <div class="p-5">
-            <span class="manifest-label block text-[var(--ink-muted)]">Runtime catalog</span>
-            <strong class="mt-2 block text-5xl font-semibold tracking-[-0.06em]">100+</strong>
-          </div>
-        </div>
-        <div class="flex items-center p-6 sm:p-10">
-          <HeroTerminal />
-        </div>
-        <div class="manifest-label flex justify-between border-t border-[var(--ink)] p-5 text-[var(--ink-muted)]">
-          <span>Transaction preview</span>
-          <span class="text-[var(--signal)]">Ready</span>
-        </div>
-      </div>
+      <HeroTerminal />
     </div>
   </section>
 );
