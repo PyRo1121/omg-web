@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "npm@12.0.2",
   "engines": {
-    "node": ">=24"
+    "node": "v26.7.0"
   },
   "scripts": {
     "audit": "npm audit",
@@ -64,10 +64,10 @@
     "wrangler": "4.125.0"
   },
   "overrides": {
-    "dax-sh": "npm:dax@0.44.2",
+    "dax-sh": "npm:dax@0.49.0",
     "follow-redirects": "1.16.0",
     "h3": "1.15.11",
-    "minimatch": "10.2.4",
+    "minimatch": "10.2.6",
     "nitropack": "2.13.4",
     "node-forge": "1.4.0",
     "picomatch@2.3.0 - 2.3.1": "2.3.2",

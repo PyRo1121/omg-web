@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "npm@12.0.2",
   "engines": {
-    "node": ">=24"
+    "node": "v26.7.0"
   },
   "scripts": {
     "check": "npm run check:anti-slop && npm run check:migrations && npm run check:source-policy && npm run typecheck && npm run lint && npm run format:check && npm run audit && npm run check:deploy && npm test",
