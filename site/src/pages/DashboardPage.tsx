@@ -10,6 +10,7 @@ import {
   createMemo,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { useNavigate } from '@solidjs/router';
 import {
   Monitor,
   LogOut,
@@ -84,6 +85,7 @@ interface DashboardPageProps {
 }
 
 const DashboardPage: Component<DashboardPageProps> = props => {
+  const navigate = useNavigate();
   const {
     dashboardData,
     telemetryData,
@@ -117,7 +119,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
       setError('Failed to revoke all active browser sessions');
       return;
     }
-    window.location.href = '/';
+    navigate('/', { replace: true });
   };
 
   const copyLicenseKey = async () => {

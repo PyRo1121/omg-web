@@ -56,10 +56,12 @@ import {
 import { handleGetFirehose } from './handlers/firehose';
 import {
   handleCreateCheckout,
+  handleCheckoutSessionStatus,
   handleBillingPortal,
   handleStripeWebhook,
   handleAdminStripeSync,
   handleAdminStripeMetrics,
+  cleanupStripeEvents,
 } from './handlers/billing';
 import {
   handleDocsAnalytics,
@@ -333,6 +335,8 @@ export default Sentry.withSentry(
             return handleBillingPortal(request, env);
           case '/api/billing/checkout':
             return handleCreateCheckout(request, env);
+          case '/api/billing/checkout-session':
+            return handleCheckoutSessionStatus(request, env);
           case '/api/admin/stripe/sync':
             return handleAdminStripeSync(request, env);
           case '/api/admin/stripe/metrics':
@@ -356,6 +360,12 @@ export default Sentry.withSentry(
           // Structured log first: SENTRY_DSN is optional, and without it every
           // Sentry call is a no-op sink that hides cron failures entirely.
           reportError('docs_analytics.cleanup_failed', error);
+          Sentry.captureException(error);
+        })
+      );
+      ctx.waitUntil(
+        cleanupStripeEvents(env.DB).catch(error => {
+          reportError('stripe_events.cleanup_failed', error);
           Sentry.captureException(error);
         })
       );

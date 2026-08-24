@@ -84,6 +84,34 @@ export function parseLicenseLookup(value: BrowserBoundaryInput): ParseResult<Lic
   );
 }
 
+const CheckoutSessionStatusSchema = Schema.Struct({
+  status: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(32)),
+  email: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  license: Schema.optional(
+    Schema.Union(
+      Schema.Null,
+      Schema.Struct({
+        license_key: NonEmptyString,
+        tier: NonEmptyString,
+      })
+    )
+  ),
+});
+
+/** A parsed post-checkout fulfillment probe response. */
+export type CheckoutSessionStatus = Schema.Schema.Type<typeof CheckoutSessionStatusSchema>;
+
+/** Parse the checkout-session fulfillment probe response. */
+export function parseCheckoutSessionStatus(
+  value: BrowserBoundaryInput
+): ParseResult<CheckoutSessionStatus> {
+  return parseWithSchema(
+    CheckoutSessionStatusSchema,
+    value,
+    'Checkout session response has an invalid shape'
+  );
+}
+
 /** Parse GitHub commit activity or its temporary computing response. */
 export function parseGitHubActivity(
   value: BrowserBoundaryInput

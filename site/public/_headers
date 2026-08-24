@@ -21,6 +21,11 @@
   Cache-Control: public, max-age=31536000, immutable
   Vary: Accept-Encoding
 
+/.well-known/omg-license-ed25519-v1.pem
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: application/x-pem-file
+  Vary: Accept-Encoding
+
 /*.html
   Cache-Control: public, max-age=0, must-revalidate
 

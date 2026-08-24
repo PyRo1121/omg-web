@@ -5,6 +5,7 @@ import { CardSkeleton } from '../../../ui/Skeleton';
 import ErrorCard from '../shared/ErrorCard';
 import { CRMProfileCard, CRMProfileCardTableRow } from '../../premium';
 import type { CRMCustomer } from '../../premium/types';
+import { openMailComposer } from '~/lib/mailto';
 
 interface CRMTabProps {
   customers: CRMCustomer[];
@@ -120,7 +121,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
                     onViewDetail={customerId => props.onViewDetail(customerId)}
                     onQuickAction={action => {
                       if (action === 'email') {
-                        window.location.href = `mailto:${encodeURIComponent(customer.email)}`;
+                        openMailComposer(customer.email);
                       }
                     }}
                   />
@@ -154,7 +155,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
                         onViewDetail={customerId => props.onViewDetail(customerId)}
                         onQuickAction={action => {
                           if (action === 'email') {
-                            window.location.href = `mailto:${encodeURIComponent(customer.email)}`;
+                            openMailComposer(customer.email);
                           }
                         }}
                       />

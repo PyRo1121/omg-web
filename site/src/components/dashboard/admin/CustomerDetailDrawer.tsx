@@ -163,9 +163,16 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
     setBillingPortalError('');
     try {
       const result = await openAdminBillingPortal(email);
-      if (result.url) {
-        window.open(result.url, '_blank', 'noopener,noreferrer');
+      const portalUrl = URL.parse(result.url);
+      if (portalUrl === null || portalUrl.origin !== 'https://billing.stripe.com') {
+        setBillingPortalError('The billing portal returned an invalid URL');
+        return;
       }
+      const link = document.createElement('a');
+      link.href = portalUrl.href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.click();
     } catch (cause: unknown) {
       setBillingPortalError(
         cause instanceof Error ? cause.message : 'Unable to open the billing portal'

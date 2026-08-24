@@ -1,11 +1,22 @@
 import type { Component } from 'solid-js';
-import { For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
-import { parseLicenseLookup } from '../../lib/dashboard-contract';
+import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
+import { parseCheckoutSessionStatus } from '../../lib/dashboard-contract';
 import { reportClientError } from '../../lib/observability';
 
-const LICENSE_API_BASE = 'https://omg-api.latham.cloud';
-
 const CONFETTI_COLORS = ['#6366f1', '#8b5cf6', '#22d3ee', '#34d399', '#f59e0b'];
+
+/** Stripe Checkout Session ids are high-entropy capabilities; bound the shape. */
+const CHECKOUT_SESSION_ID_PATTERN = /^cs_[A-Za-z0-9]{10,200}$/;
+
+type FulfillmentState =
+  | { readonly _tag: 'verifying' }
+  | {
+      readonly _tag: 'ready';
+      readonly licenseKey: string;
+      readonly tier: string;
+    }
+  | { readonly _tag: 'processing'; readonly email: string | null }
+  | { readonly _tag: 'unverified' };
 
 interface ConfettiPiece {
   readonly id: number;
@@ -24,38 +35,96 @@ function spawnConfettiPieces(): ConfettiPiece[] {
 }
 
 /**
- * Post-checkout license retrieval dialog.
+ * Verify a Checkout Session server-side and derive the dialog state.
  *
- * Opens itself when the Stripe checkout redirects back with ?success=true,
- * then lets the buyer look up their license key by email.
+ * The authenticated site BFF binds the session probe to the account that
+ * created checkout; the redirect parameter alone never grants trust.
+ */
+async function verifyCheckoutSession(
+  sessionId: string
+): Promise<{ readonly ok: true; readonly state: FulfillmentState } | { readonly ok: false }> {
+  try {
+    const res = await fetch(
+      `/api/licensing/api/billing/checkout-session?id=${encodeURIComponent(sessionId)}`,
+      { credentials: 'same-origin' }
+    );
+    if (!res.ok) {
+      return { ok: false };
+    }
+    const parsed = parseCheckoutSessionStatus(await res.json());
+    if (!parsed.ok) {
+      reportClientError('Checkout session response has an invalid shape', parsed.error);
+      return { ok: false };
+    }
+    const license = parsed.value.license;
+    if (parsed.value.status === 'paid' && license !== undefined && license !== null) {
+      return {
+        ok: true,
+        state: { _tag: 'ready', licenseKey: license.license_key, tier: license.tier },
+      };
+    }
+    if (parsed.value.status === 'paid') {
+      return { ok: true, state: { _tag: 'processing', email: parsed.value.email ?? null } };
+    }
+    return { ok: true, state: { _tag: 'unverified' } };
+  } catch (e) {
+    reportClientError('Unhandled client operation failed', e);
+    return { ok: false };
+  }
+}
+
+/**
+ * Post-checkout fulfillment dialog.
  *
- * The redirect parameter is not proof of payment (no Checkout Session id is
- * round-tripped), so the copy never asserts a completed payment — entitlements
- * are granted exclusively by signed webhooks.
+ * Opens itself when the Stripe checkout redirects back with
+ * ?success=true&session_id={CHECKOUT_SESSION_ID}, verifies the session against
+ * the billing API, and hands out the license key once the signed webhook has
+ * provisioned it. The redirect parameters are never treated as proof of
+ * payment — entitlements are granted exclusively by webhook reconciliation.
  */
 export const LicenseSuccessModal: Component = () => {
   const [showSuccess, setShowSuccess] = createSignal(false);
-  const [licenseKey, setLicenseKey] = createSignal<string | null>(null);
-  const [tier, setTier] = createSignal<string | null>(null);
-  const [loading, setLoading] = createSignal(false);
-  const [email, setEmail] = createSignal('');
+  const [state, setState] = createSignal<FulfillmentState>({ _tag: 'verifying' });
+
+  // Snapshot accessors: each state() call is an independent read, so JSX-level
+  // narrowing cannot flow between them. These memos narrow once and stay
+  // reactive.
+  const ready = createMemo(() => {
+    const s = state();
+    return s._tag === 'ready' ? { licenseKey: s.licenseKey, tier: s.tier } : undefined;
+  });
+  const processing = createMemo(() => {
+    const s = state();
+    return s._tag === 'processing' ? { email: s.email } : undefined;
+  });
+
   const [copied, setCopied] = createSignal(false);
   const [confetti, setConfetti] = createSignal<ConfettiPiece[]>([]);
-  const [notFound, setNotFound] = createSignal(false);
-  const [lookupError, setLookupError] = createSignal<string | null>(null);
-  const [retryCount, setRetryCount] = createSignal(0);
   let panelRef: HTMLDivElement | undefined;
   let previouslyFocused: Element | null = null;
 
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('success') === 'true') {
-      setShowSuccess(true);
-      setConfetti(spawnConfettiPieces());
-      const confettiTimer = setTimeout(() => setConfetti([]), 4000);
-      window.history.replaceState({}, '', '/');
-      onCleanup(() => clearTimeout(confettiTimer));
+    const sessionId = params.get('session_id');
+    window.history.replaceState({}, '', '/');
+    if (params.get('success') !== 'true' || sessionId === null) {
+      return;
     }
+    if (!CHECKOUT_SESSION_ID_PATTERN.test(sessionId)) {
+      setShowSuccess(true);
+      setState({ _tag: 'unverified' });
+      return;
+    }
+
+    setShowSuccess(true);
+    setState({ _tag: 'verifying' });
+    setConfetti(spawnConfettiPieces());
+    const confettiTimer = setTimeout(() => setConfetti([]), 4000);
+    onCleanup(() => clearTimeout(confettiTimer));
+
+    void verifyCheckoutSession(sessionId).then(result => {
+      setState(result.ok ? result.state : { _tag: 'unverified' });
+    });
   });
 
   // Dialog lifecycle: initial focus, focus containment/restoration, Escape.
@@ -104,49 +173,6 @@ export const LicenseSuccessModal: Component = () => {
     });
   });
 
-  const fetchLicense = async (): Promise<void> => {
-    const userEmail = email();
-    if (!userEmail) {
-      return;
-    }
-
-    setLoading(true);
-    setNotFound(false);
-    setLookupError(null);
-
-    try {
-      const res = await fetch(
-        `${LICENSE_API_BASE}/api/get-license?email=${encodeURIComponent(userEmail)}`
-      );
-      if (res.status === 404) {
-        setNotFound(true);
-        setRetryCount(count => count + 1);
-        return;
-      }
-      if (!res.ok) {
-        throw new Error(`License lookup failed with status ${res.status}`);
-      }
-
-      const parsed = parseLicenseLookup(await res.json());
-      if (!parsed.ok) {
-        throw new Error(parsed.error);
-      }
-
-      if (parsed.value.found) {
-        setLicenseKey(parsed.value.license_key);
-        setTier(parsed.value.tier);
-      } else {
-        setNotFound(true);
-        setRetryCount(count => count + 1);
-      }
-    } catch (e) {
-      reportClientError('Unhandled client operation failed', e);
-      setLookupError('Unable to retrieve your license. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const copyToClipboard = (text: string): void => {
     void navigator.clipboard.writeText(text);
     setCopied(true);
@@ -155,12 +181,8 @@ export const LicenseSuccessModal: Component = () => {
 
   const handleClose = (): void => {
     setShowSuccess(false);
-    setLicenseKey(null);
-    setTier(null);
-    setEmail('');
-    setNotFound(false);
-    setLookupError(null);
-    setRetryCount(0);
+    setState({ _tag: 'verifying' });
+    setConfetti([]);
   };
 
   return (
@@ -210,9 +232,91 @@ export const LicenseSuccessModal: Component = () => {
               </svg>
             </button>
 
-            <Show when={!licenseKey()}>
+            <Show when={ready()}>
+              {snapshot => (
+                <div class="text-center">
+                  <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500">
+                    <svg
+                      class="h-10 w-10 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <title>License key</title>
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.703l5.964-5.964A6 6 0 1121 9z"
+                      />
+                    </svg>
+                  </div>
+                  <h2 id="license-success-title" class="mb-2 text-3xl font-bold text-white">
+                    Your License Key
+                  </h2>
+                  <p class="mb-2 text-slate-400">
+                    <span class="font-semibold text-indigo-400 capitalize">{snapshot().tier}</span>{' '}
+                    Plan Activated
+                  </p>
+
+                  <div class="mb-6 rounded-xl bg-slate-800 p-4">
+                    <code class="font-mono text-sm break-all text-green-400">
+                      {snapshot().licenseKey}
+                    </code>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(snapshot().licenseKey)}
+                    class="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 py-3 font-semibold text-white transition-all hover:bg-slate-600"
+                  >
+                    {copied() ? (
+                      <>
+                        <svg
+                          class="h-5 w-10 text-green-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <title>Copied</title>
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <svg class="h-5 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <title>Copy license key</title>
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                        Copy to Clipboard
+                      </>
+                    )}
+                  </button>
+
+                  <div class="rounded-xl bg-slate-800/50 p-4 text-left">
+                    <p class="mb-2 text-sm text-slate-300">Activate your license:</p>
+                    <code class="font-mono text-xs break-all text-cyan-400">
+                      omg license activate {snapshot().licenseKey}
+                    </code>
+                  </div>
+                </div>
+              )}
+            </Show>
+
+            <Show when={state()._tag !== 'ready'}>
               <div class="text-center">
-                <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-emerald-500">
+                <div class="mx-auto mb-6 flex h-20 w-20 animate-pulse items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500">
                   <svg
                     class="h-10 w-10 text-white"
                     fill="none"
@@ -231,129 +335,32 @@ export const LicenseSuccessModal: Component = () => {
                 <h2 id="license-success-title" class="mb-2 text-3xl font-bold text-white">
                   Thank You for Your Purchase
                 </h2>
-                <p class="mb-6 text-slate-400">
-                  Your payment is being processed and a receipt is on its way. Enter your email to
-                  retrieve your license key as soon as it is ready.
-                </p>
-
-                <label
-                  for="license-success-email"
-                  class="mb-2 block text-left text-sm font-medium text-slate-300"
-                >
-                  Email used at checkout
-                </label>
-                <input
-                  id="license-success-email"
-                  type="email"
-                  value={email()}
-                  onInput={e => setEmail(e.currentTarget.value)}
-                  onKeyDown={e => e.key === 'Enter' && void fetchLicense()}
-                  placeholder="Enter your email"
-                  class="mb-4 w-full rounded-xl border border-slate-600 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
-                />
-
-                <Show when={notFound()}>
-                  <p class="mb-4 text-sm text-amber-400">
-                    License not found yet. It may take a moment to process.
-                    {retryCount() > 0 && ` (Attempt ${retryCount()})`}
+                <Show when={state()._tag === 'verifying'}>
+                  <p class="text-slate-400">Verifying your payment…</p>
+                </Show>
+                <Show when={state()._tag === 'processing'}>
+                  <p class="mb-2 text-slate-400">
+                    Payment confirmed! Your license is being provisioned — it usually takes less
+                    than a minute.
+                  </p>
+                  <Show when={processing() !== undefined}>
+                    <p class="text-sm text-slate-500">A receipt is on its way to your inbox.</p>
+                  </Show>
+                </Show>
+                <Show when={state()._tag === 'unverified'}>
+                  <p class="mb-2 text-slate-400">
+                    We could not verify this checkout link. Your receipt and license key will arrive
+                    by email within a few minutes, or open your dashboard to view active licenses.
                   </p>
                 </Show>
 
-                <Show when={lookupError()}>
-                  <p class="mb-4 text-sm text-red-400">{lookupError()}</p>
-                </Show>
-
                 <button
                   type="button"
-                  onClick={() => void fetchLicense()}
-                  disabled={loading() || !email()}
-                  class="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 py-3 font-semibold text-white transition-all hover:from-indigo-400 hover:to-purple-400 disabled:from-slate-600 disabled:to-slate-600"
+                  onClick={handleClose}
+                  class="mt-6 w-full rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 py-3 font-semibold text-white transition-all hover:from-indigo-400 hover:to-purple-400"
                 >
-                  {loading() ? 'Checking...' : 'Get License Key'}
+                  Done
                 </button>
-              </div>
-            </Show>
-
-            <Show when={licenseKey()}>
-              <div class="text-center">
-                <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500">
-                  <svg
-                    class="h-10 w-10 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <title>License key</title>
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                    />
-                  </svg>
-                </div>
-                <h2 id="license-success-title" class="mb-2 text-3xl font-bold text-white">
-                  Your License Key
-                </h2>
-                <p class="mb-2 text-slate-400">
-                  <span class="font-semibold text-indigo-400 capitalize">{tier()}</span> Plan
-                  Activated
-                </p>
-
-                <div class="mb-6 rounded-xl bg-slate-800 p-4">
-                  <code class="font-mono text-sm break-all text-green-400">{licenseKey()}</code>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const key = licenseKey();
-                    if (key) {
-                      copyToClipboard(key);
-                    }
-                  }}
-                  class="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-700 py-3 font-semibold text-white transition-all hover:bg-slate-600"
-                >
-                  {copied() ? (
-                    <>
-                      <svg
-                        class="h-5 w-10 text-green-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <title>Copied</title>
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <svg class="h-5 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <title>Copy license key</title>
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
-                      Copy to Clipboard
-                    </>
-                  )}
-                </button>
-
-                <div class="rounded-xl bg-slate-800/50 p-4 text-left">
-                  <p class="mb-2 text-sm text-slate-300">Activate your license:</p>
-                  <code class="font-mono text-xs text-cyan-400">
-                    omg license activate {licenseKey()}
-                  </code>
-                </div>
               </div>
             </Show>
           </div>

@@ -128,6 +128,7 @@ describe('CLI telemetry JSON decode', () => {
   it('decodes a command event', async () => {
     const request = new Request('https://omg-api.latham.cloud/api/cli/event', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         event: { type: 'command', command: 'search', success: true, subcommand: null },
         timestamp: '2026-08-17T00:00:00.000Z',
@@ -164,6 +165,7 @@ describe('remaining HTTP bodies', () => {
   it('decodes a tracking batch', async () => {
     const request = new Request('https://omg-api.latham.cloud/api/track', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         events: [
           {

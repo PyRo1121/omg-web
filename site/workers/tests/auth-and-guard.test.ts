@@ -5,12 +5,16 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import worker from '../src/worker';
 import { sendVerificationCode } from '../src/handlers/auth';
+import { handleCheckoutSessionStatus } from '../src/handlers/billing';
 import secureOtpMigration from '../migrations/012_secure_otp.sql?raw';
 import { LicensingRoutes } from '../../shared/licensing-routes';
 
 const TEST_EMAIL = 'otp@example.com';
 const VICTIM_EMAIL = 'victim@example.com';
 const TEST_JWT_SECRET = 'test-jwt-secret-for-otp-hmac';
+const ALLOW_ALL_RATE_LIMITER: NonNullable<(typeof env)['AUTH_RATE_LIMITER']> = {
+  limit: async () => ({ success: true }),
+};
 const StoredAuthCodeSchema = Schema.Struct({
   code: Schema.String,
   attempt_count: Schema.Number,
@@ -20,8 +24,16 @@ const VerifyCodeResponseSchema = Schema.Struct({
   token: Schema.String,
   success: Schema.Boolean,
 });
+const CheckoutFulfillmentTestSchema = Schema.Struct({
+  status: Schema.String,
+  license: Schema.Union(
+    Schema.Null,
+    Schema.Struct({ license_key: Schema.String, tier: Schema.String })
+  ),
+});
 
 async function ensureSchema(): Promise<void> {
+  env.AUTH_RATE_LIMITER = ALLOW_ALL_RATE_LIMITER;
   await env.DB.prepare(
     `CREATE TABLE IF NOT EXISTS auth_codes (
       id TEXT PRIMARY KEY,
@@ -419,6 +431,78 @@ describe('POST /api/billing/portal email override', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(404);
+  });
+});
+
+describe('GET /api/billing/checkout-session account binding', () => {
+  const token = 'checkout-owner-token';
+  const sessionId = 'cs_test123456789';
+
+  beforeEach(async () => {
+    await ensureSchema();
+    env.STRIPE_SECRET_KEY = 'sk_test';
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, company, tier, admin, stripe_customer_id)
+       VALUES (?, ?, ?, 'team', 0, ?)`
+    )
+      .bind('checkout-owner', TEST_EMAIL, 'Owner', 'cus_checkout_owner')
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_machines, max_seats)
+       VALUES (?, ?, ?, 'team', 'active', 10, 10)`
+    )
+      .bind('checkout-license', 'checkout-owner', 'checkout-license-key')
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO sessions (id, customer_id, token, expires_at) VALUES (?, ?, ?, ?)`
+    )
+      .bind(
+        'checkout-session',
+        'checkout-owner',
+        token,
+        new Date(Date.now() + 60_000).toISOString()
+      )
+      .run();
+  });
+
+  afterEach(async () => {
+    await env.DB.prepare(`DELETE FROM sessions WHERE id = 'checkout-session'`).run();
+    await env.DB.prepare(`DELETE FROM licenses WHERE id = 'checkout-license'`).run();
+    await env.DB.prepare(`DELETE FROM customers WHERE id = 'checkout-owner'`).run();
+  });
+
+  function request(): Request {
+    return new Request(`http://localhost/api/billing/checkout-session?id=${sessionId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
+  it('returns a provisioned license only for its authenticated owner', async () => {
+    const stripeFetch: typeof fetch = async () =>
+      Response.json({
+        id: sessionId,
+        payment_status: 'paid',
+        customer: 'cus_checkout_owner',
+        customer_details: { email: TEST_EMAIL },
+      });
+    const response = await handleCheckoutSessionStatus(request(), env, stripeFetch);
+
+    expect(response.status).toBe(200);
+    const body = Schema.decodeUnknownSync(CheckoutFulfillmentTestSchema)(await response.json());
+    expect(body.license).toEqual({ license_key: 'checkout-license-key', tier: 'team' });
+  });
+
+  it('rejects a Stripe session whose email belongs to another account', async () => {
+    const stripeFetch: typeof fetch = async () =>
+      Response.json({
+        id: sessionId,
+        payment_status: 'paid',
+        customer: 'cus_checkout_owner',
+        customer_details: { email: VICTIM_EMAIL },
+      });
+    const response = await handleCheckoutSessionStatus(request(), env, stripeFetch);
+
+    expect(response.status).toBe(403);
   });
 });
 

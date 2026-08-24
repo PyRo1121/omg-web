@@ -1,3 +1,8 @@
+import '../src/cloudflare-test.d.ts';
+import type { Env } from '../src/api';
+
+type TestDatabase = Env['DB'];
+
 /** Test data helpers for the migrated licensing schema. */
 
 export interface TestCustomer {
@@ -8,7 +13,7 @@ export interface TestCustomer {
 }
 
 export async function createTestCustomer(
-  db: D1Database,
+  db: TestDatabase,
   email: string = 'test@example.com',
   tier: string = 'pro'
 ): Promise<TestCustomer> {
@@ -35,13 +40,13 @@ export async function createTestCustomer(
   return { customerId, licenseId, licenseKey, email };
 }
 
-export async function deleteTestCustomer(db: D1Database, customerId: string) {
+export async function deleteTestCustomer(db: TestDatabase, customerId: string) {
   // Foreign key constraints will cascade delete licenses and related data
   await db.prepare('DELETE FROM customers WHERE id = ?').bind(customerId).run();
 }
 
 export async function createTelemetryData(
-  db: D1Database,
+  db: TestDatabase,
   licenseId: string,
   machineId: string = 'test-machine-123'
 ) {

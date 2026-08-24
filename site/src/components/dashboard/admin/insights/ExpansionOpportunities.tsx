@@ -15,6 +15,7 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { valueForKey } from '../../../../lib/lookup';
+import { openMailComposer } from '~/lib/mailto';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -404,7 +405,7 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = pr
                       class="bg-void-700/50 text-nebula-400 hover:bg-void-600/50 rounded-lg p-2 transition-all hover:scale-110 hover:text-white"
                       onClick={e => {
                         e.stopPropagation();
-                        window.location.href = `mailto:${encodeURIComponent(opp.email)}`;
+                        openMailComposer(opp.email);
                       }}
                       title="Send email"
                     >

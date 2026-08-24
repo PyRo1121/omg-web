@@ -317,8 +317,12 @@ export async function applyStripeSubscriptionProjection(
          SELECT ?, ?, ?,
                 (${effectiveTierFor('?')}),
                 'active',
-                CASE WHEN ${activeTeam} THEN ? ELSE ? END,
-                CASE WHEN ${activeTeam} THEN ? ELSE ? END,
+                CASE WHEN ${activeTeam} THEN ?
+                     WHEN ${activePro} THEN ?
+                     ELSE 1 END,
+                CASE WHEN ${activeTeam} THEN ?
+                     WHEN ${activePro} THEN ?
+                     ELSE 1 END,
                 COALESCE(
                   (SELECT MAX(s.current_period_end) FROM subscriptions s
                    WHERE s.customer_id = ? AND s.status IN ('active', 'trialing')),
@@ -360,14 +364,16 @@ export async function applyStripeSubscriptionProjection(
 
   await db.batch(statements);
 
-  await logAudit(
-    db,
-    customerId,
-    'billing.subscription_reconciled',
-    'subscription',
-    subscription.id,
-    undefined,
-    { status: subscription.status }
+  await Effect.runPromise(
+    logAudit(
+      db,
+      customerId,
+      'billing.subscription_reconciled',
+      'subscription',
+      subscription.id,
+      undefined,
+      { status: subscription.status }
+    )
   );
 }
 

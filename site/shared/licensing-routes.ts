@@ -40,12 +40,6 @@ export const LicensingRoutes = {
     authentication: 'session',
     transport: 'direct',
   },
-  validateLicenseGet: {
-    method: 'GET',
-    path: '/api/validate-license',
-    authentication: 'none',
-    transport: 'direct',
-  },
   validateLicensePost: {
     method: 'POST',
     path: '/api/validate-license',
@@ -397,6 +391,14 @@ export const LicensingRoutes = {
   billingCheckout: {
     method: 'POST',
     path: '/api/billing/checkout',
+    authentication: 'session',
+    transport: 'site-bff',
+  },
+  billingCheckoutSession: {
+    // Post-checkout fulfillment stays bound to the Better Auth account that
+    // created checkout; the site BFF supplies its short-lived Worker session.
+    method: 'GET',
+    path: '/api/billing/checkout-session',
     authentication: 'session',
     transport: 'site-bff',
   },

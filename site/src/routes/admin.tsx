@@ -1,7 +1,7 @@
 import { reportClientError } from '~/lib/observability';
 import { Show, Suspense } from 'solid-js';
 import { Title, Meta } from '@solidjs/meta';
-import { A, createAsync, query, redirect } from '@solidjs/router';
+import { A, createAsync, query, redirect, useNavigate } from '@solidjs/router';
 import { clientOnly } from '@solidjs/start';
 import { getRequestEvent } from 'solid-js/web';
 import { LayoutDashboard, LogOut, Shield } from 'lucide-solid';
@@ -51,20 +51,20 @@ function LoadingScreen() {
   );
 }
 
-async function handleSignOut(): Promise<void> {
-  const result = await signOutBrowserSessions();
-  if (result.failures.length > 0) {
-    reportClientError(
-      'Sign out incomplete:',
-      result.failures.map(failure => failure._tag).join(', ')
-    );
-    return;
-  }
-  window.location.href = '/';
-}
-
 function AuthorizedAdminPage() {
   const session = useSession();
+  const navigate = useNavigate();
+  const handleSignOut = async (): Promise<void> => {
+    const result = await signOutBrowserSessions();
+    if (result.failures.length > 0) {
+      reportClientError(
+        'Sign out incomplete:',
+        result.failures.map(failure => failure._tag).join(', ')
+      );
+      return;
+    }
+    navigate('/', { replace: true });
+  };
 
   return (
     <div class="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">

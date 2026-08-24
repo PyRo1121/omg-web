@@ -16,6 +16,7 @@ import {
 } from 'lucide-solid';
 import { HealthScore, TierBadge } from '../../../design-system';
 import { parseTier } from '~/lib/contracts/tier';
+import { openMailComposer } from '~/lib/mailto';
 
 interface CRMProfileCardProps {
   customer: CRMCustomer;
@@ -106,7 +107,7 @@ const QuickActionButton: Component<QuickActionButtonProps> = props => {
 };
 
 const handleEmail = (email: string) => {
-  window.location.href = `mailto:${encodeURIComponent(email)}`;
+  openMailComposer(email);
 };
 
 export const CRMProfileCard: Component<CRMProfileCardProps> = props => {

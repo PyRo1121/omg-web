@@ -6,7 +6,25 @@ import '../src/cloudflare-test.d.ts';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
+import * as Schema from 'effect/Schema';
 import worker from '../src/worker';
+
+const ErrorPayloadSchema = Schema.Struct({ error: Schema.String });
+const EventSuccessPayloadSchema = Schema.Struct({
+  success: Schema.Boolean,
+  event_id: Schema.String,
+});
+const BatchPayloadSchema = Schema.Struct({
+  success: Schema.optional(Schema.Boolean),
+  processed: Schema.Number,
+});
+
+async function decodeResponse<S extends Schema.Schema.AnyNoContext>(
+  response: Response,
+  schema: S
+): Promise<Schema.Schema.Type<S>> {
+  return Schema.decodeUnknownSync(schema)(await response.json());
+}
 
 describe('Telemetry API', () => {
   // Test license key and customer setup
@@ -80,9 +98,9 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body).toHaveProperty('success', true);
-      expect(body).toHaveProperty('event_id');
+      const body = await decodeResponse(response, EventSuccessPayloadSchema);
+      expect(body.success).toBe(true);
+      expect(body.event_id.length).toBeGreaterThan(0);
 
       // Verify event was stored in database
       const stored = await env.DB.prepare('SELECT * FROM command_event WHERE license_id = ?')
@@ -209,7 +227,7 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(400);
-      const body = await response.json();
+      const body = await decodeResponse(response, ErrorPayloadSchema);
       expect(body.error).toContain('Invalid JSON body');
     });
 
@@ -236,7 +254,7 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(401);
-      const body = await response.json();
+      const body = await decodeResponse(response, ErrorPayloadSchema);
       expect(body.error).toContain('License key required');
     });
 
@@ -263,7 +281,7 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(401);
-      const body = await response.json();
+      const body = await decodeResponse(response, ErrorPayloadSchema);
       expect(body.error).toContain('Invalid license key');
     });
 
@@ -327,7 +345,7 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(400);
-      const body = await response.json();
+      const body = await decodeResponse(response, ErrorPayloadSchema);
       expect(body.error).toContain('Invalid event type');
     });
   });
@@ -387,9 +405,9 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body).toHaveProperty('success', true);
-      expect(body).toHaveProperty('processed', 3);
+      const body = await decodeResponse(response, BatchPayloadSchema);
+      expect(body.success).toBe(true);
+      expect(body.processed).toBe(3);
 
       // Verify all events were stored
       const commands = await env.DB.prepare(
@@ -430,9 +448,9 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body).toHaveProperty('success', true);
-      expect(body).toHaveProperty('processed', 0);
+      const body = await decodeResponse(response, BatchPayloadSchema);
+      expect(body.success).toBe(true);
+      expect(body.processed).toBe(0);
     });
 
     it('should return 401 when license_key is missing from batch', async () => {
@@ -464,7 +482,7 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(401);
-      const body = await response.json();
+      const body = await decodeResponse(response, ErrorPayloadSchema);
       expect(body.error).toContain('License key required');
     });
 
@@ -497,7 +515,7 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(401);
-      const body = await response.json();
+      const body = await decodeResponse(response, ErrorPayloadSchema);
       expect(body.error).toContain('Invalid license key');
     });
 
@@ -531,8 +549,8 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body).toHaveProperty('processed', 100);
+      const body = await decodeResponse(response, BatchPayloadSchema);
+      expect(body.processed).toBe(100);
 
       // Verify count
       const count = await env.DB.prepare(

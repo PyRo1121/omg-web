@@ -36,8 +36,6 @@ const TIER_MRR_USD = {
   pro: 9,
 } as const;
 
-type TierMrrKey = keyof typeof TIER_MRR_USD;
-
 /** List-price MRR per seat, defaulting unknown tiers to the pro price. */
 function tierMrrUsd(tier: string | null | undefined): number {
   if (tier === 'enterprise') {

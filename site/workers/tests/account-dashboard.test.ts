@@ -1,7 +1,14 @@
 import '../src/cloudflare-test.d.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
+import * as Schema from 'effect/Schema';
 import worker from '../src/worker';
+
+const ErrorPayloadSchema = Schema.Struct({ error: Schema.String });
+
+async function decodeError(response: Response): Promise<{ readonly error: string }> {
+  return Schema.decodeUnknownSync(ErrorPayloadSchema)(await response.json());
+}
 
 const TEST_EMAIL = 'dashboard@example.com';
 const TEST_TOKEN = 'dashboard-session-token';
@@ -43,7 +50,7 @@ describe('GET /api/dashboard', () => {
     const response = await worker.fetch(getDashboard(null), env, ctx);
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(401);
-    const payload = await response.json<{ error: string }>();
+    const payload = await decodeError(response);
     expect(payload.error).toBe('Authorization required');
   });
 
@@ -52,7 +59,7 @@ describe('GET /api/dashboard', () => {
     const response = await worker.fetch(getDashboard('not-a-session'), env, ctx);
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(401);
-    const payload = await response.json<{ error: string }>();
+    const payload = await decodeError(response);
     expect(payload.error).toBe('Invalid or expired session');
   });
 
@@ -73,7 +80,7 @@ describe('GET /api/dashboard', () => {
     const response = await worker.fetch(getDashboard(TEST_TOKEN), env, ctx);
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(404);
-    const payload = await response.json<{ error: string }>();
+    const payload = await decodeError(response);
     expect(payload.error).toBe('License not found');
   });
 });

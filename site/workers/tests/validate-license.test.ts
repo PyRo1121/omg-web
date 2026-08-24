@@ -17,7 +17,6 @@ const ValidLicensePayloadSchema = Schema.Struct({
   max_machines: Schema.Number,
 });
 const ValidPayloadSchema = Schema.Struct({ valid: Schema.Boolean });
-const TokenPayloadSchema = Schema.Struct({ valid: Schema.Boolean, token: Schema.String });
 const MachineVisibilityPayloadSchema = Schema.Struct({
   machines: Schema.Array(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
 });
@@ -336,22 +335,7 @@ describe('POST /api/validate-license', () => {
 });
 
 describe('GET /api/validate-license', () => {
-  beforeEach(async () => {
-    env.JWT_SECRET = 'test-jwt-secret';
-    env.JWT_PRIVATE_KEY = TEST_PRIVATE_KEY;
-    await ensureSchema();
-  });
-
-  afterEach(async () => {
-    await env.DB.prepare(`DELETE FROM machines WHERE license_id = ?`).bind(TEST_LICENSE).run();
-    await env.DB.prepare(`DELETE FROM usage_daily WHERE license_id = ?`).bind(TEST_LICENSE).run();
-    await env.DB.prepare(`DELETE FROM licenses WHERE id = ?`).bind(TEST_LICENSE).run();
-    await env.DB.prepare(`DELETE FROM customers WHERE id = ?`).bind(TEST_CUSTOMER).run();
-  });
-
-  it('validates a key from the query string', async () => {
-    await insertCustomer();
-    await insertLicense('active', null);
+  it('rejects query-string credentials because validation is POST-only', async () => {
     const ctx = createExecutionContext();
     const response = await worker.fetch(
       new Request(`http://localhost/api/validate-license?key=${TEST_KEY}`),
@@ -359,9 +343,6 @@ describe('GET /api/validate-license', () => {
       ctx
     );
     await waitOnExecutionContext(ctx);
-    expect(response.status).toBe(200);
-    const payload = await decodeResponse(response, TokenPayloadSchema);
-    expect(payload.valid).toBe(true);
-    expect(payload.token.length).toBeGreaterThan(0);
+    expect(response.status).toBe(404);
   });
 });

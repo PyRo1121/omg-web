@@ -35,6 +35,19 @@ export const StripePortalSessionSchema = Schema.Struct({
   error: Schema.optional(StripeErrorSchema),
 });
 
+/** Checkout session probe used for post-checkout fulfillment. */
+export const StripeCheckoutStatusSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  payment_status: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  customer: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  customer_email: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  customer_details: Schema.optional(
+    Schema.Struct({
+      email: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+    })
+  ),
+});
+
 /** Customer lookup used when a webhook has no local row. */
 export const StripeCustomerEmailSchema = Schema.Struct({
   email: Schema.String,
@@ -84,6 +97,16 @@ export const StripeSubscriptionSchema = Schema.Struct({
 });
 export type StripeSubscription = Schema.Schema.Type<typeof StripeSubscriptionSchema>;
 
+/** The upstream object that generated an invoice (basil 2025-03-31+). */
+const StripeInvoiceParentSchema = Schema.Struct({
+  type: Schema.optional(Schema.String),
+  subscription_details: Schema.optional(
+    Schema.Struct({
+      subscription: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+    })
+  ),
+});
+
 /** Invoice money/URL/period fields shared between sync records and webhook payloads. */
 const StripeInvoiceFields = {
   amount_paid: Schema.optional(Schema.Number),
@@ -93,6 +116,11 @@ const StripeInvoiceFields = {
   period_start: Schema.optional(Schema.Number),
   period_end: Schema.optional(Schema.Number),
   created: Schema.optional(Schema.Number),
+  // Pre-basil API versions carry the owning subscription as a top-level field;
+  // basil+ moved it under `parent.subscription_details` and deprecated the
+  // top-level field. Both shapes stay optional so either payload decodes.
+  subscription: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  parent: Schema.optional(StripeInvoiceParentSchema),
 } as const;
 
 /** Invoice record from list/sync. */

@@ -1,4 +1,4 @@
-import { reportError, reportWarning } from '../observability';
+import { reportError, reportInfo, reportWarning } from '../observability';
 import {
   type Env,
   jsonResponse,
@@ -31,6 +31,7 @@ import {
   decodeStripeJson,
   decodeStripeWebhookText,
   StripeCheckoutSessionSchema,
+  StripeCheckoutStatusSchema,
   StripeCustomerListSchema,
   StripeInvoiceListSchema,
   StripePortalSessionSchema,
@@ -47,6 +48,15 @@ const PortalBodySchema = Schema.Struct({
   email: Schema.optional(EmailAddress),
 });
 
+/** An active license provisioned for a paid checkout customer. */
+const LicenseKeyTierRowSchema = Schema.Struct({
+  license_key: Schema.String.pipe(Schema.minLength(1)),
+  tier: Schema.String,
+});
+
+/** Checkout Session ids are high-entropy Stripe capabilities; bound the shape. */
+const CheckoutSessionIdPattern = /^cs_[A-Za-z0-9]{10,200}$/;
+
 /**
  * Fetch a Stripe API resource and decode its JSON payload.
  *
@@ -59,12 +69,13 @@ async function fetchStripeJson<S extends Schema.Schema.AnyNoContext>(
   url: string | URL,
   schema: S,
   reason: string,
-  init: RequestInit = {}
+  init: RequestInit = {},
+  stripeFetch: typeof fetch = fetch
 ): Promise<Schema.Schema.Type<S> | null> {
   try {
     const headers = new Headers(init.headers);
     headers.set('Authorization', `Bearer ${apiKey}`);
-    const response = await fetch(url, { ...init, headers });
+    const response = await stripeFetch(url, { ...init, headers });
     const payload: unknown = await response.json();
     const decoded = await Effect.runPromiseExit(decodeStripeJson(schema, reason, payload));
     if (Exit.isFailure(decoded)) {
@@ -295,6 +306,28 @@ async function failedStripeEventResponse(
   return new Response('Stripe event reconciliation failed', { status: 500 });
 }
 
+/** Retention window for processed Stripe webhook inbox rows. */
+const STRIPE_EVENT_RETENTION_DAYS = 90;
+
+/**
+ * Prune processed Stripe webhook inbox rows past the retention window.
+ *
+ * Raw event bodies were already truncated on completion (see
+ * `markStripeEventProcessed`); this removes the rows themselves. Failed rows
+ * are kept so persistent delivery failures stay diagnosable — Stripe gives up
+ * retrying after 3 days, so their count stays small.
+ */
+export async function cleanupStripeEvents(db: D1Database): Promise<void> {
+  await db
+    .prepare(
+      `DELETE FROM stripe_events
+       WHERE processed = 1 AND processed_at < datetime('now', ?)`
+    )
+    .bind(`-${STRIPE_EVENT_RETENTION_DAYS} days`)
+    .run();
+  reportInfo('Cleaned up processed stripe_events rows');
+}
+
 /**
  * Verify Stripe webhook signature using HMAC-SHA256
  * This is CRITICAL for security - prevents webhook spoofing
@@ -501,9 +534,10 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     mode: 'subscription',
     'line_items[0][price]': priceId,
     'line_items[0][quantity]': '1',
-    // The template lets the success modal correlate the redirect with a real
-    // Checkout Session instead of trusting a forgeable ?success=true flag.
-    success_url: 'https://omg.latham.cloud/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}',
+    // The landing page hosts the post-checkout modal; the template lets it
+    // correlate the redirect with a real Checkout Session instead of trusting
+    // a forgeable ?success=true flag.
+    success_url: 'https://omg.latham.cloud/?success=true&session_id={CHECKOUT_SESSION_ID}',
     cancel_url: 'https://omg.latham.cloud/#pricing',
   });
   // Known buyers attach the stored Stripe customer so repeated checkouts do
@@ -547,6 +581,99 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   );
 
   return jsonResponse({ sessionId: session.id, url: session.url });
+}
+
+/**
+ * Post-checkout fulfillment probe for the success modal.
+ *
+ * The caller must hold the same authenticated account session that created
+ * checkout. Returns payment status and, once the signed webhook has provisioned
+ * a license for that account, the license key itself. Entitlement enforcement
+ * never depends on this endpoint — only webhook reconciliation grants tiers.
+ */
+export async function handleCheckoutSessionStatus(
+  request: Request,
+  env: Env,
+  stripeFetch: typeof fetch = fetch
+): Promise<Response> {
+  const authOrDenied = await authenticate(request, env);
+  if (authOrDenied instanceof Response) return authOrDenied;
+  const auth = authOrDenied;
+  if (!env.STRIPE_SECRET_KEY) {
+    return errorResponse('Billing is not configured', 503);
+  }
+  if (env.API_RATE_LIMITER) {
+    const { success } = await env.API_RATE_LIMITER.limit({
+      key: `checkout_session:${auth.user.id}`,
+    });
+    if (!success) {
+      return errorResponse('Rate limit exceeded', 429);
+    }
+  }
+
+  const sessionId = URL.parse(request.url)?.searchParams.get('id') ?? null;
+  if (sessionId === null || !CheckoutSessionIdPattern.test(sessionId)) {
+    return errorResponse('Invalid checkout session id', 400);
+  }
+
+  const session = await fetchStripeJson(
+    env.STRIPE_SECRET_KEY,
+    `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`,
+    StripeCheckoutStatusSchema,
+    'Stripe checkout session has an invalid shape',
+    {},
+    stripeFetch
+  );
+  if (!session) {
+    // Unknown ids surface as Stripe error payloads; one generic upstream
+    // failure covers both without revealing which session ids exist.
+    return errorResponse('Unable to verify checkout session', 502);
+  }
+
+  const paymentStatus = session.payment_status ?? 'unknown';
+  if (paymentStatus !== 'paid') {
+    return jsonResponse({ status: paymentStatus });
+  }
+
+  const email = session.customer_details?.email ?? session.customer_email ?? null;
+  if (email !== null && email.toLowerCase() !== auth.user.email.toLowerCase()) {
+    return errorResponse('Checkout session does not belong to this account', 403);
+  }
+
+  // Fulfillment is eventual: license rows are created by webhook projection,
+  // so a paid session may briefly have nothing to hand out yet.
+  const decodedCustomer = Schema.decodeEither(OptionalStripeReferenceId)(session.customer ?? null);
+  const stripeCustomerId =
+    decodedCustomer._tag === 'Right' && decodedCustomer.right !== null
+      ? decodedCustomer.right
+      : null;
+  if (stripeCustomerId === null) {
+    return jsonResponse({ status: paymentStatus, license: null });
+  }
+
+  const licenseRow = await env.DB.prepare(
+    `SELECT l.license_key, l.tier FROM licenses l
+     JOIN customers c ON l.customer_id = c.id
+     WHERE c.id = ? AND c.stripe_customer_id = ? AND l.status = 'active'
+     ORDER BY l.created_at DESC LIMIT 1`
+  )
+    .bind(auth.user.id, stripeCustomerId)
+    .first();
+  const lookup = await readOptionalExtraRow(
+    LicenseKeyTierRowSchema,
+    'License row has an invalid shape',
+    licenseRow
+  );
+  if (lookup._tag === 'invalid') {
+    reportError(`Checkout fulfillment license row has an invalid shape`, sessionId);
+    return errorResponse('Internal server error', 500);
+  }
+  const license = optionalRowValue(lookup);
+  return jsonResponse({
+    status: paymentStatus,
+    license:
+      license === undefined ? null : { license_key: license.license_key, tier: license.tier },
+  });
 }
 
 export async function handleBillingPortal(request: Request, env: Env): Promise<Response> {
@@ -609,6 +736,41 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
   );
 
   return jsonResponse({ success: true, url: session.url });
+}
+
+/** A Stripe object reference: present after decoding or SQL null when absent. */
+const OptionalStripeReferenceId = Schema.Union(
+  Schema.Null,
+  Schema.String.pipe(Schema.minLength(1))
+);
+
+/**
+ * The subscription that generated an invoice, when the invoice is a
+ * subscription invoice.
+ *
+ * Fields are already boundary-decoded (`StripeInvoiceFields`); this collapses
+ * both wire shapes into one domain value. Pre-basil API versions carry
+ * top-level `subscription`; basil (2025-03-31) deprecated it in favor of
+ * `parent.subscription_details.subscription` guarded by `parent.type`
+ * (docs.stripe.com/changelog/basil/2025-03-31/adds-new-parent-field-to-invoicing-objects).
+ */
+function invoiceSubscriptionId(invoice: {
+  readonly subscription?: string | null | undefined;
+  readonly parent?:
+    | {
+        readonly type?: string | undefined;
+        readonly subscription_details?:
+          { readonly subscription?: string | null | undefined } | undefined;
+      }
+    | undefined;
+}): string | undefined {
+  const topLevel = Schema.decodeEither(OptionalStripeReferenceId)(invoice.subscription ?? null);
+  if (topLevel._tag === 'Right' && topLevel.right !== null) return topLevel.right;
+  if (invoice.parent?.type !== 'subscription_details') return undefined;
+  const viaParent = Schema.decodeEither(OptionalStripeReferenceId)(
+    invoice.parent.subscription_details?.subscription ?? null
+  );
+  return viaParent._tag === 'Right' && viaParent.right !== null ? viaParent.right : undefined;
 }
 
 export async function handleStripeWebhook(
@@ -686,6 +848,13 @@ export async function handleStripeWebhook(
             'Invoice event has no object id',
             claimToken
           );
+        }
+        // One-off (non-subscription) invoices are deliberately ignored, not
+        // retried: the invoices table feeds subscription revenue views, and
+        // payment failures on one-offs say nothing about license health.
+        if (invoiceSubscriptionId(invoice) === undefined) {
+          reportInfo(`Ignoring non-subscription Stripe invoice ${invoice.id} (${event.type})`);
+          break;
         }
         const resolved = await resolveStripeCustomerId(env.DB, invoice.customer);
         if (!resolved.ok) {
@@ -912,7 +1081,11 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       errors,
       invoice => `Invoice ${invoice.id}`,
       async invoice => {
-        if (invoice.status !== 'paid') return false;
+        // Mirror the webhook gate: only subscription invoices belong in the
+        // revenue-facing invoices table; one-offs are skipped without error.
+        if (invoice.status !== 'paid' || invoiceSubscriptionId(invoice) === undefined) {
+          return false;
+        }
 
         const resolved = await resolveStripeCustomerId(env.DB, invoice.customer);
         if (!resolved.ok) {

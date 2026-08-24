@@ -131,6 +131,7 @@ async function invoicePaidWebhookRequest(
       object: {
         id: 'in_idempotent',
         customer: customerId,
+        subscription: 'sub_invoice_projection',
         amount_paid: amountPaid,
         currency: 'usd',
         status,
@@ -515,7 +516,7 @@ describe('Stripe webhook inbox', () => {
     expect(response.status).toBe(200);
     expect(await readBillingProjection('billing-customer')).toEqual({
       customer_tier: 'free',
-      license_tier: 'team',
+      license_tier: 'free',
       license_status: 'cancelled',
       max_seats: 10,
       subscription_status: 'canceled',

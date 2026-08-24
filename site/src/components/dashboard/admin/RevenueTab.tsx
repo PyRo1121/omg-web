@@ -31,18 +31,6 @@ const PERIOD_MONTH_COUNTS = {
 
 type RevenuePeriod = keyof typeof PERIOD_MONTH_COUNTS;
 
-/** Month-over-month revenue change in percent, or null when it cannot be computed. */
-function monthOverMonthGrowthPercent(
-  monthly: ReadonlyArray<{ readonly revenue: number }>
-): number | null {
-  const current = monthly.at(-1);
-  const previous = monthly.at(-2);
-  if (current === undefined || previous === undefined || previous.revenue === 0) {
-    return null;
-  }
-  return ((current.revenue - previous.revenue) / previous.revenue) * 100;
-}
-
 export const RevenueTab: Component = () => {
   const revenueQuery = useAdminRevenue();
   const [selectedPeriod, setSelectedPeriod] = createSignal<RevenuePeriod>('30d');
@@ -53,7 +41,6 @@ export const RevenueTab: Component = () => {
     monthlyRevenue().slice(-PERIOD_MONTH_COUNTS[selectedPeriod()])
   );
   const latestMonth = () => monthlyRevenue().at(-1);
-  const growthPercent = () => monthOverMonthGrowthPercent(monthlyRevenue());
   const maxMonthlyRevenue = () =>
     Math.max(...selectedMonthlyRevenue().map(month => month.revenue), 1);
 
@@ -73,6 +60,7 @@ export const RevenueTab: Component = () => {
           <p class="font-bold text-rose-400">Failed to load revenue data</p>
           <p class="mt-2 text-sm text-slate-400">{revenueQuery.error?.message}</p>
           <button
+            type="button"
             onClick={() => revenueQuery.refetch()}
             class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
           >
@@ -174,6 +162,7 @@ export const RevenueTab: Component = () => {
                 <For each={['7d', '30d', '90d', '1y'] as const}>
                   {period => (
                     <button
+                      type="button"
                       onClick={() => setSelectedPeriod(period)}
                       class={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
                         selectedPeriod() === period

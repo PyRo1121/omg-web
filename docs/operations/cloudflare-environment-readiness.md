@@ -44,9 +44,11 @@ Known no-op in the canonical chain: migration `015_customers_email_unique.sql` s
 
 ### Secrets (server-only, set via `wrangler secret put`)
 
-- `omg-saas`: `JWT_SECRET`, `ADMIN_API_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+- `omg-saas`: `JWT_SECRET`, `JWT_PRIVATE_KEY` (Ed25519 PKCS#8 PEM), `ADMIN_API_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
 - `omg-site`: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=https://omg.latham.cloud`, `ADMIN_API_SECRET` (same value as `omg-saas`)
-- Optional, unset until their features are enabled: `TURNSTILE_SECRET_KEY`, `SENTRY_DSN`, `JWT_PRIVATE_KEY` (EdDSA license signing), OAuth client credentials. Note: `RESEND_API_KEY` is not read by any runtime code — OTP delivery uses the native `EMAIL` send binding and remains disabled per the remaining steps below.
+- Optional, unset until their features are enabled: `TURNSTILE_SECRET_KEY`, `SENTRY_DSN`, OAuth client credentials. Note: `RESEND_API_KEY` is not read by any runtime code — OTP delivery uses the native `EMAIL` send binding and remains disabled per the remaining steps below.
+
+License JWTs are EdDSA-only. Verifiers must pin `alg=EdDSA`, `kid=omg-license-ed25519-v1`, `iss=https://omg-api.latham.cloud`, and `aud=omg-cli`; they must never select an algorithm from an untrusted JWT header. The matching public key is published at `https://omg.latham.cloud/.well-known/omg-license-ed25519-v1.pem`. Rotate by introducing a new key ID and serving both public keys during the bounded one-hour token overlap; never reuse `JWT_SECRET` for license signing.
 
 Stripe secrets are server-only on `omg-saas`; billing routes are unlocked and no longer return `503`.
 

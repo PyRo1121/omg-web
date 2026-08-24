@@ -21,11 +21,9 @@ import {
   ValidateLicenseRowSchema,
   decodeRow,
   decodeRowArray,
-  decodeValidateLicenseFields,
   toValidateLicenseRequest,
   type ActiveMachineRow,
   type LicenseUsageRow,
-  type ValidateLicenseFields,
   type ValidateLicenseRequest,
   type ValidateLicenseRow,
 } from '../contracts/validate-license';
@@ -144,28 +142,14 @@ function queryFirst(
 function decodeInput(
   request: Request
 ): Effect.Effect<ValidateLicenseRequest, InvalidJsonBodyError | LicenseHandlerError> {
-  let decoded: Effect.Effect<ValidateLicenseFields, InvalidJsonBodyError | LicenseHandlerError>;
-  if (request.method === 'POST') {
-    decoded = decodeJsonBody(request, ValidateLicenseFieldsSchema);
-  } else {
-    const url = URL.parse(request.url);
-    if (url === null) {
-      return Effect.fail(
-        new LicenseHandlerError('InvalidRequestUrlError', 'Invalid request URL', 400)
-      );
-    }
-    decoded = decodeValidateLicenseFields({
-      key: url.searchParams.get('key'),
-      license_key: url.searchParams.get('license_key'),
-      machine_id: url.searchParams.get('machine_id'),
-      user_name: url.searchParams.get('user_name'),
-      user_email: url.searchParams.get('user_email'),
-    }).pipe(
-      Effect.mapError(() => new InvalidJsonBodyError('Body does not match the expected contract'))
+  // POST only: a GET would put the sole activation credential into edge and
+  // proxy logs via the query string.
+  if (request.method !== 'POST') {
+    return Effect.fail(
+      new LicenseHandlerError('InvalidRequestUrlError', 'Method not allowed', 400)
     );
   }
-
-  return decoded.pipe(
+  return decodeJsonBody(request, ValidateLicenseFieldsSchema).pipe(
     Effect.flatMap(fields => {
       const body = toValidateLicenseRequest(fields);
       return body === null
@@ -240,6 +224,14 @@ function registerOrTouchMachine(
       catch: cause => storeUnavailable('registerMachine', cause),
     });
     if (seatResult === null) {
+      yield* logAudit(
+        env.DB,
+        license.customer_id,
+        'machine.seat_limit_reached',
+        'machine',
+        machineId,
+        request
+      );
       return invalidLicense(
         `Machine limit reached (${maxMachines}). Revoke a machine in your dashboard or upgrade.`
       );
@@ -373,17 +365,21 @@ function errorStatus(error: { readonly _tag: string }): number {
  */
 export async function handleValidateLicense(request: Request, env: Env): Promise<Response> {
   // License keys are the sole activation credential; throttle per-IP to blunt
-  // key brute-force attempts.
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  // key brute-force attempts. Requests without CF-Connecting-IP get a unique
+  // limiter slot so they can never exhaust one shared bucket.
+  const ip = request.headers.get('CF-Connecting-IP') ?? crypto.randomUUID();
   if (env.API_RATE_LIMITER) {
     const { success } = await env.API_RATE_LIMITER.limit({ key: `validate_license:${ip}` });
     if (!success) {
       return errorResponse('Rate limit exceeded', 429);
     }
   }
-  return respondFromEffect(validateLicense(request, env), error =>
-    errorResponse(error.message, errorStatus(error))
-  );
+  return respondFromEffect(validateLicense(request, env), error => {
+    const status = errorStatus(error);
+    // Uniform error channel with report-usage: internal store details never
+    // leak through 5xx messages.
+    return errorResponse(status < 500 ? error.message : 'Internal server error', status);
+  });
 }
 
 function utcDate(): string {
@@ -708,7 +704,6 @@ export async function handleReportUsage(request: Request, env: Env): Promise<Res
 /** The install ping payload sent by the CLI on first run. */
 const InstallPingBodySchema = Schema.Struct({
   install_id: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
-  timestamp: Schema.optional(Schema.String.pipe(Schema.maxLength(40))),
   version: Schema.optional(Schema.String.pipe(Schema.maxLength(64))),
   platform: Schema.optional(Schema.String.pipe(Schema.maxLength(64))),
   backend: Schema.optional(Schema.String.pipe(Schema.maxLength(64))),
@@ -798,8 +793,18 @@ async function generateLicenseJWT(
 }
 
 function base64UrlEncode(data: Uint8Array | string): string {
-  const raw = data instanceof Uint8Array ? btoa(String.fromCharCode(...data)) : btoa(data);
-  return raw.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  let binary: string;
+  if (data instanceof Uint8Array) {
+    // Chunked conversion: spreading large buffers into String.fromCharCode
+    // overflows the call stack.
+    binary = '';
+    for (let i = 0; i < data.length; i += 0x8000) {
+      binary += String.fromCharCode(...data.subarray(i, i + 0x8000));
+    }
+  } else {
+    binary = data;
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function base64UrlDecode(data: string): string {
@@ -851,7 +856,7 @@ function ingestAnalytics(
   return Effect.gen(function* () {
     const rateLimiter = env.API_RATE_LIMITER;
     if (rateLimiter) {
-      const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+      const ip = request.headers.get('CF-Connecting-IP') ?? crypto.randomUUID();
       const rl = yield* Effect.tryPromise({
         try: () => rateLimiter.limit({ key: `analytics:${ip}` }),
         catch: cause => storeUnavailable('analyticsRateLimit', cause),
@@ -861,11 +866,8 @@ function ingestAnalytics(
       }
     }
 
-    const contentLength = Number(request.headers.get('Content-Length') ?? '0');
-    if (contentLength > 1024 * 1024) {
-      return { success: true as const, processed: 0 };
-    }
-
+    // decodeJsonBody enforces the byte cap on the actual stream; no
+    // Content-Length header trust is needed.
     const body = yield* decodeJsonBody(request, AnalyticsBatchSchema);
     const requestedEvents = body.events === undefined ? [] : body.events;
     if (requestedEvents.length === 0 || requestedEvents.length > 50) {

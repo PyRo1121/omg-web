@@ -5,8 +5,8 @@ import * as Schema from 'effect/Schema';
 import { D1Number } from '../../../shared/d1-rows';
 import { AdminFlagRowSchema } from './d1-extras';
 
-/** Admin flag row, canonical definition lives in `./d1-extras`. */
-export { AdminFlagRowSchema };
+/** Shared persisted-row primitives used by account-dashboard consumers. */
+export { AdminFlagRowSchema, D1Number };
 
 /** A failure decoding a Worker account dashboard payload or D1 row. */
 export class AccountDashboardParseError extends Error {
