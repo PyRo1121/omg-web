@@ -201,7 +201,12 @@ function scheduleFlush(): void {
 }
 
 /**
- * Flush events using Beacon API for reliability
+ * Flush queued events through a keepalive fetch.
+ *
+ * Cross-origin Beacon requests always include credentials. Sending their body
+ * as JSON therefore requires credentialed CORS, which this anonymous endpoint
+ * intentionally does not permit. A keepalive fetch retains unload reliability,
+ * declares the JSON contract, and omits credentials at the API origin.
  */
 function flushEvents(): void {
   if (eventQueue.length === 0) {
@@ -210,33 +215,17 @@ function flushEvents(): void {
 
   const events = [...eventQueue];
   eventQueue = [];
-
-  const payload = JSON.stringify({ events });
-
-  // Beacon strings are sent as text/plain, but the Worker correctly rejects
-  // non-JSON bodies. A typed Blob preserves Beacon reliability while declaring
-  // the boundary contract explicitly.
-  if (navigator.sendBeacon) {
-    const jsonPayload = new Blob([payload], { type: 'application/json' });
-    const success = navigator.sendBeacon(ANALYTICS_ENDPOINT, jsonPayload);
-    if (!success) {
-      // Beacon failed, try fetch as fallback
-      void sendWithFetch(payload, events);
-    }
-  } else {
-    void sendWithFetch(payload, events);
-  }
+  void sendWithFetch(JSON.stringify({ events }), events);
 }
 
-/**
- * Fallback to fetch if Beacon API unavailable
- */
+/** Send one queued batch, restoring it if the network boundary rejects it. */
 async function sendWithFetch(payload: string, events: AnalyticsEvent[]): Promise<void> {
   try {
     const response = await fetch(ANALYTICS_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: payload,
+      credentials: 'omit',
       keepalive: true,
     });
     if (!response.ok) {
