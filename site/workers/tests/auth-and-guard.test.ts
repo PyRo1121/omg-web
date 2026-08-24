@@ -388,6 +388,18 @@ describe('admin handler authorization', () => {
     expect(userResponse.status).toBe(403);
     expect(adminResponse.status).toBe(200);
   });
+
+  it('lists users with a count from the independently batched query', async () => {
+    const context = createExecutionContext();
+    const response = await worker.fetch(
+      getPath('/api/admin/users?page=1&limit=25', adminToken),
+      env,
+      context
+    );
+    await waitOnExecutionContext(context);
+
+    expect(response.status).toBe(200);
+  });
 });
 
 describe('POST /api/billing/portal email override', () => {

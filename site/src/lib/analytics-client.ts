@@ -213,9 +213,12 @@ function flushEvents(): void {
 
   const payload = JSON.stringify({ events });
 
-  // Prefer Beacon API for reliability (works even on page unload)
+  // Beacon strings are sent as text/plain, but the Worker correctly rejects
+  // non-JSON bodies. A typed Blob preserves Beacon reliability while declaring
+  // the boundary contract explicitly.
   if (navigator.sendBeacon) {
-    const success = navigator.sendBeacon(ANALYTICS_ENDPOINT, payload);
+    const jsonPayload = new Blob([payload], { type: 'application/json' });
+    const success = navigator.sendBeacon(ANALYTICS_ENDPOINT, jsonPayload);
     if (!success) {
       // Beacon failed, try fetch as fallback
       void sendWithFetch(payload, events);

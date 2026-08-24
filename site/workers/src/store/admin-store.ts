@@ -396,7 +396,11 @@ export const listUsers = (db: D1Database, input: ListUsersInput) =>
     FROM user_stats${where} ORDER BY engagement_score DESC, created_at DESC LIMIT ? OFFSET ?`,
             [...searchValues, input.limit, input.offset]
           ),
-          statement(db, `SELECT COUNT(*) as count FROM user_stats${where}`, searchValues),
+          // `user_stats` is scoped to the preceding statement's CTE and cannot
+          // be referenced by this independent batch statement. It has exactly
+          // one row per customer, so the base-table count is equivalent and
+          // avoids recomputing all aggregate statistics.
+          statement(db, `SELECT COUNT(*) as count FROM customers${where}`, searchValues),
         ]),
       catch: fail('listUsers'),
     });

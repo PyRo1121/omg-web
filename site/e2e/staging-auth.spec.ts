@@ -29,7 +29,12 @@ test.describe('staging authenticated user', () => {
   }) => {
     await performUiLogin(page, userEmail ?? '', userPassword ?? '');
 
-    const dashboardResponse = await page.request.get('/api/licensing/api/dashboard');
+    // APIRequestContext does not emit browser Fetch Metadata. Supply the
+    // deployment Origin explicitly so this exercises the BFF's same-origin
+    // read policy rather than looking like a cross-site request.
+    const dashboardResponse = await page.request.get('/api/licensing/api/dashboard', {
+      headers: { Origin: baseUrl ?? '' },
+    });
     expect(dashboardResponse.status()).toBe(200);
     expect(dashboardResponse.headers()['content-type']).toContain('application/json');
 
