@@ -64,7 +64,7 @@ const Pricing: Component = () => {
           </p>
           <button
             type="button"
-            class="mt-6 font-mono text-[11px] text-[var(--signal)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
+            class="mt-4 min-h-6 py-1 text-left font-mono text-[11px] text-[var(--signal)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
             onClick={() => setShowOffer(true)}
           >
             Get a private code →

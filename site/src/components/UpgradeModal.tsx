@@ -110,10 +110,10 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
   return (
     <Dialog.Root open={props.isOpen} onOpenChange={open => !open && close()}>
       <Dialog.Portal>
-        <Dialog.Overlay class="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" />
-        <div class="fixed inset-0 z-40 grid place-items-center overflow-y-auto p-4">
-          <Dialog.Content class="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-[var(--rule-strong)] bg-[var(--paper-raised)] shadow-[0_3rem_10rem_rgba(0,0,0,0.5)]">
-            <header class="flex items-start justify-between border-b border-[var(--rule)] p-5 sm:p-7">
+        <Dialog.Overlay class="fixed inset-0 z-40 bg-black/85" />
+        <div class="fixed inset-0 z-40 grid items-start overflow-y-auto p-2 sm:place-items-center sm:p-4">
+          <Dialog.Content class="relative my-auto max-h-[calc(100dvh-1rem)] w-full max-w-4xl overflow-y-auto border border-[var(--rule-strong)] bg-[var(--paper-raised)] shadow-[0_3rem_10rem_rgba(0,0,0,0.5)] sm:max-h-[calc(100dvh-2rem)]">
+            <header class="sticky top-0 z-10 flex items-start justify-between border-b border-[var(--rule)] bg-[var(--paper-raised)] p-5 sm:p-7">
               <div>
                 <p class="font-mono text-xs text-[var(--signal)]">Secure checkout</p>
                 <Dialog.Title class="mt-2 text-3xl font-medium tracking-[-0.045em]">
@@ -124,7 +124,7 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
                 </Dialog.Description>
               </div>
               <Dialog.CloseButton
-                class="grid h-10 w-10 place-items-center rounded-full border border-[var(--rule-strong)] hover:bg-white/[0.07]"
+                class="grid h-10 w-10 shrink-0 place-items-center border border-[var(--rule-strong)] hover:bg-white/[0.07]"
                 aria-label="Close checkout"
               >
                 <X size={18} strokeWidth={1.5} />
@@ -139,7 +139,7 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
                     return (
                       <button
                         type="button"
-                        class="group min-h-96 border-b border-[var(--rule)] p-6 text-left hover:bg-white/[0.035] sm:p-8 md:border-r md:border-b-0 md:last:border-r-0"
+                        class="group border-b border-[var(--rule)] p-5 text-left hover:bg-white/[0.035] sm:p-8 md:min-h-96 md:border-r md:border-b-0 md:last:border-r-0"
                         onClick={() => chooseTier(tierKey)}
                       >
                         <span class="manifest-label text-[var(--signal)]">{tier.name}</span>

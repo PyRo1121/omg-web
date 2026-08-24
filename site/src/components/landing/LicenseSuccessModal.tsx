@@ -90,10 +90,10 @@ export const LicenseSuccessModal: Component = () => {
   return (
     <Dialog.Root open={open()} onOpenChange={setOpen}>
       <Dialog.Portal>
-        <Dialog.Overlay class="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" />
-        <div class="fixed inset-0 z-40 grid place-items-center overflow-y-auto p-4">
-          <Dialog.Content class="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-[var(--rule-strong)] bg-[var(--paper-raised)] shadow-[0_3rem_10rem_rgba(0,0,0,0.5)]">
-            <header class="flex items-start justify-between border-b border-[var(--rule)] p-5 sm:p-7">
+        <Dialog.Overlay class="fixed inset-0 z-40 bg-black/85" />
+        <div class="fixed inset-0 z-40 grid items-start overflow-y-auto p-2 sm:place-items-center sm:p-4">
+          <Dialog.Content class="relative my-auto max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto border border-[var(--rule-strong)] bg-[var(--paper-raised)] shadow-[0_3rem_10rem_rgba(0,0,0,0.5)] sm:max-h-[calc(100dvh-2rem)]">
+            <header class="sticky top-0 z-10 flex items-start justify-between border-b border-[var(--rule)] bg-[var(--paper-raised)] p-5 sm:p-7">
               <div>
                 <p class="font-mono text-xs text-[var(--signal)]">License fulfillment</p>
                 <Dialog.Title
@@ -107,7 +107,7 @@ export const LicenseSuccessModal: Component = () => {
                 </Dialog.Description>
               </div>
               <Dialog.CloseButton
-                class="grid h-10 w-10 place-items-center rounded-full border border-[var(--rule-strong)] hover:bg-white/[0.07]"
+                class="grid h-10 w-10 shrink-0 place-items-center border border-[var(--rule-strong)] hover:bg-white/[0.07]"
                 aria-label="Close license status"
               >
                 <X size={18} strokeWidth={1.5} />
@@ -146,7 +146,7 @@ export const LicenseSuccessModal: Component = () => {
                       </Show>
                     </button>
                     <p class="manifest-label mt-8 text-[var(--ink-muted)]">Activate</p>
-                    <code class="mt-3 block overflow-x-auto border-t border-[var(--rule)] pt-4 text-xs">
+                    <code class="mt-3 block border-t border-[var(--rule)] pt-4 text-xs break-all whitespace-pre-wrap">
                       omg license activate {snapshot().licenseKey}
                     </code>
                   </div>

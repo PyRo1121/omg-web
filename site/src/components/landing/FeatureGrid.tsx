@@ -42,61 +42,54 @@ const FeatureGrid: Component = () => (
         </p>
         <a
           href="/docs/"
-          class="mt-7 inline-block font-mono text-[11px] text-[var(--signal)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
+          class="mt-5 inline-flex min-h-6 items-center py-1 font-mono text-[11px] text-[var(--signal)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
         >
           Read the technical details →
         </a>
       </div>
     </header>
 
-    <div class="overflow-x-auto">
-      <table class="w-full min-w-[52rem] border-collapse text-left">
-        <caption class="sr-only">Common package-management workflows before and after OMG</caption>
-        <thead class="font-mono text-[10px] tracking-[0.05em] text-[var(--ink-muted)]">
-          <tr class="border-b border-[var(--rule)]">
-            <th scope="col" class="px-5 py-4 font-normal sm:px-8 lg:px-12">
-              Job
-            </th>
-            <th scope="col" class="border-l border-[var(--rule)] px-6 py-4 font-normal">
-              Before
-            </th>
-            <th scope="col" class="border-l border-[var(--rule)] px-6 py-4 font-normal">
-              With OMG
-            </th>
-            <th scope="col" class="border-l border-[var(--rule)] px-6 py-4 font-normal">
-              Result
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <For each={WORKFLOWS}>
-            {(workflow, index) => (
-              <tr class="border-b border-[var(--rule)] last:border-b-0">
-                <th
-                  scope="row"
-                  class="px-5 py-8 text-xl font-medium tracking-[-0.035em] sm:px-8 lg:px-12"
-                >
-                  <span class="mr-5 font-mono text-[10px] text-[var(--signal)]">
-                    0{index() + 1}
-                  </span>
-                  {workflow.job}
-                </th>
-                <td class="border-l border-[var(--rule)] px-6 py-8 font-mono text-xs text-[var(--ink-muted)]">
-                  {workflow.before}
-                </td>
-                <td class="border-l border-[var(--rule)] bg-[var(--paper-raised)] px-6 py-8 font-mono text-xs text-[var(--ink)]">
-                  <span class="text-[var(--signal)]">$ </span>
-                  {workflow.command}
-                </td>
-                <td class="border-l border-[var(--rule)] px-6 py-8 text-sm text-[var(--ink-muted)]">
-                  {workflow.result}
-                </td>
-              </tr>
-            )}
-          </For>
-        </tbody>
-      </table>
+    <div
+      class="hidden grid-cols-[0.95fr_0.8fr_1fr_1.05fr] border-b border-[var(--rule)] font-mono text-[10px] tracking-[0.05em] text-[var(--ink-muted)] lg:grid"
+      aria-hidden="true"
+    >
+      <span class="px-8 py-4 lg:px-12">Job</span>
+      <span class="border-l border-[var(--rule)] px-6 py-4">Before</span>
+      <span class="border-l border-[var(--rule)] px-6 py-4">With OMG</span>
+      <span class="border-l border-[var(--rule)] px-6 py-4">Result</span>
     </div>
+
+    <ol class="m-0 list-none p-0">
+      <For each={WORKFLOWS}>
+        {(workflow, index) => (
+          <li class="grid border-b border-[var(--rule)] last:border-b-0 lg:grid-cols-[0.95fr_0.8fr_1fr_1.05fr]">
+            <h3 class="px-5 py-7 text-xl font-medium tracking-[-0.035em] sm:px-8 lg:px-12 lg:py-8">
+              <span class="mr-4 font-mono text-[10px] text-[var(--signal)]">0{index() + 1}</span>
+              {workflow.job}
+            </h3>
+            <p class="m-0 border-t border-[var(--rule)] px-5 py-5 font-mono text-xs text-[var(--ink-muted)] sm:px-8 lg:border-t-0 lg:border-l lg:px-6 lg:py-8">
+              <span class="mb-2 block text-[9px] tracking-[0.05em] text-[var(--ink-muted)] lg:hidden">
+                BEFORE
+              </span>
+              {workflow.before}
+            </p>
+            <p class="m-0 border-t border-[var(--rule)] bg-[var(--paper-raised)] px-5 py-5 font-mono text-xs text-[var(--ink)] sm:px-8 lg:border-t-0 lg:border-l lg:px-6 lg:py-8">
+              <span class="mb-2 block text-[9px] tracking-[0.05em] text-[var(--signal)] lg:hidden">
+                WITH OMG
+              </span>
+              <span class="text-[var(--signal)]">$ </span>
+              <span class="break-all">{workflow.command}</span>
+            </p>
+            <p class="m-0 border-t border-[var(--rule)] px-5 py-5 text-sm text-[var(--ink-muted)] sm:px-8 lg:border-t-0 lg:border-l lg:px-6 lg:py-8">
+              <span class="mb-2 block font-mono text-[9px] tracking-[0.05em] lg:hidden">
+                RESULT
+              </span>
+              {workflow.result}
+            </p>
+          </li>
+        )}
+      </For>
+    </ol>
   </section>
 );
 

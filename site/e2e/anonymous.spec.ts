@@ -17,7 +17,13 @@ test.describe('anonymous authorization', () => {
   });
 
   test('opens the introductory offer only from pricing intent', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+      )
+    ).toBe(true);
 
     await expect(async () => {
       await page.getByRole('button', { name: 'Get a private code' }).click();
@@ -27,9 +33,44 @@ test.describe('anonymous authorization', () => {
     }).toPass();
     await expect(page.getByLabel('Email address')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create my code' })).toBeVisible();
+    const dialogBounds = await page.getByRole('dialog').boundingBox();
+    expect(dialogBounds).not.toBeNull();
+    expect(dialogBounds?.y).toBeGreaterThanOrEqual(0);
+    expect((dialogBounds?.y ?? 0) + (dialogBounds?.height ?? 0)).toBeLessThanOrEqual(568);
+  });
+
+  test('keeps plan selection reachable on a compact viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+    const dialog = page.getByRole('dialog');
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Choose Pro' }).click();
+      await expect(dialog.getByRole('heading', { name: 'Choose a plan' })).toBeVisible();
+    }).toPass();
+    const dialogBounds = await dialog.boundingBox();
+    expect(dialogBounds).not.toBeNull();
+    expect(dialogBounds?.y).toBeGreaterThanOrEqual(0);
+    expect((dialogBounds?.y ?? 0) + (dialogBounds?.height ?? 0)).toBeLessThanOrEqual(568);
+    expect(await dialog.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(
+      true
+    );
+  });
+
+  test('keeps purchase status reachable on a compact viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto('/?success=true&session_id=invalid', { waitUntil: 'domcontentloaded' });
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('heading', { name: 'Purchase status' })).toBeVisible();
+    const dialogBounds = await dialog.boundingBox();
+    expect(dialogBounds).not.toBeNull();
+    expect(dialogBounds?.y).toBeGreaterThanOrEqual(0);
+    expect((dialogBounds?.y ?? 0) + (dialogBounds?.height ?? 0)).toBeLessThanOrEqual(568);
   });
 
   test('renders the documentation entry surface', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
     await page.goto('/docs/', { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByRole('heading', { name: 'Learn the parts you need.' })).toBeVisible();
@@ -45,6 +86,11 @@ test.describe('anonymous authorization', () => {
     expect(sitemapText).toContain('<loc>https://omg.latham.cloud/docs</loc>');
     expect(sitemapText).not.toContain('/dashboard');
     expect(sitemapText).not.toContain('/docs/getting-started');
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+      )
+    ).toBe(true);
   });
 
   test('renders the complete login entry surface', async ({ page }) => {

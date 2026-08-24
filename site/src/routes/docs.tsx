@@ -61,11 +61,11 @@ export default function DocsPage() {
           </p>
         </header>
 
-        <div class="grid lg:grid-cols-[16rem_1fr]">
+        <div class="grid min-w-0 lg:grid-cols-[16rem_minmax(0,1fr)]">
           <aside class="border-b border-[var(--rule)] p-5 sm:p-8 lg:border-r lg:border-b-0 lg:p-8">
             <nav class="lg:sticky lg:top-8" aria-label="Documentation sections">
               <p class="font-mono text-[10px] text-[var(--ink-muted)]">ON THIS PAGE</p>
-              <ul class="mt-5 grid list-none gap-3 p-0 font-mono text-[11px] text-[var(--ink-muted)]">
+              <ul class="mt-4 grid list-none gap-1 p-0 font-mono text-[11px] text-[var(--ink-muted)] [&_a]:block [&_a]:py-1.5">
                 <li>
                   <a href="#install" class="hover:text-[var(--signal)]">
                     Install
@@ -90,14 +90,14 @@ export default function DocsPage() {
             </nav>
           </aside>
 
-          <article>
+          <article class="min-w-0">
             <section id="install" class="border-b border-[var(--rule)] p-5 sm:p-8 lg:p-12">
               <h2 class="text-4xl font-semibold tracking-[-0.05em]">Install OMG</h2>
               <p class="mt-4 max-w-2xl leading-relaxed text-[var(--ink-muted)]">
                 The universal installer detects Linux or macOS and downloads the matching release.
                 Inspect the script before piping it to your shell.
               </p>
-              <pre class="mt-8 overflow-x-auto border border-[var(--rule-strong)] bg-[var(--paper-raised)] p-5 text-sm">
+              <pre class="mt-8 overflow-x-auto border border-[var(--rule-strong)] bg-[var(--paper-raised)] p-5 text-xs leading-relaxed break-all whitespace-pre-wrap sm:text-sm">
                 <code>
                   <span class="text-[var(--signal)]">$ </span>curl -fsSL
                   https://omg.latham.cloud/install.sh | bash
@@ -106,7 +106,7 @@ export default function DocsPage() {
               <p class="mt-5 text-sm text-[var(--ink-muted)]">
                 Arch users can run <code class="text-[var(--ink)]">yay -S omg-bin</code>. Building
                 from source requires Rust 1.93 or newer and uses{' '}
-                <code class="text-[var(--ink)]">cargo install omg --locked</code>.
+                <code class="break-all text-[var(--ink)]">cargo install omg --locked</code>.
               </p>
             </section>
 

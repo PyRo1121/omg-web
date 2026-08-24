@@ -54,8 +54,8 @@ const MarketingOfferDialog: Component<MarketingOfferDialogProps> = props => {
     <Dialog.Root open={props.open} onOpenChange={props.onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay class="fixed inset-0 z-40 bg-black/85" />
-        <div class="fixed inset-0 z-40 grid place-items-center overflow-y-auto p-4">
-          <Dialog.Content class="relative w-full max-w-2xl overflow-hidden border border-t-4 border-[var(--rule-strong)] border-t-[var(--signal)] bg-[var(--paper-raised)] p-7 shadow-[0_3rem_10rem_rgba(0,0,0,0.55)] sm:p-10">
+        <div class="fixed inset-0 z-40 grid items-start overflow-y-auto p-2 sm:place-items-center sm:p-4">
+          <Dialog.Content class="relative my-auto max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto border border-t-4 border-[var(--rule-strong)] border-t-[var(--signal)] bg-[var(--paper-raised)] p-5 shadow-[0_3rem_10rem_rgba(0,0,0,0.55)] sm:max-h-[calc(100dvh-2rem)] sm:p-10">
             <Dialog.CloseButton
               class="absolute top-5 right-5 grid h-10 w-10 place-items-center border border-[var(--rule)] text-[var(--ink-muted)] hover:bg-white/[0.06] hover:text-[var(--ink)]"
               aria-label="Close offer"
@@ -67,15 +67,15 @@ const MarketingOfferDialog: Component<MarketingOfferDialogProps> = props => {
               when={offer()}
               fallback={
                 <>
-                  <Dialog.Title class="max-w-lg pr-10 text-4xl leading-[0.98] font-medium tracking-[-0.05em] sm:text-5xl">
+                  <Dialog.Title class="max-w-lg pr-10 text-[clamp(2rem,9vw,3rem)] leading-[0.98] font-medium tracking-[-0.05em]">
                     Take 20% off your first three months.
                   </Dialog.Title>
-                  <Dialog.Description class="mt-5 max-w-lg leading-relaxed text-[var(--ink-muted)]">
+                  <Dialog.Description class="mt-4 max-w-lg text-sm leading-relaxed text-[var(--ink-muted)] sm:mt-5 sm:text-base">
                     Enter your email and we will create a single-use Stripe promotion code for Pro
                     or Team.
                   </Dialog.Description>
 
-                  <form onSubmit={event => void submit(event)} class="mt-9">
+                  <form onSubmit={event => void submit(event)} class="mt-7 sm:mt-9">
                     <label for="offer-email" class="mb-2 block text-sm text-[var(--ink-muted)]">
                       Email address
                     </label>
@@ -107,7 +107,7 @@ const MarketingOfferDialog: Component<MarketingOfferDialogProps> = props => {
                     </Show>
                   </form>
 
-                  <p class="mt-7 text-xs leading-relaxed text-[#69736b]">
+                  <p class="mt-5 text-xs leading-relaxed text-[#85817c] sm:mt-7">
                     One code per email, one redemption, valid for a first Stripe transaction.
                     Submitting does not subscribe you to marketing email. See our{' '}
                     <a href="/privacy" class="underline hover:text-[var(--ink)]">

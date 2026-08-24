@@ -32,7 +32,7 @@ const Footer: Component = () => (
       </section>
 
       <nav aria-label="Footer navigation">
-        <ul class="m-0 flex list-none flex-wrap gap-x-6 gap-y-3 p-0 font-mono text-[10px] text-[var(--ink-muted)]">
+        <ul class="m-0 flex list-none flex-wrap gap-x-6 gap-y-1 p-0 font-mono text-[10px] text-[var(--ink-muted)] [&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center">
           <li>
             <a href="/docs/" class="hover:text-[var(--ink)]">
               Docs

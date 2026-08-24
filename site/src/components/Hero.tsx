@@ -12,7 +12,7 @@ const Hero: Component = () => (
       </p>
 
       <div class="grid lg:grid-cols-[1fr_20rem]">
-        <header class="editorial-reveal flex min-h-[38rem] flex-col justify-end px-5 py-16 sm:px-8 sm:py-20 lg:min-h-[45rem] lg:px-12 lg:py-20">
+        <header class="editorial-reveal flex min-h-[34rem] flex-col justify-end px-5 py-14 sm:min-h-[38rem] sm:px-8 sm:py-20 lg:min-h-[45rem] lg:px-12 lg:py-20">
           <h1
             id="hero-title"
             class="max-w-[14ch] text-[clamp(3.1rem,6.4vw,6.4rem)] leading-[0.86] font-semibold tracking-[-0.08em]"
@@ -33,7 +33,7 @@ const Hero: Component = () => (
               </a>
               <a
                 href="#workflow"
-                class="group inline-flex items-center gap-2 text-sm font-medium text-[var(--ink)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
+                class="group inline-flex min-h-6 items-center gap-2 py-1 text-sm font-medium text-[var(--ink)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
               >
                 See the workflow
                 <ArrowRight
@@ -47,7 +47,7 @@ const Hero: Component = () => (
 
         <aside class="editorial-reveal editorial-reveal--late flex min-h-72 flex-col justify-between bg-[var(--signal)] p-5 text-[var(--signal-ink)] sm:p-8 lg:min-h-full">
           <p class="m-0 font-mono text-[10px] tracking-[0.06em]">COMMAND SURFACES</p>
-          <p class="m-0 text-[clamp(7rem,18vw,13rem)] leading-[0.7] font-semibold tracking-[-0.11em] lg:text-[10rem]">
+          <p class="m-0 text-[clamp(6.5rem,13vw,8.25rem)] leading-[0.72] font-semibold tracking-[-0.1em] whitespace-nowrap">
             7<span class="font-normal">→</span>1
           </p>
           <p class="m-0 max-w-48 text-xl leading-tight font-semibold tracking-[-0.035em]">
@@ -60,9 +60,9 @@ const Hero: Component = () => (
         <figcaption class="sr-only">
           OMG replaces seven package and runtime manager command surfaces with one interface.
         </figcaption>
-        <ul class="m-0 grid list-none grid-cols-2 p-0 sm:grid-cols-4 lg:grid-cols-7">
+        <ul class="m-0 flex list-none flex-wrap p-0 lg:grid lg:grid-cols-7">
           {REPLACED_MANAGERS.map(manager => (
-            <li class="border-r border-b border-[var(--rule)] px-5 py-4 font-mono text-[11px] text-[var(--ink-muted)] line-through decoration-[var(--rule-strong)] last:border-r-0 lg:border-b-0">
+            <li class="min-w-18 flex-1 border-r border-b border-[var(--rule)] px-4 py-4 font-mono text-[10px] text-[var(--ink-muted)] line-through decoration-[var(--rule-strong)] last:border-r-0 lg:min-w-0 lg:border-b-0 lg:px-5 lg:text-[11px]">
               {manager}
             </li>
           ))}

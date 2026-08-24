@@ -65,13 +65,13 @@ const Installation: Component = () => {
           class="flex min-w-0 flex-col bg-[var(--paper-raised)]"
         >
           <Tabs.List
-            class="no-scrollbar flex overflow-x-auto border-b border-[var(--rule)]"
+            class="grid grid-cols-3 border-b border-[var(--rule)]"
             aria-label="Installation platform"
           >
             {INSTALL_OPTIONS.map(option => (
               <Tabs.Trigger
                 value={option.id}
-                class="min-h-14 shrink-0 border-r border-[var(--rule)] px-5 font-mono text-[10px] whitespace-nowrap text-[var(--ink-muted)] hover:text-[var(--ink)] data-[selected]:bg-[var(--signal)] data-[selected]:text-[var(--signal-ink)]"
+                class="min-h-14 min-w-0 border-r border-[var(--rule)] px-2 font-mono text-[9px] whitespace-nowrap text-[var(--ink-muted)] hover:text-[var(--ink)] data-[selected]:bg-[var(--signal)] data-[selected]:text-[var(--signal-ink)] sm:px-5 sm:text-[10px]"
               >
                 {option.label}
               </Tabs.Trigger>
@@ -82,13 +82,13 @@ const Installation: Component = () => {
           {INSTALL_OPTIONS.map(option => (
             <Tabs.Content
               value={option.id}
-              class="flex flex-1 flex-col justify-between p-5 sm:p-8 lg:p-12"
+              class="flex flex-1 flex-col justify-between p-5 sm:p-8 xl:p-12"
             >
               <div>
                 <p class="m-0 font-mono text-[10px] tracking-[0.06em] text-[var(--signal)]">
                   COPY AND RUN
                 </p>
-                <code class="mt-12 block overflow-x-auto text-sm leading-relaxed text-[var(--ink)] sm:text-base">
+                <code class="mt-12 block overflow-x-auto text-xs leading-relaxed text-[var(--ink)] sm:text-sm xl:text-base">
                   <span class="text-[var(--signal)]">$ </span>
                   {option.command}
                 </code>
