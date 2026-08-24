@@ -18,9 +18,16 @@ async function requireAdminPage(): Promise<{ readonly userId: string }> {
 
   const event = getRequestEvent();
   const cloudflareEnv = event?.nativeEvent.context.cloudflare?.env;
-  if (event === undefined || cloudflareEnv?.DB === undefined) {
-    // A missing binding is a deployment error, not an unauthenticated visitor;
-    // redirecting to /login would mask it as "not logged in".
+  if (event === undefined) {
+    throw new Error('Admin authorization is unavailable');
+  }
+  if (cloudflareEnv?.DB === undefined) {
+    // A visitor with no session cannot be an admin, even when a local or CI
+    // environment has no D1 binding. Preserve the deployment error for any
+    // request that does present authentication state.
+    if (event.request.headers.get('cookie') === null) {
+      throw redirect('/login');
+    }
     throw new Error('Admin authorization is unavailable');
   }
 
@@ -42,10 +49,10 @@ const requireAdminPageQuery = query(requireAdminPage, 'admin-page-authorization'
 
 function LoadingScreen() {
   return (
-    <div class="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
-      <div class="text-center">
-        <div class="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-        <p class="mt-4 text-sm font-medium text-slate-400">Loading Mission Control...</p>
+    <div class="grid min-h-screen place-items-center bg-[var(--paper)]">
+      <div class="border border-[var(--ink)] bg-[var(--paper-raised)] p-8">
+        <p class="manifest-index">ADMIN / AUTHORIZATION</p>
+        <p class="mt-4 font-mono text-xs text-[var(--ink-muted)]">Loading control ledger…</p>
       </div>
     </div>
   );
@@ -67,42 +74,31 @@ function AuthorizedAdminPage() {
   };
 
   return (
-    <div class="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
-      <nav class="sticky top-0 z-50 border-b border-white/10 bg-slate-900/80 backdrop-blur-xl">
-        <div class="mx-auto px-6 py-4">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-8">
-              <A href="/" class="flex items-center gap-2 text-2xl font-bold">
-                <Shield class="h-6 w-6 text-indigo-400" />
-                <span class="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-                  OMG Admin
-                </span>
-              </A>
-              <A
-                href="/dashboard"
-                class="flex items-center gap-2 text-slate-400 transition-colors hover:text-white"
-              >
-                <LayoutDashboard class="h-4 w-4" />
-                User Dashboard
-              </A>
-            </div>
-            <div class="flex items-center gap-4">
-              <Show when={session()?.data?.user}>
-                <span class="text-sm text-slate-300">{session()?.data?.user?.email}</span>
-                <button
-                  onClick={handleSignOut}
-                  class="flex items-center gap-2 rounded-xl bg-red-600/20 px-4 py-2 text-sm font-medium text-red-400 transition-all hover:bg-red-600/30"
-                >
-                  <LogOut class="h-4 w-4" />
-                  Sign Out
-                </button>
-              </Show>
-            </div>
+    <div class="min-h-screen bg-[var(--paper)] text-[var(--ink)]" data-ui="manifest-dashboard">
+      <nav class="sticky top-0 z-30 border-b border-[var(--ink)] bg-[var(--paper)]">
+        <div class="mx-auto flex max-w-[112rem] items-stretch justify-between border-x border-[var(--rule)]">
+          <div class="flex items-stretch">
+            <A href="/" class="manifest-button border-y-0 border-l-0">
+              <Shield class="h-4 w-4" strokeWidth={1.5} /> OMG Admin
+            </A>
+            <A href="/dashboard" class="manifest-button border-y-0 border-l-0">
+              <LayoutDashboard class="h-4 w-4" strokeWidth={1.5} /> Account
+            </A>
           </div>
+          <Show when={session()?.data?.user}>
+            <div class="flex items-stretch">
+              <span class="manifest-label hidden items-center border-l border-[var(--rule)] px-4 text-[var(--ink-muted)] md:flex">
+                {session()?.data?.user?.email}
+              </span>
+              <button onClick={handleSignOut} class="manifest-button border-y-0 border-r-0">
+                <LogOut class="h-4 w-4" strokeWidth={1.5} /> Sign out
+              </button>
+            </div>
+          </Show>
         </div>
       </nav>
 
-      <main class="mx-auto max-w-[1800px] px-6 py-8">
+      <main class="mx-auto max-w-[112rem] border-x border-[var(--rule)] px-6 py-8">
         <Suspense fallback={<LoadingScreen />}>
           <AdminDashboard />
         </Suspense>
@@ -118,10 +114,10 @@ export default function AdminRoute() {
 
   return (
     <>
-      <Title>Mission Control - OMG Admin</Title>
+      <Title>Control Ledger - OMG Admin</Title>
       <Meta
         name="description"
-        content="OMG admin mission control - manage licenses, telemetry, and customer health."
+        content="Manage OMG licenses, telemetry, revenue, and customer health."
       />
       <Meta name="robots" content="noindex, nofollow" />
       <Show when={authorization()} fallback={<LoadingScreen />}>

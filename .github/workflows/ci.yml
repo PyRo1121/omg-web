@@ -37,9 +37,9 @@ jobs:
       - run: npm ci --prefix site
       - run: npm ci --prefix site/workers
       - run: npm ci --prefix workers/router
-      # Fail fast on cheap deterministic gates before paying for a production build.
+      # The deploy dry-run inside check builds the site after cheap deterministic gates.
       - run: npm run check
-      - run: npm run build:check --prefix site
+      - run: npm run check:bundle-budget --prefix site
 
   e2e-anonymous:
     runs-on: ubuntu-latest
