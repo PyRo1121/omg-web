@@ -2,8 +2,8 @@ import { ArrowDown } from 'lucide-solid';
 import type { Component } from 'solid-js';
 
 const Footer: Component = () => (
-  <footer class="manifest-shell border-x border-t border-[var(--rule)]">
-    <section class="grid gap-10 border-b border-[var(--rule-strong)] px-5 py-20 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end lg:px-12 lg:py-28">
+  <footer class="manifest-shell border-t border-[var(--rule)]">
+    <section class="grid gap-10 py-20 sm:py-24 lg:grid-cols-[1fr_auto] lg:items-end">
       <div>
         <h2 class="max-w-[13ch] text-5xl leading-[0.9] font-semibold tracking-[-0.065em] sm:text-7xl">
           One command surface for the whole machine.
@@ -21,7 +21,7 @@ const Footer: Component = () => (
       </a>
     </section>
 
-    <div class="grid gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end lg:px-12">
+    <div class="grid gap-8 border-t border-[var(--rule)] py-8 lg:grid-cols-[1fr_auto] lg:items-end">
       <section aria-labelledby="footer-brand">
         <h2 id="footer-brand" class="text-lg font-bold tracking-[-0.055em]">
           OMG<span class="text-[var(--signal)]">/</span>
@@ -67,7 +67,7 @@ const Footer: Component = () => (
       </nav>
     </div>
 
-    <p class="m-0 flex flex-col justify-between gap-2 border-t border-[var(--rule)] px-5 py-5 font-mono text-[10px] text-[var(--ink-muted)] sm:flex-row sm:px-8 lg:px-12">
+    <p class="m-0 flex flex-col justify-between gap-2 border-t border-[var(--rule)] py-5 font-mono text-[10px] text-[var(--ink-muted)] sm:flex-row">
       <span>AGPL-3.0-or-later © 2026 OMG Team</span>
       <span>Built in Rust</span>
     </p>

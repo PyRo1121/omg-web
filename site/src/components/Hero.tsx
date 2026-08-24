@@ -5,21 +5,21 @@ const REPLACED_MANAGERS = ['pacman', 'yay', 'nvm', 'pyenv', 'rustup', 'rbenv', '
 
 const Hero: Component = () => (
   <section class="manifest-shell" aria-labelledby="hero-title">
-    <div class="border-x border-[var(--rule)]">
-      <p class="m-0 flex flex-wrap justify-between gap-3 border-b border-[var(--rule)] px-5 py-3 font-mono text-[10px] tracking-[0.05em] text-[var(--ink-muted)] sm:px-8 lg:px-12">
+    <div>
+      <p class="m-0 flex flex-wrap justify-between gap-3 py-5 font-mono text-[10px] tracking-[0.05em] text-[var(--ink-muted)]">
         <span>PACKAGE OPERATIONS / RUNTIME CONTROL / ENVIRONMENT STATE</span>
         <span>OPEN SOURCE · BUILT IN RUST</span>
       </p>
 
-      <div class="grid lg:grid-cols-[1fr_20rem]">
-        <header class="editorial-reveal flex min-h-[34rem] flex-col justify-end px-5 py-14 sm:min-h-[38rem] sm:px-8 sm:py-20 lg:min-h-[45rem] lg:px-12 lg:py-20">
+      <div class="grid gap-8 border-t border-[var(--rule)] pt-8 lg:grid-cols-[1fr_22rem] lg:gap-0 lg:pt-0">
+        <header class="editorial-reveal flex min-h-[32rem] flex-col justify-end py-14 sm:min-h-[36rem] sm:py-20 lg:min-h-[43rem] lg:py-20 lg:pr-16">
           <h1
             id="hero-title"
             class="max-w-[14ch] text-[clamp(3.1rem,6.4vw,6.4rem)] leading-[0.86] font-semibold tracking-[-0.08em]"
           >
             Stop managing package managers.
           </h1>
-          <div class="mt-10 grid gap-8 border-t border-[var(--rule-strong)] pt-6 sm:grid-cols-[1fr_auto] sm:items-end">
+          <div class="mt-10 grid max-w-4xl gap-8 sm:grid-cols-[1fr_auto] sm:items-end">
             <p class="m-0 max-w-xl text-lg leading-relaxed text-[var(--ink-muted)]">
               System packages, language runtimes, and project toolchains through one Rust CLI.
             </p>
@@ -45,7 +45,7 @@ const Hero: Component = () => (
           </div>
         </header>
 
-        <aside class="editorial-reveal editorial-reveal--late flex min-h-72 flex-col justify-between bg-[var(--signal)] p-5 text-[var(--signal-ink)] sm:p-8 lg:min-h-full">
+        <aside class="editorial-reveal editorial-reveal--late flex min-h-80 flex-col justify-between bg-[var(--signal)] p-6 text-[var(--signal-ink)] sm:p-8 lg:min-h-full">
           <p class="m-0 font-mono text-[10px] tracking-[0.06em]">COMMAND SURFACES</p>
           <p class="m-0 text-[clamp(6.5rem,13vw,8.25rem)] leading-[0.72] font-semibold tracking-[-0.1em] whitespace-nowrap">
             7<span class="font-normal">→</span>1
@@ -56,21 +56,16 @@ const Hero: Component = () => (
         </aside>
       </div>
 
-      <figure class="m-0 grid border-t border-[var(--rule-strong)] lg:grid-cols-[1fr_auto]">
-        <figcaption class="sr-only">
-          OMG replaces seven package and runtime manager command surfaces with one interface.
+      <figure class="m-0 flex flex-col gap-5 border-t border-[var(--rule)] py-6 sm:flex-row sm:items-center sm:justify-between">
+        <figcaption class="font-mono text-[10px] tracking-[0.05em] text-[var(--ink-muted)]">
+          One interface across your existing ecosystems
         </figcaption>
-        <ul class="m-0 flex list-none flex-wrap p-0 lg:grid lg:grid-cols-7">
+        <ul class="m-0 flex list-none flex-wrap gap-x-5 gap-y-2 p-0">
           {REPLACED_MANAGERS.map(manager => (
-            <li class="min-w-18 flex-1 border-r border-b border-[var(--rule)] px-4 py-4 font-mono text-[10px] text-[var(--ink-muted)] line-through decoration-[var(--rule-strong)] last:border-r-0 lg:min-w-0 lg:border-b-0 lg:px-5 lg:text-[11px]">
-              {manager}
-            </li>
+            <li class="font-mono text-[11px] text-[var(--ink-muted)]">{manager}</li>
           ))}
         </ul>
-        <p class="m-0 flex min-h-14 min-w-52 items-center justify-between bg-[var(--paper-raised)] px-5 font-mono text-[11px] text-[var(--signal)] sm:px-8">
-          <span>omg</span>
-          <span aria-hidden="true">READY</span>
-        </p>
+        <p class="m-0 font-mono text-[11px] font-semibold text-[var(--signal)]">OMG / READY</p>
       </figure>
     </div>
   </section>

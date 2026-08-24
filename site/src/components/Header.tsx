@@ -44,10 +44,10 @@ const Header: Component = () => {
       </a>
 
       <header class="border-b border-[var(--rule)] bg-[var(--paper)]">
-        <nav class="manifest-shell flex h-18 items-stretch" aria-label="Primary navigation">
+        <nav class="manifest-shell flex h-18 items-center" aria-label="Primary navigation">
           <A
             href="/"
-            class="flex shrink-0 items-center border-r border-[var(--rule)] pr-6 text-[var(--ink)] no-underline"
+            class="flex shrink-0 items-center pr-6 text-[var(--ink)] no-underline"
             aria-label="OMG Package Manager home"
           >
             <span class="text-lg font-bold tracking-[-0.06em]">
@@ -55,14 +55,14 @@ const Header: Component = () => {
             </span>
           </A>
 
-          <ul class="ml-auto hidden list-none items-stretch p-0 lg:flex">
+          <ul class="ml-auto hidden list-none items-center gap-7 p-0 lg:flex">
             {NAV_ITEMS.map(item => (
-              <li class="flex">
+              <li>
                 <a
                   href={item.href}
                   target={item.href.startsWith('http') ? '_blank' : undefined}
                   rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                  class="flex items-center border-l border-[var(--rule)] px-5 font-mono text-[10px] tracking-[0.04em] text-[var(--ink-muted)] no-underline hover:bg-[var(--paper-raised)] hover:text-[var(--ink)]"
+                  class="flex min-h-10 items-center font-mono text-[10px] tracking-[0.04em] text-[var(--ink-muted)] no-underline hover:text-[var(--ink)]"
                 >
                   {item.label}
                 </a>
@@ -76,7 +76,7 @@ const Header: Component = () => {
               fallback={
                 <A
                   href="/login"
-                  class="hidden items-center border-l border-[var(--rule)] px-5 font-mono text-[10px] tracking-[0.04em] sm:flex"
+                  class="hidden min-h-10 items-center px-5 font-mono text-[10px] tracking-[0.04em] sm:flex"
                 >
                   Sign in
                 </A>
@@ -84,7 +84,7 @@ const Header: Component = () => {
             >
               {user => (
                 <DropdownMenu.Root>
-                  <DropdownMenu.Trigger class="hidden max-w-48 items-center border-l border-[var(--rule)] px-5 font-mono text-[10px] text-[var(--ink-muted)] hover:bg-[var(--paper-raised)] hover:text-[var(--ink)] sm:flex">
+                  <DropdownMenu.Trigger class="hidden min-h-10 max-w-48 items-center px-5 font-mono text-[10px] text-[var(--ink-muted)] hover:text-[var(--ink)] sm:flex">
                     <span class="block truncate">{user().email}</span>
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
@@ -116,7 +116,7 @@ const Header: Component = () => {
             </a>
             <button
               type="button"
-              class="grid w-14 place-items-center border-l border-[var(--rule)] hover:bg-[var(--paper-raised)] lg:hidden"
+              class="grid h-12 w-12 place-items-center hover:bg-[var(--paper-raised)] lg:hidden"
               onClick={() => setMenuOpen(open => !open)}
               aria-label={menuOpen() ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={menuOpen()}
@@ -129,10 +129,10 @@ const Header: Component = () => {
         </nav>
 
         <Show when={menuOpen()}>
-          <nav class="border-t border-[var(--rule)] lg:hidden" aria-label="Mobile navigation">
-            <ul class="manifest-shell m-0 grid list-none grid-cols-2 p-0">
+          <nav class="border-t border-[var(--rule)] py-3 lg:hidden" aria-label="Mobile navigation">
+            <ul class="manifest-shell m-0 grid list-none grid-cols-2 gap-x-4 p-0">
               {NAV_ITEMS.map(item => (
-                <li class="border-r border-b border-[var(--rule)]">
+                <li>
                   <a
                     href={item.href}
                     target={item.href.startsWith('http') ? '_blank' : undefined}
@@ -144,7 +144,7 @@ const Header: Component = () => {
                   </a>
                 </li>
               ))}
-              <li class="border-r border-b border-[var(--rule)]">
+              <li>
                 <Show
                   when={session()?.data?.user}
                   fallback={

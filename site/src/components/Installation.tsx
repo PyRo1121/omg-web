@@ -41,11 +41,11 @@ const Installation: Component = () => {
   return (
     <section
       id="install"
-      class="manifest-shell border-x border-t border-[var(--rule)]"
+      class="manifest-shell border-t border-[var(--rule)] py-24 sm:py-32"
       aria-labelledby="install-title"
     >
-      <div class="grid lg:grid-cols-[0.72fr_1.28fr]">
-        <header class="border-b border-[var(--rule)] px-5 py-20 sm:px-8 lg:border-r lg:border-b-0 lg:px-12 lg:py-28">
+      <div class="grid gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16">
+        <header>
           <h2
             id="install-title"
             class="max-w-[8ch] text-5xl leading-[0.9] font-semibold tracking-[-0.065em] sm:text-7xl"

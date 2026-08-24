@@ -27,7 +27,7 @@ It must not resemble a floating-card SaaS template, a terminal-themed hacker pag
 
 ## Layout
 
-- `.manifest-shell` is retained as a compatibility name for an `82rem` canvas.
+- `.manifest-shell` is retained as a compatibility name for a `90rem` canvas.
 - The marketing page uses five chapters: reduction, workflow, evidence, plans, and install.
 - Landing-page information is deliberately bounded; deep product explanations link to Docs.
 - Dashboard navigation remains horizontal. Dense records use semantic tables and sparse rules rather than repeated KPI cards.

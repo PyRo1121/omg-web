@@ -23,12 +23,8 @@ const WORKFLOWS = [
 ] as const;
 
 const FeatureGrid: Component = () => (
-  <section
-    id="workflow"
-    class="manifest-shell border-x border-[var(--rule)]"
-    aria-labelledby="workflow-title"
-  >
-    <header class="grid gap-8 border-b border-[var(--rule-strong)] px-5 py-24 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:px-12 lg:py-32">
+  <section id="workflow" class="manifest-shell py-24 sm:py-32" aria-labelledby="workflow-title">
+    <header class="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
       <h2
         id="workflow-title"
         class="max-w-[10ch] text-5xl leading-[0.9] font-semibold tracking-[-0.065em] sm:text-7xl"
@@ -49,43 +45,34 @@ const FeatureGrid: Component = () => (
       </div>
     </header>
 
-    <div
-      class="hidden grid-cols-[0.95fr_0.8fr_1fr_1.05fr] border-b border-[var(--rule)] font-mono text-[10px] tracking-[0.05em] text-[var(--ink-muted)] lg:grid"
-      aria-hidden="true"
-    >
-      <span class="px-8 py-4 lg:px-12">Job</span>
-      <span class="border-l border-[var(--rule)] px-6 py-4">Before</span>
-      <span class="border-l border-[var(--rule)] px-6 py-4">With OMG</span>
-      <span class="border-l border-[var(--rule)] px-6 py-4">Result</span>
-    </div>
-
-    <ol class="m-0 list-none p-0">
+    <ol class="mt-20 list-none p-0 sm:mt-24">
       <For each={WORKFLOWS}>
         {(workflow, index) => (
-          <li class="grid border-b border-[var(--rule)] last:border-b-0 lg:grid-cols-[0.95fr_0.8fr_1fr_1.05fr]">
-            <h3 class="px-5 py-7 text-xl font-medium tracking-[-0.035em] sm:px-8 lg:px-12 lg:py-8">
-              <span class="mr-4 font-mono text-[10px] text-[var(--signal)]">0{index() + 1}</span>
-              {workflow.job}
-            </h3>
-            <p class="m-0 border-t border-[var(--rule)] px-5 py-5 font-mono text-xs text-[var(--ink-muted)] sm:px-8 lg:border-t-0 lg:border-l lg:px-6 lg:py-8">
-              <span class="mb-2 block text-[9px] tracking-[0.05em] text-[var(--ink-muted)] lg:hidden">
+          <li class="grid gap-6 border-t border-[var(--rule)] py-9 lg:grid-cols-[0.8fr_0.75fr_1.25fr] lg:gap-12 lg:py-12">
+            <div class="flex items-start gap-5">
+              <span class="pt-1 font-mono text-[10px] text-[var(--signal)]">0{index() + 1}</span>
+              <h3 class="text-2xl font-medium tracking-[-0.04em] sm:text-3xl">{workflow.job}</h3>
+            </div>
+
+            <div>
+              <p class="m-0 font-mono text-[9px] tracking-[0.06em] text-[var(--ink-muted)]">
                 BEFORE
-              </span>
-              {workflow.before}
-            </p>
-            <p class="m-0 border-t border-[var(--rule)] bg-[var(--paper-raised)] px-5 py-5 font-mono text-xs text-[var(--ink)] sm:px-8 lg:border-t-0 lg:border-l lg:px-6 lg:py-8">
-              <span class="mb-2 block text-[9px] tracking-[0.05em] text-[var(--signal)] lg:hidden">
+              </p>
+              <p class="mt-3 font-mono text-xs leading-relaxed text-[var(--ink-muted)]">
+                {workflow.before}
+              </p>
+            </div>
+
+            <div>
+              <p class="m-0 font-mono text-[9px] tracking-[0.06em] text-[var(--signal)]">
                 WITH OMG
-              </span>
-              <span class="text-[var(--signal)]">$ </span>
-              <span class="break-all">{workflow.command}</span>
-            </p>
-            <p class="m-0 border-t border-[var(--rule)] px-5 py-5 text-sm text-[var(--ink-muted)] sm:px-8 lg:border-t-0 lg:border-l lg:px-6 lg:py-8">
-              <span class="mb-2 block font-mono text-[9px] tracking-[0.05em] lg:hidden">
-                RESULT
-              </span>
-              {workflow.result}
-            </p>
+              </p>
+              <code class="mt-3 block bg-[var(--paper-raised)] px-4 py-3 text-sm text-[var(--ink)]">
+                <span class="text-[var(--signal)]">$ </span>
+                <span class="break-all">{workflow.command}</span>
+              </code>
+              <p class="mt-4 text-sm text-[var(--ink-muted)]">{workflow.result}</p>
+            </div>
           </li>
         )}
       </For>

@@ -3,10 +3,10 @@ import type { Component } from 'solid-js';
 const Benchmarks: Component = () => (
   <section
     id="benchmarks"
-    class="manifest-shell grid border-x border-t border-[var(--rule)] lg:grid-cols-[0.72fr_1.28fr]"
+    class="manifest-shell grid gap-12 border-t border-[var(--rule)] py-24 sm:py-32 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16"
     aria-labelledby="benchmark-title"
   >
-    <header class="flex flex-col justify-between border-b border-[var(--rule)] px-5 py-20 sm:px-8 lg:border-r lg:border-b-0 lg:px-12 lg:py-28">
+    <header class="flex flex-col justify-between">
       <div>
         <h2
           id="benchmark-title"
@@ -24,7 +24,7 @@ const Benchmarks: Component = () => (
     </header>
 
     <div class="grid bg-[var(--paper-raised)]">
-      <div class="grid grid-cols-[1fr_auto] items-end border-b border-[var(--rule-strong)] px-5 py-10 sm:px-8 lg:px-12">
+      <div class="grid grid-cols-[1fr_auto] items-end px-5 py-10 sm:px-8 lg:px-12">
         <span class="font-mono text-[10px] tracking-[0.06em] text-[var(--signal)]">
           PACMAN SEARCH
         </span>

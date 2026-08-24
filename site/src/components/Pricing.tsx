@@ -42,10 +42,10 @@ const Pricing: Component = () => {
   return (
     <section
       id="pricing"
-      class="manifest-shell border-x border-t border-[var(--rule)]"
+      class="manifest-shell border-t border-[var(--rule)] py-24 sm:py-32"
       aria-labelledby="pricing-title"
     >
-      <header class="grid gap-10 border-b border-[var(--rule-strong)] px-5 py-20 sm:px-8 lg:grid-cols-[0.72fr_1.28fr] lg:px-12 lg:py-28">
+      <header class="grid gap-10 lg:grid-cols-[0.72fr_1.28fr]">
         <div>
           <h2
             id="pricing-title"
@@ -72,10 +72,10 @@ const Pricing: Component = () => {
         </aside>
       </header>
 
-      <ol class="m-0 list-none p-0">
+      <ol class="mt-20 list-none border-t border-[var(--rule)] p-0 sm:mt-24">
         <For each={PLANS}>
           {plan => (
-            <li class="grid gap-6 border-b border-[var(--rule)] px-5 py-8 sm:grid-cols-[0.5fr_0.55fr_1.35fr_auto] sm:items-center sm:px-8 lg:px-12 lg:py-10">
+            <li class="grid gap-6 border-b border-[var(--rule)] py-8 sm:grid-cols-[0.5fr_0.55fr_1.35fr_auto] sm:items-center lg:py-10">
               <header>
                 <h3 class="text-2xl font-semibold tracking-[-0.04em]">{plan.name}</h3>
                 <span class="mt-1 block font-mono text-[10px] text-[var(--ink-muted)]">
@@ -111,7 +111,7 @@ const Pricing: Component = () => {
         </For>
       </ol>
 
-      <p class="m-0 border-t border-[var(--rule)] px-5 py-5 text-sm text-[var(--ink-muted)] sm:px-8 lg:px-12">
+      <p class="m-0 pt-5 text-sm text-[var(--ink-muted)]">
         Need SSO, policy enforcement, or provenance?{' '}
         <a
           href="mailto:enterprise@latham.cloud"

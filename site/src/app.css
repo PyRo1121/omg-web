@@ -85,7 +85,7 @@ a[role='button']:active {
 }
 
 .manifest-shell {
-  width: min(calc(100% - 2.5rem), 82rem);
+  width: min(calc(100% - 2.5rem), 90rem);
   margin-inline: auto;
 }
 
@@ -366,7 +366,7 @@ a[role='button']:active {
 
 @media (max-width: 767px) {
   .manifest-shell {
-    width: min(calc(100% - 1rem), 82rem);
+    width: min(calc(100% - 1rem), 90rem);
   }
   .manifest-grid {
     grid-template-columns: 1fr;
