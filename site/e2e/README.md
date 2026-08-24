@@ -31,11 +31,7 @@ The authenticated suite covers user login, dashboard rendering, the authenticate
 
 The staging users are shared across every run: `logout` invalidates the session server-side, so two concurrent runs against the same deployment break each other's authenticated assertions. The config serializes workers within a run (`workers: 1`), but callers must ensure only ONE `test:e2e:staging` run is active per deployment — enforce a CI concurrency group on any workflow that runs it. Long term, replace shared accounts with per-run users or storageState session fixtures.
 
-Checkout creation is skipped unless it is explicitly enabled, and it exercises Stripe test mode (the wired sandbox), never live Stripe:
-
-```bash
-E2E_ALLOW_MUTATIONS=true npm run test:e2e:staging
-```
+The production Worker uses Stripe live mode. The automated suite therefore never creates Checkout Sessions: even an unpaid live session can create durable Stripe customer data and pollute revenue operations. Validate checkout during a controlled release smoke test and immediately expire the session through Stripe CLI.
 
 Install the pinned Chromium runtime before the first local run:
 

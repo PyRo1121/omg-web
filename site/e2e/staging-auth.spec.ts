@@ -1,4 +1,3 @@
-import * as Schema from 'effect/Schema';
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { performUiLogin } from './helpers';
@@ -8,15 +7,9 @@ const userEmail = process.env['E2E_USER_EMAIL']?.trim();
 const userPassword = process.env['E2E_USER_PASSWORD']?.trim();
 const adminEmail = process.env['E2E_ADMIN_EMAIL']?.trim();
 const adminPassword = process.env['E2E_ADMIN_PASSWORD']?.trim();
-const allowMutations = process.env['E2E_ALLOW_MUTATIONS'] === 'true';
-
 /** Header row minted by the workers admin users CSV export. */
 const USERS_EXPORT_CSV_HEADER =
   'id,email,company,created_at,tier,status,active_machines,total_commands';
-
-const CheckoutResponseSchema = Schema.Struct({
-  url: Schema.String.pipe(Schema.minLength(1)),
-});
 
 test.describe('staging authenticated user', () => {
   test.skip(
@@ -54,30 +47,6 @@ test.describe('staging authenticated user', () => {
 
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/login\/?$/);
-  });
-
-  test('creates a sandbox checkout session only when mutation tests are explicitly enabled', async ({
-    page,
-  }) => {
-    test.skip(!allowMutations, 'Set E2E_ALLOW_MUTATIONS=true only for an isolated Stripe sandbox');
-    await performUiLogin(page, userEmail ?? '', userPassword ?? '');
-
-    // The BFF enforces same-origin on mutations; browsers always send Origin
-    // on POST, so the characterization must too.
-    const response = await page.request.post('/api/licensing/api/billing/checkout', {
-      headers: { Origin: baseUrl ?? '' },
-      data: { offer: 'pro' },
-    });
-    expect(response.status()).toBe(200);
-
-    const payload: unknown = JSON.parse(await response.text());
-    const decoded = Schema.decodeUnknownEither(CheckoutResponseSchema)(payload);
-    expect(decoded._tag).toBe('Right');
-    if (decoded._tag === 'Right') {
-      const checkout = new URL(decoded.right.url);
-      expect(checkout.protocol).toBe('https:');
-      expect(checkout.hostname).toBe('checkout.stripe.com');
-    }
   });
 });
 

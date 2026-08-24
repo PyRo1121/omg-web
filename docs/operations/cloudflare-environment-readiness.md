@@ -52,17 +52,18 @@ License JWTs are EdDSA-only. Verifiers must pin `alg=EdDSA`, `kid=omg-license-ed
 
 Stripe secrets are server-only on `omg-saas`; billing routes are unlocked and no longer return `503`.
 
-### Stripe test-mode wiring (2026-08-21)
+### Stripe live-mode wiring (2026-08-24)
 
-Stripe test mode is wired through the Stripe CLI default profile on account `acct_1TpcWPPI6tkdUQSc`:
+Stripe live mode is active on account `acct_1TpcWPPI6tkdUQSc`; charges and payouts are enabled and account details are submitted.
 
-- Products: `prod_V7FjJbFXMZAiMP` (OMG Pro), `prod_V7FjM0jbrXHbbk` (OMG Team).
-- Test prices, set as vars in `site/workers/wrangler.toml`:
-  - `STRIPE_PRO_PRICE_ID=price_1U71F8PI6tkdUQScELAVo5Iz` ($9/month Pro)
-  - `STRIPE_TEAM_PRICE_ID=price_1U71F8PI6tkdUQScqu6DuYI4` ($200/month Team)
-- Webhook endpoint `we_1U71SyPI6tkdUQScEDqOHUWs` -> `https://omg-api.latham.cloud/api/stripe/webhook`, subscribed to: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`, `customer.created`.
+- Products: `prod_V8Aw8jOdyDpka9` (OMG Pro), `prod_V8AwOQr4PMi9Ra` (OMG Team).
+- Live prices, set as server-owned vars in `site/workers/wrangler.toml`:
+  - `STRIPE_PRO_PRICE_ID=price_1U7ub2PI6tkdUQScfVcPeLY9` ($9/month Pro)
+  - `STRIPE_TEAM_PRICE_ID=price_1U7ub3PI6tkdUQScFqTRFgv8` ($200/month Team)
+- Live webhook endpoint `we_1U7uexPI6tkdUQSclmocHNWo` targets `https://omg-api.latham.cloud/api/stripe/webhook` for `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`, and `customer.created`.
+- `STRIPE_SECRET_KEY` is a dedicated restricted live key; its value and the endpoint signing secret are stored only as `omg-saas` Wrangler secrets.
 
-Checkout session creation is E2E-verified against Stripe test mode. Webhook handling was fixed during verification (`customer.created` null-email and null-currency decode bugs); signature verification and inbox recording are in place. Live webhook delivery was still returning `400` at last check pending a redeploy carrying the currency decode fix — treat this as verification in progress rather than a completed step.
+The historical test-mode catalog remains isolated in Stripe and is not referenced by production. Automated production E2E never creates live Checkout Sessions; controlled release verification must expire its unpaid smoke-test session through Stripe CLI.
 
 ## Free-tier ceilings that gate this design
 
@@ -90,7 +91,7 @@ It performs only read operations and exits nonzero if `omg-saas`, `omg-site`, or
 
 1. Configure OAuth provider callback URLs (`https://omg.latham.cloud/api/auth/callback/{github,google}`) in the GitHub/Google consoles when social sign-in is enabled.
 2. OTP stays unavailable by design: Workers Paid was declined, so Cloudflare Email Sending to arbitrary recipients is unavailable on the Free plan. Public registration is therefore OAuth-only; password login remains enabled only for existing controlled accounts whose email ownership was verified during provisioning.
-3. ~~Configure Stripe products/prices/webhook secret in test mode first~~ Done (2026-08-21, see the Stripe test-mode wiring section); finish the live webhook delivery verification (redeploy with the currency decode fix and confirm a signed test event is accepted). Update checkout success/return URLs only if the domain changes again.
+3. ~~Configure Stripe live products, prices, restricted key, and webhook endpoint~~ Done (2026-08-24, see the live-mode wiring section). Re-run the controlled checkout/webhook smoke test after billing-code or catalog changes; update checkout success/return URLs only if the domain changes again.
 4. Verify Workers observability after first real traffic and exercise the rollback path once: enumerate versions with `npx wrangler deployments list`, then revert with `npx wrangler rollback` (<https://developers.cloudflare.com/workers/wrangler/commands/#rollback>, <https://developers.cloudflare.com/workers/versioning/>).
 
 ### Rollback pairing rule
@@ -116,7 +117,7 @@ cd site && E2E_BASE_URL=https://omg.latham.cloud \
   npx playwright test e2e/
 ```
 
-The suite covers login, dashboard rendering, the authenticated licensing BFF, non-admin authorization redirects, admin authorization with the users CSV export, and logout. The Stripe checkout check (gated behind `E2E_ALLOW_MUTATIONS=true` for an isolated sandbox) is now E2E-verified against Stripe test mode; live webhook delivery is still pending a redeploy (see the Stripe test-mode wiring section above).
+The suite covers login, dashboard rendering, the authenticated licensing BFF, non-admin authorization redirects, admin authorization with the users CSV export, and logout. It deliberately excludes live Checkout Session creation; use the controlled, immediately-expired smoke procedure described above.
 
 See also:
 

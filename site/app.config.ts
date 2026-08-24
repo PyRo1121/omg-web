@@ -1,20 +1,20 @@
-import { defineConfig } from "@solidjs/start/config";
+import { defineConfig } from '@solidjs/start/config';
 
 export default defineConfig({
   serialization: {
     // JSON avoids SolidStart's JavaScript deserializer, which requires eval()
     // and is intentionally blocked by the production Content Security Policy.
-    mode: "json",
+    mode: 'json',
   },
   server: {
-    preset: "cloudflare-pages",
+    preset: 'cloudflare-pages',
     rollupConfig: {
-      external: ["node:async_hooks"],
+      external: ['node:async_hooks'],
     },
     prerender: {
-      routes: ["/", "/login", "/signup"],
+      routes: ['/', '/login', '/signup'],
       crawlLinks: true,
-      ignore: ["/dashboard", "/api/*"],
+      ignore: ['/dashboard', '/api/*'],
     },
   },
   vite: {
@@ -22,11 +22,11 @@ export default defineConfig({
       port: 3000,
     },
     build: {
-      target: "esnext",
-      minify: "esbuild",
+      target: 'esnext',
+      minify: 'esbuild',
     },
     css: {
-      postcss: "./postcss.config.js",
+      postcss: './postcss.config.js',
     },
   },
 });
