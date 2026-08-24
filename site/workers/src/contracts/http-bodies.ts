@@ -81,10 +81,21 @@ export const AdminAssignTagBodySchema = Schema.Struct({
   tagId: BoundedId,
 });
 
+// Event types are the complete browser-client vocabulary. The handler maps
+// these semantic names to the narrower legacy D1 storage categories.
+const TrackingEventTypeSchema = Schema.Literal(
+  'pageview',
+  'scroll_depth',
+  'time_on_page',
+  'cta_click',
+  'web_vitals',
+  'engagement'
+);
+
 // String caps mirror the sibling DocsAnalyticsEventSchema below; the batch cap
 // mirrors the handlers' MAX_EVENTS_PER_BATCH so oversized batches fail at decode.
 const TrackingEventSchema = Schema.Struct({
-  event_type: Schema.String.pipe(Schema.maxLength(64)),
+  event_type: TrackingEventTypeSchema,
   event_name: Schema.String.pipe(Schema.maxLength(128)),
   properties: Schema.optional(JsonObject),
   timestamp: OptionalNumber,

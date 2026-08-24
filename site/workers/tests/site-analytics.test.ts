@@ -136,6 +136,18 @@ describe('POST /api/site/analytics/track', () => {
     expect(decodeSingleRow(StoredPageviewCountSchema, hourlyRows.results).pageviews).toBe(1);
   });
 
+  it('maps semantic CTA events to the constrained click storage category', async () => {
+    const response = await track({
+      events: [event({ event_type: 'cta_click', event_name: 'pricing_click' })],
+    });
+    expect(response.status).toBe(200);
+
+    const rows = await env.DB.prepare(
+      'SELECT event_type, event_name, properties FROM site_analytics_events'
+    ).all();
+    expect(decodeSingleRow(StoredEventRowSchema, rows.results).event_type).toBe('click');
+  });
+
   it('upserts one realtime row per visitor across batches', async () => {
     const first = await track({ events: [event()] });
     const second = await track({ events: [event()] });

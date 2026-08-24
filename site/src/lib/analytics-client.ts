@@ -6,7 +6,7 @@
  * - No fingerprinting (no canvas, font, or device fingerprints)
  * - No PII collection
  * - GDPR compliant by default
- * - Uses Beacon API for reliable data sending
+ * - Uses credentialless keepalive fetches for reliable data sending
  * - Geo derived from edge/CDN headers on server
  */
 

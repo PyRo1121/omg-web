@@ -3,7 +3,11 @@ import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse } from '../api';
 import { validateContentLength } from './telemetry';
 import { decodeJsonBody } from '../body';
-import { TrackingBatchSchema, optionalStringField } from '../contracts/http-bodies';
+import {
+  TrackingBatchSchema,
+  optionalStringField,
+  type TrackingBatch,
+} from '../contracts/http-bodies';
 import {
   AnalyticsSaltRowSchema,
   CliGeoRowSchema,
@@ -38,8 +42,20 @@ const SALT_WINDOW_MS = 90_000;
 const VISITOR_HASH_DOMAIN = 'omg.latham.cloud';
 /** Weight applied to CLI installs when blending engagement across surfaces. */
 const CLI_ENGAGEMENT_WEIGHT = 10;
+/** Persist semantic browser events through the legacy constrained D1 categories. */
+const STORAGE_EVENT_TYPE = {
+  pageview: 'pageview',
+  cta_click: 'click',
+  scroll_depth: 'performance',
+  time_on_page: 'performance',
+  web_vitals: 'performance',
+  engagement: 'performance',
+} as const satisfies Record<
+  TrackingBatch['events'][number]['event_type'],
+  'pageview' | 'click' | 'performance'
+>;
+
 /** Hard caps applied to client-supplied event strings before persistence (schema-independent). */
-const MAX_EVENT_TYPE_LENGTH = 64;
 const MAX_EVENT_NAME_LENGTH = 128;
 const MAX_SESSION_ID_LENGTH = 64;
 const MAX_PATH_LENGTH = 256;
@@ -80,7 +96,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     // crafted batch cannot persist oversized keys into D1 rows.
     const boundedEvents = events.map(event => ({
       ...event,
-      event_type: event.event_type.slice(0, MAX_EVENT_TYPE_LENGTH),
+      event_type: STORAGE_EVENT_TYPE[event.event_type],
       event_name: event.event_name.slice(0, MAX_EVENT_NAME_LENGTH),
       session_id: event.session_id.slice(0, MAX_SESSION_ID_LENGTH),
     }));
