@@ -1,9 +1,12 @@
-import { Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
+  LicensingBodyTooLarge,
+  LicensingEmailVerificationRequired,
   LicensingRouteRejected,
   LicensingSameOriginRequired,
   proxyLicensingRequest,
+  type LicensingBffError,
   type LicensingIdentity,
   type LicensingService,
 } from './licensing-bff';
@@ -22,6 +25,7 @@ const identity: LicensingIdentity = {
   email: 'ada@example.com',
   name: 'Ada',
   role: 'admin',
+  emailVerified: true,
 };
 
 class RecordingLicensingService implements LicensingService {
@@ -52,6 +56,19 @@ function siteRequest(path: string, init?: RequestInit): Request {
   return new Request(`https://omg.latham.cloud${path}`, init);
 }
 
+/** Same-origin read as a browser issues it: no Origin header, Fetch Metadata set. */
+function sameOriginGet(path: string): Request {
+  return siteRequest(path, { headers: { 'Sec-Fetch-Site': 'same-origin' } });
+}
+
+/** The classified BFF failure behind an exit, or null when the exit is a success. */
+function failureOf(exit: Exit.Exit<Response, LicensingBffError>): LicensingBffError | null {
+  if (Exit.isSuccess(exit)) {
+    return null;
+  }
+  return Option.getOrNull(Cause.failureOption(exit.cause));
+}
+
 describe('proxyLicensingRequest', () => {
   it('keeps the Worker token server-side and forwards an allowlisted request', async () => {
     const service = new RecordingLicensingService();
@@ -62,6 +79,7 @@ describe('proxyLicensingRequest', () => {
             Authorization: 'Bearer browser_attacker_token',
             Cookie: 'better-auth.session_token=secret',
             'X-Admin-Secret': 'browser_attacker_secret',
+            'Sec-Fetch-Site': 'same-origin',
           },
         }),
         identity,
@@ -117,21 +135,82 @@ describe('proxyLicensingRequest', () => {
     expect(service.requests[1]?.body).toEqual({ offer: 'team' });
   });
 
+  it('rejects an unverified identity before minting a session', async () => {
+    const service = new RecordingLicensingService();
+    const exit = await Effect.runPromiseExit(
+      proxyLicensingRequest(
+        sameOriginGet('/api/licensing/api/account/dashboard'),
+        { ...identity, emailVerified: false },
+        'server_admin_secret',
+        service
+      )
+    );
+
+    expect(failureOf(exit)).toBeInstanceOf(LicensingEmailVerificationRequired);
+    expect(service.requests).toHaveLength(0);
+  });
+
   it('rejects non-allowlisted Worker routes before minting a session', async () => {
     const service = new RecordingLicensingService();
     const exit = await Effect.runPromiseExit(
       proxyLicensingRequest(
-        siteRequest('/api/licensing/api/internal/site-session'),
+        sameOriginGet('/api/licensing/api/internal/site-session'),
         identity,
         'server_admin_secret',
         service
       )
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
-    if (exit._tag === 'Failure') {
-      expect(exit.cause._tag).toBe('Fail');
-    }
+    expect(failureOf(exit)).toBeInstanceOf(LicensingRouteRejected);
+    expect(service.requests).toHaveLength(0);
+  });
+
+  it('rejects cross-origin reads such as admin exports before minting a session', async () => {
+    const service = new RecordingLicensingService();
+    const exit = await Effect.runPromiseExit(
+      proxyLicensingRequest(
+        siteRequest('/api/licensing/api/admin/export/users', {
+          headers: { 'Sec-Fetch-Site': 'cross-site' },
+        }),
+        identity,
+        'server_admin_secret',
+        service
+      )
+    );
+
+    expect(failureOf(exit)).toBeInstanceOf(LicensingSameOriginRequired);
+    expect(service.requests).toHaveLength(0);
+  });
+
+  it('rejects requests with no same-origin proof before minting a session', async () => {
+    const service = new RecordingLicensingService();
+    const exit = await Effect.runPromiseExit(
+      proxyLicensingRequest(
+        siteRequest('/api/licensing/api/admin/dashboard'),
+        identity,
+        'server_admin_secret',
+        service
+      )
+    );
+
+    expect(failureOf(exit)).toBeInstanceOf(LicensingSameOriginRequired);
+    expect(service.requests).toHaveLength(0);
+  });
+
+  it('answers cross-origin probes with the origin failure, not the route failure', async () => {
+    const service = new RecordingLicensingService();
+    const exit = await Effect.runPromiseExit(
+      proxyLicensingRequest(
+        siteRequest('/api/licensing/api/not-a-real-route', {
+          headers: { Origin: 'https://attacker.example' },
+        }),
+        identity,
+        'server_admin_secret',
+        service
+      )
+    );
+
+    expect(failureOf(exit)).toBeInstanceOf(LicensingSameOriginRequired);
     expect(service.requests).toHaveLength(0);
   });
 
@@ -149,7 +228,7 @@ describe('proxyLicensingRequest', () => {
       )
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(failureOf(exit)).toBeInstanceOf(LicensingSameOriginRequired);
     expect(service.requests).toHaveLength(0);
   });
 
@@ -171,12 +250,30 @@ describe('proxyLicensingRequest', () => {
       )
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(failureOf(exit)).toBeInstanceOf(LicensingBodyTooLarge);
     expect(service.requests).toHaveLength(0);
   });
 
-  it('uses classified failures for route and origin rejection', () => {
-    expect(new LicensingRouteRejected('/api/private', 'GET')._tag).toBe('LicensingRouteRejected');
-    expect(new LicensingSameOriginRequired()._tag).toBe('LicensingSameOriginRequired');
+  it('rejects a declared-oversized body before reading the stream', async () => {
+    const service = new RecordingLicensingService();
+    const exit = await Effect.runPromiseExit(
+      proxyLicensingRequest(
+        siteRequest('/api/licensing/api/billing/checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Origin: 'https://omg.latham.cloud',
+            'Content-Length': String(2 * 1024 * 1024),
+          },
+          body: 'x',
+        }),
+        identity,
+        'server_admin_secret',
+        service
+      )
+    );
+
+    expect(failureOf(exit)).toBeInstanceOf(LicensingBodyTooLarge);
+    expect(service.requests).toHaveLength(0);
   });
 });

@@ -57,6 +57,38 @@ import {
 const ACTIVE_TIER_COUNTS_SQL =
   "SELECT l.tier, COUNT(*) as count FROM licenses l JOIN subscriptions s ON l.customer_id = s.customer_id WHERE s.status = 'active' AND l.tier != 'free' GROUP BY l.tier";
 
+/**
+ * Monthly USD list price per paid license tier.
+ *
+ * Single source of truth for pricing knowledge in this store: the SQL CASE
+ * fragments below are generated from it so a price change cannot drift between
+ * the LTV query, the current-MRR query, and the handler-side MRR math.
+ */
+export const TIER_MONTHLY_PRICES = {
+  pro: 9,
+  team: 200,
+  enterprise: 500,
+} as const;
+
+const tierPriceCaseSql = (): string =>
+  Object.entries(TIER_MONTHLY_PRICES)
+    .map(([tier, price]) => `WHEN '${tier}' THEN ${price}`)
+    .join(' ');
+
+/** SQL fragment pricing `l.tier` at its monthly USD list price (0 for unknown/free). */
+export const TIER_PRICE_CASE_SQL = `CASE l.tier ${tierPriceCaseSql()} ELSE 0 END`;
+
+/** License tiers an admin may assign via the user-update endpoint. */
+export const LICENSE_TIERS = ['free', 'pro', 'team', 'enterprise'] as const;
+export type LicenseTier = (typeof LICENSE_TIERS)[number];
+
+/** License statuses an admin may assign via the user-update endpoint. */
+export const LICENSE_STATUSES = ['active', 'cancelled', 'inactive'] as const;
+export type LicenseStatus = (typeof LICENSE_STATUSES)[number];
+
+/** Upper bound for the user-search term; longer inputs are rejected upstream. */
+export const MAX_SEARCH_LENGTH = 100;
+
 /** An admin store operation failed (storage or row-shape error). */
 class AdminStoreError extends Error {
   readonly _tag = 'AdminStoreError';
@@ -111,6 +143,11 @@ const requiredRow = <S extends import('effect/Schema').Schema.AnyNoContext>(
     try: () => db.prepare(sql).first(),
     catch: fail('requiredRow'),
   }).pipe(Effect.flatMap(value => decodeExtraRow(schema, reason, value)));
+
+/** Escape SQLite LIKE metacharacters so user input matches literally. */
+function escapeLikePattern(search: string): string {
+  return search.replace(/[\\%_]/g, char => `\\${char}`);
+}
 
 /** Return whether the customer currently has admin access. */
 export const isAdmin = (db: D1Database, customerId: string) =>
@@ -313,17 +350,8 @@ export interface ListUsersInput {
   readonly offset: number;
 }
 
-/** List CRM users with computed lifecycle and engagement fields. */
-export const listUsers = (db: D1Database, input: ListUsersInput) => {
-  const where = input.search ? ' WHERE email LIKE ? OR company LIKE ?' : '';
-  const values: BindValue[] = input.search
-    ? [`%${input.search}%`, `%${input.search}%`, input.limit, input.offset]
-    : [input.limit, input.offset];
-  return rows(
-    db,
-    AdminUsersListRowSchema,
-    'Admin user list row has an invalid shape',
-    `WITH user_stats AS (
+/** One page of the enriched user-list CTE, shared by the page query and its count. */
+const USER_STATS_CTE_SQL = `WITH user_stats AS (
       SELECT c.id, c.email, c.company, c.created_at,
         COALESCE(l.tier, 'free') as tier,
         COALESCE(l.status, 'inactive') as license_status,
@@ -334,7 +362,27 @@ export const listUsers = (db: D1Database, input: ListUsersInput) => {
         (SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-3 days')) as cmds_3d,
         (SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-10 days') AND date < date('now', '-3 days')) as cmds_prev_7d
       FROM customers c LEFT JOIN licenses l ON c.id = l.customer_id
-    )
+    )`;
+
+/** List one page of CRM users with computed lifecycle fields, plus the unfiltered match total. */
+export const listUsers = (db: D1Database, input: ListUsersInput) =>
+  Effect.gen(function* () {
+    // LIKE metacharacters are escaped so search terms match literally instead of
+    // composing pathologically expensive wildcard patterns.
+    const where =
+      input.search.length > 0
+        ? " WHERE email LIKE ? ESCAPE '\\' OR company LIKE ? ESCAPE '\\'"
+        : '';
+    const searchValues: BindValue[] =
+      input.search.length > 0
+        ? [`%${escapeLikePattern(input.search)}%`, `%${escapeLikePattern(input.search)}%`]
+        : [];
+    const batchResults = yield* Effect.tryPromise({
+      try: () =>
+        db.batch([
+          statement(
+            db,
+            `${USER_STATS_CTE_SQL}
     SELECT *,
       CASE WHEN COALESCE(cmds_prev_7d, 0) = 0 THEN 1.0 ELSE (COALESCE(cmds_3d, 0) / 3.0) / (COALESCE(cmds_prev_7d, 0) / 7.0 + 0.001) END as velocity,
       ROUND(MIN(40, (COALESCE(active_days_30d, 0) * 1.33)) + ((COALESCE(active_days_30d, 0) / 30.0) * 40) + MIN(20, (COALESCE(machine_count, 0) * 5))) as engagement_score,
@@ -346,9 +394,24 @@ export const listUsers = (db: D1Database, input: ListUsersInput) => {
         ELSE 'active'
       END as lifecycle_stage
     FROM user_stats${where} ORDER BY engagement_score DESC, created_at DESC LIMIT ? OFFSET ?`,
-    values
-  );
-};
+            [...searchValues, input.limit, input.offset]
+          ),
+          statement(db, `SELECT COUNT(*) as count FROM user_stats${where}`, searchValues),
+        ]),
+      catch: fail('listUsers'),
+    });
+    const users = yield* decodeExtraRowArray(
+      AdminUsersListRowSchema,
+      'Admin user list row has an invalid shape',
+      batchResults[0]?.results
+    );
+    const totalRow = yield* decodeOptionalExtraRow(
+      CountRowSchema,
+      'Admin user count row has an invalid shape',
+      batchResults[1]?.results?.[0]
+    );
+    return { users, total: totalRow?.count ?? 0 };
+  });
 
 /** Load one customer, their license, machines, and recent usage. */
 export const loadUserDetail = (db: D1Database, userId: string) =>
@@ -388,38 +451,56 @@ export const loadUserDetail = (db: D1Database, userId: string) =>
 
 export interface UpdateUserInput {
   readonly userId: string;
-  readonly tier?: string;
-  readonly status?: string;
+  readonly tier?: LicenseTier;
+  readonly status?: LicenseStatus;
 }
 
-/** Apply the supplied license changes for a customer. */
+/** Outcome of an admin user update. */
+export type UpdateUserResult =
+  { readonly _tag: 'updated' } | { readonly _tag: 'customer-not-found' };
+
+/**
+ * Apply the supplied license changes for a customer.
+ *
+ * Customers without a license row resolve to `customer-not-found` instead of a
+ * silent no-op success, so callers can audit and report the miss truthfully.
+ */
 export const updateUser = (
   db: D1Database,
   input: UpdateUserInput
-): Effect.Effect<void, AdminStoreError> =>
-  Effect.tryPromise({
-    try: async () => {
-      // One statement: a mid-flight failure cannot leave tier/status half-updated.
-      await db
-        .prepare(
-          'UPDATE licenses SET tier = COALESCE(?, tier), status = COALESCE(?, status) WHERE customer_id = ?'
-        )
-        .bind(input.tier ?? null, input.status ?? null, input.userId)
-        .run();
-    },
-    catch: fail('updateUser'),
+): Effect.Effect<UpdateUserResult, AdminStoreError> =>
+  Effect.gen(function* () {
+    const existing = yield* Effect.tryPromise({
+      try: () =>
+        statement(db, 'SELECT id FROM licenses WHERE customer_id = ?', [input.userId]).first(),
+      catch: fail('updateUser'),
+    });
+    if (existing === null) {
+      return { _tag: 'customer-not-found' } as const;
+    }
+    yield* Effect.tryPromise({
+      try: () =>
+        statement(
+          db,
+          'UPDATE licenses SET tier = COALESCE(?, tier), status = COALESCE(?, status), updated_at = CURRENT_TIMESTAMP WHERE customer_id = ?',
+          [input.tier ?? null, input.status ?? null, input.userId]
+        ).run(),
+      catch: fail('updateUser'),
+    });
+    return { _tag: 'updated' } as const;
   });
 
-/** Load the latest admin activity. */
-export const listActivity = (db: D1Database) =>
+/** Load one page of the latest admin activity. */
+export const listActivity = (db: D1Database, limit: number, offset: number) =>
   rows(
     db,
     AdminActivityRowSchema,
     'Admin activity row has an invalid shape',
-    'SELECT id, customer_id, action, resource_type, resource_id, ip_address, created_at FROM audit_log ORDER BY created_at DESC LIMIT 100'
+    'SELECT id, customer_id, action, resource_type, resource_id, ip_address, created_at FROM audit_log ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    [limit, offset]
   );
 
-/** Load usage rows for CSV export. */
+/** Load usage rows for CSV export (capped at the newest 1000 days of data). */
 export const exportUsage = (db: D1Database) =>
   rows(
     db,
@@ -428,7 +509,7 @@ export const exportUsage = (db: D1Database) =>
     'SELECT date, license_id, commands_run, time_saved_ms FROM usage_daily ORDER BY date DESC LIMIT 1000'
   );
 
-/** Load audit rows for CSV export. */
+/** Load audit rows for CSV export (capped at the newest 1000 events). */
 export const exportAudit = (db: D1Database) =>
   rows(
     db,
@@ -457,6 +538,13 @@ export const loadAnalytics = (db: D1Database) =>
       GrowthRowSchema,
       'Admin growth row has an invalid shape',
       "SELECT (SELECT COUNT(*) FROM customers WHERE created_at >= datetime('now', '-7 days')) as new_users_7d, (SELECT COUNT(*) FROM subscriptions WHERE status = 'active' AND created_at >= datetime('now', '-7 days')) as new_paid_7d"
+    );
+    // Week-over-week signup growth in whole percent, comparing this week to the prior one.
+    const growthRate = yield* optionalRow(
+      db,
+      RateRowSchema,
+      'Admin growth rate row has an invalid shape',
+      "SELECT CASE WHEN prev.count = 0 THEN 0 ELSE CAST((curr.count - prev.count) * 100.0 / prev.count AS INTEGER) END as rate FROM (SELECT COUNT(*) as count FROM customers WHERE created_at >= datetime('now', '-7 days')) curr, (SELECT COUNT(*) as count FROM customers WHERE created_at >= datetime('now', '-14 days') AND created_at < datetime('now', '-7 days')) prev"
     );
     const timeSaved = yield* optionalRow(
       db,
@@ -510,6 +598,7 @@ export const loadAnalytics = (db: D1Database) =>
       commandsByType,
       errorsByType,
       growth,
+      growthRate,
       timeSaved,
       funnel,
       churnRisk,
@@ -563,7 +652,7 @@ export const loadRevenue = (db: D1Database) =>
     return { monthly, byTier, mrrTiers };
   });
 
-/** Load the complete user CSV export. */
+/** Load the complete user CSV export (capped at the newest 1000 customers). */
 export const exportUsers = (db: D1Database) =>
   rows(
     db,
@@ -572,15 +661,36 @@ export const exportUsers = (db: D1Database) =>
     'SELECT c.id, c.email, c.company, c.created_at, l.tier, l.status, (SELECT COUNT(*) FROM machines m WHERE m.license_id = l.id AND m.is_active = 1) as active_machines, (SELECT SUM(commands_run) FROM usage_daily u WHERE u.license_id = l.id) as total_commands FROM customers c LEFT JOIN licenses l ON c.id = l.customer_id ORDER BY c.created_at DESC LIMIT 1000'
   );
 
-/** Load one page of enriched audit events. */
+/** Load one page of enriched audit events, plus the total event count. */
 export const listAuditLog = (db: D1Database, limit: number, offset: number) =>
-  rows(
-    db,
-    AdminAuditLogRowSchema,
-    'Admin audit log row has an invalid shape',
-    'SELECT a.id, a.customer_id, c.email as user_email, a.action, a.ip_address, a.metadata, a.created_at FROM audit_log a LEFT JOIN customers c ON a.customer_id = c.id ORDER BY a.created_at DESC LIMIT ? OFFSET ?',
-    [limit, offset]
-  );
+  Effect.gen(function* () {
+    const batchResults = yield* Effect.tryPromise({
+      try: () =>
+        db.batch([
+          statement(
+            db,
+            'SELECT a.id, a.customer_id, c.email as user_email, a.action, a.ip_address, a.metadata, a.created_at FROM audit_log a LEFT JOIN customers c ON a.customer_id = c.id ORDER BY a.created_at DESC LIMIT ? OFFSET ?',
+            [limit, offset]
+          ),
+          statement(db, 'SELECT COUNT(*) as count FROM audit_log'),
+        ]),
+      catch: fail('listAuditLog'),
+    });
+    const logs = yield* decodeExtraRowArray(
+      AdminAuditLogRowSchema,
+      'Admin audit log row has an invalid shape',
+      batchResults[0]?.results
+    );
+    const totalRow = yield* decodeOptionalExtraRow(
+      CountRowSchema,
+      'Admin audit log count row has an invalid shape',
+      batchResults[1]?.results?.[0]
+    );
+    return { logs, total: totalRow?.count ?? 0 };
+  });
+
+/** Load one page of enriched audit events, plus the total event count.
+  });
 
 /** Load advanced engagement, retention, adoption, and revenue metrics. */
 export const loadAdvancedMetrics = (db: D1Database) =>
@@ -620,7 +730,7 @@ export const loadAdvancedMetrics = (db: D1Database) =>
         AdminLtvByTierRowSchema,
         'Admin LTV row has an invalid shape',
         `SELECT l.tier, COUNT(*) as customer_count,
-        AVG(CASE l.tier WHEN 'pro' THEN 9 WHEN 'team' THEN 200 WHEN 'enterprise' THEN 500 ELSE 0 END * (julianday('now') - julianday(c.created_at)) / 30.0) as avg_ltv
+        AVG(${TIER_PRICE_CASE_SQL} * (julianday('now') - julianday(c.created_at)) / 30.0) as avg_ltv
         FROM customers c JOIN licenses l ON c.id = l.customer_id WHERE l.tier != 'free' GROUP BY l.tier`
       ),
       adoption: requiredRow(
@@ -685,8 +795,18 @@ export const loadAdvancedMetrics = (db: D1Database) =>
         db,
         CurrentMrrRowSchema,
         'Admin current MRR row has an invalid shape',
-        `SELECT SUM(CASE l.tier WHEN 'pro' THEN 9 WHEN 'team' THEN 200 WHEN 'enterprise' THEN 500 ELSE 0 END) as current_mrr
+        `SELECT SUM(${TIER_PRICE_CASE_SQL}) as current_mrr
         FROM licenses l JOIN subscriptions s ON l.customer_id = s.customer_id WHERE s.status = 'active' AND l.tier != 'free'`
+      ),
+      // MRR contributed by paid subscriptions started within the trailing 12
+      // months; reported as the expansion-pipeline metric.
+      expansionMrr: optionalRow(
+        db,
+        RateRowSchema,
+        'Admin expansion MRR row has an invalid shape',
+        `SELECT COALESCE(SUM(${TIER_PRICE_CASE_SQL}), 0) as rate
+        FROM licenses l JOIN subscriptions s ON l.customer_id = s.customer_id
+        WHERE s.status = 'active' AND l.tier != 'free' AND s.created_at >= datetime('now', '-12 months')`
       ),
     },
     { concurrency: 'unbounded' }

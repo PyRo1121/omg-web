@@ -369,6 +369,8 @@ const HealthScoreCompact: Component<Omit<HealthScoreProps, 'size'>> = props => {
   );
 };
 
+/** Health score 0-100 rendered as gauge, ring, bar, badge, or compact chip;
+ * color encodes the score band via semantic health tokens. */
 export const HealthScore: Component<HealthScoreProps> = props => {
   const variant = () => props.variant || 'ring';
   const score = createMemo(() => clampScore(props.score));

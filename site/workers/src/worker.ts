@@ -69,6 +69,7 @@ import {
 import { handleGitHubProxy } from './handlers/github-proxy';
 import { handleGetDashboard } from './handlers/account-dashboard';
 import { handleCreateSiteSession } from './handlers/site-session';
+import { reportError, reportWarning } from './observability';
 import {
   handleTrackEvent,
   handleGetGeoAnalytics,
@@ -163,13 +164,24 @@ function handleAdminCustomerTagsRoute(
   }
 }
 
-/** Deny non-admin sessions, otherwise delegate to `handler`. */
+/**
+ * Deny non-admin sessions, otherwise delegate to `handler`.
+ *
+ * Denied attempts are logged (path only — query strings can carry PII such as
+ * search terms) so repeated probing of admin surfaces is detectable in Worker
+ * logs even when Sentry is unconfigured.
+ */
 async function adminGated(
   request: Request,
   env: Env,
   handler: (request: Request, env: Env) => Promise<Response>
 ): Promise<Response> {
-  return (await forbiddenUnlessAdminSession(request, env)) ?? handler(request, env);
+  const denial = await forbiddenUnlessAdminSession(request, env);
+  if (denial !== null) {
+    const url = URL.parse(request.url);
+    reportWarning('admin.gate_denied', `${request.method} ${url?.pathname ?? request.url}`);
+  }
+  return denial ?? handler(request, env);
 }
 
 export default Sentry.withSentry(
@@ -245,14 +257,12 @@ export default Sentry.withSentry(
             return adminGated(request, env, handleGetAnalyticsOverview);
           case '/api/github-stats':
             return handleGitHubProxy(request, ctx);
-          case '/api/internal/site-session': {
-            // Internal-only: callable exclusively via the LICENSING_API service
-            // binding from omg-site; reject any direct public HTTP request.
-            if (request.headers.get('X-Internal-Call') === null) {
-              return errorResponse('Not found', 404);
-            }
+          case '/api/internal/site-session':
+            // Gating lives in the handler alone: it requires the exact
+            // 'service-binding' header value plus the timing-safe checked
+            // ADMIN_API_SECRET. A second presence-only check here would just
+            // be a weaker duplicate of that rule.
             return handleCreateSiteSession(request, env);
-          }
           case '/api/dashboard':
             return handleGetDashboard(request, env);
           case '/api/user/profile':
@@ -343,6 +353,9 @@ export default Sentry.withSentry(
     ): Promise<void> {
       ctx.waitUntil(
         cleanupDocsAnalytics(env.DB).catch(error => {
+          // Structured log first: SENTRY_DSN is optional, and without it every
+          // Sentry call is a no-op sink that hides cron failures entirely.
+          reportError('docs_analytics.cleanup_failed', error);
           Sentry.captureException(error);
         })
       );

@@ -90,7 +90,7 @@ export const FeatureAdoptionChart: Component<FeatureAdoptionChartProps> = props 
   };
 
   return (
-    <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
+    <div class="bg-void-800 rounded-3xl border border-white/5 p-8 shadow-2xl">
       <div class="mb-6">
         <h3 class="text-2xl font-black tracking-tight text-white">Feature Adoption</h3>
         <p class="mt-1 text-sm text-slate-500">

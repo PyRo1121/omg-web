@@ -5,12 +5,19 @@ on:
     branches: [main]
   pull_request:
 
+# One run per ref: a merged PR must not keep running its pull_request job
+# alongside the push job, racing on shared npm caches.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -24,12 +31,15 @@ jobs:
             site/package-lock.json
             site/workers/package-lock.json
             workers/router/package-lock.json
+      # Honor the packageManager pin from package.json instead of the runner's stock npm.
+      - run: corepack enable npm && npm --version
       - run: npm ci
       - run: npm ci --prefix site
       - run: npm ci --prefix site/workers
       - run: npm ci --prefix workers/router
-      - run: npm run build:check --prefix site
+      # Fail fast on cheap deterministic gates before paying for a production build.
       - run: npm run check
+      - run: npm run build:check --prefix site
 
   e2e-anonymous:
     runs-on: ubuntu-latest
@@ -45,14 +55,18 @@ jobs:
           cache-dependency-path: site/package-lock.json
       - run: npm ci
         working-directory: site
+      - run: corepack enable npm && npm --version
+        working-directory: site
       - run: npx playwright install --with-deps chromium
         working-directory: site
       - run: npm run test:e2e:anonymous
         working-directory: site
+      # This job must stay anonymous-only: traces/videos from authenticated
+      # specs would land in downloadable artifacts. Run staging specs elsewhere.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ github.run_id }}
           path: |
             site/playwright-report
             site/test-results

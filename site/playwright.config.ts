@@ -17,11 +17,16 @@ const localWebServer =
 export default defineConfig({
   testDir: './e2e',
   outputDir: './test-results',
-  timeout: 90_000,
+  // Ceiling above the worst-case sum of helper budgets (goto + a
+  // PATIENT_HYDRATION_TIMEOUT cycle + assertion cycles) so a slow landing
+  // page fails on its own assertion, not a confusing global-timeout kill.
+  timeout: 150_000,
   fullyParallel: false,
   workers: 1,
   forbidOnly: Boolean(process.env['CI']),
-  retries: process.env['CI'] ? 2 : 0,
+  // The specs are hydration-tolerant by construction; retries exist for infra
+  // flakes (dev-server cold start, staging blips), not to paper over races.
+  retries: process.env['CI'] ? 1 : 0,
   reporter: process.env['CI'] ? [['github'], ['html', { open: 'never' }]] : 'list',
   expect: {
     // Local `vinxi dev` compiles routes lazily; first-hit assertions need more

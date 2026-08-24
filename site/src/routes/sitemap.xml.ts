@@ -13,6 +13,8 @@ interface PageEntry {
 const STATIC_PAGES: PageEntry[] = [
   { path: '/', priority: 1.0, changefreq: 'weekly' },
   { path: '/docs', priority: 0.9, changefreq: 'weekly' },
+  { path: '/privacy', priority: 0.3, changefreq: 'yearly' },
+  { path: '/terms', priority: 0.3, changefreq: 'yearly' },
 ];
 
 // Documentation pages - these would ideally be generated dynamically

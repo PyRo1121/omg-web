@@ -1,11 +1,6 @@
 import { type Component, For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import { Calendar, Users, TrendingUp, Info, Maximize2, Minimize2 } from 'lucide-solid';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '~/lib/prelude';
 
 interface CohortData {
   cohort_month: string;
@@ -43,6 +38,14 @@ function formatMonth(monthStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 }
 
+/** Render an average retention rate as `NN%`, or `-` when no data exists. */
+function formatAvgRate(rate: number | null | undefined): string {
+  if (rate === null || rate === undefined) {
+    return '-';
+  }
+  return `${rate}%`;
+}
+
 export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [isExpanded, setIsExpanded] = createSignal(false);
@@ -55,7 +58,9 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
     onCleanup(() => cancelAnimationFrame(animationFrame));
   });
 
-  const maxMonths = () => props.maxMonths || 12;
+  const maxMonths = () => props.maxMonths ?? 12;
+
+  const monthIndices = createMemo(() => Array.from({ length: maxMonths() + 1 }, (_, i) => i));
 
   const cohortMap = createMemo(() => {
     const groupedByMonth = new Map<string, Map<number, CohortData>>();
@@ -192,6 +197,9 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
             {overallHealth().label}
           </div>
           <button
+            type="button"
+            aria-label={isExpanded() ? 'Collapse cohort heatmap' : 'Expand cohort heatmap'}
+            aria-expanded={isExpanded()}
             onClick={() => setIsExpanded(!isExpanded())}
             class={cn(
               'bg-void-800/50 rounded-xl border border-white/[0.06] p-2',
@@ -230,7 +238,7 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                 <th class="bg-void-900 text-nebula-500 sticky left-[100px] z-10 px-2 py-2 text-center text-xs font-bold">
                   Users
                 </th>
-                <For each={Array.from({ length: maxMonths() + 1 }, (_, i) => i)}>
+                <For each={monthIndices()}>
                   {month => (
                     <th
                       class={cn(
@@ -263,7 +271,7 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                         {getBaseUsers(cohortMonth).toLocaleString()}
                       </span>
                     </td>
-                    <For each={Array.from({ length: maxMonths() + 1 }, (_, i) => i)}>
+                    <For each={monthIndices()}>
                       {monthIndex => {
                         const rate = getRetentionRate(cohortMonth, monthIndex);
                         const users = getActiveUsers(cohortMonth, monthIndex);
@@ -302,6 +310,10 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                                 <div class="absolute inset-0 flex items-center justify-center">
                                   <span class="text-[11px] font-bold text-white/90 tabular-nums">
                                     {rate}%
+                                  </span>
+                                  <span class="sr-only">
+                                    Month {monthIndex} retention {rate}%, {users?.toLocaleString()}{' '}
+                                    active users
                                   </span>
                                 </div>
 
@@ -408,14 +420,18 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
               <TrendingUp size={14} class="text-aurora-400" />
               <span class="text-nebula-400">
                 Month 3 Avg:{' '}
-                <span class="text-nebula-200 font-bold">{avgRetentionByMonth()[3] ?? '-'}%</span>
+                <span class="text-nebula-200 font-bold">
+                  {formatAvgRate(avgRetentionByMonth()[3])}
+                </span>
               </span>
             </div>
             <div class="flex items-center gap-2">
               <Users size={14} class="text-indigo-400" />
               <span class="text-nebula-400">
                 Month 6 Avg:{' '}
-                <span class="text-nebula-200 font-bold">{avgRetentionByMonth()[6] ?? '-'}%</span>
+                <span class="text-nebula-200 font-bold">
+                  {formatAvgRate(avgRetentionByMonth()[6])}
+                </span>
               </span>
             </div>
           </div>

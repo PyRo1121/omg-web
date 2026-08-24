@@ -1,0 +1,26 @@
+{
+  "//": [
+    "Compiler contract for the VENDORED anti-slop Oxlint plugins.",
+    "These files are byte-synced to the upstream commit pinned in",
+    "tools/oxlint/sync-anti-slop.mjs and must not be edited locally, so the",
+    "two baseline options they cannot satisfy (noUncheckedIndexedAccess,",
+    "noPropertyAccessFromIndexSignature) are deliberately omitted here.",
+    "Recorded as the TYPESCRIPT-ENGINEERING-STANDARD.md section 2 exception."
+  ],
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "useUnknownInCatchVariables": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["**/*.ts"]
+}

@@ -63,6 +63,8 @@ const cellSizes = {
   lg: 'h-5 w-5',
 };
 
+/** Cell grid whose intensity encodes command volume; every cell is focusable
+ * and exposes its value to assistive technology via an accessible label. */
 export const Heatmap: Component<HeatmapProps> = props => {
   const scale = () => colorScales[props.colorScale || 'indigo'];
   const size = () => cellSizes[props.cellSize || 'md'];
@@ -120,15 +122,19 @@ export const Heatmap: Component<HeatmapProps> = props => {
               <For each={Array(xCount()).fill(0)}>
                 {(_row, x) => {
                   const value = getValue(x(), y());
+                  const label = `${props.yLabels?.[y()] || y()} ${props.xLabels?.[x()] || x()}:00 - ${value} commands`;
                   return (
                     <div
                       class={cn(
-                        'cursor-pointer rounded-sm transition-all',
+                        'cursor-pointer rounded-sm transition-all focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none',
                         'hover:z-10 hover:scale-125 hover:shadow-lg',
                         size(),
                         getCellColor(value)
                       )}
-                      title={`${props.yLabels?.[y()] || y()} ${props.xLabels?.[x()] || x()}:00 - ${value} commands`}
+                      role="img"
+                      tabindex={0}
+                      aria-label={label}
+                      title={`${label}`}
                     />
                   );
                 }}
@@ -166,13 +172,16 @@ interface SparklineProps {
   showArea?: boolean;
   showDots?: boolean;
   animated?: boolean;
+  /** Accessible name describing what the trend represents. */
+  label?: string;
   class?: string;
 }
 
+/** Inline SVG trend line; exposed to assistive technology as a labeled image. */
 export const Sparkline: Component<SparklineProps> = props => {
   const width = () => props.width || 120;
   const height = () => props.height || 32;
-  const color = () => props.color || '#6366f1';
+  const color = () => props.color || 'var(--color-indigo-500, #6366f1)';
   const gradientIdSuffix = createUniqueId();
   const gradientId = () => `sparkline-grad-${color().replace('#', '')}-${gradientIdSuffix}`;
 
@@ -216,6 +225,8 @@ export const Sparkline: Component<SparklineProps> = props => {
       height={height()}
       class={cn('overflow-visible', props.class)}
       viewBox={`0 0 ${width()} ${height()}`}
+      role="img"
+      aria-label={props.label ?? `Trend chart of ${props.data.length} data points`}
     >
       <defs>
         <linearGradient id={gradientId()} x1="0%" y1="0%" x2="0%" y2="100%">
@@ -272,12 +283,14 @@ interface ProgressRingProps {
   class?: string;
 }
 
+/** Circular progress indicator with optional center value and label; exposed
+ * to assistive technology as a labeled image summarizing value/max. */
 export const ProgressRing: Component<ProgressRingProps> = props => {
   const size = () => props.size || 80;
   const strokeWidth = () => props.strokeWidth || 6;
   const max = () => props.max || 100;
-  const color = () => props.color || '#6366f1';
-  const trackColor = () => props.trackColor || '#1e1e2e';
+  const color = () => props.color || 'var(--color-indigo-500, #6366f1)';
+  const trackColor = () => props.trackColor || 'var(--gauge-track-color, #1e1e2e)';
 
   const radius = createMemo(() => (size() - strokeWidth()) / 2);
   const circumference = createMemo(() => 2 * Math.PI * radius());
@@ -286,7 +299,13 @@ export const ProgressRing: Component<ProgressRingProps> = props => {
 
   return (
     <div class={cn('relative inline-flex items-center justify-center', props.class)}>
-      <svg width={size()} height={size()} class="rotate-[-90deg]">
+      <svg
+        width={size()}
+        height={size()}
+        class="rotate-[-90deg]"
+        role="img"
+        aria-label={`${props.label ? `${props.label}: ` : ''}${Math.round(props.value)} of ${max()}`}
+      >
         <circle
           cx={size() / 2}
           cy={size() / 2}
@@ -351,6 +370,8 @@ interface BarChartProps {
   class?: string;
 }
 
+/** Vertical or horizontal bar chart. Bars expose label/value pairs through
+ * accessible labels; hover tooltips supplement but never replace them. */
 export const BarChart: Component<BarChartProps> = props => {
   const height = () => props.height || 160;
   const maxValue = createMemo(() => Math.max(...props.data.map(d => d.value), 1));
@@ -364,7 +385,12 @@ export const BarChart: Component<BarChartProps> = props => {
             {(item, i) => {
               const barHeight = (item.value / maxValue()) * 100;
               return (
-                <div class="group relative flex flex-1 flex-col items-center gap-2">
+                <div
+                  class="group relative flex flex-1 flex-col items-center gap-2"
+                  role="img"
+                  tabindex={0}
+                  aria-label={`${item.label}: ${item.value.toLocaleString()}`}
+                >
                   <div
                     class={cn(
                       'ease-smooth w-full rounded-t-lg transition-all duration-700',
@@ -373,7 +399,7 @@ export const BarChart: Component<BarChartProps> = props => {
                     style={{
                       height: `${Math.max(barHeight, 4)}%`,
                       'min-height': '4px',
-                      'background-color': item.color || '#6366f1',
+                      'background-color': item.color || 'var(--color-indigo-500, #6366f1)',
                       'box-shadow':
                         item.value > 0
                           ? `0 0 20px -5px ${item.color || 'rgba(99,102,241,0.3)'}`
@@ -402,7 +428,11 @@ export const BarChart: Component<BarChartProps> = props => {
       <div class={cn('space-y-3', props.class)}>
         <For each={props.data}>
           {(item, i) => (
-            <div class="space-y-1">
+            <div
+              class="space-y-1"
+              role="img"
+              aria-label={`${item.label}: ${item.value.toLocaleString()}`}
+            >
               <Show when={props.showLabels}>
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-nebula-400 font-medium">{item.label}</span>
@@ -421,7 +451,7 @@ export const BarChart: Component<BarChartProps> = props => {
                   )}
                   style={{
                     width: `${(item.value / maxValue()) * 100}%`,
-                    'background-color': item.color || '#6366f1',
+                    'background-color': item.color || 'var(--color-indigo-500, #6366f1)',
                     'animation-delay': props.animated ? `${i() * 100}ms` : '0ms',
                   }}
                 />
@@ -447,10 +477,12 @@ interface DonutChartProps {
   centerLabel?: string;
   centerValue?: string | number;
   showLegend?: boolean;
-  animated?: boolean;
   class?: string;
 }
 
+/** Donut chart with interactive segment highlighting. The legend restates every
+ * segment's label and value as plain text, so the data never lives only in
+ * pointer-driven visuals. */
 export const DonutChart: Component<DonutChartProps> = props => {
   const size = () => props.size || 120;
   const thickness = () => props.thickness || 20;
@@ -474,13 +506,19 @@ export const DonutChart: Component<DonutChartProps> = props => {
   return (
     <div class={cn('flex items-center gap-6', props.class)}>
       <div class="relative" style={{ width: `${size()}px`, height: `${size()}px` }}>
-        <svg width={size()} height={size()} class="-rotate-90">
+        <svg
+          width={size()}
+          height={size()}
+          class="-rotate-90"
+          role="img"
+          aria-label={`Donut chart: ${props.data.map(d => `${d.label} ${d.value}`).join(', ')}`}
+        >
           <circle
             cx={size() / 2}
             cy={size() / 2}
             r={radius()}
             fill="none"
-            stroke="#1e293b"
+            stroke="var(--gauge-track-color, #1e293b)"
             stroke-width={thickness()}
           />
           <For each={segments()}>
@@ -509,7 +547,7 @@ export const DonutChart: Component<DonutChartProps> = props => {
         </svg>
         <div class="absolute inset-0 flex flex-col items-center justify-center">
           <div class="font-display text-2xl font-black text-white">
-            {props.centerValue !== undefined ? props.centerValue : total()}
+            {props.centerValue === undefined ? total() : props.centerValue}
           </div>
           <div class="text-nebula-500 text-xs">{props.centerLabel || 'Total'}</div>
         </div>
@@ -524,8 +562,11 @@ export const DonutChart: Component<DonutChartProps> = props => {
                   'flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-all',
                   hoveredIndex() === index() && 'bg-void-800'
                 )}
+                tabindex={0}
                 onMouseEnter={() => setHoveredIndex(index())}
                 onMouseLeave={() => setHoveredIndex(null)}
+                onFocus={() => setHoveredIndex(index())}
+                onBlur={() => setHoveredIndex(null)}
               >
                 <div class="h-3 w-3 rounded-full" style={{ background: item.color }} />
                 <span class="text-nebula-400 text-sm">{item.label}</span>

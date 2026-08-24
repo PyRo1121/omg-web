@@ -22,7 +22,7 @@ const Skeleton: Component<SkeletonProps> = props => {
 
 export const CardSkeleton: Component = () => {
   return (
-    <div class="rounded-[2.5rem] border border-white/5 bg-[#0d0d0e] p-10 shadow-2xl">
+    <div class="rounded-5xl bg-void-850 border border-white/5 p-10 shadow-2xl">
       <div class="mb-8 flex items-center justify-between">
         <Skeleton width="200px" height="32px" />
         <Skeleton width="24px" height="24px" />

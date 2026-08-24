@@ -15,6 +15,31 @@ const Installation: Component = () => {
   const [activeTab, setActiveTab] = createSignal<InstallTabId>('curl');
   let copiedResetTimeoutId: number | undefined;
 
+  const handleTabKeyDown = (e: KeyboardEvent, tabId: InstallTabId): void => {
+    const currentIndex = INSTALL_TABS.findIndex(tab => tab.id === tabId);
+    let nextIndex: number;
+
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % INSTALL_TABS.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + INSTALL_TABS.length) % INSTALL_TABS.length;
+    } else if (e.key === 'Home') {
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      nextIndex = INSTALL_TABS.length - 1;
+    } else {
+      return;
+    }
+
+    e.preventDefault();
+    const nextTab = INSTALL_TABS[nextIndex];
+    if (!nextTab) {
+      return;
+    }
+    setActiveTab(nextTab.id);
+    queueMicrotask(() => document.getElementById(`install-tab-${nextTab.id}`)?.focus());
+  };
+
   const commands = {
     curl: 'curl -fsSL https://omg.latham.cloud/install.sh | bash',
     windows: 'irm https://omg.latham.cloud/install.ps1 | iex',
@@ -75,11 +100,21 @@ const Installation: Component = () => {
 
         {/* Install tabs */}
         <div class="mx-auto max-w-3xl">
-          <div class="mb-6 flex flex-wrap justify-center gap-2">
+          <div
+            role="tablist"
+            aria-label="Installation platform"
+            class="mb-6 flex flex-wrap justify-center gap-2"
+          >
             <For each={INSTALL_TABS}>
               {tab => (
                 <button
+                  id={`install-tab-${tab.id}`}
+                  role="tab"
+                  aria-selected={activeTab() === tab.id}
+                  aria-controls="install-command-panel"
+                  tabindex={activeTab() === tab.id ? 0 : -1}
                   onClick={() => setActiveTab(tab.id)}
+                  onKeyDown={e => handleTabKeyDown(e, tab.id)}
                   class={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
                     activeTab() === tab.id
                       ? 'bg-indigo-500 text-white'
@@ -93,7 +128,13 @@ const Installation: Component = () => {
           </div>
 
           {/* Command box */}
-          <div class="terminal glow-strong mb-8">
+          <div
+            id="install-command-panel"
+            role="tabpanel"
+            aria-labelledby={`install-tab-${activeTab()}`}
+            class="terminal glow-strong mb-8"
+            tabindex={0}
+          >
             <div class="terminal-header">
               <div class="terminal-dot red" />
               <div class="terminal-dot yellow" />

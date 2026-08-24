@@ -504,12 +504,6 @@ export const MemberUsageRowSchema = Schema.Struct({
   last_active: OptNullStr,
 });
 
-/** Last-7-day command totals keyed by machine. */
-export const MemberRecentUsageRowSchema = Schema.Struct({
-  machine_id: Schema.String,
-  commands_last_7d: D1Number,
-});
-
 /** License-wide usage SUM for the team dashboard. */
 export const TeamUsageTotalsRowSchema = Schema.Struct({
   total_commands: D1Number,
@@ -795,9 +789,7 @@ export function decodeStoredProperties(
   try {
     parsed = JSON.parse(value);
   } catch (cause: unknown) {
-    return Effect.fail(
-      new ExtraRowParseError('Stored properties JSON has an invalid shape', cause)
-    );
+    return Effect.fail(new ExtraRowParseError('Stored properties are not valid JSON', cause));
   }
   return Schema.decodeUnknown(JsonObject)(parsed).pipe(
     Effect.mapError(

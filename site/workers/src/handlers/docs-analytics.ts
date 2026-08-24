@@ -1,4 +1,4 @@
-import { reportError, reportInfo } from '../observability';
+import { reportError, reportInfo, reportWarning } from '../observability';
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * DOCS ANALYTICS HANDLER - World-Class Web Telemetry
@@ -11,6 +11,8 @@ import { type Env, jsonResponse, errorResponse } from '../api';
 import { Effect, Exit } from 'effect';
 import { decodeJsonBody } from '../body';
 import { DocsAnalyticsBatchSchema } from '../contracts/http-bodies';
+import { parseReportingDays } from './site-analytics';
+import { validateContentLength } from './telemetry';
 import {
   decodeExtraRowArray,
   DocsGeoRowSchema,
@@ -22,10 +24,24 @@ import {
   DocsUtmRowSchema,
 } from '../contracts/d1-extras';
 
+/** Maximum events accepted per ingest batch. */
+const MAX_EVENTS_PER_BATCH = 50;
+/** Declared-body cap for docs analytics batches. */
+const MAX_DOCS_PAYLOAD_BYTES = 512 * 1024;
+/** User agents are stored per event row; clamp header noise before persistence. */
+const MAX_USER_AGENT_LENGTH = 256;
+/** CLI telemetry retention promised by the privacy disclosures (privacy.ts). */
+const TELEMETRY_RETENTION_DAYS = 90;
+/** Stale realtime rows past this age can never re-enter the 5-minute live window. */
+const REALTIME_STALE_MS = 60 * 60 * 1000;
+
 /**
- * POST /api/docs/analytics
- * Accept batch analytics events from docs site
- * Rate limited to 100 requests per minute per IP (prevents abuse)
+ * Ingest a batch of docs-site analytics events (POST /api/docs/analytics).
+ *
+ * @param request - Incoming request carrying a docs analytics batch.
+ * @param env - Worker bindings including D1 and the rate limiter.
+ * @param ctx - Execution context used to defer aggregate refreshes.
+ * @returns The processed count, or an error response.
  */
 export async function handleDocsAnalytics(
   request: Request,
@@ -33,13 +49,20 @@ export async function handleDocsAnalytics(
   ctx: ExecutionContext
 ): Promise<Response> {
   try {
-    // Rate limiting (100 requests/min per IP)
+    // Request rate is bounded by the API_RATE_LIMITER binding configuration.
+    const contentLengthError = validateContentLength(request, MAX_DOCS_PAYLOAD_BYTES);
+    if (contentLengthError) {
+      return contentLengthError;
+    }
+
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     if (env.API_RATE_LIMITER) {
       const { success } = await env.API_RATE_LIMITER.limit({ key: `docs_analytics:${ip}` });
       if (!success) {
         return errorResponse('Rate limit exceeded', 429);
       }
+    } else {
+      reportWarning('API_RATE_LIMITER binding not available, skipping rate limit');
     }
 
     const decodedBody = await Effect.runPromiseExit(
@@ -49,13 +72,16 @@ export async function handleDocsAnalytics(
       return errorResponse('Invalid payload: events array required', 400);
     }
     const body = decodedBody.value;
-    if (body.events.length > 50) {
-      return errorResponse('Batch size exceeds limit (max 50 events)', 400);
+    if (body.events.length > MAX_EVENTS_PER_BATCH) {
+      return errorResponse(`Batch size exceeds limit (max ${MAX_EVENTS_PER_BATCH} events)`, 400);
     }
 
     // Extract geographic data from Cloudflare headers
     const country = request.headers.get('CF-IPCountry') || 'unknown';
-    const userAgent = request.headers.get('User-Agent') || 'unknown';
+    const userAgent = (request.headers.get('User-Agent') || 'unknown').slice(
+      0,
+      MAX_USER_AGENT_LENGTH
+    );
 
     let processed = 0;
     const statements: D1PreparedStatement[] = [];
@@ -213,15 +239,18 @@ export async function handleDocsAnalytics(
 }
 
 /**
- * GET /api/docs/analytics/dashboard
- * Return aggregated analytics for admin dashboard
- * Shows: pageviews, top pages, referrers, UTM campaigns, geo distribution
+ * Return aggregated docs analytics for the admin dashboard.
+ *
+ * Shows pageviews, top pages, referrers, UTM campaigns, and geo distribution.
+ *
+ * @param request - Incoming request whose `days` query bounds the window.
+ * @param env - Worker bindings including D1.
+ * @returns Dashboard aggregates over the reporting window.
  */
 export async function handleDocsAnalyticsDashboard(request: Request, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const parsedDays = Number.parseInt(url.searchParams.get('days') ?? '', 10);
-    const days = Number.isFinite(parsedDays) ? Math.min(Math.max(parsedDays, 1), 90) : 30;
+    const days = parseReportingDays(url.searchParams.get('days'));
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString().slice(0, 10);
@@ -417,27 +446,49 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
 }
 
 /**
- * Cleanup old raw events (retention: 7 days)
- * Keeps aggregates forever, deletes raw events after 7 days
- * Run daily via cron trigger
+ * Daily retention cleanup invoked by the Worker's `scheduled` handler.
+ *
+ * Prunes expired raw docs analytics rows (7 days), docs sessions (30 days),
+ * CLI telemetry rows at the retention promised by the privacy disclosures
+ * (90 days), rotated visitor salts, and stale realtime presence rows.
+ * This function owns all analytics retention because the scheduled handler
+ * currently calls only this cleanup. Failures propagate to the caller so the
+ * scheduled handler is the single failure path.
+ *
+ * @param db - The licensing D1 database.
  */
 export async function cleanupDocsAnalytics(db: D1Database): Promise<void> {
-  try {
-    // Compare in the same format CURRENT_TIMESTAMP writes (YYYY-MM-DD HH:MM:SS);
-    // an ISO string cutoff deletes up to a day early due to ' ' vs 'T' ordering.
-    const result = await db
-      .prepare(`DELETE FROM docs_analytics_events WHERE created_at < datetime('now', '-7 days')`)
-      .run();
+  // Compare in the same format CURRENT_TIMESTAMP writes (YYYY-MM-DD HH:MM:SS);
+  // an ISO string cutoff deletes up to a day early due to ' ' vs 'T' ordering.
+  await db
+    .prepare(`DELETE FROM docs_analytics_events WHERE created_at < datetime('now', '-7 days')`)
+    .run();
+  reportInfo('Cleaned up old docs analytics events');
 
-    reportInfo(`Cleaned up ${result.meta.changes} old docs analytics events`);
+  await db
+    .prepare(
+      `DELETE FROM docs_analytics_sessions WHERE first_seen_at < datetime('now', '-30 days')`
+    )
+    .run();
+  reportInfo('Cleaned up old docs analytics sessions');
 
-    // Clean up old sessions (>30 days)
+  for (const table of ['command_event', 'session', 'performance_metric', 'feature_usage']) {
     await db
       .prepare(
-        `DELETE FROM docs_analytics_sessions WHERE first_seen_at < datetime('now', '-30 days')`
+        `DELETE FROM ${table} WHERE timestamp < datetime('now', '-${TELEMETRY_RETENTION_DAYS} days')`
       )
       .run();
-  } catch (error: unknown) {
-    reportError('Docs analytics cleanup error:', error);
+    reportInfo(`Cleaned up expired ${table} rows`);
   }
+
+  await db
+    .prepare(`DELETE FROM analytics_salts WHERE inserted_at <= unixepoch() * 1000 - 90000`)
+    .run();
+  reportInfo('Cleaned up rotated analytics salts');
+
+  await db
+    .prepare(`DELETE FROM site_analytics_realtime WHERE last_seen_at < ?`)
+    .bind(Date.now() - REALTIME_STALE_MS)
+    .run();
+  reportInfo('Cleaned up stale realtime analytics rows');
 }

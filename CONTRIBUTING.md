@@ -19,6 +19,11 @@ Be respectful and constructive. Harassment and discrimination are not tolerated.
    - `npm test` (Vitest)
 6. **Open a pull request** against `main`. It must pass CI before merge.
 
+## Toolchain notes
+
+- **npm version:** the repo pins `packageManager: "npm@12.0.2"` in every manifest. Local runs should use that version (`corepack enable npm`); CI enables it explicitly.
+- **`allowScripts` fields are inert under plain npm.** Native npm has no lifecycle-script allowlisting; the blocks in each `package.json` record _intent_ (which transitive packages may run postinstall scripts) and are consumed by no current tooling. Do not rely on them as a supply-chain control — treat unexpected new install scripts in `npm ci` output as a review blocker until a package manager with script gating is adopted.
+
 ## Project layout
 
 - `site/` — the SvelteKit web application

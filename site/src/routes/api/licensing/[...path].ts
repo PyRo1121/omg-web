@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import * as schema from '../../../db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import {
+  LicensingEmailVerificationRequired,
   proxyLicensingRequest,
   type LicensingBffError,
   type LicensingIdentity,
@@ -36,6 +37,7 @@ class LicensingIdentityStoreUnavailable extends Error {
 type LicensingRouteError =
   | LicensingUnauthorized
   | LicensingBffMisconfigured
+  | LicensingEmailVerificationRequired
   | LicensingIdentityStoreUnavailable
   | LicensingBffError;
 
@@ -54,7 +56,10 @@ function authEnvFrom(cloudflareEnv: CloudflareEnv): CloudflareEnv {
 function licensingIdentity(
   cloudflareEnv: CloudflareEnv,
   request: Request
-): Effect.Effect<LicensingIdentity, LicensingUnauthorized | LicensingIdentityStoreUnavailable> {
+): Effect.Effect<
+  LicensingIdentity,
+  LicensingUnauthorized | LicensingEmailVerificationRequired | LicensingIdentityStoreUnavailable
+> {
   return Effect.gen(function* () {
     const authEnv = authEnvFrom(cloudflareEnv);
     const session = yield* Effect.tryPromise({
@@ -63,6 +68,9 @@ function licensingIdentity(
     });
     if (session?.user === undefined) {
       return yield* Effect.fail(new LicensingUnauthorized());
+    }
+    if (session.user.emailVerified !== true) {
+      return yield* Effect.fail(new LicensingEmailVerificationRequired());
     }
 
     const db = drizzle(authEnv.DB, { schema });
@@ -89,6 +97,7 @@ function licensingIdentity(
       email: session.user.email,
       name: session.user.name,
       role: roleLookup._tag === 'present' && roleLookup.value.role === 'admin' ? 'admin' : 'user',
+      emailVerified: session.user.emailVerified,
     };
   });
 }
@@ -125,6 +134,7 @@ function errorResponse(error: LicensingRouteError): RouteErrorResponse {
     case 'LicensingUnauthorized':
       return { status: 401, message: error.message };
     case 'LicensingSameOriginRequired':
+    case 'LicensingEmailVerificationRequired':
       return { status: 403, message: error.message };
     case 'LicensingRouteRejected':
       return { status: 404, message: error.message };

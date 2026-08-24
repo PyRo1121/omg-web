@@ -31,14 +31,14 @@ class TelemetryLoadError extends Error {
 const LICENSING_DASHBOARD_PATH = `/api/licensing${LicensingRoutes.dashboard.path}`;
 
 /** A fetch function used by the dashboard view-model. */
-export type DashboardFetch = (input: string, init?: RequestInit) => Promise<Response>;
+export type DashboardFetch = (input: string) => Promise<Response>;
 
-function browserDashboardFetch(input: string, init?: RequestInit): Promise<Response> {
+function browserDashboardFetch(input: string): Promise<Response> {
   switch (input) {
     case '/api/dashboard':
-      return fetch('/api/dashboard', init);
+      return fetch('/api/dashboard');
     case LICENSING_DASHBOARD_PATH:
-      return fetch(LICENSING_DASHBOARD_PATH, init);
+      return fetch(LICENSING_DASHBOARD_PATH);
     default:
       return Promise.reject(new DashboardLoadError('Dashboard route is not allowed'));
   }
@@ -111,19 +111,33 @@ export function createDashboardView(fetchImpl?: DashboardFetch): DashboardView {
 
   const doFetch: DashboardFetch = fetchImpl ?? browserDashboardFetch;
 
+  // Generation guards: a slow response from an earlier load must never
+  // clobber state produced by a newer one.
+  let dashboardLoadId = 0;
+  let telemetryLoadId = 0;
+
   const loadDashboard = (): void => {
+    const loadId = ++dashboardLoadId;
     setLoading(true);
     setError('');
     const owned = Effect.runPromiseExit(loadDashboardPipeline(doFetch)).then(exit => {
+      if (loadId !== dashboardLoadId) {
+        return;
+      }
       setLoading(false);
       Exit.match(exit, {
         onSuccess: data => {
           setDashboardData(data);
           setError('');
         },
-        onFailure: () => {
+        onFailure: cause => {
           setDashboardData(null);
-          setError('Failed to load dashboard data');
+          const failure = Cause.failureOption(cause);
+          setError(
+            Option.isSome(failure) && failure.value instanceof DashboardLoadError
+              ? failure.value.message
+              : 'Failed to load dashboard data'
+          );
         },
       });
     });
@@ -131,9 +145,13 @@ export function createDashboardView(fetchImpl?: DashboardFetch): DashboardView {
   };
 
   const loadTelemetry = (): void => {
+    const loadId = ++telemetryLoadId;
     setTelemetryLoading(true);
     setTelemetryError('');
     const owned = Effect.runPromiseExit(loadTelemetryPipeline(doFetch)).then(exit => {
+      if (loadId !== telemetryLoadId) {
+        return;
+      }
       setTelemetryLoading(false);
       Exit.match(exit, {
         onSuccess: data => {

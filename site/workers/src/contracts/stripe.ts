@@ -40,19 +40,21 @@ export const StripeCustomerEmailSchema = Schema.Struct({
   email: Schema.String,
 });
 
+/** Customer metadata carrying the company CRM field. */
+const StripeCompanyMetadataSchema = Schema.Struct({
+  company: Schema.optional(Schema.String),
+});
+
 /** Customer record from list/sync. */
-export const StripeCustomerSchema = Schema.Struct({
+const StripeCustomerSchema = Schema.Struct({
   id: Schema.String,
   email: Schema.Union(Schema.Null, Schema.String),
   name: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
-  metadata: Schema.optional(
-    Schema.Struct({
-      company: Schema.optional(Schema.String),
-    })
-  ),
+  metadata: Schema.optional(StripeCompanyMetadataSchema),
 });
 
-export const StripeSubscriptionStatusSchema = Schema.Literal(
+/** Stripe subscription lifecycle states consumed by reconciliation. */
+const StripeSubscriptionStatusSchema = Schema.Literal(
   'active',
   'trialing',
   'past_due',
@@ -82,11 +84,8 @@ export const StripeSubscriptionSchema = Schema.Struct({
 });
 export type StripeSubscription = Schema.Schema.Type<typeof StripeSubscriptionSchema>;
 
-/** Invoice record from list/sync. */
-export const StripeInvoiceSchema = Schema.Struct({
-  id: Schema.String,
-  customer: Schema.String,
-  status: Schema.String,
+/** Invoice money/URL/period fields shared between sync records and webhook payloads. */
+const StripeInvoiceFields = {
   amount_paid: Schema.optional(Schema.Number),
   currency: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
   hosted_invoice_url: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
@@ -94,8 +93,17 @@ export const StripeInvoiceSchema = Schema.Struct({
   period_start: Schema.optional(Schema.Number),
   period_end: Schema.optional(Schema.Number),
   created: Schema.optional(Schema.Number),
+} as const;
+
+/** Invoice record from list/sync. */
+const StripeInvoiceSchema = Schema.Struct({
+  id: Schema.String,
+  customer: Schema.String,
+  status: Schema.String,
+  ...StripeInvoiceFields,
 });
 
+/** Active subscription item shape used for MRR metrics. */
 const StripeMetricsItemSchema = Schema.Struct({
   price: Schema.Struct({
     unit_amount: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
@@ -109,14 +117,14 @@ const StripeMetricsItemSchema = Schema.Struct({
 });
 
 /** Active subscription used for MRR metrics. */
-export const StripeMetricsSubscriptionSchema = Schema.Struct({
+const StripeMetricsSubscriptionSchema = Schema.Struct({
   items: Schema.Struct({
     data: Schema.Array(StripeMetricsItemSchema),
   }),
 });
 
 /** One Stripe balance bucket. */
-export const StripeBalanceFundsSchema = Schema.Struct({
+const StripeBalanceFundsSchema = Schema.Struct({
   amount: Schema.Number,
 });
 
@@ -126,28 +134,29 @@ export const StripeBalanceSchema = Schema.Struct({
   pending: Schema.Array(StripeBalanceFundsSchema),
 });
 
+/** Paged Stripe customer list response. */
 export const StripeCustomerListSchema = Schema.Struct({
   has_more: Schema.Boolean,
   data: Schema.Array(StripeCustomerSchema),
 });
-export type StripeCustomerList = Schema.Schema.Type<typeof StripeCustomerListSchema>;
 
+/** Paged Stripe subscription list response. */
 export const StripeSubscriptionListSchema = Schema.Struct({
   has_more: Schema.Boolean,
   data: Schema.Array(StripeSubscriptionSchema),
 });
-export type StripeSubscriptionList = Schema.Schema.Type<typeof StripeSubscriptionListSchema>;
 
+/** Paged Stripe invoice list response. */
 export const StripeInvoiceListSchema = Schema.Struct({
   has_more: Schema.Boolean,
   data: Schema.Array(StripeInvoiceSchema),
 });
-export type StripeInvoiceList = Schema.Schema.Type<typeof StripeInvoiceListSchema>;
 
+/** Active-subscription list response used for MRR metrics. */
 export const StripeMetricsListSchema = Schema.Struct({
+  has_more: Schema.Boolean,
   data: Schema.Array(StripeMetricsSubscriptionSchema),
 });
-export type StripeMetricsList = Schema.Schema.Type<typeof StripeMetricsListSchema>;
 
 /** Signed Stripe webhook envelope. */
 export const StripeWebhookEventSchema = Schema.Struct({
@@ -159,21 +168,11 @@ export const StripeWebhookEventSchema = Schema.Struct({
       customer: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
       status: Schema.optional(Schema.String),
       current_period_end: Schema.optional(Schema.Number),
-      amount_paid: Schema.optional(Schema.Number),
       amount_due: Schema.optional(Schema.Number),
-      currency: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-      hosted_invoice_url: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
-      invoice_pdf: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
-      period_start: Schema.optional(Schema.Number),
-      period_end: Schema.optional(Schema.Number),
-      created: Schema.optional(Schema.Number),
+      ...StripeInvoiceFields,
       name: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
       email: Schema.optional(Schema.Union(Schema.String, Schema.Null)),
-      metadata: Schema.optional(
-        Schema.Struct({
-          company: Schema.optional(Schema.String),
-        })
-      ),
+      metadata: Schema.optional(StripeCompanyMetadataSchema),
       items: Schema.optional(
         Schema.Struct({
           data: Schema.Array(StripeSubscriptionItemSchema),

@@ -11,7 +11,9 @@ import {
   corsHeaders,
   getAuthToken,
   validateSession,
+  logAudit,
 } from '../api';
+import { reportError, reportInfo } from '../observability';
 import {
   decodeExtraRow,
   decodeExtraRowArray,
@@ -37,6 +39,9 @@ const DeleteRequestSchema = Schema.Struct({
 const OptOutRequestSchema = Schema.Struct({
   opt_out: Schema.Boolean,
 });
+
+/** Days security audit logs are retained, as promised by the privacy disclosures. */
+const AUDIT_LOG_RETENTION_DAYS = 30;
 
 /** Run a handler behind customer session validation. */
 async function withPrivacyPrincipal(
@@ -85,7 +90,7 @@ async function loadPrivacyRows<S extends Schema.Schema.AnyNoContext>(
  * - Telemetry events (command_event, session, performance_metric, feature_usage)
  * - Registered machines
  * - Install pings (install_stats)
- * - Customer notes (customer_notes) - unless marked as internal
+ * - Customer notes (customer_notes)
  * - Session tokens
  *
  * Retains (for legal/business requirements):
@@ -174,13 +179,14 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
         ).bind(customerId),
         env.DB.prepare(
           `INSERT INTO audit_log
-           (id, customer_id, action, resource_type, resource_id, ip_address, metadata, created_at)
-         VALUES (?, ?, 'data_deletion_request', 'customer', ?, ?, ?, datetime('now'))`
+           (id, customer_id, action, resource_type, resource_id, ip_address, user_agent, metadata, created_at)
+         VALUES (?, ?, 'data_deletion_request', 'customer', ?, ?, ?, ?, datetime('now'))`
         ).bind(
           requestId,
           customerId,
           customerId,
           request.headers.get('CF-Connecting-IP') ?? 'unknown',
+          request.headers.get('User-Agent'),
           JSON.stringify({ reason: body.reason ?? 'User requested deletion' })
         ),
       ]);
@@ -198,8 +204,7 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
         message: 'Your data has been deleted. This action is irreversible.',
         request_id: requestId,
         deleted: deletedCounts,
-        retention_notice:
-          'Audit logs are retained for 30 days for security purposes. Payment records are retained per Stripe requirements.',
+        retention_notice: `Audit logs are retained for ${AUDIT_LOG_RETENTION_DAYS} days for security purposes. Payment records are retained per Stripe requirements.`,
       });
     });
   } catch (error: unknown) {
@@ -310,12 +315,9 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
       );
       if (featureUsage instanceof Response) return featureUsage;
 
-      await env.DB.prepare(
-        `INSERT INTO audit_log (id, action, resource_type, resource_id, ip_address, created_at)
-         VALUES (?, 'data_export_request', 'customer', ?, ?, datetime('now'))`
-      )
-        .bind(crypto.randomUUID(), customerId, request.headers.get('CF-Connecting-IP') ?? 'unknown')
-        .run();
+      await Effect.runPromise(
+        logAudit(env.DB, customerId, 'data_export_request', 'customer', customerId, request)
+      );
 
       const exportData = {
         export_date: exportDate,
@@ -370,6 +372,16 @@ export async function handleOptOut(request: Request, env: Env): Promise<Response
       )
         .bind(body.opt_out ? 1 : 0, customerId)
         .run();
+      await Effect.runPromise(
+        logAudit(
+          env.DB,
+          customerId,
+          body.opt_out ? 'user.telemetry_opted_out' : 'user.telemetry_opt_in',
+          'customer',
+          customerId,
+          request
+        )
+      );
 
       return jsonResponse({
         success: true,
@@ -386,6 +398,27 @@ export async function handleOptOut(request: Request, env: Env): Promise<Response
 }
 
 /**
+ * Delete audit rows older than the retention window promised by the privacy
+ * disclosures. Mirrors `cleanupDocsAnalytics`; must be invoked from the Worker's
+ * `scheduled` handler for the advertised retention to hold.
+ */
+export async function cleanupExpiredAuditLogs(db: D1Database): Promise<void> {
+  try {
+    // Compare in the same format CURRENT_TIMESTAMP writes (YYYY-MM-DD HH:MM:SS);
+    // an ISO cutoff would order inconsistently against the column default.
+    await db
+      .prepare(
+        `DELETE FROM audit_log WHERE created_at < datetime('now', '-${AUDIT_LOG_RETENTION_DAYS} days')`
+      )
+      .run();
+
+    reportInfo('Cleaned up expired audit log entries');
+  } catch (error: unknown) {
+    reportError('Audit log cleanup error:', error);
+  }
+}
+
+/**
  * Get privacy policy summary and user's current settings
  * GET /api/privacy/status
  */
@@ -395,7 +428,7 @@ export async function handlePrivacyStatus(request: Request, env: Env): Promise<R
     last_updated: '2026-02-07',
     data_retention: {
       telemetry_events: '90 days',
-      audit_logs: '30 days',
+      audit_logs: `${AUDIT_LOG_RETENTION_DAYS} days`,
       payment_records: 'Per Stripe requirements',
       usage_statistics: '12 months',
     },

@@ -49,6 +49,7 @@ const sizeConfig = {
   lg: { dot: 'h-2.5 w-2.5', ring: 'h-5 w-5', text: 'text-sm', padding: 'px-3 py-1.5' },
 };
 
+/** Live-status pill with animated dot/ring/bar variants and semantic colors. */
 export const LiveIndicator: Component<LiveIndicatorProps> = props => {
   const color = () => colorConfig[props.color || 'success'];
   const size = () => sizeConfig[props.size || 'md'];

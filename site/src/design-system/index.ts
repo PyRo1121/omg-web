@@ -3,5 +3,3 @@ export * from './components/LiveIndicator';
 export * from './components/TierBadge';
 export * from './components/Charts';
 export * from './components/layouts/DashboardLayout';
-
-export { default as omgPreset } from './tailwind.preset';

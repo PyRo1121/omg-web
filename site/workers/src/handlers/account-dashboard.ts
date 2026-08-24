@@ -296,8 +296,13 @@ function getAccountDashboard(
 
     const topPackage = yield* queryFirst(
       env.DB,
-      `SELECT package_name FROM analytics_packages ORDER BY install_count DESC LIMIT 1`,
-      [],
+      `SELECT package_name
+       FROM usage_package_daily
+       WHERE license_id = ? AND date >= date('now', '-30 days')
+       GROUP BY package_name
+       ORDER BY SUM(usage_count) DESC, package_name ASC
+       LIMIT 1`,
+      [license.id],
       'topPackage'
     ).pipe(
       Effect.catchAll(() => Effect.succeed(null)),
@@ -314,8 +319,13 @@ function getAccountDashboard(
 
     const topRuntime = yield* queryFirst(
       env.DB,
-      `SELECT dimension FROM analytics_daily WHERE metric = 'version' ORDER BY value DESC LIMIT 1`,
-      [],
+      `SELECT runtime AS dimension
+       FROM usage_runtime_daily
+       WHERE license_id = ? AND date >= date('now', '-30 days')
+       GROUP BY runtime
+       ORDER BY SUM(usage_count) DESC, runtime ASC
+       LIMIT 1`,
+      [license.id],
       'topRuntime'
     ).pipe(
       Effect.catchAll(() => Effect.succeed(null)),

@@ -32,6 +32,16 @@ Deliberately **not provisioned** (free-tier and ownership constraints):
 
 The canonical migration sequence lives only in `site/workers/migrations/`; integrity is enforced by `migrations.sha256`. Migrations were applied remotely on 2026-08-21 via `wrangler d1 migrations apply DB --remote`.
 
+#### Remote migration inventory (keep current)
+
+After **every** `npm run db:migrate:remote --prefix site/workers`, record here which migrations `d1_migrations` contains (query: `SELECT name FROM d1_migrations ORDER BY id`) and the date. At 3am the on-call answer to "is prod past the merge?" must be readable from this file, not from a live query.
+
+- 2026-08-21 — all migrations through the sequence as of that date were applied via `wrangler d1 migrations apply DB --remote`; per-file list not captured at apply time. Backfill this list on the next remote apply.
+
+Gate every remote apply on a green `npm run check:migrations` against the commit being deployed from; the hash manifest provides tamper-evidence, not authorization, so never apply from a tree that fails CI.
+
+Known no-op in the canonical chain: migration `015_customers_email_unique.sql` silently did nothing (explained in `016_customers_email_unique_enforced.sql`'s header). It is retained for immutability — do not "re-apply 015 to fix" uniqueness.
+
 ### Secrets (server-only, set via `wrangler secret put`)
 
 - `omg-saas`: `JWT_SECRET`, `ADMIN_API_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
@@ -54,13 +64,13 @@ Checkout session creation is E2E-verified against Stripe test mode. Webhook hand
 
 ## Free-tier ceilings that gate this design
 
-| Service              | Free allowance                       | How this deployment stays under it                                                                 |
-| -------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| Workers requests     | 100,000/day; 10 ms CPU               | Static asset requests are free; only SSR/API invokes a Worker. Rate limiters bound abusive routes. |
-| D1 rows read/written | 5M read / 100k written per day       | Single indexed database; telemetry retention jobs prune daily.                                     |
-| D1 storage           | 5 GB account total; 500 MB/database  | One platform database; analytics tables are prunable.                                              |
-| Workers Logs/Traces  | ~200k events/day, 3-day retention    | Logs at 100%, traces sampled at 1%.                                                                |
-| R2 / Workers AI      | metered beyond small free allowances | Not used at all.                                                                                   |
+| Service              | Free allowance                       | How this deployment stays under it                                                                                                                                                                                             |
+| -------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Workers requests     | 100,000/day; 10 ms CPU               | Static asset requests are free; only SSR/API invokes a Worker. Rate limiters bound abusive routes.                                                                                                                             |
+| D1 rows read/written | 5M read / 100k written per day       | Single indexed database. Retention pruning currently covers only docs analytics tables (`cleanupDocsAnalytics`); licensing, telemetry, session, and audit tables are NOT yet pruned and grow unbounded — see observability.md. |
+| D1 storage           | 5 GB account total; 500 MB/database  | One platform database; analytics tables are prunable.                                                                                                                                                                          |
+| Workers Logs/Traces  | ~200k events/day, 3-day retention    | Logs at 100%, traces sampled at 1%.                                                                                                                                                                                            |
+| R2 / Workers AI      | metered beyond small free allowances | Not used at all.                                                                                                                                                                                                               |
 
 If sustained traffic approaches any ceiling, the correct response is a capacity decision, not silent overage: reduce ingestion, tighten sampling, or upgrade the plan explicitly.
 
@@ -80,6 +90,18 @@ It performs only read operations and exits nonzero if `omg-saas`, `omg-site`, or
 2. OTP stays unavailable by design: Workers Paid was declined, so Cloudflare Email Sending to arbitrary recipients is unavailable on the Free plan. A third-party sender would be required to enable it; until then email/password sign-up works fully without OTP.
 3. ~~Configure Stripe products/prices/webhook secret in test mode first~~ Done (2026-08-21, see the Stripe test-mode wiring section); finish the live webhook delivery verification (redeploy with the currency decode fix and confirm a signed test event is accepted). Update checkout success/return URLs only if the domain changes again.
 4. Verify Workers observability after first real traffic and exercise the rollback path once: enumerate versions with `npx wrangler deployments list`, then revert with `npx wrangler rollback` (<https://developers.cloudflare.com/workers/wrangler/commands/#rollback>, <https://developers.cloudflare.com/workers/versioning/>).
+
+### Rollback pairing rule
+
+Workers rollback reverts **code only, never D1 schema or data** (<https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/>). A code rollback across a forward migration breaks against the newer schema. Pairing rule:
+
+1. Deploy only expand-compatible migrations (additive columns/tables) before the code that uses them.
+2. After any rollback, ship a corrective **forward** migration for anything contracted; never roll schema back.
+3. The full expand → backfill → contract sequencing guidance lives in [`../research/production-recovery-and-svelte-migration.md`](../research/production-recovery-and-svelte-migration.md); treat that research note as operational reference until it is folded into this runbook.
+
+### Secondary origin
+
+The site's `*.workers.dev` fallback hostname remains enabled while the API's is disabled. It serves the same app outside domain-scoped monitoring; either disable it or include it when reviewing Workers Logs (see [`observability.md`](./observability.md)).
 
 ## Authenticated characterization status
 

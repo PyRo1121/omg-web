@@ -62,6 +62,8 @@ export function createAuth(env: CloudflareEnv) {
     trustedOrigins: [baseUrl],
     emailAndPassword: {
       enabled: true,
+      disableSignUp: true,
+      requireEmailVerification: true,
     },
     socialProviders,
   });

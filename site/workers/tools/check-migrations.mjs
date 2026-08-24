@@ -13,12 +13,13 @@ function fail(message) {
 function parseManifest(contents) {
   const entries = new Map();
   for (const line of contents.trim().split('\n')) {
-    const separator = line.indexOf('  ');
-    if (separator < 0) {
+    // sha256sum format: exactly two spaces between digest and path.
+    const match = /^([0-9a-f]{64}) {2}(\S.*)$/.exec(line);
+    if (match === null) {
       fail(`invalid manifest line: ${line}`);
       continue;
     }
-    entries.set(line.slice(separator + 2), line.slice(0, separator));
+    entries.set(match[2], match[1]);
   }
   return entries;
 }

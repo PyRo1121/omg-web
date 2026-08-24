@@ -1,6 +1,7 @@
 import type { Component } from 'solid-js';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { Tag, X, Plus, Check } from 'lucide-solid';
+import { parseTagColor, tagChipBackground, tagChipBorder } from './tag-color';
 
 interface CustomerTag {
   id: string;
@@ -106,7 +107,7 @@ export const TagsSection: Component<TagsSectionProps> = props => {
                         <div class="flex items-center gap-3">
                           <div
                             class="h-3 w-3 shrink-0 rounded-full"
-                            style={{ background: tag.color }}
+                            style={{ background: parseTagColor(tag.color, DEFAULT_TAG_COLOR) }}
                           />
                           <div class="min-w-0">
                             <p class="text-sm font-medium text-white">{tag.name}</p>
@@ -222,25 +223,29 @@ export const TagsSection: Component<TagsSectionProps> = props => {
           </Show>
 
           <For each={props.customerTags}>
-            {tag => (
-              <div
-                class="group flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-all hover:pr-2"
-                style={{
-                  background: `${tag.color}20`,
-                  color: tag.color,
-                  border: `1px solid ${tag.color}30`,
-                }}
-              >
-                <span>{tag.name}</span>
-                <button
-                  onClick={() => props.onRemoveTag(tag.id)}
-                  class="opacity-0 transition-all group-hover:opacity-100"
-                  title="Remove tag"
+            {tag => {
+              const color = parseTagColor(tag.color, DEFAULT_TAG_COLOR);
+              return (
+                <div
+                  class="group flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-all hover:pr-2"
+                  style={{
+                    background: tagChipBackground(color),
+                    color,
+                    border: tagChipBorder(color),
+                  }}
                 >
-                  <X size={14} class="hover:scale-110" />
-                </button>
-              </div>
-            )}
+                  <span>{tag.name}</span>
+                  <button
+                    onClick={() => props.onRemoveTag(tag.id)}
+                    class="opacity-0 transition-all group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label={`Remove tag ${tag.name}`}
+                    title="Remove tag"
+                  >
+                    <X size={14} class="hover:scale-110" />
+                  </button>
+                </div>
+              );
+            }}
           </For>
         </div>
       </Show>

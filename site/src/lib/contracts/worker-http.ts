@@ -49,10 +49,13 @@ export const CheckoutUrlSchema = Schema.Struct({
   url: Schema.String.pipe(Schema.minLength(1)),
 });
 
-/** Billing portal payload. */
+/** An email address decoded from a Worker response, safe for `mailto:` sinks. */
+const ResponseEmail = Schema.String.pipe(Schema.pattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/u));
+
+/** Billing portal payload. The URL must target Stripe's billing portal origin before `window.open`. */
 export const PortalUrlSchema = Schema.Struct({
   success: Schema.Boolean,
-  url: Schema.String.pipe(Schema.minLength(1)),
+  url: Schema.String.pipe(Schema.pattern(/^https:\/\/billing\.stripe\.com\//u)),
 });
 
 /** Created note id. */
@@ -121,7 +124,7 @@ export const FirehoseResponseSchema = Schema.Struct({
 
 const AdminUserSchema = Schema.Struct({
   id: Schema.String,
-  email: Schema.String,
+  email: ResponseEmail,
   company: NullableStringSchema,
   customer_tier: Str,
   created_at: Str,
@@ -150,7 +153,7 @@ export const AdminUserDetailSchema = Schema.Struct({
   request_id: Str,
   user: Schema.Struct({
     id: Schema.String,
-    email: Schema.String,
+    email: ResponseEmail,
     company: NullableStringSchema,
     stripe_customer_id: Schema.optionalWith(NullableStringSchema, { default: () => null }),
     tier: Str,
@@ -284,7 +287,8 @@ export const NotesResponseSchema = Schema.Struct({
 const CustomerTagSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
-  color: Schema.String,
+  /** Must match the worker-side create/update pattern; rendered into CSS color sinks. */
+  color: Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/u)),
   description: NullableStringSchema,
   usage_count: Schema.optional(Schema.Number),
   created_at: Str,

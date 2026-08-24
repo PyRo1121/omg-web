@@ -1,31 +1,30 @@
+// Firehose handler — polled real-time event feed for the admin dashboard.
 import { reportError } from '../observability';
-// Firehose Handler - Streaming real-time events to Admin Dashboard
 import { Effect, Exit } from 'effect';
-import { type Env, jsonResponse, errorResponse, validateSession, getAuthToken } from '../api';
+
+import { type Env, jsonResponse, errorResponse } from '../api';
+import { forbiddenUnlessAdminSession } from '../admin-auth';
 import {
   decodeExtraRowArray,
   decodeStoredProperties,
   FirehoseEventRowSchema,
-  customerIsAdmin,
 } from '../contracts/d1-extras';
 
+/** `created_at` is written as 'YYYY-MM-DD HH:MM:SS'; accept only comparable shapes. */
+const SINCE_PATTERN = /^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}:\d{2})?$/;
+
+/**
+ * Return recent analytics events for the admin firehose view (GET /api/admin/firehose).
+ *
+ * @param request - Incoming request; supports `limit` (1–100, default 50) and
+ *   `since` ('YYYY-MM-DD[ HH:MM:SS]') query parameters.
+ * @param env - Worker bindings including D1.
+ * @returns The decoded event page, or an error response.
+ */
 export async function handleGetFirehose(request: Request, env: Env): Promise<Response> {
-  const token = getAuthToken(request);
-  if (!token) {
-    return errorResponse('Unauthorized', 401);
-  }
-
-  const auth = await validateSession(env.DB, token);
-  if (!auth) {
-    return errorResponse('Invalid session', 401);
-  }
-
-  // Strictly Admin Only - Check admin column from database
-  const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
-    .bind(auth.user.id)
-    .first();
-  if (!(await customerIsAdmin(adminCheck))) {
-    return errorResponse('Forbidden', 403);
+  const denial = await forbiddenUnlessAdminSession(request, env);
+  if (denial !== null) {
+    return denial;
   }
 
   try {
@@ -37,7 +36,12 @@ export async function handleGetFirehose(request: Request, env: Env): Promise<Res
     const requestedLimit = Number.parseInt(url.searchParams.get('limit') ?? '', 10);
     const limit =
       Number.isFinite(requestedLimit) && requestedLimit >= 1 ? Math.min(requestedLimit, 100) : 50;
-    const since = url.searchParams.get('since');
+    const rawSince = url.searchParams.get('since');
+    if (rawSince !== null && !SINCE_PATTERN.test(rawSince)) {
+      return errorResponse('Invalid since parameter; expected YYYY-MM-DD[ HH:MM:SS]', 400);
+    }
+    // Normalize to the stored CURRENT_TIMESTAMP shape so string comparison is exact.
+    const since = rawSince === null ? null : rawSince.replace('T', ' ');
     const statement = env.DB.prepare(`
       SELECT
         id,

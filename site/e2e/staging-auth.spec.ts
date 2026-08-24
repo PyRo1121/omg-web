@@ -1,25 +1,22 @@
 import * as Schema from 'effect/Schema';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { performUiLogin } from './helpers';
 
 const baseUrl = process.env['E2E_BASE_URL']?.trim();
 const userEmail = process.env['E2E_USER_EMAIL']?.trim();
-const userPassword = process.env['E2E_USER_PASSWORD'];
+const userPassword = process.env['E2E_USER_PASSWORD']?.trim();
 const adminEmail = process.env['E2E_ADMIN_EMAIL']?.trim();
-const adminPassword = process.env['E2E_ADMIN_PASSWORD'];
+const adminPassword = process.env['E2E_ADMIN_PASSWORD']?.trim();
 const allowMutations = process.env['E2E_ALLOW_MUTATIONS'] === 'true';
+
+/** Header row minted by the workers admin users CSV export. */
+const USERS_EXPORT_CSV_HEADER =
+  'id,email,company,created_at,tier,status,active_machines,total_commands';
 
 const CheckoutResponseSchema = Schema.Struct({
   url: Schema.String.pipe(Schema.minLength(1)),
 });
-
-async function login(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' });
-  await page.getByLabel('Email Address').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign In' }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-}
 
 test.describe('staging authenticated user', () => {
   test.skip(
@@ -30,7 +27,7 @@ test.describe('staging authenticated user', () => {
   test('covers login, dashboard, authenticated BFF, non-admin authorization, and logout', async ({
     page,
   }) => {
-    await login(page, userEmail ?? '', userPassword ?? '');
+    await performUiLogin(page, userEmail ?? '', userPassword ?? '');
 
     const dashboardResponse = await page.request.get('/api/licensing/api/dashboard');
     expect(dashboardResponse.status()).toBe(200);
@@ -46,8 +43,9 @@ test.describe('staging authenticated user', () => {
     const signOutButton = page.getByRole('banner').getByRole('button', { name: 'Sign Out' });
     await expect(signOutButton).toBeEnabled();
     await signOutButton.click();
-    // Sign-out intentionally returns to the marketing home page.
-    await expect(page).toHaveURL(/\/$/);
+    // Sign-out intentionally returns to the marketing home page; anchor to the
+    // exact origin root so a stray /login/ or /admin/ redirect cannot pass.
+    await expect(page).toHaveURL(new URL('/', page.url()).href);
 
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/login\/?$/);
@@ -57,7 +55,7 @@ test.describe('staging authenticated user', () => {
     page,
   }) => {
     test.skip(!allowMutations, 'Set E2E_ALLOW_MUTATIONS=true only for an isolated Stripe sandbox');
-    await login(page, userEmail ?? '', userPassword ?? '');
+    await performUiLogin(page, userEmail ?? '', userPassword ?? '');
 
     // The BFF enforces same-origin on mutations; browsers always send Origin
     // on POST, so the characterization must too.
@@ -85,16 +83,26 @@ test.describe('staging admin', () => {
   );
 
   test('authorizes the admin page and downloads the users export', async ({ page }) => {
-    await login(page, adminEmail ?? '', adminPassword ?? '');
+    await performUiLogin(page, adminEmail ?? '', adminPassword ?? '');
     await page.goto('/admin', { waitUntil: 'domcontentloaded' });
 
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByText('OMG Admin', { exact: true })).toBeVisible();
 
+    // The Export button only toggles the download menu; the Users item inside
+    // it triggers the actual download. Arm the listener before that click.
     await page.getByRole('button', { name: 'Export' }).click();
+    // Anchored: matches the "Users" menu item, not a future stat or tab whose
+    // name merely contains "Users".
+    const usersMenuItem = page.getByRole('button', { name: /^Users\b/ });
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: /Users/ }).click();
+    await usersMenuItem.click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/^omg-users-.*\.csv$/);
+    expect(download.suggestedFilename()).toMatch(/^omg-users-\d{4}-\d{2}-\d{2}\.csv$/);
+
+    // Filename alone proves nothing about payload shape; pin the header row
+    // served by the workers export handler.
+    const csv = await readFile(await download.path(), 'utf8');
+    expect(csv.split('\n')[0]).toBe(USERS_EXPORT_CSV_HEADER);
   });
 });

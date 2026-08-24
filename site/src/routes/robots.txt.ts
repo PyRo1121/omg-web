@@ -6,10 +6,10 @@ const SITE_URL = 'https://omg.latham.cloud';
 /**
  * Generate robots.txt content
  *
- * This allows crawlers to reach HTML pages (including pages with `noindex`) while:
- * - Disallowing API and utility routes
- * - Referencing the sitemap for discovery
- * - Setting a reasonable crawl delay
+ * This allows crawlers to reach HTML pages (including pages with `noindex`) while
+ * disallowing API and server-function routes, and referencing the sitemap for
+ * discovery. Hydration assets under /_build/ must stay crawlable so Googlebot
+ * can render the JS-driven pages.
  */
 function generateRobotsTxt(): string {
   return `# OMG Package Manager - robots.txt
@@ -21,16 +21,9 @@ User-agent: *
 # Disallow non-page routes
 Disallow: /api/
 
-# Disallow utility routes
-Disallow: /_
-Disallow: /*.json$
-
-# Allow important static assets
-Allow: /logo-globe.png
-Allow: /og/
-
-# Crawl delay (seconds) - be nice to our servers
-Crawl-delay: 1
+# Disallow SolidStart server functions; keep hydration bundles crawlable
+Disallow: /_server/
+Allow: /_build/
 
 # Sitemap location
 Sitemap: ${SITE_URL}/sitemap.xml

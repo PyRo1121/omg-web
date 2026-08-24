@@ -25,8 +25,9 @@ test.describe('checkout degradation', () => {
       { timeout: PATIENT_HYDRATION_TIMEOUT }
     );
 
-    // The modal is client-rendered, so reaching it proves hydration completed;
-    // the remaining interactions can click directly.
+    // Reaching the modal proves the landing page rendered and the first click
+    // took effect, but Solid attaches delegated handlers after DOM insertion,
+    // so the next click still goes through the hydration-tolerant helper.
     await page.getByRole('button', { name: 'Select Pro' }).click();
     const continueButton = page.getByRole('button', { name: /Continue to Checkout/ });
     await expect(continueButton).toBeVisible();

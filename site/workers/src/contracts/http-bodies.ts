@@ -4,7 +4,21 @@ import * as Schema from 'effect/Schema';
 
 const OptionalBoolean = Schema.optional(Schema.Boolean);
 const OptionalNumber = Schema.optional(Schema.Number);
-const OptionalString = Schema.optional(Schema.String);
+
+/** Non-empty caller-supplied identifier, capped against oversized D1 keys. */
+const BoundedId = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(128));
+
+/** CRM note body accepted from the admin UI's note editor. */
+const NoteContent = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(4000));
+
+/** Note classifications offered by the admin notes UI (`NOTE_TYPES`). */
+const NoteType = Schema.Literal('general', 'call', 'email', 'meeting', 'support', 'sales');
+
+/** License tiers recognized by MRR pricing and badge rendering. */
+const LicenseTier = Schema.Literal('free', 'pro', 'team', 'enterprise');
+
+/** License statuses an admin may set (privacy deletion writes `deleted_by_user` directly). */
+const AdminLicenseStatus = Schema.Literal('active', 'inactive');
 
 const JsonValueSchema: Schema.Schema.AnyNoContext = Schema.suspend(() =>
   Schema.Union(
@@ -20,73 +34,67 @@ const JsonObject = Schema.Record({ key: Schema.String, value: JsonValueSchema })
 
 /** Dashboard profile update. */
 export const UpdateProfileBodySchema = Schema.Struct({
-  name: OptionalString,
+  name: Schema.optional(Schema.String.pipe(Schema.maxLength(120))),
 });
-export type UpdateProfileBody = Schema.Schema.Type<typeof UpdateProfileBodySchema>;
 
 /** Dashboard machine revoke. */
 export const MachineIdBodySchema = Schema.Struct({
-  machine_id: Schema.String.pipe(Schema.minLength(1)),
+  machine_id: BoundedId,
 });
-export type MachineIdBody = Schema.Schema.Type<typeof MachineIdBodySchema>;
 
 /** Dashboard session revoke. */
 export const SessionIdBodySchema = Schema.Struct({
-  session_id: Schema.String.pipe(Schema.minLength(1)),
+  session_id: BoundedId,
 });
-export type SessionIdBody = Schema.Schema.Type<typeof SessionIdBodySchema>;
 
 /** Admin user update. */
 export const AdminUpdateUserBodySchema = Schema.Struct({
-  userId: Schema.String.pipe(Schema.minLength(1)),
-  tier: OptionalString,
-  status: OptionalString,
+  userId: BoundedId,
+  tier: Schema.optional(LicenseTier),
+  status: Schema.optional(AdminLicenseStatus),
 });
-export type AdminUpdateUserBody = Schema.Schema.Type<typeof AdminUpdateUserBodySchema>;
 
 /** Admin CRM note create. */
 export const AdminCreateNoteBodySchema = Schema.Struct({
-  customerId: Schema.String.pipe(Schema.minLength(1)),
-  content: Schema.String.pipe(Schema.minLength(1)),
-  noteType: OptionalString,
+  customerId: BoundedId,
+  content: NoteContent,
+  noteType: Schema.optional(NoteType),
 });
-export type AdminCreateNoteBody = Schema.Schema.Type<typeof AdminCreateNoteBodySchema>;
 
 /** Admin CRM note update. */
 export const AdminUpdateNoteBodySchema = Schema.Struct({
-  noteId: Schema.String.pipe(Schema.minLength(1)),
-  content: OptionalString,
+  noteId: BoundedId,
+  content: Schema.optional(NoteContent),
   isPinned: OptionalBoolean,
 });
-export type AdminUpdateNoteBody = Schema.Schema.Type<typeof AdminUpdateNoteBodySchema>;
 
 /** Admin CRM tag create. */
 export const AdminCreateTagBodySchema = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1)),
-  color: OptionalString,
-  description: OptionalString,
+  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
+  color: Schema.optional(Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/u))),
+  description: Schema.optional(Schema.String.pipe(Schema.maxLength(256))),
 });
-export type AdminCreateTagBody = Schema.Schema.Type<typeof AdminCreateTagBodySchema>;
 
 /** Admin CRM tag assignment. */
 export const AdminAssignTagBodySchema = Schema.Struct({
-  customerId: Schema.String.pipe(Schema.minLength(1)),
-  tagId: Schema.String.pipe(Schema.minLength(1)),
+  customerId: BoundedId,
+  tagId: BoundedId,
 });
-export type AdminAssignTagBody = Schema.Schema.Type<typeof AdminAssignTagBodySchema>;
 
+// String caps mirror the sibling DocsAnalyticsEventSchema below; the batch cap
+// mirrors the handlers' MAX_EVENTS_PER_BATCH so oversized batches fail at decode.
 const TrackingEventSchema = Schema.Struct({
-  event_type: Schema.String,
-  event_name: Schema.String,
+  event_type: Schema.String.pipe(Schema.maxLength(64)),
+  event_name: Schema.String.pipe(Schema.maxLength(128)),
   properties: Schema.optional(JsonObject),
   timestamp: OptionalNumber,
-  session_id: Schema.String,
+  session_id: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
   duration_ms: OptionalNumber,
 });
 
 /** Marketing-site analytics batch. */
 export const TrackingBatchSchema = Schema.Struct({
-  events: Schema.Array(TrackingEventSchema),
+  events: Schema.Array(TrackingEventSchema).pipe(Schema.maxItems(50)),
 });
 export type TrackingBatch = Schema.Schema.Type<typeof TrackingBatchSchema>;
 
@@ -101,9 +109,8 @@ const DocsAnalyticsEventSchema = Schema.Struct({
 
 /** Docs-site analytics batch. */
 export const DocsAnalyticsBatchSchema = Schema.Struct({
-  events: Schema.Array(DocsAnalyticsEventSchema),
+  events: Schema.Array(DocsAnalyticsEventSchema).pipe(Schema.maxItems(50)),
 });
-export type DocsAnalyticsBatch = Schema.Schema.Type<typeof DocsAnalyticsBatchSchema>;
 
 const ErrorMessageSchema = Schema.Struct({
   message: Schema.String,

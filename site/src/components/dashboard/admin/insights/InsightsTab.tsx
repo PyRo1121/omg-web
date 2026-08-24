@@ -1,5 +1,6 @@
 import type { Component } from 'solid-js';
 import { Show, For, createSignal } from 'solid-js';
+import * as Schema from 'effect/Schema';
 import {
   useAdminAdvancedMetrics,
   useAdminCohorts,
@@ -27,17 +28,59 @@ const INSIGHT_CATEGORIES: { id: InsightCategory; label: string }[] = [
   { id: 'growth', label: 'Growth' },
 ];
 
+const BOOKMARKS_STORAGE_KEY = 'omg-insights-bookmarks';
+
+/** Load bookmarked insight ids from localStorage, parsing the untrusted stored value. */
+function loadBookmarkedInsights(): string[] {
+  const browserWindow = 'window' in globalThis ? globalThis.window : undefined;
+  if (!browserWindow) {
+    return [];
+  }
+
+  try {
+    const stored = browserWindow.localStorage.getItem(BOOKMARKS_STORAGE_KEY);
+    if (!stored) {
+      return [];
+    }
+
+    const parsed: unknown = JSON.parse(stored);
+    const decoded = Schema.decodeUnknownEither(Schema.Array(Schema.String))(parsed);
+    return decoded._tag === 'Right' ? [...decoded.right] : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Persist bookmarked insight ids; best-effort when browser storage is unavailable. */
+function persistBookmarkedInsights(ids: readonly string[]): void {
+  const browserWindow = 'window' in globalThis ? globalThis.window : undefined;
+  if (!browserWindow) {
+    return;
+  }
+
+  try {
+    browserWindow.localStorage.setItem(BOOKMARKS_STORAGE_KEY, JSON.stringify(ids));
+  } catch {
+    // Bookmark persistence is best-effort when browser storage is unavailable.
+  }
+}
+
 export const InsightsTab: Component = () => {
   const metricsQuery = useAdminAdvancedMetrics();
   const cohortsQuery = useAdminCohorts();
   const dashboardQuery = useAdminDashboard();
   const [activeCategory, setActiveCategory] = createSignal<InsightCategory>('all');
-  const [bookmarkedInsights, setBookmarkedInsights] = createSignal<string[]>([]);
+  const [bookmarkedInsights, setBookmarkedInsights] =
+    createSignal<string[]>(loadBookmarkedInsights());
 
   const toggleBookmark = (insightId: string) => {
-    setBookmarkedInsights(prev =>
-      prev.includes(insightId) ? prev.filter(id => id !== insightId) : [...prev, insightId]
-    );
+    setBookmarkedInsights(prev => {
+      const next = prev.includes(insightId)
+        ? prev.filter(id => id !== insightId)
+        : [...prev, insightId];
+      persistBookmarkedInsights(next);
+      return next;
+    });
   };
 
   return (
@@ -113,6 +156,36 @@ export const InsightsTab: Component = () => {
         </div>
       </Show>
 
+      <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
+        <Show when={cohortsQuery.isError}>
+          <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
+            <p class="font-bold text-rose-400">Failed to load cohort insights</p>
+            <p class="mt-2 text-sm text-slate-400">{cohortsQuery.error?.message}</p>
+            <button
+              onClick={() => cohortsQuery.refetch()}
+              class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
+            >
+              Try Again
+            </button>
+          </div>
+        </Show>
+      </Show>
+
+      <Show when={activeCategory() === 'all' || activeCategory() === 'growth'}>
+        <Show when={dashboardQuery.isError}>
+          <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
+            <p class="font-bold text-rose-400">Failed to load geographic insights</p>
+            <p class="mt-2 text-sm text-slate-400">{dashboardQuery.error?.message}</p>
+            <button
+              onClick={() => dashboardQuery.refetch()}
+              class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
+            >
+              Try Again
+            </button>
+          </div>
+        </Show>
+      </Show>
+
       <Show when={metricsQuery.isSuccess ? metricsQuery.data : undefined}>
         {metrics => (
           <div class="space-y-8">
@@ -120,7 +193,7 @@ export const InsightsTab: Component = () => {
               <Show when={metrics().engagement}>
                 {engagement => (
                   <div class="group relative">
-                    <div class="absolute top-4 right-4 z-10 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div class="absolute top-4 right-4 z-10 flex gap-2">
                       <button
                         onClick={() => toggleBookmark('engagement')}
                         class={`rounded-lg p-2 transition-all ${
@@ -191,18 +264,6 @@ export const InsightsTab: Component = () => {
             </Show>
 
             <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
-              <Show when={cohortsQuery.isError}>
-                <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
-                  <p class="font-bold text-rose-400">Failed to load cohort insights</p>
-                  <p class="mt-2 text-sm text-slate-400">{cohortsQuery.error?.message}</p>
-                  <button
-                    onClick={() => cohortsQuery.refetch()}
-                    class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              </Show>
               <Show when={cohortsQuery.isSuccess ? cohortsQuery.data?.cohorts : undefined}>
                 {cohorts => (
                   <CohortRetentionHeatmap
@@ -218,18 +279,6 @@ export const InsightsTab: Component = () => {
             </Show>
 
             <Show when={activeCategory() === 'all' || activeCategory() === 'growth'}>
-              <Show when={dashboardQuery.isError}>
-                <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6 text-center">
-                  <p class="font-bold text-rose-400">Failed to load geographic insights</p>
-                  <p class="mt-2 text-sm text-slate-400">{dashboardQuery.error?.message}</p>
-                  <button
-                    onClick={() => dashboardQuery.refetch()}
-                    class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              </Show>
               <Show
                 when={dashboardQuery.isSuccess ? dashboardQuery.data?.geo_distribution : undefined}
               >

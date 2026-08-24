@@ -1,4 +1,4 @@
-import { type Component, createSignal, onMount, onCleanup, Show } from 'solid-js';
+import { type Component, createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js';
 import { A, useNavigate } from '@solidjs/router';
 import { useSession } from '~/lib/auth-client';
 
@@ -8,6 +8,51 @@ const Header: Component = () => {
   const [userMenuOpen, setUserMenuOpen] = createSignal(false);
   const navigate = useNavigate();
   const session = useSession();
+
+  let shortcutsPanelRef: HTMLDivElement | undefined;
+  let previouslyFocused: Element | null = null;
+
+  // Shortcuts-dialog lifecycle: initial focus, containment/restoration. Escape
+  // close is handled by the global key handler below.
+  createEffect(() => {
+    if (!showShortcuts()) {
+      return;
+    }
+    previouslyFocused = document.activeElement;
+    const focusTimer = setTimeout(() => {
+      shortcutsPanelRef?.querySelector<HTMLElement>('button')?.focus();
+    }, 0);
+
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !shortcutsPanelRef) {
+        return;
+      }
+      const focusable = shortcutsPanelRef.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusable[0];
+      const lastElement = focusable[focusable.length - 1];
+      if (!firstElement || !lastElement) {
+        return;
+      }
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleTabKey);
+    onCleanup(() => {
+      clearTimeout(focusTimer);
+      document.removeEventListener('keydown', handleTabKey);
+      if (previouslyFocused instanceof HTMLElement) {
+        previouslyFocused.focus();
+      }
+    });
+  });
 
   // Global keyboard shortcuts and click outside handler
   onMount(() => {
@@ -117,10 +162,12 @@ const Header: Component = () => {
             >
               <div class="user-menu-container relative">
                 <button
+                  id="user-menu-trigger"
                   onClick={() => setUserMenuOpen(!userMenuOpen())}
                   class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 transition-colors hover:bg-slate-800/50 hover:text-white"
                   aria-haspopup="menu"
                   aria-expanded={userMenuOpen()}
+                  aria-controls="user-menu"
                 >
                   <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400">
                     {session()?.data?.user?.email?.[0]?.toUpperCase() ?? '?'}
@@ -137,9 +184,15 @@ const Header: Component = () => {
                 </button>
 
                 <Show when={userMenuOpen()}>
-                  <div class="absolute top-full right-0 mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
+                  <div
+                    id="user-menu"
+                    role="menu"
+                    aria-labelledby="user-menu-trigger"
+                    class="absolute top-full right-0 mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-xl"
+                  >
                     <A
                       href="/dashboard"
+                      role="menuitem"
                       class="block px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-800"
                       onClick={() => setUserMenuOpen(false)}
                     >
@@ -147,6 +200,7 @@ const Header: Component = () => {
                     </A>
                     <a
                       href="/api/auth/sign-out"
+                      role="menuitem"
                       class="block px-4 py-2 text-sm text-red-400 transition-colors hover:bg-slate-800"
                     >
                       Sign Out
@@ -256,11 +310,18 @@ const Header: Component = () => {
           onClick={() => setShowShortcuts(false)}
         >
           <div
+            ref={el => (shortcutsPanelRef = el)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="keyboard-shortcuts-title"
             class="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             <div class="mb-6 flex items-center justify-between">
-              <h2 class="flex items-center gap-2 text-xl font-bold text-white">
+              <h2
+                id="keyboard-shortcuts-title"
+                class="flex items-center gap-2 text-xl font-bold text-white"
+              >
                 ⌨️ Keyboard Shortcuts
               </h2>
               <button
@@ -268,7 +329,13 @@ const Header: Component = () => {
                 class="p-1 text-slate-400 hover:text-white"
                 aria-label="Close keyboard shortcuts"
               >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  aria-hidden="true"
+                  class="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"

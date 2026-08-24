@@ -46,9 +46,9 @@ const TelemetryEnvelopeSchema = Schema.Struct({
 /** Envelope for a single CLI event. */
 export const SingleTelemetryRequestSchema = TelemetryEnvelopeSchema;
 
-/** Envelope for a CLI event batch. */
+/** Envelope for a CLI event batch. Cap mirrors the handler's MAX_BATCH_SIZE. */
 export const BatchTelemetryRequestSchema = Schema.Struct({
-  events: Schema.optional(Schema.Array(TelemetryEnvelopeSchema)),
+  events: Schema.optional(Schema.Array(TelemetryEnvelopeSchema).pipe(Schema.maxItems(500))),
   batch_timestamp: Schema.optional(Schema.String),
   machine_id: Schema.optional(Schema.String),
 });

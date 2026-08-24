@@ -8,9 +8,12 @@ import {
 import {
   BillingEntitlementUnavailable,
   resolveBillingEntitlement,
+  resolveBillingPrice,
   type BillingCatalog,
   type BillingEntitlement,
+  type BillingOffer,
 } from './contracts/billing-offer';
+import { logAudit } from './api';
 import {
   decodeStripeJson,
   StripeCustomerEmailSchema,
@@ -21,6 +24,10 @@ import {
 /**
  * Terminal subscription states outrank transient ones so a stale concurrent
  * snapshot can never resurrect a canceled subscription at equal period end.
+ *
+ * Must stay in lockstep with the SQL CASE expression in
+ * migrations/017_subscription_status_rank.sql — a new rank level added in one
+ * place silently desyncs projections in the other.
  */
 function statusRank(status: string): number {
   if (status === 'canceled') return 3;
@@ -119,44 +126,121 @@ async function ensureBillingCustomer(
   return { id: customerId, email: stripeCustomer.email, stripe_customer_id: stripeCustomerId };
 }
 
-/** Atomically project one current Stripe subscription into customer, license, and subscription state. */
+/** Resolve one catalog offer to its Stripe price id and canonical seat limit. */
+async function catalogArm(
+  catalog: BillingCatalog,
+  offer: BillingOffer
+): Promise<{ readonly priceId: string; readonly maxSeats: number } | undefined> {
+  const priceExit = await Effect.runPromiseExit(resolveBillingPrice(offer, catalog));
+  if (Exit.isFailure(priceExit)) return undefined;
+  const entitlementExit = await Effect.runPromiseExit(
+    resolveBillingEntitlement(priceExit.value, catalog)
+  );
+  if (Exit.isFailure(entitlementExit)) return undefined;
+  return { priceId: priceExit.value, maxSeats: entitlementExit.value.maxSeats };
+}
+
+/**
+ * Validate the projected subscription against the catalog.
+ *
+ * An active subscription must map onto exactly one recognized billing price;
+ * anything else is a loud configuration error, not a silent downgrade.
+ */
+async function resolveProjectedEntitlement(
+  subscription: StripeSubscription,
+  catalog: BillingCatalog
+): Promise<BillingEntitlement | undefined> {
+  if (subscription.status !== 'active' && subscription.status !== 'trialing') {
+    return undefined;
+  }
+  let entitlement: BillingEntitlement | undefined;
+  for (const item of subscription.items.data) {
+    const resolved = await Effect.runPromiseExit(resolveBillingEntitlement(item.price.id, catalog));
+    if (Exit.isFailure(resolved)) continue;
+    if (entitlement !== undefined) {
+      throw new BillingEntitlementUnavailable(
+        item.price.id,
+        new Error('Subscription contains multiple recognized billing prices')
+      );
+    }
+    entitlement = resolved.value;
+  }
+  if (entitlement === undefined) {
+    throw new BillingEntitlementUnavailable(
+      subscription.id,
+      new Error('Active subscription has no recognized billing price')
+    );
+  }
+  return entitlement;
+}
+
+/**
+ * Effective-tier SQL fragment correlated on `${correlation}` (a column
+ * reference like `licenses.customer_id`). Consumes [teamPriceId, proPriceId]
+ * binds in that order.
+ */
+function effectiveTierFor(correlation: string): string {
+  return `CASE WHEN EXISTS(SELECT 1 FROM subscriptions s
+      WHERE s.customer_id = ${correlation}
+        AND s.status IN ('active', 'trialing')
+        AND s.stripe_price_id = ?) THEN 'team'
+     WHEN EXISTS(SELECT 1 FROM subscriptions s
+      WHERE s.customer_id = ${correlation}
+        AND s.status IN ('active', 'trialing')
+        AND s.stripe_price_id = ?) THEN 'pro'
+     ELSE 'free' END`;
+}
+
+/**
+ * Atomically project one current Stripe subscription into customer, license,
+ * and subscription state.
+ *
+ * Entitlements are derived from the AGGREGATE of all stored subscription rows
+ * for the customer inside the same D1 batch, not from the projected snapshot:
+ * Stripe does not guarantee delivery order, so `S1.deleted` (cancel) racing
+ * `S2.created` (rebuy) must never downgrade a still-paid entitlement, and the
+ * admin sync projecting an old canceled subscription last must not clobber the
+ * active one. All statements share one serialized batch, so concurrent webhook
+ * deliveries converge on the same aggregate answer.
+ */
 export async function applyStripeSubscriptionProjection(
   db: D1Database,
   customerId: string,
   subscription: StripeSubscription,
   catalog: BillingCatalog
 ): Promise<void> {
-  let entitlement: BillingEntitlement | undefined;
-  if (subscription.status === 'active' || subscription.status === 'trialing') {
-    for (const item of subscription.items.data) {
-      const resolved = await Effect.runPromiseExit(
-        resolveBillingEntitlement(item.price.id, catalog)
-      );
-      if (Exit.isFailure(resolved)) continue;
-      if (entitlement !== undefined) {
-        throw new BillingEntitlementUnavailable(
-          item.price.id,
-          new Error('Subscription contains multiple recognized billing prices')
-        );
-      }
-      entitlement = resolved.value;
-    }
-    if (entitlement === undefined) {
-      throw new BillingEntitlementUnavailable(
-        subscription.id,
-        new Error('Active subscription has no recognized billing price')
-      );
-    }
-  }
-  const customerTier = entitlement?.tier ?? 'free';
+  await resolveProjectedEntitlement(subscription, catalog);
+
+  const pro = await catalogArm(catalog, 'pro');
+  const team = await catalogArm(catalog, 'team');
+  // Empty strings can never equal a stored Stripe price id, so an unconfigured
+  // catalog arm simply never matches in the SQL below.
+  const proPriceId = pro?.priceId ?? '';
+  const teamPriceId = team?.priceId ?? '';
+  const proSeats = pro?.maxSeats ?? 0;
+  const teamSeats = team?.maxSeats ?? 0;
+
+  // SQL fragments shared by the entitlement writes, fully parameterized with
+  // `?` binds; see each statement's .bind() for exact ordering. "Active" means
+  // the row's status grants service today; tier precedence is team > pro
+  // because it is the higher catalog tier.
+  const activeTeam = `EXISTS(SELECT 1 FROM subscriptions s
+     WHERE s.customer_id = ? AND s.status IN ('active', 'trialing')
+       AND s.stripe_price_id = ?)`;
+  const activePro = `EXISTS(SELECT 1 FROM subscriptions s
+     WHERE s.customer_id = ? AND s.status IN ('active', 'trialing')
+       AND s.stripe_price_id = ?)`;
+
   const statements: D1PreparedStatement[] = [
     db
       .prepare(
         `INSERT INTO subscriptions (
-           id, customer_id, stripe_subscription_id, status, current_period_end, status_rank
-         ) VALUES (?, ?, ?, ?, datetime(?, 'unixepoch'), ?)
+           id, customer_id, stripe_subscription_id, stripe_price_id,
+           status, current_period_end, status_rank
+         ) VALUES (?, ?, ?, ?, ?, datetime(?, 'unixepoch'), ?)
          ON CONFLICT(stripe_subscription_id) DO UPDATE SET
            customer_id = excluded.customer_id,
+           stripe_price_id = excluded.stripe_price_id,
            status = excluded.status,
            current_period_end = excluded.current_period_end,
            status_rank = excluded.status_rank
@@ -170,63 +254,121 @@ export async function applyStripeSubscriptionProjection(
         crypto.randomUUID(),
         customerId,
         subscription.id,
+        subscription.items.data[0]?.price.id ?? null,
         subscription.status,
         subscription.current_period_end,
         statusRank(subscription.status)
       ),
     db
-      .prepare(`UPDATE customers SET tier = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-      .bind(customerTier, customerId),
+      .prepare(
+        `UPDATE customers
+         SET tier = (${effectiveTierFor('customers.id')}),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`
+      )
+      .bind(teamPriceId, proPriceId, customerId),
+    db
+      .prepare(
+        `UPDATE licenses SET
+           tier = (${effectiveTierFor('licenses.customer_id')}),
+           status = CASE WHEN ${activeTeam} OR ${activePro}
+                         THEN 'active' ELSE 'cancelled' END,
+           max_seats = CASE WHEN ${activeTeam} THEN ?
+                            WHEN ${activePro} THEN ?
+                            ELSE max_seats END,
+           max_machines = CASE WHEN ${activeTeam} THEN ?
+                               WHEN ${activePro} THEN ?
+                               ELSE max_machines END,
+           expires_at = COALESCE(
+             (SELECT MAX(s.current_period_end) FROM subscriptions s
+              WHERE s.customer_id = licenses.customer_id
+                AND s.status IN ('active', 'trialing')),
+             (SELECT MAX(s.current_period_end) FROM subscriptions s
+              WHERE s.customer_id = licenses.customer_id)
+           )
+         WHERE customer_id = ?`
+      )
+      .bind(
+        teamPriceId,
+        proPriceId, // tier CASE
+        customerId,
+        teamPriceId,
+        customerId,
+        proPriceId, // status CASE
+        customerId,
+        teamPriceId,
+        teamSeats,
+        customerId,
+        proPriceId,
+        proSeats, // max_seats CASE
+        customerId,
+        teamPriceId,
+        teamSeats,
+        customerId,
+        proPriceId,
+        proSeats, // max_machines CASE
+        customerId // WHERE
+      ),
+    db
+      .prepare(
+        `INSERT INTO licenses (
+           id, customer_id, license_key, tier, status, max_seats, max_machines, expires_at
+         )
+         SELECT ?, ?, ?,
+                (${effectiveTierFor('?')}),
+                'active',
+                CASE WHEN ${activeTeam} THEN ? ELSE ? END,
+                CASE WHEN ${activeTeam} THEN ? ELSE ? END,
+                COALESCE(
+                  (SELECT MAX(s.current_period_end) FROM subscriptions s
+                   WHERE s.customer_id = ? AND s.status IN ('active', 'trialing')),
+                  (SELECT MAX(s.current_period_end) FROM subscriptions s
+                   WHERE s.customer_id = ?)
+                )
+         WHERE NOT EXISTS (SELECT 1 FROM licenses WHERE customer_id = ?)
+           AND (${activeTeam} OR ${activePro})`
+      )
+      .bind(
+        crypto.randomUUID(),
+        customerId,
+        crypto.randomUUID(),
+        customerId,
+        teamPriceId,
+        customerId,
+        proPriceId, // tier CASE
+        customerId,
+        teamPriceId,
+        teamSeats,
+        customerId,
+        proPriceId,
+        proSeats, // max_seats CASE
+        customerId,
+        teamPriceId,
+        teamSeats,
+        customerId,
+        proPriceId,
+        proSeats, // max_machines CASE
+        customerId,
+        customerId, // expires_at COALESCE
+        customerId, // NOT EXISTS guard
+        customerId,
+        teamPriceId,
+        customerId,
+        proPriceId // active-guard
+      ),
   ];
 
-  if (entitlement === undefined) {
-    statements.push(
-      db
-        .prepare(
-          `UPDATE licenses
-           SET status = 'cancelled', expires_at = datetime(?, 'unixepoch')
-           WHERE customer_id = ?`
-        )
-        .bind(subscription.current_period_end, customerId)
-    );
-  } else {
-    statements.push(
-      db
-        .prepare(
-          `UPDATE licenses
-           SET tier = ?, status = 'active', max_seats = ?, max_machines = ?,
-               expires_at = datetime(?, 'unixepoch')
-           WHERE customer_id = ?`
-        )
-        .bind(
-          entitlement.tier,
-          entitlement.maxSeats,
-          entitlement.maxSeats,
-          subscription.current_period_end,
-          customerId
-        ),
-      db
-        .prepare(
-          `INSERT INTO licenses (
-             id, customer_id, license_key, tier, status, max_seats, max_machines, expires_at
-           )
-           SELECT ?, ?, ?, ?, 'active', ?, ?, datetime(?, 'unixepoch')
-           WHERE NOT EXISTS (SELECT 1 FROM licenses WHERE customer_id = ?)`
-        )
-        .bind(
-          crypto.randomUUID(),
-          customerId,
-          crypto.randomUUID(),
-          entitlement.tier,
-          entitlement.maxSeats,
-          entitlement.maxSeats,
-          subscription.current_period_end,
-          customerId
-        )
-    );
-  }
-
   await db.batch(statements);
+
+  await logAudit(
+    db,
+    customerId,
+    'billing.subscription_reconciled',
+    'subscription',
+    subscription.id,
+    undefined,
+    { status: subscription.status }
+  );
 }
 
 /** Pull Stripe's current object and reconcile it instead of trusting webhook delivery order. */

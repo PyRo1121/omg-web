@@ -19,7 +19,9 @@ async function requireAdminPage(): Promise<{ readonly userId: string }> {
   const event = getRequestEvent();
   const cloudflareEnv = event?.nativeEvent.context.cloudflare?.env;
   if (event === undefined || cloudflareEnv?.DB === undefined) {
-    throw redirect('/login');
+    // A missing binding is a deployment error, not an unauthenticated visitor;
+    // redirecting to /login would mask it as "not logged in".
+    throw new Error('Admin authorization is unavailable');
   }
 
   const authorization = await requireAdmin(event);
@@ -117,6 +119,10 @@ export default function AdminRoute() {
   return (
     <>
       <Title>Mission Control - OMG Admin</Title>
+      <Meta
+        name="description"
+        content="OMG admin mission control - manage licenses, telemetry, and customer health."
+      />
       <Meta name="robots" content="noindex, nofollow" />
       <Show when={authorization()} fallback={<LoadingScreen />}>
         <AuthorizedAdminPage />

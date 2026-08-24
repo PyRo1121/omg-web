@@ -4,15 +4,13 @@ Playwright owns browser-level authorization and critical-flow characterization f
 
 ## Anonymous checks
 
-Anonymous checks run against a local `vinxi dev` server and verify that `/admin` and `/dashboard` redirect to `/login`, that the complete login and signup surfaces are rendered, that password signup rejects mismatched passwords client-side, and that the upgrade modal degrades gracefully when the checkout backend is unavailable.
+Anonymous checks run against a local `vinxi dev` server via the `chromium` project and verify that `/admin` and `/dashboard` redirect to `/login`, that the complete login and signup surfaces are rendered, that password signup rejects mismatched passwords client-side, that invalid credentials produce a generic error without navigating away, and that the upgrade modal degrades gracefully when the checkout backend is unavailable.
 
 ```bash
 npx playwright test e2e/anonymous.spec.ts e2e/signup.spec.ts e2e/billing-unconfigured.spec.ts
 ```
 
-(The npm script `test:e2e:anonymous` still targets `anonymous.spec.ts` only.)
-
-Specs sharing hydration-tolerant click helpers live in `e2e/helpers.ts`; use `clickUntilEffectHolds` for clicks on server-rendered buttons (a pre-hydration click is a silent no-op) instead of sleeping.
+Specs sharing hydration-tolerant click helpers and auth-surface selectors live in `e2e/helpers.ts`; use `clickUntilEffectHolds` for clicks on server-rendered buttons (a pre-hydration click is a silent no-op) instead of sleeping, and drive login through `performUiLogin` so the submission guard is always applied.
 
 ## Authenticated checks
 
@@ -27,7 +25,11 @@ E2E_ADMIN_PASSWORD='...' \
 npm run test:e2e:staging
 ```
 
-The authenticated suite covers user login, dashboard rendering, the authenticated licensing BFF, non-admin `/admin` authorization, logout, admin authorization, and an admin CSV export.
+The authenticated suite covers user login, dashboard rendering, the authenticated licensing BFF, non-admin `/admin` authorization, logout, admin authorization, and an admin CSV export (filename plus header row).
+
+### Shared-account concurrency invariant
+
+The staging users are shared across every run: `logout` invalidates the session server-side, so two concurrent runs against the same deployment break each other's authenticated assertions. The config serializes workers within a run (`workers: 1`), but callers must ensure only ONE `test:e2e:staging` run is active per deployment — enforce a CI concurrency group on any workflow that runs it. Long term, replace shared accounts with per-run users or storageState session fixtures.
 
 Checkout creation is skipped unless it is explicitly enabled, and it exercises Stripe test mode (the wired sandbox), never live Stripe:
 

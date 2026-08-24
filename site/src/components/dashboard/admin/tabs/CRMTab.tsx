@@ -120,7 +120,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
                     onViewDetail={customerId => props.onViewDetail(customerId)}
                     onQuickAction={action => {
                       if (action === 'email') {
-                        window.open(`mailto:${customer.email}`);
+                        window.location.href = `mailto:${encodeURIComponent(customer.email)}`;
                       }
                     }}
                   />
@@ -131,7 +131,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
         </Show>
 
         <Show when={effectiveViewMode() === 'table'}>
-          <div class="overflow-hidden rounded-[2rem] border border-white/5 bg-[#0d0d0e] shadow-2xl">
+          <div class="bg-void-800 overflow-hidden rounded-[2rem] border border-white/5 shadow-2xl">
             <div class="overflow-x-auto">
               <table class="w-full text-left">
                 <thead>
@@ -154,7 +154,7 @@ export const CRMTab: Component<CRMTabProps> = props => {
                         onViewDetail={customerId => props.onViewDetail(customerId)}
                         onQuickAction={action => {
                           if (action === 'email') {
-                            window.open(`mailto:${customer.email}`);
+                            window.location.href = `mailto:${encodeURIComponent(customer.email)}`;
                           }
                         }}
                       />

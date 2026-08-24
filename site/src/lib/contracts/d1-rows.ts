@@ -1,4 +1,9 @@
 // Boundary parser internals decode SolidStart D1/drizzle rows.
+//
+// Convention: Effect is used internally for typed decoding; this module's
+// exports cross the boundary as plain async functions returning tagged-union
+// results (`present`/`missing`/`invalid`, `ok`/`invalid`) so callers never
+// handle promises that reject or raw `unknown` rows.
 
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';

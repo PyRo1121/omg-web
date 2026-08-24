@@ -79,6 +79,14 @@ class AuthCryptoUnavailable extends Error {
   }
 }
 
+/** The auth rate limiter binding is missing or failed; throttling is impossible. */
+class AuthRateLimiterUnavailable extends Error {
+  readonly _tag = 'AuthRateLimiterUnavailable';
+  constructor(override readonly cause?: unknown) {
+    super('Authentication is temporarily unavailable');
+  }
+}
+
 /** D1 was unavailable or returned an unreadable row during OTP auth. */
 class AuthStoreUnavailable extends Error {
   readonly _tag = 'AuthStoreUnavailable';
@@ -101,11 +109,21 @@ type SendCodeError =
   | AuthStoreUnavailable;
 
 type VerifyCodeError =
-  InvalidJsonBodyError | InvalidOtpError | AuthCryptoUnavailable | AuthStoreUnavailable;
+  | InvalidJsonBodyError
+  | InvalidOtpError
+  | AuthRateLimitedError
+  | AuthRateLimiterUnavailable
+  | AuthCryptoUnavailable
+  | AuthStoreUnavailable;
 
 type SessionTokenError = InvalidJsonBodyError | AuthStoreUnavailable;
 
 const MAX_OTP_ATTEMPTS = 5;
+const OTP_TTL_MS = 10 * 60 * 1000;
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_SESSIONS_PER_CUSTOMER = 5;
+/** Audit metadata carries attacker-supplied emails; bound their size. */
+const AUDIT_EMAIL_MAX_LENGTH = 320;
 
 function digestOtpCode(
   email: EmailAddress,
@@ -116,6 +134,25 @@ function digestOtpCode(
     try: () => hashOtpCode(email, code, secret),
     catch: cause => new AuthCryptoUnavailable(cause),
   });
+}
+
+/** SHA-256 hex of a normalized email: lets the limiter key per account without storing addresses. */
+function hashEmailForLimiting(email: EmailAddress): Effect.Effect<string, AuthCryptoUnavailable> {
+  return Effect.tryPromise(async () => {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email));
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  }).pipe(Effect.mapError(cause => new AuthCryptoUnavailable(cause)));
+}
+
+/** Run one limiter bucket check; failure of the binding itself fails closed. */
+function checkRateLimitBucket(
+  limiter: NonNullable<Env['AUTH_RATE_LIMITER']>,
+  key: string
+): Effect.Effect<boolean, AuthRateLimiterUnavailable> {
+  return Effect.tryPromise({
+    try: () => limiter.limit({ key }),
+    catch: cause => new AuthRateLimiterUnavailable(cause),
+  }).pipe(Effect.map(result => result.success));
 }
 
 /** Sends a generated OTP to an email address. */
@@ -184,7 +221,7 @@ function requireTurnstile(
         return Effect.void;
       }
       return logAudit(env.DB, null, 'auth.turnstile_failed', 'auth_code', null, request, {
-        email,
+        email: email.slice(0, AUDIT_EMAIL_MAX_LENGTH),
         error: result.error,
       }).pipe(Effect.zipRight(Effect.fail(new TurnstileFailedError())));
     })
@@ -209,6 +246,8 @@ export function sendVerificationCode(
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, SendCodeRequestSchema);
     yield* requireTurnstile(request, env, body.turnstileToken, body.email);
+    // Retention sweep piggybacks on this read: expired codes are purged with
+    // the replacement batch below because no scheduled job covers this table.
     const recent = yield* Effect.tryPromise({
       try: () =>
         env.DB.prepare(
@@ -232,10 +271,11 @@ export function sendVerificationCode(
     }
     const code = generateCode();
     const digest = yield* digestOtpCode(body.email, code, env.JWT_SECRET);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS).toISOString();
     yield* Effect.tryPromise({
       try: () =>
         env.DB.batch([
+          env.DB.prepare(`DELETE FROM auth_codes WHERE expires_at <= datetime('now')`),
           env.DB.prepare(`UPDATE auth_codes SET used = 1 WHERE email = ? AND used = 0`).bind(
             body.email
           ),
@@ -275,28 +315,56 @@ function findOrCreateCustomer(
     if (existing !== null) {
       return existing;
     }
+    // Unique constraint on email + ON CONFLICT DO NOTHING closes the
+    // find-then-insert race; miniflare/D1 .run() meta may not carry `changes`,
+    // so adoption is detected by re-selecting, never by meta.
     const customerId = brandGeneratedId(CustomerId, crypto.randomUUID());
     yield* Effect.tryPromise({
       try: () =>
         db
-          .prepare(`INSERT INTO customers (id, email, tier) VALUES (?, ?, 'free')`)
+          .prepare(
+            `INSERT INTO customers (id, email, tier) VALUES (?, ?, 'free')
+             ON CONFLICT (email) DO NOTHING`
+          )
           .bind(customerId, email)
           .run(),
       catch: cause => new AuthStoreUnavailable('insertCustomer', cause),
     });
-    yield* Effect.tryPromise({
+    const adoptedRow = yield* Effect.tryPromise({
       try: () =>
-        db
-          .prepare(
-            `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
-             VALUES (?, ?, ?, 'free', 'active', 1)`
-          )
-          .bind(crypto.randomUUID(), customerId, crypto.randomUUID())
-          .run(),
-      catch: cause => new AuthStoreUnavailable('insertLicense', cause),
+        db.prepare(`SELECT id, email, company FROM customers WHERE email = ?`).bind(email).first(),
+      catch: cause => new AuthStoreUnavailable('findCustomer', cause),
+    }).pipe(
+      Effect.flatMap(row =>
+        row === null
+          ? Effect.fail(new AuthStoreUnavailable('findCustomer'))
+          : decodeAuthCustomerRow(row).pipe(
+              Effect.mapError(cause => new AuthStoreUnavailable('findCustomer', cause))
+            )
+      )
+    );
+    // Provision the free license only when the customer has none yet: the
+    // race loser adopts the winner's customer, which already owns one.
+    const licenseRow = yield* Effect.tryPromise({
+      try: () =>
+        db.prepare(`SELECT id FROM licenses WHERE customer_id = ?`).bind(adoptedRow.id).first(),
+      catch: cause => new AuthStoreUnavailable('findLicenseByCustomer', cause),
     });
-    yield* logAudit(db, customerId, 'user.created', 'customer', customerId, request);
-    return { id: customerId, email, company: null };
+    if (licenseRow === null) {
+      yield* Effect.tryPromise({
+        try: () =>
+          db
+            .prepare(
+              `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
+               VALUES (?, ?, ?, 'free', 'active', 1)`
+            )
+            .bind(crypto.randomUUID(), adoptedRow.id, crypto.randomUUID())
+            .run(),
+        catch: cause => new AuthStoreUnavailable('insertLicense', cause),
+      });
+      yield* logAudit(db, adoptedRow.id, 'user.created', 'customer', adoptedRow.id, request);
+    }
+    return adoptedRow;
   });
 }
 
@@ -313,6 +381,21 @@ function verifyCode(
 ): Effect.Effect<VerifyCodeResponse, VerifyCodeError> {
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, VerifyCodeRequestSchema);
+    // Privacy-safe per-email throttle in addition to the adapter's per-IP
+    // limit: the bucket key is a SHA-256 digest of the normalized email, so
+    // distributed guesses against one victim account are bounded without
+    // storing addresses or consuming stored OTP attempts.
+    if (env.AUTH_RATE_LIMITER === undefined) {
+      return yield* Effect.fail(new AuthRateLimiterUnavailable());
+    }
+    const emailKey = yield* hashEmailForLimiting(body.email);
+    const emailAllowed = yield* checkRateLimitBucket(
+      env.AUTH_RATE_LIMITER,
+      `verify_code_email:${emailKey}`
+    );
+    if (!emailAllowed) {
+      return yield* Effect.fail(new AuthRateLimitedError());
+    }
     const digest = yield* digestOtpCode(body.email, body.code, env.JWT_SECRET);
     yield* Effect.tryPromise({
       try: () =>
@@ -339,9 +422,11 @@ function verifyCode(
         }
         // Do NOT increment attempt_count here: doing so lets an attacker who
         // knows the victim's email burn their legitimate code by submitting
-        // wrong codes. Brute-force protection is handled by the IP rate limiter.
+        // wrong codes. Guesses are instead bounded by the per-IP limiter and
+        // the privacy-safe per-email hashed bucket checked above; this gate
+        // stays as defense-in-depth for any future writer that counts tries.
         return logAudit(env.DB, null, 'auth.code_verify_failed', 'auth_code', null, request, {
-          email: body.email,
+          email: body.email.slice(0, AUDIT_EMAIL_MAX_LENGTH),
         }).pipe(Effect.zipRight(Effect.fail(new InvalidOtpError())));
       })
     );
@@ -354,7 +439,7 @@ function verifyCode(
     });
     const customer = yield* findOrCreateCustomer(env.DB, body.email, request);
     const sessionToken = brandGeneratedId(SessionToken, generateToken());
-    const sessionExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const sessionExpires = new Date(Date.now() + SESSION_TTL_MS).toISOString();
     yield* Effect.tryPromise({
       try: () =>
         env.DB.prepare(
@@ -376,7 +461,7 @@ function verifyCode(
       try: () =>
         env.DB.prepare(
           `DELETE FROM sessions WHERE customer_id = ? AND id NOT IN (
-            SELECT id FROM sessions WHERE customer_id = ? ORDER BY created_at DESC LIMIT 5
+            SELECT id FROM sessions WHERE customer_id = ? ORDER BY created_at DESC LIMIT ${MAX_SESSIONS_PER_CUSTOMER}
           )`
         )
           .bind(customer.id, customer.id)
@@ -448,6 +533,10 @@ function httpStatusForVerify(error: VerifyCodeError): number {
       return 400;
     case 'InvalidOtpError':
       return 401;
+    case 'AuthRateLimitedError':
+      return 429;
+    case 'AuthRateLimiterUnavailable':
+      return 503;
     case 'AuthCryptoUnavailable':
     case 'AuthStoreUnavailable':
       return 500;
@@ -459,10 +548,11 @@ function httpStatusForVerify(error: VerifyCodeError): number {
 function responseFromExit<A, E extends Error>(
   exit: Exit.Exit<A, E>,
   httpStatus: (error: E) => number,
-  defectMessage: string
+  defectMessage: string,
+  mapSuccess?: (payload: A) => Response
 ): Response {
   return Exit.match(exit, {
-    onSuccess: payload => jsonResponse(payload),
+    onSuccess: payload => (mapSuccess ? mapSuccess(payload) : jsonResponse(payload)),
     onFailure: cause => {
       const failure = Cause.failureOption(cause);
       if (Option.isNone(failure)) {
@@ -473,6 +563,22 @@ function responseFromExit<A, E extends Error>(
   });
 }
 
+/** Per-IP throttle shared by every public auth endpoint; missing binding fails closed. */
+async function enforceIpRateLimit(
+  request: Request,
+  env: Env,
+  scope: string
+): Promise<Response | null> {
+  if (env.AUTH_RATE_LIMITER === undefined) {
+    // Fail closed: without the binding there is no brute-force defense at all.
+    reportError('AUTH_RATE_LIMITER binding is missing; failing auth request closed');
+    return errorResponse('Authentication is temporarily unavailable', 503);
+  }
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  const { success } = await env.AUTH_RATE_LIMITER.limit({ key: `${scope}:${ip}` });
+  return success ? null : errorResponse('Rate limit exceeded', 429);
+}
+
 /**
  * HTTP adapter for `POST /api/auth/send-code`.
  *
@@ -481,12 +587,9 @@ function responseFromExit<A, E extends Error>(
  * @returns JSON success payload or a mapped error response.
  */
 export async function handleSendCode(request: Request, env: Env): Promise<Response> {
-  if (env.AUTH_RATE_LIMITER) {
-    const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
-    const { success } = await env.AUTH_RATE_LIMITER.limit({ key: `send_code:${ip}` });
-    if (!success) {
-      return errorResponse('Rate limit exceeded', 429);
-    }
+  const limited = await enforceIpRateLimit(request, env, 'send_code');
+  if (limited !== null) {
+    return limited;
   }
   const exit = await Effect.runPromiseExit(
     sendVerificationCode(request, env, cloudflareMailer(env), generateOtpCode)
@@ -502,47 +605,49 @@ export async function handleSendCode(request: Request, env: Env): Promise<Respon
  * @returns JSON session payload or a mapped error response.
  */
 export async function handleVerifyCode(request: Request, env: Env): Promise<Response> {
-  // Throttle per-IP: OTP codes have bounded attempts by design, but without a
-  // limiter an attacker can still brute-force across many requests.
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  if (env.AUTH_RATE_LIMITER) {
-    const { success } = await env.AUTH_RATE_LIMITER.limit({ key: `verify_code:${ip}` });
-    if (!success) {
-      return errorResponse('Rate limit exceeded', 429);
-    }
+  // Throttle per-IP; verifyCode adds the privacy-safe per-email hashed bucket.
+  const limited = await enforceIpRateLimit(request, env, 'verify_code');
+  if (limited !== null) {
+    return limited;
   }
   const exit = await Effect.runPromiseExit(verifyCode(request, env));
   return responseFromExit(exit, httpStatusForVerify, 'Verification failed. Please try again.');
 }
 
+function httpStatusForSessionToken(error: SessionTokenError): number {
+  switch (error._tag) {
+    case 'InvalidJsonBodyError':
+      return 400;
+    case 'AuthStoreUnavailable':
+      return 500;
+    default:
+      return casesHandled(error);
+  }
+}
+
 /**
  * HTTP adapter for `POST /api/auth/verify-session`.
  *
- * @param request - Incoming request.
+ * @param request - Incoming POST with JSON body.
  * @param env - Worker bindings.
  * @returns Whether the session token is valid.
  */
 export async function handleVerifySession(request: Request, env: Env): Promise<Response> {
+  // Unauthenticated D1 read: throttled so token probing cannot amplify cost.
+  const limited = await enforceIpRateLimit(request, env, 'verify_session');
+  if (limited !== null) {
+    return limited;
+  }
   const exit = await Effect.runPromiseExit(verifySessionToken(request, env));
-  return Exit.match(exit, {
-    onSuccess: result => {
-      if (result.valid === false) {
-        return jsonResponse({ valid: false }, 401);
-      }
-      return jsonResponse({
-        valid: true,
-        user: result.user,
-        expires_at: result.expires_at,
-      });
-    },
-    onFailure: cause => {
-      const failure = Cause.failureOption(cause);
-      if (Option.isSome(failure) && failure.value._tag === 'InvalidJsonBodyError') {
-        return errorResponse('Invalid JSON body', 400);
-      }
-      return errorResponse('Internal server error', 500);
-    },
-  });
+  return responseFromExit(exit, httpStatusForSessionToken, 'Internal server error', result =>
+    result.valid === false
+      ? jsonResponse({ valid: false }, 401)
+      : jsonResponse({
+          valid: true,
+          user: result.user,
+          expires_at: result.expires_at,
+        })
+  );
 }
 
 /**
@@ -553,6 +658,10 @@ export async function handleVerifySession(request: Request, env: Env): Promise<R
  * @returns A success payload even when no token was present.
  */
 export async function handleLogout(request: Request, env: Env): Promise<Response> {
+  const limited = await enforceIpRateLimit(request, env, 'logout');
+  if (limited !== null) {
+    return limited;
+  }
   const OptionalTokenSchema = Schema.Struct({
     token: Schema.optional(SessionToken),
   });

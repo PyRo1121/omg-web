@@ -404,7 +404,7 @@ export const ExpansionOpportunities: Component<ExpansionOpportunitiesProps> = pr
                       class="bg-void-700/50 text-nebula-400 hover:bg-void-600/50 rounded-lg p-2 transition-all hover:scale-110 hover:text-white"
                       onClick={e => {
                         e.stopPropagation();
-                        window.open(`mailto:${opp.email}`);
+                        window.location.href = `mailto:${encodeURIComponent(opp.email)}`;
                       }}
                       title="Send email"
                     >

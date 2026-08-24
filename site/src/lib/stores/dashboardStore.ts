@@ -36,6 +36,11 @@ export interface DashboardState {
 
 const STORAGE_KEY = 'omg-dashboard-state';
 const STORAGE_VERSION = 1;
+const TAB_HISTORY_LIMIT = 10;
+
+function browserWindow(): Window | undefined {
+  return 'window' in globalThis ? globalThis.window : undefined;
+}
 
 function mergePersisted(
   defaults: DashboardState,
@@ -51,13 +56,13 @@ function mergePersisted(
 }
 
 function getInitialState(): DashboardState {
-  const browserWindow = 'window' in globalThis ? globalThis.window : undefined;
-  if (!browserWindow) {
+  const win = browserWindow();
+  if (!win) {
     return createDefaultState();
   }
 
   try {
-    const stored = browserWindow.localStorage.getItem(STORAGE_KEY);
+    const stored = win.localStorage.getItem(STORAGE_KEY);
     if (!stored) {
       return createDefaultState();
     }
@@ -122,11 +127,11 @@ export function createDashboardStore() {
     },
   });
 
-  const browserWindow = 'window' in globalThis ? globalThis.window : undefined;
-  if (browserWindow) {
+  const win = browserWindow();
+  if (win) {
     const debouncedPersist = debounce((snapshot: ReturnType<typeof persistableState>) => {
       try {
-        browserWindow.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+        win.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
       } catch {
         // Dashboard preferences are best-effort when browser storage is unavailable.
       }
@@ -141,7 +146,7 @@ export function createDashboardStore() {
     setTab(tab: AdminTab) {
       setState('navigation', prev => ({
         activeTab: tab,
-        tabHistory: [...prev.tabHistory.slice(-9), prev.activeTab],
+        tabHistory: [...prev.tabHistory.slice(-(TAB_HISTORY_LIMIT - 1)), prev.activeTab],
       }));
     },
 
@@ -183,7 +188,7 @@ export function createDashboardStore() {
       }
 
       const newView: SavedView = {
-        id: `view-${Date.now()}`,
+        id: crypto.randomUUID(),
         name: viewName,
         tab: state.navigation.activeTab,
         dateRange: state.filters.dateRange,

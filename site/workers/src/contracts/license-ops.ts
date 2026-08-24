@@ -2,9 +2,10 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import { CountRowSchema } from '../../../shared/d1-rows';
 import { LicenseKey } from './license-key';
 
-export { LicenseKey };
+export { LicenseKey, CountRowSchema };
 
 /** A failure decoding a license-ops payload or D1 row. */
 export class LicenseOpsParseError extends Error {
@@ -17,9 +18,24 @@ export class LicenseOpsParseError extends Error {
   }
 }
 
-const OptionalNumber = Schema.optional(Schema.Number);
-const OptionalString = Schema.optional(Schema.String);
-const CountByName = Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Number }));
+const UsageCount = Schema.Number.pipe(Schema.int(), Schema.between(0, 1_000_000_000));
+const OptionalCount = Schema.optional(UsageCount);
+const OptionalDurationMs = Schema.optional(
+  Schema.Number.pipe(Schema.int(), Schema.between(0, 31 * 24 * 60 * 60 * 1000))
+);
+const OptionalString = Schema.optional(
+  Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256))
+);
+const CountByName = Schema.optional(
+  Schema.Record({
+    key: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(128)),
+    value: UsageCount,
+  }).pipe(
+    Schema.filter(entries => Object.keys(entries).length <= 64, {
+      message: () => 'Usage dimension maps support at most 64 entries',
+    })
+  )
+);
 
 /** CLI usage report posted to `/api/report-usage`. */
 export const ReportUsageRequestSchema = Schema.Struct({
@@ -29,15 +45,19 @@ export const ReportUsageRequestSchema = Schema.Struct({
   os: OptionalString,
   arch: OptionalString,
   omg_version: OptionalString,
-  commands_run: OptionalNumber,
-  packages_installed: OptionalNumber,
-  packages_searched: OptionalNumber,
-  runtimes_switched: OptionalNumber,
-  sbom_generated: OptionalNumber,
-  vulnerabilities_found: OptionalNumber,
-  time_saved_ms: OptionalNumber,
-  current_streak: OptionalNumber,
-  achievements: Schema.optional(Schema.Array(Schema.String.pipe(Schema.minLength(1)))),
+  commands_run: OptionalCount,
+  packages_installed: OptionalCount,
+  packages_searched: OptionalCount,
+  runtimes_switched: OptionalCount,
+  sbom_generated: OptionalCount,
+  vulnerabilities_found: OptionalCount,
+  time_saved_ms: OptionalDurationMs,
+  current_streak: OptionalCount,
+  achievements: Schema.optional(
+    Schema.Array(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64))).pipe(
+      Schema.maxItems(64)
+    )
+  ),
   installed_packages: CountByName,
   runtime_usage_counts: CountByName,
 });
@@ -58,21 +78,26 @@ const CappedKey = (max: number) => Schema.String.pipe(Schema.minLength(1), Schem
 export const AnalyticsEventSchema = Schema.Struct({
   event_type: CappedKey(32),
   event_name: CappedKey(128),
-  properties: Schema.optional(Schema.Record({ key: CappedKey(64), value: AnalyticsPropertyValue })),
+  properties: Schema.optional(
+    Schema.Record({ key: CappedKey(64), value: AnalyticsPropertyValue }).pipe(
+      Schema.filter(properties => Object.keys(properties).length <= 64, {
+        message: () => 'Analytics properties support at most 64 entries',
+      })
+    )
+  ),
   timestamp: Schema.String.pipe(Schema.maxLength(40)),
   session_id: CappedKey(64),
   machine_id: CappedKey(128),
   license_key: OptionalString,
   version: CappedKey(32),
   platform: CappedKey(32),
-  duration_ms: OptionalNumber,
+  duration_ms: OptionalDurationMs,
 });
 
 /** Batch envelope posted to `/api/analytics`. */
 export const AnalyticsBatchSchema = Schema.Struct({
   events: Schema.optional(Schema.Array(AnalyticsEventSchema).pipe(Schema.maxItems(50))),
 });
-export type AnalyticsBatch = Schema.Schema.Type<typeof AnalyticsBatchSchema>;
 export type AnalyticsEvent = Schema.Schema.Type<typeof AnalyticsEventSchema>;
 
 /** Public license lookup row. */
@@ -82,16 +107,6 @@ export const PublicLicenseRowSchema = Schema.Struct({
   status: Schema.String,
   expires_at: Schema.Union(Schema.Null, Schema.String),
   max_machines: Schema.Union(Schema.Null, Schema.Number),
-});
-
-/** COUNT(*) row. */
-export const CountRowSchema = Schema.Struct({
-  count: Schema.Union(Schema.Number, Schema.Null).pipe(
-    Schema.transform(Schema.Number, {
-      decode: (fromA: number | null) => (fromA === null ? 0 : fromA),
-      encode: (toI: number) => toI,
-    })
-  ),
 });
 
 function mapParseError(reason: string) {

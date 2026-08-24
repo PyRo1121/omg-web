@@ -38,6 +38,7 @@ describe('canonical D1 migrations', () => {
       '016_customers_email_unique_enforced.sql',
       '017_subscription_status_rank.sql',
       '018_stripe_event_claim_tokens.sql',
+      '019_license_usage_dimensions.sql',
     ]);
   });
 

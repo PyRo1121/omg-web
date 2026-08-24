@@ -41,16 +41,43 @@ function getDateRangeLabel(range: DateRange): string {
   }
 }
 
-function getColorName(color: string): string {
+interface StatColorConfig {
+  glow: string;
+  iconBg: string;
+  iconText: string;
+}
+
+/**
+ * Full Tailwind class strings per stat color so the compiler's source scanner
+ * sees every literal — runtime string interpolation would silently drop the
+ * utilities from the emitted stylesheet.
+ */
+function getStatColorConfig(color: string): StatColorConfig {
   switch (color) {
     case 'photon':
-      return 'photon';
+      return {
+        glow: 'bg-photon-500/20',
+        iconBg: 'bg-photon-500/10',
+        iconText: 'text-photon-400',
+      };
     case 'electric':
-      return 'electric';
+      return {
+        glow: 'bg-electric-500/20',
+        iconBg: 'bg-electric-500/10',
+        iconText: 'text-electric-400',
+      };
     case 'aurora':
-      return 'aurora';
+      return {
+        glow: 'bg-aurora-500/20',
+        iconBg: 'bg-aurora-500/10',
+        iconText: 'text-aurora-400',
+      };
     default:
-      return 'indigo';
+      return {
+        glow: 'bg-indigo-500/20',
+        iconBg: 'bg-indigo-500/10',
+        iconText: 'text-indigo-400',
+      };
   }
 }
 
@@ -235,12 +262,12 @@ const StatCard: Component<{
   color: string;
   period?: DateRange;
 }> = props => {
-  const color = () => getColorName(props.color);
+  const colorConfig = () => getStatColorConfig(props.color);
 
   return (
     <div class="group bg-void-850 shadow-card hover:shadow-card-hover relative overflow-hidden rounded-3xl border border-white/5 p-6 transition-all duration-300 hover:border-white/10">
       <div
-        class={`pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-${color()}-500/20 opacity-70 blur-[40px] transition-opacity duration-500 group-hover:opacity-100`}
+        class={`pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full ${colorConfig().glow} opacity-70 blur-[40px] transition-opacity duration-500 group-hover:opacity-100`}
       />
       <div class="relative">
         <div class="flex items-center justify-between">
@@ -252,9 +279,9 @@ const StatCard: Component<{
             </Show>
           </div>
           <div
-            class={`flex h-10 w-10 items-center justify-center rounded-xl bg-${color()}-500/10 transition-transform duration-300 group-hover:scale-110`}
+            class={`flex h-10 w-10 items-center justify-center rounded-xl ${colorConfig().iconBg} transition-transform duration-300 group-hover:scale-110`}
           >
-            <props.icon size={18} class={`text-${color()}-400`} />
+            <props.icon size={18} class={colorConfig().iconText} />
           </div>
         </div>
         <div class="mt-3 flex items-baseline gap-1">

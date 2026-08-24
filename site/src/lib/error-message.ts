@@ -1,6 +1,11 @@
 /**
  * Convert a normalized caught Error into a user-safe message.
  *
+ * Classification contract: Better Auth's client surfaces failures only as
+ * English message strings, so exact lowercased copy matching is the only
+ * signal available. A library copy change silently degrades to `fallback`;
+ * revisit these cases when upgrading better-auth.
+ *
  * @param error - A caught value already narrowed to Error.
  * @param fallback - Generic message shown for unknown or internal errors.
  * @returns A known user-facing message, or the supplied safe fallback.

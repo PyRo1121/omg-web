@@ -13,15 +13,12 @@ const LicenseLookupSchema = Schema.Union(
 );
 
 /** A license lookup response used by the public landing page. */
-export type LicenseLookup = Schema.Schema.Type<typeof LicenseLookupSchema>;
+type LicenseLookup = Schema.Schema.Type<typeof LicenseLookupSchema>;
 
 const GitHubActivityWeekSchema = Schema.Struct({
   week: Schema.Number.pipe(Schema.finite()),
   total: Schema.Number.pipe(Schema.finite()),
 });
-
-/** A single weekly GitHub activity point. */
-export type GitHubActivityWeek = Schema.Schema.Type<typeof GitHubActivityWeekSchema>;
 
 const GitHubActivityBarSchema = Schema.Struct({
   label: Schema.String,
@@ -42,16 +39,13 @@ const GitHubComputingResponseSchema = Schema.Struct({
   message: Schema.optional(Schema.String),
 });
 
-/** Response returned while GitHub computes statistics. */
-export type GitHubComputingResponse = Schema.Schema.Type<typeof GitHubComputingResponseSchema>;
-
 const GitHubActivityResponseSchema = Schema.Union(
   Schema.Array(GitHubActivityWeekSchema),
   GitHubComputingResponseSchema
 );
 
 /** GitHub activity or its temporary computing response. */
-export type GitHubActivityResponse = Schema.Schema.Type<typeof GitHubActivityResponseSchema>;
+type GitHubActivityResponse = Schema.Schema.Type<typeof GitHubActivityResponseSchema>;
 
 const NonEmptyString = Schema.String.pipe(Schema.minLength(1));
 const ApiErrorSchema = Schema.Union(
@@ -60,7 +54,7 @@ const ApiErrorSchema = Schema.Union(
 );
 
 /** A successful or rejected parse at an HTTP boundary. */
-export type ParseResult<T> =
+type ParseResult<T> =
   { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string };
 
 function parseWithSchema<S extends Schema.Schema.AnyNoContext>(

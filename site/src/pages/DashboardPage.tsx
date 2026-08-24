@@ -1,5 +1,14 @@
 import { reportClientError } from '~/lib/observability';
-import { type Component, createSignal, onMount, Show, For, createMemo } from 'solid-js';
+import {
+  type Component,
+  createSignal,
+  onMount,
+  lazy,
+  Show,
+  For,
+  Suspense,
+  createMemo,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import {
   Monitor,
@@ -52,25 +61,26 @@ import {
   type DashboardDateRange,
   type DashboardTab,
 } from '~/lib/dashboard-page';
-import AdminDashboard from '~/components/dashboard/AdminDashboard';
 import BackgroundMesh from '~/components/3d/BackgroundMesh';
 
-interface BetterAuthSession {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    emailVerified: boolean;
-    image?: string | null | undefined;
-  };
-  session: {
-    token: string;
-    expiresAt: Date;
-  };
-}
+// Lazily split so the entire admin surface stays out of non-admin users'
+// bundles; it is only rendered for admins on the 'admin' tab.
+const AdminDashboard = lazy(() => import('~/components/dashboard/AdminDashboard'));
 
+/**
+ * Only the Better Auth user projection this page renders. Session secrets
+ * (token, IP, agent) are deliberately not part of the consumed contract.
+ */
 interface DashboardPageProps {
-  session: BetterAuthSession;
+  session: {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      emailVerified: boolean;
+      image?: string | null | undefined;
+    };
+  };
 }
 
 const DashboardPage: Component<DashboardPageProps> = props => {
@@ -222,7 +232,6 @@ const DashboardPage: Component<DashboardPageProps> = props => {
     <div class={pageBg}>
       <BackgroundMesh />
       {bgEffects}
-
       <div class="relative z-10 min-h-screen">
         <div class="mx-auto max-w-7xl">
           <header class="px-6 pt-6 pb-4">
@@ -926,7 +935,15 @@ const DashboardPage: Component<DashboardPageProps> = props => {
               when={!loading() && activeTab() === 'admin' && telemetryData()?.user.role === 'admin'}
             >
               <div class="animate-fade-in-up">
-                <AdminDashboard />
+                <Suspense
+                  fallback={
+                    <div class={`${glassPanel} h-48 p-6`}>
+                      <div class="h-12 w-12 animate-pulse rounded-full bg-slate-700/50" />
+                    </div>
+                  }
+                >
+                  <AdminDashboard />
+                </Suspense>
               </div>
             </Show>
 

@@ -1,8 +1,62 @@
 import '../src/cloudflare-test.d.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
+import * as Schema from 'effect/Schema';
 import worker from '../src/worker';
 
+const ErrorPayloadSchema = Schema.Struct({ error: Schema.String });
+const InvalidLicensePayloadSchema = Schema.Struct({
+  valid: Schema.Boolean,
+  error: Schema.String,
+});
+const ValidLicensePayloadSchema = Schema.Struct({
+  valid: Schema.Boolean,
+  tier: Schema.String,
+  token: Schema.String,
+  customer: Schema.String,
+  max_machines: Schema.Number,
+});
+const ValidPayloadSchema = Schema.Struct({ valid: Schema.Boolean });
+const TokenPayloadSchema = Schema.Struct({ valid: Schema.Boolean, token: Schema.String });
+const MachineVisibilityPayloadSchema = Schema.Struct({
+  machines: Schema.Array(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
+});
+const LicenseJwtHeaderSchema = Schema.Struct({
+  alg: Schema.Literal('EdDSA'),
+  kid: Schema.Literal('omg-license-ed25519-v1'),
+  typ: Schema.Literal('JWT'),
+});
+const LicenseJwtTimingSchema = Schema.Struct({
+  iss: Schema.Literal('https://omg-api.latham.cloud'),
+  aud: Schema.Literal('omg-cli'),
+  iat: Schema.Number,
+  exp: Schema.Number,
+});
+
+function decodeJwtSegment<S extends Schema.Schema.AnyNoContext>(
+  token: string,
+  segmentIndex: number,
+  schema: S
+): Schema.Schema.Type<S> {
+  const encoded = token.split('.')[segmentIndex];
+  if (encoded === undefined || encoded.length === 0) {
+    throw new Error(`License token has no segment ${segmentIndex}`);
+  }
+  const padded = encoded + '='.repeat((4 - (encoded.length % 4)) % 4);
+  const parsed: unknown = JSON.parse(atob(padded.replace(/-/g, '+').replace(/_/g, '/')));
+  return Schema.decodeUnknownSync(schema)(parsed);
+}
+
+async function decodeResponse<S extends Schema.Schema.AnyNoContext>(
+  response: Response,
+  schema: S
+): Promise<Schema.Schema.Type<S>> {
+  return Schema.decodeUnknownSync(schema)(await response.json());
+}
+
+const TEST_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIIx/ifT0yOyJ/SykVkxxVR4zdDCep94lm3xLOyNn83kM
+-----END PRIVATE KEY-----`;
 const TEST_EMAIL = 'validate-license@example.com';
 const TEST_KEY = 'lic-validate-key';
 const TEST_CUSTOMER = 'validate-cust';
@@ -74,6 +128,7 @@ function postJson(serializedBody: string): Request {
 describe('POST /api/validate-license', () => {
   beforeEach(async () => {
     env.JWT_SECRET = 'test-jwt-secret';
+    env.JWT_PRIVATE_KEY = TEST_PRIVATE_KEY;
     await ensureSchema();
   });
 
@@ -89,7 +144,7 @@ describe('POST /api/validate-license', () => {
     const response = await worker.fetch(postJson(JSON.stringify({})), env, ctx);
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(400);
-    const payload = await response.json<{ error: string }>();
+    const payload = await decodeResponse(response, ErrorPayloadSchema);
     expect(payload.error).toBe('License key required');
   });
 
@@ -124,7 +179,7 @@ describe('POST /api/validate-license', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    const payload = await response.json<{ valid: boolean; error: string }>();
+    const payload = await decodeResponse(response, InvalidLicensePayloadSchema);
     expect(payload.valid).toBe(false);
     expect(payload.error).toBe('Invalid license key');
   });
@@ -136,7 +191,7 @@ describe('POST /api/validate-license', () => {
     const response = await worker.fetch(postJson(JSON.stringify({ key: TEST_KEY })), env, ctx);
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    const payload = await response.json<{ valid: boolean; error: string }>();
+    const payload = await decodeResponse(response, InvalidLicensePayloadSchema);
     expect(payload.valid).toBe(false);
     expect(payload.error).toBe('License is suspended');
   });
@@ -148,7 +203,7 @@ describe('POST /api/validate-license', () => {
     const response = await worker.fetch(postJson(JSON.stringify({ key: TEST_KEY })), env, ctx);
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    const payload = await response.json<{ valid: boolean; error: string }>();
+    const payload = await decodeResponse(response, InvalidLicensePayloadSchema);
     expect(payload.valid).toBe(false);
     expect(payload.error).toBe('License has expired');
   });
@@ -164,18 +219,21 @@ describe('POST /api/validate-license', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    const payload = await response.json<{
-      valid: boolean;
-      tier: string;
-      token: string;
-      customer: string;
-      max_machines: number;
-    }>();
+    const payload = await decodeResponse(response, ValidLicensePayloadSchema);
     expect(payload.valid).toBe(true);
     expect(payload.tier).toBe('free');
     expect(payload.customer).toBe('Ada');
     expect(payload.max_machines).toBe(1);
     expect(payload.token.length).toBeGreaterThan(0);
+    expect(decodeJwtSegment(payload.token, 0, LicenseJwtHeaderSchema)).toEqual({
+      alg: 'EdDSA',
+      kid: 'omg-license-ed25519-v1',
+      typ: 'JWT',
+    });
+    const timing = decodeJwtSegment(payload.token, 1, LicenseJwtTimingSchema);
+    expect(timing.iss).toBe('https://omg-api.latham.cloud');
+    expect(timing.aud).toBe('omg-cli');
+    expect(timing.exp - timing.iat).toBe(60 * 60);
   });
 
   it('rejects a new machine when the seat limit is reached', async () => {
@@ -195,7 +253,7 @@ describe('POST /api/validate-license', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    const payload = await response.json<{ valid: boolean; error: string }>();
+    const payload = await decodeResponse(response, InvalidLicensePayloadSchema);
     expect(payload.valid).toBe(false);
     expect(payload.error).toContain('Machine limit reached');
   });
@@ -211,7 +269,7 @@ describe('POST /api/validate-license', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    const payload = await response.json<{ valid: boolean }>();
+    const payload = await decodeResponse(response, ValidPayloadSchema);
     expect(payload.valid).toBe(true);
     const stored = await env.DB.prepare(
       `SELECT machine_id FROM machines WHERE license_id = ? AND machine_id = ?`
@@ -220,11 +278,67 @@ describe('POST /api/validate-license', () => {
       .first();
     expect(stored).not.toBeNull();
   });
+
+  it('returns only the current machine and excludes seat-owner PII', async () => {
+    await insertCustomer();
+    await insertLicense('active', null, 2);
+    await env.DB.prepare(
+      `INSERT INTO machines (id, license_id, machine_id, user_name, user_email, is_active)
+       VALUES (?, ?, ?, ?, ?, 1)`
+    )
+      .bind('m-other-seat', TEST_LICENSE, 'machine-other', 'Other User', 'other@example.com')
+      .run();
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson(JSON.stringify({ key: TEST_KEY, machine_id: 'machine-current' })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+    const payload = await decodeResponse(response, MachineVisibilityPayloadSchema);
+    expect(payload.machines).toHaveLength(1);
+    expect(payload.machines[0]?.['machine_id']).toBe('machine-current');
+    expect(Object.hasOwn(payload.machines[0] ?? {}, 'user_name')).toBe(false);
+    expect(Object.hasOwn(payload.machines[0] ?? {}, 'user_email')).toBe(false);
+  });
+
+  it('never exceeds the seat limit under concurrent registrations', async () => {
+    await insertCustomer();
+    await insertLicense('active', null, 1);
+    const contexts = [createExecutionContext(), createExecutionContext()];
+    const responses = await Promise.all([
+      worker.fetch(
+        postJson(JSON.stringify({ key: TEST_KEY, machine_id: 'machine-concurrent-a' })),
+        env,
+        contexts[0]
+      ),
+      worker.fetch(
+        postJson(JSON.stringify({ key: TEST_KEY, machine_id: 'machine-concurrent-b' })),
+        env,
+        contexts[1]
+      ),
+    ]);
+    await Promise.all(contexts.map(context => waitOnExecutionContext(context)));
+
+    const payloads = await Promise.all(
+      responses.map(response => decodeResponse(response, ValidPayloadSchema))
+    );
+    expect(payloads.filter(payload => payload.valid)).toHaveLength(1);
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM machines WHERE license_id = ? AND is_active = 1`
+    )
+      .bind(TEST_LICENSE)
+      .first<{ count: number }>();
+    expect(row?.count).toBe(1);
+  });
 });
 
 describe('GET /api/validate-license', () => {
   beforeEach(async () => {
     env.JWT_SECRET = 'test-jwt-secret';
+    env.JWT_PRIVATE_KEY = TEST_PRIVATE_KEY;
     await ensureSchema();
   });
 
@@ -246,7 +360,7 @@ describe('GET /api/validate-license', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    const payload = await response.json<{ valid: boolean; token: string }>();
+    const payload = await decodeResponse(response, TokenPayloadSchema);
     expect(payload.valid).toBe(true);
     expect(payload.token.length).toBeGreaterThan(0);
   });

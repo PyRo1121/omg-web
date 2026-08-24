@@ -88,6 +88,8 @@ const sizeConfig = {
   },
 };
 
+/** Subscription-tier badge in badge, pill, chip, or card variants, driven by
+ * the shared Tier contract. */
 export const TierBadge: Component<TierBadgeProps> = props => {
   const config = createMemo(() => tierConfig[props.tier]);
   const size = createMemo(() => sizeConfig[props.size || 'md']);

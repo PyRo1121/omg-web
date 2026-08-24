@@ -52,6 +52,9 @@ export const VerifyCodeResponseSchema = Schema.Struct({
   expires_at: Schema.String.pipe(Schema.minLength(1)),
   user: Schema.Struct({
     id: CustomerId,
+    // Display-only echo of the stored customer email; it is not accepted back
+    // as input, so the branded request-side EmailAddress is intentionally not
+    // reused here (branding would also re-validate every legacy stored email).
     email: Schema.String,
     name: Schema.Union(Schema.Null, Schema.String),
   }),
@@ -62,7 +65,6 @@ export type VerifyCodeResponse = Schema.Schema.Type<typeof VerifyCodeResponseSch
 export const AuthCodeCountRowSchema = Schema.Struct({
   count: Schema.Number,
 });
-export type AuthCodeCountRow = Schema.Schema.Type<typeof AuthCodeCountRowSchema>;
 
 /** A valid unused OTP row. */
 export const AuthCodeRowSchema = Schema.Struct({

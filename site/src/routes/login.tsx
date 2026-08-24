@@ -52,14 +52,21 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await signIn.social({
+      const result = await signIn.social({
         provider,
         callbackURL: '/dashboard',
       });
+      // signIn.social resolves without navigating when the popup is blocked
+      // or the provider returns an error page; surface it instead of leaving
+      // the buttons disabled forever.
+      if (result?.error) {
+        setError(result.error.message || 'OAuth login failed');
+      }
     } catch (err) {
       setError(
         err instanceof Error ? getErrorMessage(err, 'OAuth login failed') : 'OAuth login failed'
       );
+    } finally {
       setLoading(false);
     }
   };

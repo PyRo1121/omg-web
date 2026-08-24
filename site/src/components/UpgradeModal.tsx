@@ -1,6 +1,8 @@
 import { type Component, createEffect, createSignal, onCleanup, Show, For } from 'solid-js';
 import { ApiError, createCheckout } from '../lib/api';
 
+const UPGRADE_DIALOG_LABEL = 'Upgrade your plan';
+
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -42,6 +44,8 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
   const [isLoading, setIsLoading] = createSignal(false);
   let redirectTimeout: ReturnType<typeof setTimeout> | undefined;
   let checkoutAttempt = 0;
+  let dialogRef: HTMLDivElement | undefined;
+  let previouslyFocused: Element | null = null;
 
   const cancelPendingRedirect = (): void => {
     if (redirectTimeout !== undefined) {
@@ -65,6 +69,52 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
   });
 
   onCleanup(cancelCheckout);
+
+  // Dialog lifecycle: initial focus, focus containment/restoration, Escape.
+  createEffect(() => {
+    if (!props.isOpen) {
+      return;
+    }
+    previouslyFocused = document.activeElement;
+    const focusTimer = setTimeout(() => {
+      dialogRef?.querySelector<HTMLElement>('button')?.focus();
+    }, 0);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        handleClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !dialogRef) {
+        return;
+      }
+      const focusable = dialogRef.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusable[0];
+      const lastElement = focusable[focusable.length - 1];
+      if (!firstElement || !lastElement) {
+        return;
+      }
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    onCleanup(() => {
+      clearTimeout(focusTimer);
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused instanceof HTMLElement) {
+        previouslyFocused.focus();
+      }
+    });
+  });
 
   const handleTierSelect = (tier: 'pro' | 'team') => {
     setSelectedTier(tier);
@@ -139,7 +189,13 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
         <div class="animate-fade-in absolute inset-0 bg-black/80 backdrop-blur-md" />
 
         {/* Modal */}
-        <div class="animate-scale-in relative w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-b from-slate-800 to-slate-900 shadow-2xl shadow-black/50">
+        <div
+          ref={el => (dialogRef = el)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={UPGRADE_DIALOG_LABEL}
+          class="animate-scale-in relative w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-b from-slate-800 to-slate-900 shadow-2xl shadow-black/50"
+        >
           {/* Glow effect */}
           <div class="pointer-events-none absolute -top-40 -right-40 h-80 w-80 rounded-full bg-indigo-500/20 blur-3xl" />
           <div class="pointer-events-none absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-purple-500/20 blur-3xl" />
@@ -147,9 +203,16 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
           {/* Close button */}
           <button
             onClick={handleClose}
+            aria-label="Close upgrade dialog"
             class="absolute top-4 right-4 z-10 rounded-full p-2 text-slate-400 transition-all hover:bg-slate-700/50 hover:text-white"
           >
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              aria-hidden="true"
+              class="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"

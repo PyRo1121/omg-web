@@ -3,6 +3,7 @@ import { For, Show, createMemo, createSignal } from 'solid-js';
 import { createMutation, createQuery, useQueryClient } from '@tanstack/solid-query';
 import { Plus, X } from '../../ui/Icons';
 import { assignAdminTag, createAdminTag, getAdminTags, removeAdminTag } from '../../../lib/api';
+import { parseTagColor, tagChipBackground, tagChipBorder } from './tag-color';
 
 interface Tag {
   id: string;
@@ -168,25 +169,29 @@ export const TagsManager: Component<TagsManagerProps> = props => {
 
       <div class="flex flex-wrap gap-2">
         <For each={props.assignedTags}>
-          {tag => (
-            <div
-              class="group flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold transition-all"
-              style={{
-                'background-color': `${tag.color}20`,
-                color: tag.color,
-                border: `1px solid ${tag.color}40`,
-              }}
-            >
-              <span>{tag.name}</span>
-              <button
-                onClick={() => removeTagMutation.mutate(tag.id)}
-                class="opacity-50 transition-opacity hover:opacity-100"
-                disabled={removeTagMutation.isPending}
+          {tag => {
+            const color = parseTagColor(tag.color, DEFAULT_TAG_COLOR);
+            return (
+              <div
+                class="group flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold transition-all"
+                style={{
+                  'background-color': tagChipBackground(color),
+                  color,
+                  border: tagChipBorder(color),
+                }}
               >
-                <X size={12} />
-              </button>
-            </div>
-          )}
+                <span>{tag.name}</span>
+                <button
+                  onClick={() => removeTagMutation.mutate(tag.id)}
+                  class="opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100"
+                  aria-label={`Remove tag ${tag.name}`}
+                  disabled={removeTagMutation.isPending}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            );
+          }}
         </For>
         <Show when={props.assignedTags.length === 0}>
           <span class="text-xs text-slate-500">No tags assigned</span>
@@ -206,7 +211,10 @@ export const TagsManager: Component<TagsManagerProps> = props => {
                   disabled={assignTagMutation.isPending}
                   class="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-1.5 text-xs font-bold text-slate-400 transition-all hover:border-white/20 hover:text-white disabled:opacity-50"
                 >
-                  <div class="h-2 w-2 rounded-full" style={{ 'background-color': tag.color }} />
+                  <div
+                    class="h-2 w-2 rounded-full"
+                    style={{ 'background-color': parseTagColor(tag.color, DEFAULT_TAG_COLOR) }}
+                  />
                   {tag.name}
                   <Plus size={10} />
                 </button>

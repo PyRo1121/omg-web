@@ -26,6 +26,32 @@ class CrmStoreError extends Error {
   }
 }
 
+/** A CRM mutation referenced a customer or tag that does not exist. */
+export class CrmTargetMissingError extends Error {
+  readonly _tag = 'CrmTargetMissingError';
+  constructor(
+    readonly operation: string,
+    override readonly cause?: unknown
+  ) {
+    super(`CRM mutation target does not exist: ${operation}`);
+  }
+}
+
+/** Extract a lowercase SQLite error message from a store failure. */
+const sqliteMessage = (error: CrmStoreError): string => {
+  const cause = error.cause;
+  const message = cause instanceof Error ? cause.message : String(cause ?? '');
+  return message.toLowerCase();
+};
+
+const isUniqueConstraint = (error: CrmStoreError): boolean => {
+  const message = sqliteMessage(error);
+  return message.includes('unique constraint') || message.includes('primary key');
+};
+
+const isForeignKeyConstraint = (error: CrmStoreError): boolean =>
+  sqliteMessage(error).includes('foreign key constraint');
+
 const fail = (operation: string) => (cause: unknown) => new CrmStoreError(operation, cause);
 
 function listRows<S extends Schema.Schema.AnyNoContext>(
@@ -63,7 +89,11 @@ export const listNotes = (db: D1Database, customerId: string) =>
     [customerId]
   );
 
-/** Create a note; returns its id. */
+/**
+ * Create a note; returns its id.
+ *
+ * Fails with {@link CrmTargetMissingError} when `customerId` does not exist.
+ */
 export const createNote = (
   db: D1Database,
   input: {
@@ -72,7 +102,7 @@ export const createNote = (
     readonly noteType: string;
     readonly authorId: string;
   }
-): Effect.Effect<string, CrmStoreError> =>
+): Effect.Effect<string, CrmStoreError | CrmTargetMissingError> =>
   Effect.tryPromise({
     try: async () => {
       const noteId = crypto.randomUUID();
@@ -86,9 +116,18 @@ export const createNote = (
       return noteId;
     },
     catch: fail('createNote'),
-  });
+  }).pipe(
+    Effect.catchIf(isForeignKeyConstraint, error =>
+      Effect.fail(new CrmTargetMissingError(error.operation, error.cause))
+    )
+  );
 
-/** Partially update a note; only provided fields change. */
+/**
+ * Partially update a note; only provided fields change.
+ *
+ * Reports `'not-found'` when no note with `noteId` exists so callers can
+ * respond 404 instead of auditing a mutation that never happened.
+ */
 export const updateNote = (
   db: D1Database,
   input: {
@@ -96,9 +135,9 @@ export const updateNote = (
     readonly content?: string;
     readonly isPinned?: boolean;
   }
-): Effect.Effect<void, CrmStoreError> =>
+): Effect.Effect<'updated' | 'not-found', CrmStoreError> =>
   Effect.tryPromise({
-    try: () => {
+    try: async () => {
       const updates: string[] = ['updated_at = CURRENT_TIMESTAMP'];
       const params: (string | number)[] = [];
       if (input.content !== undefined) {
@@ -110,20 +149,35 @@ export const updateNote = (
         params.push(input.isPinned ? 1 : 0);
       }
       params.push(input.noteId);
-      return db
-        .prepare(`UPDATE customer_notes SET ${updates.join(', ')} WHERE id = ?`)
+      const updated = await db
+        .prepare(`UPDATE customer_notes SET ${updates.join(', ')} WHERE id = ? RETURNING id`)
         .bind(...params)
-        .run();
+        .first();
+      return updated === null ? 'not-found' : 'updated';
     },
     catch: fail('updateNote'),
-  }).pipe(Effect.asVoid);
+  });
 
-/** Delete a note by id. */
-export const deleteNote = (db: D1Database, noteId: string): Effect.Effect<void, CrmStoreError> =>
+/**
+ * Delete a note by id.
+ *
+ * Reports `'not-found'` when no note with `noteId` exists so callers can
+ * respond 404 instead of auditing a deletion that never happened.
+ */
+export const deleteNote = (
+  db: D1Database,
+  noteId: string
+): Effect.Effect<'deleted' | 'not-found', CrmStoreError> =>
   Effect.tryPromise({
-    try: () => db.prepare(`DELETE FROM customer_notes WHERE id = ?`).bind(noteId).run(),
+    try: async () => {
+      const deleted = await db
+        .prepare(`DELETE FROM customer_notes WHERE id = ? RETURNING id`)
+        .bind(noteId)
+        .first();
+      return deleted === null ? 'not-found' : 'deleted';
+    },
     catch: fail('deleteNote'),
-  }).pipe(Effect.asVoid);
+  });
 
 /** Full tag catalog with usage counts. */
 export const listTagCatalog = (db: D1Database) =>
@@ -180,6 +234,9 @@ export const createTag = (
 /**
  * Assign a tag to a customer. Idempotent: re-assignment reports
  * `'already-assigned'` instead of failing on the uniqueness constraint.
+ *
+ * Fails with {@link CrmTargetMissingError} when `customerId` or `tagId`
+ * does not exist.
  */
 export const assignTag = (
   db: D1Database,
@@ -188,7 +245,7 @@ export const assignTag = (
     readonly tagId: string;
     readonly assignedBy: string;
   }
-): Effect.Effect<'created' | 'already-assigned', CrmStoreError> =>
+): Effect.Effect<'created' | 'already-assigned', CrmStoreError | CrmTargetMissingError> =>
   Effect.tryPromise({
     try: () =>
       db
@@ -201,26 +258,35 @@ export const assignTag = (
     catch: fail('assignTag'),
   }).pipe(
     Effect.map(() => 'created' as const),
-    Effect.catchIf(
-      (error: CrmStoreError) => {
-        const message = String(error.cause);
-        return message.includes('UNIQUE constraint') || message.includes('PRIMARY KEY');
-      },
-      () => Effect.succeed('already-assigned' as const)
+    Effect.catchIf(isUniqueConstraint, () => Effect.succeed('already-assigned' as const)),
+    Effect.catchIf(isForeignKeyConstraint, error =>
+      Effect.fail(new CrmTargetMissingError(error.operation, error.cause))
     )
   );
 
-/** Remove a tag assignment. */
+/**
+ * Remove a tag assignment.
+ *
+ * Reports `'not-found'` when no assignment between the customer and the tag
+ * exists so callers can respond 404 instead of auditing a removal that never
+ * happened.
+ */
 export const removeTag = (
   db: D1Database,
   customerId: string,
   tagId: string
-): Effect.Effect<void, CrmStoreError> =>
+): Effect.Effect<'removed' | 'not-found', CrmStoreError> =>
   Effect.tryPromise({
-    try: () =>
-      db
-        .prepare(`DELETE FROM customer_tag_assignments WHERE customer_id = ? AND tag_id = ?`)
+    try: async () => {
+      const removed = await db
+        .prepare(
+          `DELETE FROM customer_tag_assignments
+           WHERE customer_id = ? AND tag_id = ?
+           RETURNING tag_id`
+        )
         .bind(customerId, tagId)
-        .run(),
+        .first();
+      return removed === null ? 'not-found' : 'removed';
+    },
     catch: fail('removeTag'),
-  }).pipe(Effect.asVoid);
+  });

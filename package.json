@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "check": "npm run check:anti-slop && npm run check:migrations && npm run check:source-policy && npm run audit && npm run typecheck && npm run check:deploy && npm run lint && npm run format:check && npm test",
+    "check": "npm run check:anti-slop && npm run check:migrations && npm run check:source-policy && npm run typecheck && npm run lint && npm run format:check && npm run audit && npm run check:deploy && npm test",
     "audit": "npm audit && npm audit --prefix site && npm audit --prefix site/workers && npm audit --prefix workers/router",
     "check:anti-slop": "node tools/oxlint/sync-anti-slop.mjs --check",
     "check:cloudflare:remote": "node tools/check-cloudflare-remote.mjs",
@@ -18,7 +18,6 @@
     "format": "prettier --write --ignore-unknown docs/operations site/src site/shared site/e2e site/playwright.config.ts site/tools site/workers/src site/workers/tests site/workers/tools workers/router/src workers/releases/src .github/workflows/ci.yml tools/check-cloudflare-remote.mjs tools/check-source-policy.mjs tools/oxlint/sync-anti-slop.mjs oxlint.config.ts prettier.config.js package.json site/package.json site/workers/package.json workers/router/package.json tsconfig.json site/tsconfig.json site/workers/tsconfig.json workers/router/tsconfig.json workers/releases/tsconfig.json site/wrangler.toml site/workers/wrangler.toml site/workers/wrangler.test.toml workers/router/wrangler.toml workers/releases/wrangler.toml",
     "format:check": "prettier --check --ignore-unknown docs/operations site/src site/shared site/e2e site/playwright.config.ts site/tools site/workers/src site/workers/tests site/workers/tools workers/router/src workers/releases/src .github/workflows/ci.yml tools/check-cloudflare-remote.mjs tools/check-source-policy.mjs tools/oxlint/sync-anti-slop.mjs oxlint.config.ts prettier.config.js package.json site/package.json site/workers/package.json workers/router/package.json tsconfig.json site/tsconfig.json site/workers/tsconfig.json workers/router/tsconfig.json workers/releases/tsconfig.json site/wrangler.toml site/workers/wrangler.toml site/workers/wrangler.test.toml workers/router/wrangler.toml workers/releases/wrangler.toml",
     "lint": "npm run lint:oxlint",
-    "lint:anti-slop": "npm run lint:oxlint",
     "lint:oxlint": "oxlint --config oxlint.config.ts site/src site/shared site/e2e site/playwright.config.ts site/tools site/workers/src site/workers/tests workers/router/src workers/releases/src tools/check-cloudflare-remote.mjs tools/check-source-policy.mjs",
     "lint:site": "oxlint --config oxlint.config.ts site/src site/shared site/e2e site/playwright.config.ts site/tools",
     "lint:site:fix": "oxlint --fix --config oxlint.config.ts site/src site/shared site/e2e site/playwright.config.ts site/tools",
@@ -33,7 +32,7 @@
     "typecheck:runtime": "wrangler types workers/worker-runtime.d.ts --config site/workers/wrangler.toml --include-env=false --check",
     "typecheck:router": "npm run typecheck --prefix workers/router",
     "typecheck:site": "npm run typecheck --prefix site",
-    "typecheck:tools": "tsc --project tsconfig.json --noEmit",
+    "typecheck:tools": "tsc --project tsconfig.json --noEmit && tsc --project tools/oxlint/anti-slop/tsconfig.json --noEmit",
     "typecheck:workers": "wrangler types site/workers/worker-configuration.d.ts --config site/workers/wrangler.toml --include-runtime=false --check && tsc --project site/workers/tsconfig.json --noEmit"
   },
   "devDependencies": {
@@ -46,7 +45,7 @@
     "wrangler": "4.125.0"
   },
   "allowScripts": {
-    "esbuild@0.28.1": true,
+    "esbuild": true,
     "workerd@1.20260820.1": true
   }
 }

@@ -8,8 +8,7 @@ import {
   onCleanup,
   untrack,
 } from 'solid-js';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { cn } from '../../../lib/prelude';
 import { valueForKey } from '../../../lib/lookup';
 import {
   DollarSign,
@@ -21,17 +20,11 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
-  ChartColumn,
-  ChevronDown,
   CircleQuestionMark,
 } from 'lucide-solid';
 import type { ExecutiveKPI, AdvancedMetrics } from './types';
 import { Sparkline } from '../../../design-system/components/Charts';
 import { Tooltip } from '../../ui/Tooltip';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 interface ExecutiveKPIDashboardProps {
   kpi: ExecutiveKPI;
@@ -122,15 +115,14 @@ const TrendBadge: Component<TrendBadgeProps> = props => {
             : 'bg-flare-500/10 text-flare-400'
       )}
     >
-      {isNeutral() ? (
-        <Minus size={10} />
-      ) : isPositive() ? (
-        <ArrowUpRight size={10} />
-      ) : (
-        <ArrowDownRight size={10} />
-      )}
+      {(() => {
+        if (isNeutral()) {
+          return <Minus size={10} />;
+        }
+        return isPositive() ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />;
+      })()}
       <span class="font-mono tabular-nums">
-        {isPositive() && !isNeutral() ? '+' : ''}
+        {isPositive() ? '+' : ''}
         {Math.abs(props.value).toFixed(1)}
         {props.suffix || '%'}
       </span>
@@ -151,10 +143,8 @@ interface KPICardProps {
   subtitle?: string | undefined;
   loading?: boolean | undefined;
   onClick?: (() => void) | undefined;
-  expandable?: boolean | undefined;
   previousValue?: number | undefined;
   target?: number | undefined;
-  forecast?: number | undefined;
   tooltip?: string | undefined;
 }
 
@@ -198,7 +188,6 @@ const accentClasses = {
 };
 
 const KPICard: Component<KPICardProps> = props => {
-  const [expanded, setExpanded] = createSignal(false);
   const accent = createMemo(() => accentClasses[props.accent]);
 
   const targetProgress = createMemo(() => {
@@ -208,24 +197,8 @@ const KPICard: Component<KPICardProps> = props => {
     return Math.min(100, (props.value / props.target) * 100);
   });
 
-  const handleClick = () => {
-    if (props.expandable) {
-      setExpanded(!expanded());
-    }
-    if (props.onClick) {
-      props.onClick();
-    }
-  };
-
   return (
-    <div
-      class={cn(
-        'group bg-void-850 shadow-card hover:shadow-card-hover relative overflow-hidden rounded-3xl border border-white/5 transition-all duration-300 hover:border-white/10',
-        props.onClick || props.expandable ? 'cursor-pointer' : '',
-        expanded() ? 'row-span-2' : ''
-      )}
-      onClick={handleClick}
-    >
+    <div class="group bg-void-850 shadow-card hover:shadow-card-hover relative overflow-hidden rounded-3xl border border-white/5 transition-all duration-300 hover:border-white/10">
       <div class="p-6">
         <div
           class="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-100"
@@ -336,60 +309,16 @@ const KPICard: Component<KPICardProps> = props => {
             </div>
           )}
         </Show>
-
-        <Show when={props.forecast !== undefined}>
-          <div class="mt-3 flex items-center gap-2 rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-1.5">
-            <ChartColumn size={12} class="text-indigo-400" />
-            <span class="text-2xs text-indigo-400">
-              Forecast: {props.prefix}
-              {props.forecast?.toLocaleString()}
-              {props.suffix}
-            </span>
-          </div>
-        </Show>
       </div>
 
-      <Show when={expanded()}>
-        <div class="border-t border-white/5 p-4">
-          <div class="space-y-3">
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-nebula-500">7-day avg</span>
-              <span class="font-bold text-white">
-                {props.prefix}
-                {Math.round(props.value * 0.95).toLocaleString()}
-                {props.suffix}
-              </span>
-            </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-nebula-500">30-day avg</span>
-              <span class="font-bold text-white">
-                {props.prefix}
-                {Math.round(props.value * 0.88).toLocaleString()}
-                {props.suffix}
-              </span>
-            </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-nebula-500">90-day avg</span>
-              <span class="font-bold text-white">
-                {props.prefix}
-                {Math.round(props.value * 0.82).toLocaleString()}
-                {props.suffix}
-              </span>
-            </div>
-          </div>
-        </div>
-      </Show>
-
-      <Show when={props.expandable}>
-        <div class="absolute right-2 bottom-2">
-          <ChevronDown
-            size={14}
-            class={cn(
-              'text-nebula-600 transition-transform duration-300',
-              expanded() ? 'rotate-180' : ''
-            )}
-          />
-        </div>
+      <Show when={props.onClick}>
+        <button
+          type="button"
+          onClick={() => props.onClick?.()}
+          class="absolute inset-0 cursor-pointer rounded-3xl opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
+        >
+          <span class="sr-only">{`Open ${props.title} details`}</span>
+        </button>
       </Show>
     </div>
   );
@@ -413,17 +342,6 @@ function getHealthLabel(stickiness: number) {
     return { label: 'Average', color: 'text-solar-400', bg: 'bg-solar-500/10' } as const;
   }
   return { label: 'Needs Work', color: 'text-flare-400', bg: 'bg-flare-500/10' } as const;
-}
-
-function generateHistoricalData(currentValue: number, points: number = 12): number[] {
-  return Array.from({ length: points }, (_, i) => {
-    const progress = i / (points - 1);
-    const value =
-      currentValue * 0.85 +
-      currentValue * 0.15 * progress +
-      currentValue * 0.02 * (i % 3 === 0 ? 1 : -1);
-    return Math.max(0, value);
-  });
 }
 
 const StickinessMeter: Component<StickinessMeterProps> = props => {
@@ -500,7 +418,7 @@ const StickinessMeter: Component<StickinessMeterProps> = props => {
             <div class="bg-void-700 h-2 overflow-hidden rounded-full">
               <div
                 class="from-electric-600 to-electric-400 h-full rounded-full bg-gradient-to-r transition-all duration-1000"
-                style={{ width: `${Math.min(dailyToMonthly() * 4, 100)}%` }}
+                style={{ width: `${Math.min(dailyToMonthly(), 100)}%` }}
               />
             </div>
           </div>
@@ -740,16 +658,8 @@ const CardSkeleton: Component = () => (
 );
 
 export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = props => {
-  const mrrSparkline = createMemo(() =>
-    props.mrrHistory?.length ? props.mrrHistory : generateHistoricalData(props.kpi.mrr)
-  );
-  const dauSparkline = createMemo(() =>
-    props.dauHistory?.length ? props.dauHistory : generateHistoricalData(props.kpi.dau)
-  );
+  // Sparklines render only from real history; no synthesized trend lines.
   const stickinessRatio = createMemo(() => props.metrics?.engagement?.stickiness?.daily_to_monthly);
-
-  const mrrForecast = createMemo(() => Math.round(props.kpi.mrr * 1.08));
-  const dauForecast = createMemo(() => Math.round(props.kpi.dau * 1.05));
 
   return (
     <div class="space-y-6">
@@ -772,13 +682,11 @@ export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = prop
             change={props.kpi.mrr_change}
             icon={DollarSign}
             accent="aurora"
-            sparklineData={mrrSparkline()}
+            sparklineData={props.mrrHistory}
             subtitle={`$${(props.kpi.arr / 1000).toFixed(0)}k ARR`}
             loading={props.isLoading}
-            expandable
             previousValue={props.compareMode ? props.previousKpi?.mrr : undefined}
             target={props.mrrTarget}
-            forecast={mrrForecast()}
             onClick={() => props.onDrillDown?.('mrr')}
             tooltip="Monthly Recurring Revenue (MRR) represents the predictable revenue generated each month from active subscriptions. ARR = MRR × 12."
           />
@@ -786,16 +694,13 @@ export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = prop
           <KPICard
             title="Daily Active Users"
             value={props.kpi.dau}
-            change={props.kpi.mau > 0 ? (props.kpi.dau / props.kpi.mau) * 100 - 15 : 0}
             icon={Users}
             accent="indigo"
-            sparklineData={dauSparkline()}
+            sparklineData={props.dauHistory}
             subtitle={`${props.kpi.mau > 0 ? ((props.kpi.dau / props.kpi.mau) * 100).toFixed(1) : 0}% of MAU`}
             loading={props.isLoading}
-            expandable
             previousValue={props.compareMode ? props.previousKpi?.dau : undefined}
             target={props.dauTarget}
-            forecast={dauForecast()}
             onClick={() => props.onDrillDown?.('dau')}
             tooltip="Daily Active Users (DAU) measures the number of unique users who engage with OMG each day. Higher DAU/MAU ratio indicates stronger engagement."
           />
@@ -804,13 +709,10 @@ export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = prop
             title="Churn Rate"
             value={props.kpi.churn_rate}
             suffix="%"
-            change={-0.3}
-            changeInverted
             icon={TrendingDown}
             accent="flare"
             subtitle={`${props.kpi.at_risk_count} at-risk customers`}
             loading={props.isLoading}
-            expandable
             previousValue={props.compareMode ? props.previousKpi?.churn_rate : undefined}
             onClick={() => props.onDrillDown?.('churn')}
             tooltip="Churn Rate measures the percentage of customers who stop using OMG. Lower is better. At-risk customers show declining engagement patterns."
@@ -820,12 +722,10 @@ export const ExecutiveKPIDashboard: Component<ExecutiveKPIDashboardProps> = prop
             title="Expansion Pipeline"
             value={props.kpi.expansion_pipeline}
             prefix="$"
-            change={props.metrics?.expansion_opportunities?.length ? 12.5 : 0}
             icon={Target}
             accent="solar"
             subtitle={`${props.metrics?.expansion_opportunities?.length || 0} opportunities`}
             loading={props.isLoading}
-            expandable
             previousValue={props.compareMode ? props.previousKpi?.expansion_pipeline : undefined}
             onClick={() => props.onDrillDown?.('expansion')}
             tooltip="Expansion Pipeline represents potential revenue from upselling existing customers to higher tiers or team plans based on usage patterns."

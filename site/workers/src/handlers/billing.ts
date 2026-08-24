@@ -1,4 +1,4 @@
-import { reportError } from '../observability';
+import { reportError, reportWarning } from '../observability';
 import {
   type Env,
   jsonResponse,
@@ -19,7 +19,6 @@ import {
   BillingCustomerRowSchema,
   customerIsAdmin,
   IdRowSchema,
-  isInvalidExtraRow,
   optionalRowValue,
   readOptionalExtraRow,
 } from '../contracts/d1-extras';
@@ -31,11 +30,9 @@ import {
 import {
   decodeStripeJson,
   decodeStripeWebhookText,
-  StripeBalanceSchema,
   StripeCheckoutSessionSchema,
   StripeCustomerListSchema,
   StripeInvoiceListSchema,
-  StripeMetricsListSchema,
   StripePortalSessionSchema,
   StripeSubscriptionListSchema,
   type StripeWebhookEvent,
@@ -50,7 +47,13 @@ const PortalBodySchema = Schema.Struct({
   email: Schema.optional(EmailAddress),
 });
 
-/** Fetch a Stripe API resource and decode its JSON payload; null when invalid. */
+/**
+ * Fetch a Stripe API resource and decode its JSON payload.
+ *
+ * Network failures, non-JSON responses, and schema violations all resolve to
+ * null so callers share one uniform "Stripe call failed" channel; every
+ * failure cause is reported to observability before null is returned.
+ */
 async function fetchStripeJson<S extends Schema.Schema.AnyNoContext>(
   apiKey: string,
   url: string | URL,
@@ -58,12 +61,21 @@ async function fetchStripeJson<S extends Schema.Schema.AnyNoContext>(
   reason: string,
   init: RequestInit = {}
 ): Promise<Schema.Schema.Type<S> | null> {
-  const headers = new Headers(init.headers);
-  headers.set('Authorization', `Bearer ${apiKey}`);
-  const response = await fetch(url, { ...init, headers });
-  const payload: unknown = await response.json();
-  const decoded = await Effect.runPromiseExit(decodeStripeJson(schema, reason, payload));
-  return Exit.isFailure(decoded) ? null : decoded.value;
+  try {
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${apiKey}`);
+    const response = await fetch(url, { ...init, headers });
+    const payload: unknown = await response.json();
+    const decoded = await Effect.runPromiseExit(decodeStripeJson(schema, reason, payload));
+    if (Exit.isFailure(decoded)) {
+      reportError(reason, decoded.cause);
+      return null;
+    }
+    return decoded.value;
+  } catch (error: unknown) {
+    reportError(reason, error);
+    return null;
+  }
 }
 
 function billingCatalog(env: Env): BillingCatalog {
@@ -206,7 +218,9 @@ async function claimStripeEvent(
 
   const claimToken = crypto.randomUUID();
   // RETURNING makes the claim decision authoritative without relying on
-  // meta.changes, which is not populated by every D1 runtime.
+  // meta.changes, which is not populated by every D1 runtime. The 5-minute
+  // lease assumes every handler finishes well inside that window — a handler
+  // running longer could be double-executed concurrently after reclaim.
   const claimed = await db
     .prepare(
       `UPDATE stripe_events
@@ -250,9 +264,13 @@ async function markStripeEventProcessed(
   eventId: string,
   claimToken: string | undefined
 ): Promise<void> {
+  // Drop the raw signed payload once processed: it embeds full customer/
+  // invoice objects (PII) and would otherwise grow stripe_events without
+  // bound over the account's billing lifetime.
   await db
     .prepare(
-      `UPDATE stripe_events SET processed = 1, status = 'processed'
+      `UPDATE stripe_events SET processed = 1, status = 'processed',
+         processed_at = CURRENT_TIMESTAMP, event_data = ''
        WHERE stripe_event_id = ? AND status = 'processing' AND claim_token IS ?`
     )
     .bind(eventId, claimToken ?? null)
@@ -265,6 +283,7 @@ async function failedStripeEventResponse(
   detail: string,
   claimToken?: string
 ): Promise<Response> {
+  reportError(`Stripe webhook event ${eventId} processing failed`, detail);
   await db
     .prepare(
       `UPDATE stripe_events
@@ -352,15 +371,111 @@ async function verifyStripeSignature(
     }
     return false;
   } catch (error: unknown) {
-    reportError('Stripe signature verification error:', error);
+    reportError('Stripe signature verification error', error);
     return false;
   }
+}
+
+/**
+ * Deterministic Stripe Idempotency-Key so double-taps and retries reuse one
+ * Checkout Session instead of minting a new one per click. Rotates daily so a
+ * deliberate later purchase of the same offer is never blocked.
+ */
+async function checkoutIdempotencyKey(userId: string, offer: string): Promise<string> {
+  const day = new Date().toISOString().slice(0, 10);
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`checkout:${userId}:${offer}:${day}`)
+  );
+  return Array.from(new Uint8Array(digest).slice(0, 16))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/** Stored Stripe customer id for an email, or a read failure marker. */
+async function lookupStripeCustomerId(
+  db: D1Database,
+  email: string
+): Promise<
+  { readonly ok: true; readonly stripeCustomerId: string | null } | { readonly ok: false }
+> {
+  const row = await db
+    .prepare('SELECT stripe_customer_id FROM customers WHERE email = ?')
+    .bind(email.toLowerCase())
+    .first();
+  const lookup = await readOptionalExtraRow(
+    StripeCustomerIdRowSchema,
+    'Billing customer row has an invalid shape',
+    row
+  );
+  if (lookup._tag === 'invalid') return { ok: false };
+  return {
+    ok: true,
+    stripeCustomerId: lookup._tag === 'present' ? lookup.value.stripe_customer_id : null,
+  };
+}
+
+/** Idempotent invoice upsert shared by webhook and admin-sync ingestion paths. */
+function buildInvoiceUpsert(
+  db: D1Database,
+  invoice: {
+    readonly stripeInvoiceId: string;
+    readonly customerId: string;
+    readonly amountCents: number | null;
+    readonly currency: string | null;
+    readonly status: string | null;
+    readonly invoiceUrl: string | null;
+    readonly invoicePdf: string | null;
+    readonly periodStart: number | null;
+    readonly periodEnd: number | null;
+    readonly createdAtEpoch: number;
+  }
+): D1PreparedStatement {
+  // COALESCE keeps previously stored URL/period fields when Stripe omits them
+  // on a later delivery (webhook-first invoices keep fresh URLs after sync).
+  return db
+    .prepare(
+      `INSERT INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
+       VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), datetime(?, 'unixepoch'))
+       ON CONFLICT (id) DO UPDATE SET
+         customer_id = excluded.customer_id,
+         amount_cents = excluded.amount_cents,
+         currency = excluded.currency,
+         status = excluded.status,
+         invoice_url = COALESCE(excluded.invoice_url, invoices.invoice_url),
+         invoice_pdf = COALESCE(excluded.invoice_pdf, invoices.invoice_pdf),
+         period_start = COALESCE(excluded.period_start, invoices.period_start),
+         period_end = COALESCE(excluded.period_end, invoices.period_end)`
+    )
+    .bind(
+      invoice.stripeInvoiceId,
+      crypto.randomUUID(),
+      invoice.customerId,
+      invoice.stripeInvoiceId,
+      invoice.amountCents,
+      invoice.currency,
+      invoice.status,
+      invoice.invoiceUrl,
+      invoice.invoicePdf,
+      invoice.periodStart,
+      invoice.periodEnd,
+      invoice.createdAtEpoch
+    );
 }
 
 export async function handleCreateCheckout(request: Request, env: Env): Promise<Response> {
   const authOrDenied = await authenticate(request, env);
   if (authOrDenied instanceof Response) return authOrDenied;
   const auth = authOrDenied;
+
+  if (env.API_RATE_LIMITER) {
+    const { success } = await env.API_RATE_LIMITER.limit({
+      key: `billing_checkout:${auth.user.id}`,
+    });
+    if (!success) {
+      return errorResponse('Rate limit exceeded', 429);
+    }
+  }
 
   const decoded = await Effect.runPromiseExit(decodeJsonBody(request, CheckoutRequestSchema));
   if (Exit.isFailure(decoded)) {
@@ -372,9 +487,31 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     return errorResponse('Billing offer unavailable', 503);
   }
   const priceId = priceExit.value;
-  const email = auth.user.email;
   if (!env.STRIPE_SECRET_KEY) {
     return errorResponse('Billing is not configured', 503);
+  }
+
+  const email = auth.user.email.toLowerCase();
+  const storedCustomer = await lookupStripeCustomerId(env.DB, email);
+  if (!storedCustomer.ok) {
+    return errorResponse('Failed to load billing account', 500);
+  }
+
+  const params = new URLSearchParams({
+    mode: 'subscription',
+    'line_items[0][price]': priceId,
+    'line_items[0][quantity]': '1',
+    // The template lets the success modal correlate the redirect with a real
+    // Checkout Session instead of trusting a forgeable ?success=true flag.
+    success_url: 'https://omg.latham.cloud/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}',
+    cancel_url: 'https://omg.latham.cloud/#pricing',
+  });
+  // Known buyers attach the stored Stripe customer so repeated checkouts do
+  // not mint a fresh pending Customer object per attempt.
+  if (storedCustomer.stripeCustomerId === null) {
+    params.set('customer_email', email);
+  } else {
+    params.set('customer', storedCustomer.stripeCustomerId);
   }
 
   const session = await fetchStripeJson(
@@ -384,23 +521,19 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     'Stripe checkout session has an invalid shape',
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        mode: 'subscription',
-        customer_email: email,
-        'line_items[0][price]': priceId,
-        'line_items[0][quantity]': '1',
-        success_url: 'https://omg.latham.cloud/dashboard?success=true',
-        cancel_url: 'https://omg.latham.cloud/#pricing',
-      }),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Idempotency-Key': await checkoutIdempotencyKey(auth.user.id, offer),
+      },
+      body: params,
     }
   );
   if (!session) {
-    return errorResponse('Failed to create checkout session', 500);
+    return errorResponse('Failed to create checkout session', 502);
   }
 
   if (session.error) {
-    return errorResponse(session.error.message);
+    return errorResponse(session.error.message, 502);
   }
 
   if (!session.url) {
@@ -426,33 +559,22 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
     return errorResponse('Invalid JSON body', 400);
   }
   const requestedEmail = decoded.value.email;
-  let email = auth.user.email;
-  if (requestedEmail !== undefined && requestedEmail !== auth.user.email) {
+  let email = auth.user.email.toLowerCase();
+  if (requestedEmail !== undefined && requestedEmail !== email) {
     const denied = await forbiddenUnlessAdminSession(request, env);
     if (denied === null) {
       email = requestedEmail;
     }
   }
 
-  const customer = await env.DB.prepare(`SELECT stripe_customer_id FROM customers WHERE email = ?`)
-    .bind(email)
-    .first();
-
-  const stripeCustomerLookup = await readOptionalExtraRow(
-    StripeCustomerIdRowSchema,
-    'Billing customer row has an invalid shape',
-    customer
-  );
-  if (isInvalidExtraRow(stripeCustomerLookup)) {
+  const storedCustomer = await lookupStripeCustomerId(env.DB, email);
+  if (!storedCustomer.ok) {
     return errorResponse('Failed to load billing account', 500);
   }
-  if (
-    stripeCustomerLookup._tag === 'missing' ||
-    stripeCustomerLookup.value.stripe_customer_id === null
-  ) {
+  if (storedCustomer.stripeCustomerId === null) {
     return errorResponse('No billing account found for this email', 404);
   }
-  const stripeCustomerId = stripeCustomerLookup.value.stripe_customer_id;
+  const stripeCustomerId = storedCustomer.stripeCustomerId;
   if (!env.STRIPE_SECRET_KEY) {
     return errorResponse('Billing is not configured', 503);
   }
@@ -472,15 +594,18 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
     }
   );
   if (!session) {
-    return errorResponse('Failed to create portal session');
+    return errorResponse('Failed to create portal session', 502);
   }
 
   if (session.error || !session.url) {
-    return errorResponse(session.error?.message || 'Failed to create portal session');
+    return errorResponse(session.error?.message || 'Failed to create portal session', 502);
   }
 
   await Effect.runPromise(
-    logAudit(env.DB, auth.user.id, 'billing.portal_opened', 'portal', null, request)
+    logAudit(env.DB, auth.user.id, 'billing.portal_opened', 'portal', null, request, {
+      target_email: email,
+      stripe_customer_id: stripeCustomerId,
+    })
   );
 
   return jsonResponse({ success: true, url: session.url });
@@ -493,6 +618,7 @@ export async function handleStripeWebhook(
 ): Promise<Response> {
   const signature = request.headers.get('stripe-signature');
   if (!signature || !env.STRIPE_WEBHOOK_SECRET) {
+    reportWarning('Stripe webhook rejected: missing signature or secret');
     return new Response('Missing signature or secret', { status: 400 });
   }
 
@@ -501,6 +627,7 @@ export async function handleStripeWebhook(
   // Verify Stripe signature
   const isValid = await verifyStripeSignature(body, signature, env.STRIPE_WEBHOOK_SECRET);
   if (!isValid) {
+    reportWarning('Stripe webhook rejected: signature verification failed');
     return new Response('Invalid signature', { status: 401 });
   }
 
@@ -524,21 +651,21 @@ export async function handleStripeWebhook(
     return new Response('Failed to load webhook inbox', { status: 500 });
   }
 
-  switch (event.type) {
-    case 'customer.subscription.created':
-    case 'customer.subscription.updated':
-    case 'customer.subscription.deleted': {
-      const subscriptionId = event.data.object.id;
-      if (subscriptionId === undefined || subscriptionId.length === 0) {
-        return failedStripeEventResponse(
-          env.DB,
-          event.id,
-          'Subscription event has no object id',
-          claimToken
-        );
-      }
+  try {
+    switch (event.type) {
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted': {
+        const subscriptionId = event.data.object.id;
+        if (subscriptionId === undefined || subscriptionId.length === 0) {
+          return failedStripeEventResponse(
+            env.DB,
+            event.id,
+            'Subscription event has no object id',
+            claimToken
+          );
+        }
 
-      try {
         await reconcileStripeSubscriptionSignal(
           env.DB,
           subscriptionId,
@@ -546,111 +673,133 @@ export async function handleStripeWebhook(
           billingCatalog(env),
           stripeFetch
         );
-      } catch (error: unknown) {
-        return failedStripeEventResponse(
-          env.DB,
-          event.id,
-          decodeThrownMessage(error) || 'Unknown subscription reconciliation failure',
-          claimToken
-        );
+        break;
       }
-      break;
-    }
 
-    case 'invoice.paid':
-    case 'invoice.payment_failed': {
-      const invoice = event.data.object;
-      const resolved = await resolveStripeCustomerId(env.DB, invoice.customer);
-      if (!resolved.ok) {
-        if (resolved.reason === 'invalid-row') {
-          return new Response('Failed to load customer', { status: 500 });
+      case 'invoice.paid':
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object;
+        if (invoice.id === undefined || invoice.id.length === 0) {
+          return failedStripeEventResponse(
+            env.DB,
+            event.id,
+            'Invoice event has no object id',
+            claimToken
+          );
+        }
+        const resolved = await resolveStripeCustomerId(env.DB, invoice.customer);
+        if (!resolved.ok) {
+          if (resolved.reason === 'invalid-row') {
+            return failedStripeEventResponse(
+              env.DB,
+              event.id,
+              'Customer row has an invalid shape',
+              claimToken
+            );
+          }
+          // Unlinked customers must retry instead of being marked processed:
+          // Stripe does not guarantee delivery order, so the linking event
+          // (customer.created / first reconciliation) may arrive after this
+          // invoice. Consuming it here would drop the revenue record forever.
+          return failedStripeEventResponse(
+            env.DB,
+            event.id,
+            'Stripe customer is not linked to a local customer yet',
+            claimToken
+          );
+        }
+
+        if (event.type === 'invoice.paid') {
+          await buildInvoiceUpsert(env.DB, {
+            stripeInvoiceId: invoice.id,
+            customerId: resolved.customerId,
+            amountCents: invoice.amount_paid ?? null,
+            currency: invoice.currency ?? null,
+            status: invoice.status ?? null,
+            invoiceUrl: invoice.hosted_invoice_url ?? null,
+            invoicePdf: invoice.invoice_pdf ?? null,
+            periodStart: invoice.period_start ?? null,
+            periodEnd: invoice.period_end ?? null,
+            createdAtEpoch: invoice.created ?? Math.floor(Date.now() / 1000),
+          }).run();
+        } else {
+          // Preserve the historical payment signal without mutating current
+          // subscription state.
+          await env.DB.prepare(
+            `INSERT INTO audit_log (id, customer_id, action, metadata, created_at)
+             VALUES (?, ?, 'billing.payment_failed', ?, datetime('now'))`
+          )
+            .bind(
+              crypto.randomUUID(),
+              resolved.customerId,
+              JSON.stringify({ invoice_id: invoice.id, amount: invoice.amount_due })
+            )
+            .run();
         }
         break;
       }
 
-      if (event.type === 'invoice.paid') {
-        // Idempotent by stripe_invoice_id: repeated webhook deliveries update
-        // the same row instead of inserting duplicates under fresh UUIDs.
+      case 'customer.created': {
+        const stripeCustomer = event.data.object;
+
+        // Customers without an email (possible at fixture/checkout start) cannot
+        // be keyed; the row is created by later events that carry one.
+        if (!stripeCustomer.email) {
+          break;
+        }
+
+        // Check if customer already exists
+        const existingRow = await env.DB.prepare(
+          'SELECT id, stripe_customer_id FROM customers WHERE stripe_customer_id = ? OR email = ?'
+        )
+          .bind(stripeCustomer.id, stripeCustomer.email)
+          .first();
+        const existingLookup = await readOptionalExtraRow(
+          BillingCustomerRowSchema,
+          'Billing customer link row has an invalid shape',
+          existingRow
+        );
+        if (existingLookup._tag === 'invalid') {
+          return failedStripeEventResponse(
+            env.DB,
+            event.id,
+            'Customer row has an invalid shape',
+            claimToken
+          );
+        }
+        // Never auto-link an existing bare-email match; invoice.paid proves payment.
+        if (optionalRowValue(existingLookup) !== undefined) break;
+
         await env.DB.prepare(
-          `INSERT INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
-           VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), CURRENT_TIMESTAMP)
-           ON CONFLICT (id) DO UPDATE SET
-             amount_cents = excluded.amount_cents,
-             currency = excluded.currency,
-             status = excluded.status`
+          `INSERT INTO customers (id, stripe_customer_id, email, company, created_at)
+           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
         )
           .bind(
-            invoice.id,
             crypto.randomUUID(),
-            resolved.customerId,
-            invoice.id,
-            invoice.amount_paid ?? null,
-            invoice.currency ?? null,
-            invoice.status ?? null,
-            invoice.hosted_invoice_url ?? null,
-            invoice.invoice_pdf ?? null,
-            invoice.period_start ?? null,
-            invoice.period_end ?? null
+            stripeCustomer.id,
+            stripeCustomer.email,
+            stripeCustomer.metadata?.company || null
           )
           .run();
-      } else {
-        // Preserve the historical payment signal without mutating current subscription state.
-        await env.DB.prepare(
-          `INSERT INTO audit_log (id, customer_id, action, metadata, created_at)
-           VALUES (?, ?, 'billing.payment_failed', ?, CURRENT_TIMESTAMP)`
-        )
-          .bind(
-            crypto.randomUUID(),
-            resolved.customerId,
-            JSON.stringify({ invoice_id: invoice.id, amount: invoice.amount_due })
-          )
-          .run();
-      }
-      break;
-    }
-
-    case 'customer.created': {
-      const stripeCustomer = event.data.object;
-
-      // Customers without an email (possible at fixture/checkout start) cannot
-      // be keyed; the row is created by later events that carry one.
-      if (!stripeCustomer.email) {
         break;
       }
-
-      // Check if customer already exists
-      const existingRow = await env.DB.prepare(
-        'SELECT id, stripe_customer_id FROM customers WHERE stripe_customer_id = ? OR email = ?'
-      )
-        .bind(stripeCustomer.id, stripeCustomer.email)
-        .first();
-      const existingLookup = await readOptionalExtraRow(
-        BillingCustomerRowSchema,
-        'Billing customer link row has an invalid shape',
-        existingRow
-      );
-      if (existingLookup._tag === 'invalid') {
-        return new Response('Failed to load customer', { status: 500 });
-      }
-      // Never auto-link an existing bare-email match; invoice.paid proves payment.
-      if (optionalRowValue(existingLookup) !== undefined) break;
-
-      await env.DB.prepare(
-        `INSERT INTO customers (id, stripe_customer_id, email, company, created_at)
-         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
-      )
-        .bind(
-          crypto.randomUUID(),
-          stripeCustomer.id,
-          stripeCustomer.email,
-          stripeCustomer.metadata?.company || null
-        )
-        .run();
-      break;
+      default:
+        // Unknown-but-real Stripe event types are durable no-ops so Stripe does
+        // not retry them indefinitely; surface them so flows like refunds or
+        // paused subscriptions get implemented instead of vanishing silently.
+        reportWarning(`Unhandled Stripe webhook event type: ${event.type}`);
+        break;
     }
-    default:
-      // Unknown event types are durable no-ops so Stripe does not retry them indefinitely.
-      break;
+  } catch (error: unknown) {
+    // Any thrown store error must release the inbox claim via the failed path;
+    // escaping would wedge the event in status='processing' until lease expiry
+    // and turn every Stripe retry into a 409 storm.
+    return failedStripeEventResponse(
+      env.DB,
+      event.id,
+      decodeThrownMessage(error) || 'Unknown webhook processing failure',
+      claimToken
+    );
   }
 
   await markStripeEventProcessed(env.DB, event.id, claimToken);
@@ -684,19 +833,43 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
       errors,
       customer => `Customer ${customer.email}`,
       async customer => {
-        await env.DB.prepare(
-          `INSERT OR REPLACE INTO customers (id, stripe_customer_id, email, company, created_at)
-           VALUES (COALESCE((SELECT id FROM customers WHERE stripe_customer_id = ? OR email = ?), ?), ?, ?, ?, CURRENT_TIMESTAMP)`
+        if (!customer.email) {
+          errors.push(`Customer ${customer.id}: Stripe customer has no email`);
+          return false;
+        }
+        // Explicit select-then-update/insert preserves the existing customer id:
+        // INSERT OR REPLACE would delete-and-reinsert the parent row that every
+        // ON DELETE CASCADE child (licenses, subscriptions, machines) hangs off.
+        const existingRow = await env.DB.prepare(
+          'SELECT id FROM customers WHERE stripe_customer_id = ? OR email = ?'
         )
-          .bind(
-            customer.id,
-            customer.email,
-            crypto.randomUUID(),
-            customer.id,
-            customer.email,
-            customer.metadata?.company
+          .bind(customer.id, customer.email)
+          .first();
+        const existingLookup = await readOptionalExtraRow(
+          IdRowSchema,
+          'Customer id row has an invalid shape',
+          existingRow
+        );
+        if (existingLookup._tag === 'invalid') {
+          errors.push(`Customer ${customer.email}: customer row has an invalid shape`);
+          return false;
+        }
+        const company = customer.metadata?.company ?? null;
+        const existing = optionalRowValue(existingLookup);
+        if (existing === undefined) {
+          await env.DB.prepare(
+            `INSERT INTO customers (id, stripe_customer_id, email, company, created_at)
+             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`
           )
-          .run();
+            .bind(crypto.randomUUID(), customer.id, customer.email, company)
+            .run();
+        } else {
+          await env.DB.prepare(
+            'UPDATE customers SET stripe_customer_id = ?, email = ?, company = COALESCE(?, company) WHERE id = ?'
+          )
+            .bind(customer.id, customer.email, company, existing.id)
+            .run();
+        }
         return true;
       },
       () => results.customers_synced++
@@ -748,25 +921,18 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
           }
           return false;
         }
-        await env.DB.prepare(
-          `INSERT OR REPLACE INTO invoices (id, customer_id, stripe_invoice_id, amount_cents, currency, status, invoice_url, invoice_pdf, period_start, period_end, created_at)
-           VALUES (COALESCE((SELECT id FROM invoices WHERE stripe_invoice_id = ?), ?), ?, ?, ?, ?, ?, ?, ?, datetime(?, 'unixepoch'), datetime(?, 'unixepoch'), datetime(?, 'unixepoch'))`
-        )
-          .bind(
-            invoice.id,
-            crypto.randomUUID(),
-            resolved.customerId,
-            invoice.id,
-            invoice.amount_paid ?? null,
-            invoice.currency ?? null,
-            invoice.status ?? null,
-            invoice.hosted_invoice_url ?? null,
-            invoice.invoice_pdf ?? null,
-            invoice.period_start ?? null,
-            invoice.period_end ?? null,
-            invoice.created ?? null
-          )
-          .run();
+        await buildInvoiceUpsert(env.DB, {
+          stripeInvoiceId: invoice.id,
+          customerId: resolved.customerId,
+          amountCents: invoice.amount_paid ?? null,
+          currency: invoice.currency ?? null,
+          status: invoice.status ?? null,
+          invoiceUrl: invoice.hosted_invoice_url ?? null,
+          invoicePdf: invoice.invoice_pdf ?? null,
+          periodStart: invoice.period_start ?? null,
+          periodEnd: invoice.period_end ?? null,
+          createdAtEpoch: invoice.created ?? Math.floor(Date.now() / 1000),
+        }).run();
         return true;
       },
       () => results.invoices_synced++
@@ -784,70 +950,176 @@ export async function handleAdminStripeSync(request: Request, env: Env): Promise
 
 /**
  * Admin: Get real-time Stripe metrics (MRR, subscriber counts, etc.)
+ *
+ * MRR math operates on fully-typed subscription items: recurring amounts are
+ * normalized to a monthly value per interval (month/year/week/day), one-time
+ * items are excluded from recurring revenue, each subscription is classified
+ * into a tier exactly once via server-owned price IDs, and everything is
+ * paginated past Stripe's 100-item page cap. Only USD amounts are summed;
+ * mixing currencies into one number would be fiction.
  */
+const MetricsPriceSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  unit_amount: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
+  currency: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+  recurring: Schema.optional(
+    Schema.Struct({
+      interval: Schema.optional(Schema.String),
+      interval_count: Schema.optional(Schema.Number),
+    })
+  ),
+});
+
+const MetricsItemSchema = Schema.Struct({
+  quantity: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
+  price: MetricsPriceSchema,
+});
+
+const MetricsSubscriptionSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  items: Schema.Struct({
+    data: Schema.Array(MetricsItemSchema),
+  }),
+});
+
+const MetricsListSchema = Schema.Struct({
+  has_more: Schema.Boolean,
+  data: Schema.Array(MetricsSubscriptionSchema),
+});
+
+const BalanceFundsSchema = Schema.Struct({
+  amount: Schema.Number,
+  currency: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
+});
+
+const BalanceSchema = Schema.Struct({
+  available: Schema.Array(BalanceFundsSchema),
+  pending: Schema.Array(BalanceFundsSchema),
+});
+
+type MetricsPrice = Schema.Schema.Type<typeof MetricsPriceSchema>;
+
+type BalanceFunds = Schema.Schema.Type<typeof BalanceFundsSchema>;
+
+/** Sum only USD funds so the reported balance matches its `currency` label. */
+function usdTotal(funds: ReadonlyArray<BalanceFunds>): number {
+  return funds.filter(fund => fund.currency === 'usd').reduce((sum, fund) => sum + fund.amount, 0);
+}
+
+type MetricsTier = 'pro' | 'team' | 'enterprise';
+
+/** Monthly-normalized cents for a recurring price; null for one-time prices. */
+function monthlyNormalizedCents(price: MetricsPrice): number | null {
+  const recurring = price.recurring;
+  if (recurring === undefined) return null;
+  const amount = price.unit_amount ?? 0;
+  const count = recurring.interval_count ?? 1;
+  if (!Number.isInteger(count) || count <= 0) return null;
+  switch (recurring.interval) {
+    case 'month':
+      return amount / count;
+    case 'year':
+      return amount / (12 * count);
+    case 'week':
+      return (amount * 52) / (12 * count);
+    case 'day':
+      return (amount * 365) / (12 * count);
+    default:
+      return null;
+  }
+}
+
+/**
+ * Classify a price by the server-owned catalog. Prices outside it get no tier
+ * bucket — an amount heuristic would let any custom >= $200/mo price inflate
+ * "enterprise".
+ */
+function classifyPriceTier(
+  priceId: string,
+  catalog: BillingCatalog,
+  enterprisePriceId: string | undefined
+): MetricsTier | undefined {
+  if (catalog.proPriceId !== undefined && priceId === catalog.proPriceId) return 'pro';
+  if (catalog.teamPriceId !== undefined && priceId === catalog.teamPriceId) return 'team';
+  if (enterprisePriceId !== undefined && priceId === enterprisePriceId) return 'enterprise';
+  return undefined;
+}
+
 export async function handleAdminStripeMetrics(request: Request, env: Env): Promise<Response> {
   const authOrDenied = await requireAdmin(request, env);
   if (authOrDenied instanceof Response) return authOrDenied;
 
-  // Fetch active subscriptions from Stripe for accurate MRR
-  const subsData = await fetchStripeJson(
-    env.STRIPE_SECRET_KEY,
-    'https://api.stripe.com/v1/subscriptions?status=active&limit=100',
-    StripeMetricsListSchema,
-    'Stripe metrics subscription list has an invalid shape'
-  );
-  if (!subsData) {
-    return errorResponse('Failed to load Stripe metrics', 500);
-  }
+  const catalog = billingCatalog(env);
+  let mrrCents = 0;
+  let activeSubscriptions = 0;
+  const tierCounts = { pro: 0, team: 0, enterprise: 0 } satisfies Record<MetricsTier, number>;
+  let startingAfter: string | undefined;
 
-  let mrr = 0;
-  const tierCounts = { pro: 0, team: 0, enterprise: 0 } satisfies Record<string, number>;
+  for (;;) {
+    const url = URL.parse('https://api.stripe.com/v1/subscriptions');
+    if (url === null) {
+      return errorResponse('Failed to load Stripe metrics', 500);
+    }
+    url.searchParams.set('status', 'active');
+    url.searchParams.set('limit', '100');
+    if (startingAfter !== undefined) url.searchParams.set('starting_after', startingAfter);
 
-  for (const sub of subsData.data) {
-    for (const item of sub.items.data) {
-      const amount = item.price.unit_amount || 0;
-      const interval = item.price.recurring?.interval;
-      const intervalCount = item.price.recurring?.interval_count || 1;
+    const page = await fetchStripeJson(
+      env.STRIPE_SECRET_KEY,
+      url,
+      MetricsListSchema,
+      'Stripe metrics subscription list has an invalid shape'
+    );
+    if (!page) {
+      return errorResponse('Failed to load Stripe metrics', 502);
+    }
 
-      // Convert to monthly
-      let monthlyAmount = amount;
-      if (interval === 'year') {
-        monthlyAmount = amount / (12 * intervalCount);
-      } else if (interval === 'month') {
-        monthlyAmount = amount / intervalCount;
-      }
-
-      mrr += monthlyAmount;
-
-      // Categorize by tier based on price
-      if (monthlyAmount >= 50000) {
-        tierCounts.enterprise++;
-      } else if (monthlyAmount >= 20000) {
-        tierCounts.team++;
-      } else {
-        tierCounts.pro++;
+    for (const sub of page.data) {
+      activeSubscriptions++;
+      let tierAssigned = false;
+      for (const item of sub.items.data) {
+        const monthly = monthlyNormalizedCents(item.price);
+        if (monthly !== null && item.price.currency === 'usd') {
+          mrrCents += monthly * (item.quantity ?? 1);
+        }
+        // Tier is counted once per subscription even when it carries multiple
+        // items, keeping tier_breakdown consistent with active_subscriptions.
+        if (!tierAssigned) {
+          const tier = classifyPriceTier(item.price.id, catalog, env.STRIPE_ENT_PRICE_ID);
+          if (tier !== undefined) {
+            tierCounts[tier]++;
+            tierAssigned = true;
+          }
+        }
       }
     }
+
+    if (!page.has_more) break;
+    const cursor = page.data.at(-1)?.id;
+    if (cursor === undefined) {
+      return errorResponse('Failed to load Stripe metrics', 502);
+    }
+    startingAfter = cursor;
   }
 
   // Fetch recent balance (available + pending)
   const balance = await fetchStripeJson(
     env.STRIPE_SECRET_KEY,
     'https://api.stripe.com/v1/balance',
-    StripeBalanceSchema,
+    BalanceSchema,
     'Stripe balance has an invalid shape'
   );
   if (!balance) {
-    return errorResponse('Failed to load Stripe balance', 500);
+    return errorResponse('Failed to load Stripe balance', 502);
   }
 
-  const availableBalance = balance.available.reduce((sum, funds) => sum + funds.amount, 0);
-  const pendingBalance = balance.pending.reduce((sum, funds) => sum + funds.amount, 0);
+  const availableBalance = usdTotal(balance.available);
+  const pendingBalance = usdTotal(balance.pending);
 
   return jsonResponse({
-    mrr: Math.round(mrr),
-    arr: Math.round(mrr * 12),
-    active_subscriptions: subsData.data.length,
+    mrr: Math.round(mrrCents),
+    arr: Math.round(mrrCents * 12),
+    active_subscriptions: activeSubscriptions,
     tier_breakdown: tierCounts,
     balance: {
       available: availableBalance,

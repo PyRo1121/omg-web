@@ -1,13 +1,20 @@
+# Applies to STATIC ASSET responses only. SSR/API responses (/dashboard, /admin,
+# /api/*) are produced by the Worker script and bypass this file entirely; their
+# headers are owned by the Worker code.
+#
+# CSP notes: 'unsafe-inline' is retained in script-src only because SolidStart's
+# prerendered pages ship an inline hydration bootstrap; migrating to a nonce/hash
+# requires touching server rendering code. 'unsafe-eval' is not needed by any
+# production bundle and must not be reintroduced.
 /*
   Cache-Control: public, max-age=0, must-revalidate
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
-  X-XSS-Protection: 1; mode=block
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   Cross-Origin-Opener-Policy: same-origin
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://omg.latham.cloud https://omg-api.latham.cloud https://api.github.com https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://omg.latham.cloud https://github.com https://accounts.google.com
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://omg.latham.cloud https://omg-api.latham.cloud https://api.github.com https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://omg.latham.cloud https://github.com https://accounts.google.com
   Vary: Accept-Encoding
 
 /assets/*
@@ -22,11 +29,3 @@
 
 /dashboard
   Cache-Control: public, max-age=0, must-revalidate
-
-/api/*
-  Cache-Control: private, no-cache, no-store, must-revalidate
-  Vary: Cookie, Accept-Encoding
-
-/api/telemetry/*
-  Cache-Control: private, no-cache, no-store, must-revalidate
-  Vary: Cookie, Accept-Encoding

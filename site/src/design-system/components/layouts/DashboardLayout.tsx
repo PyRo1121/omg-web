@@ -1,5 +1,5 @@
 import type { Component, ParentComponent, JSX } from 'solid-js';
-import { Show, For, createSignal } from 'solid-js';
+import { Show, For, createSignal, createUniqueId, onMount, onCleanup } from 'solid-js';
 import { cn } from '~/lib/prelude';
 
 interface DashboardGridProps {
@@ -24,6 +24,7 @@ const columnClasses = {
   12: 'grid-cols-4 md:grid-cols-6 lg:grid-cols-12',
 };
 
+/** Responsive dashboard grid with preset column layouts. */
 export const DashboardGrid: ParentComponent<DashboardGridProps> = props => {
   return (
     <div
@@ -61,6 +62,7 @@ const rowSpanClasses = {
   3: 'row-span-3',
 };
 
+/** Grid child that spans a configurable number of columns/rows. */
 export const GridItem: ParentComponent<GridItemProps> = props => {
   return (
     <div
@@ -87,6 +89,8 @@ interface SectionProps {
 
 export const Section: ParentComponent<SectionProps> = props => {
   const [expanded, setExpanded] = createSignal(props.defaultExpanded !== false);
+  const headingId = createUniqueId();
+  const regionId = createUniqueId();
 
   const variantClasses = {
     default: 'bg-void-850 border border-white/5 rounded-3xl p-8',
@@ -99,7 +103,9 @@ export const Section: ParentComponent<SectionProps> = props => {
       <Show when={props.title}>
         <div class="mb-6 flex items-start justify-between">
           <div>
-            <h3 class="text-xl font-black tracking-tight text-white">{props.title}</h3>
+            <h3 id={headingId} class="text-xl font-black tracking-tight text-white">
+              {props.title}
+            </h3>
             <Show when={props.subtitle}>
               <p class="text-nebula-500 mt-1 text-sm font-medium">{props.subtitle}</p>
             </Show>
@@ -108,7 +114,11 @@ export const Section: ParentComponent<SectionProps> = props => {
             {props.action}
             <Show when={props.collapsible}>
               <button
+                type="button"
                 onClick={() => setExpanded(!expanded())}
+                aria-expanded={expanded()}
+                aria-controls={regionId}
+                aria-label={`${expanded() ? 'Collapse' : 'Expand'} ${props.title ?? 'section'}`}
                 class="text-nebula-500 rounded-lg p-2 transition-colors hover:bg-white/5 hover:text-white"
               >
                 <svg
@@ -116,6 +126,7 @@ export const Section: ParentComponent<SectionProps> = props => {
                   height="16"
                   viewBox="0 0 16 16"
                   fill="none"
+                  aria-hidden="true"
                   class={cn('transition-transform', expanded() ? 'rotate-180' : '')}
                 >
                   <path
@@ -132,7 +143,9 @@ export const Section: ParentComponent<SectionProps> = props => {
         </div>
       </Show>
       <Show when={!props.collapsible || expanded()}>
-        <div class={cn(props.collapsible && 'animate-slide-in-bottom')}>{props.children}</div>
+        <div id={regionId} class={cn(props.collapsible && 'animate-slide-in-bottom')}>
+          {props.children}
+        </div>
       </Show>
     </section>
   );
@@ -146,6 +159,7 @@ interface PageHeaderProps {
   class?: string;
 }
 
+/** Page title block with optional breadcrumbs, subtitle, and action area. */
 export const PageHeader: Component<PageHeaderProps> = props => {
   return (
     <header class={cn('mb-8', props.class)}>
@@ -198,8 +212,47 @@ interface TabNavigationProps {
   class?: string;
 }
 
+/**
+ * Accessible tab strip implementing the ARIA tabs pattern: `tablist`/`tab`
+ * roles, `aria-selected`, and roving focus with Arrow/Home/End keys. Panels
+ * should reference the active tab id through their own labeling.
+ */
 export const TabNavigation: Component<TabNavigationProps> = props => {
   const variant = () => props.variant || 'pills';
+
+  const nextIndexFor = (key: string, currentIndex: number): number => {
+    const count = props.tabs.length;
+    switch (key) {
+      case 'Home':
+        return 0;
+      case 'End':
+        return count - 1;
+      case 'ArrowLeft':
+        return (currentIndex - 1 + count) % count;
+      default:
+        return (currentIndex + 1) % count;
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent & { currentTarget: HTMLElement }) => {
+    const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    if (!keys.includes(event.key) || props.tabs.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    const currentIndex = Math.max(
+      0,
+      props.tabs.findIndex(tab => tab.id === props.activeTab)
+    );
+    const nextTab = props.tabs[nextIndexFor(event.key, currentIndex)];
+    if (nextTab === undefined) {
+      return;
+    }
+    props.onChange(nextTab.id);
+    event.currentTarget
+      .querySelector<HTMLButtonElement>(`[data-tab-id="${CSS.escape(nextTab.id)}"]`)
+      ?.focus();
+  };
 
   const baseClasses = {
     pills: 'flex items-center gap-2 rounded-2xl border border-white/5 bg-white/[0.02] p-1.5',
@@ -232,10 +285,15 @@ export const TabNavigation: Component<TabNavigationProps> = props => {
   };
 
   return (
-    <nav class={cn(baseClasses[variant()], props.class)}>
+    <div class={cn(baseClasses[variant()], props.class)} role="tablist" onKeyDown={handleKeyDown}>
       <For each={props.tabs}>
         {tab => (
           <button
+            type="button"
+            data-tab-id={tab.id}
+            role="tab"
+            aria-selected={props.activeTab === tab.id}
+            tabindex={props.activeTab === tab.id ? 0 : -1}
             onClick={() => props.onChange(tab.id)}
             class={tabClasses[variant()](props.activeTab === tab.id)}
           >
@@ -256,7 +314,7 @@ export const TabNavigation: Component<TabNavigationProps> = props => {
           </button>
         )}
       </For>
-    </nav>
+    </div>
   );
 };
 
@@ -277,17 +335,49 @@ const drawerWidths = {
   '2xl': 'max-w-2xl',
 };
 
+/** Slide-over drawer with full dialog semantics: labelled via its title,
+ * modal, Escape-to-close, backdrop dismissal, and focus moved into the panel
+ * on open and restored to the trigger on close. */
 export const Drawer: ParentComponent<DrawerProps> = props => {
+  let panelRef: HTMLDivElement | undefined;
+  const drawerTitleId = createUniqueId();
+
+  onMount(() => {
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panelRef?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        props.onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    onCleanup(() => {
+      window.removeEventListener('keydown', handleEscape);
+      previouslyFocused?.focus();
+    });
+  });
+
   return (
     <Show when={props.open}>
       <div class="fixed inset-0 z-50 flex justify-end">
-        <div
-          class="animate-fade-in absolute inset-0 bg-black/60 backdrop-blur-sm"
-          onClick={props.onClose}
+        <button
+          type="button"
+          aria-label="Close drawer"
+          tabIndex={-1}
+          class="animate-fade-in absolute inset-0 cursor-default bg-black/60 backdrop-blur-sm"
+          onClick={() => props.onClose()}
         />
         <div
+          ref={el => {
+            panelRef = el;
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={props.title === undefined ? undefined : drawerTitleId}
+          tabindex={-1}
           class={cn(
-            'bg-void-950 relative w-full overflow-y-auto border-l border-white/10 shadow-2xl',
+            'bg-void-950 relative w-full overflow-y-auto border-l border-white/10 shadow-2xl outline-none',
             'animate-slide-in-right',
             drawerWidths[props.width || 'lg'],
             props.class
@@ -297,17 +387,21 @@ export const Drawer: ParentComponent<DrawerProps> = props => {
             <div class="flex items-start justify-between">
               <div>
                 <Show when={props.title}>
-                  <h2 class="text-2xl font-black tracking-tight text-white">{props.title}</h2>
+                  <h2 id={drawerTitleId} class="text-2xl font-black tracking-tight text-white">
+                    {props.title}
+                  </h2>
                 </Show>
                 <Show when={props.subtitle}>
                   <p class="text-nebula-500 mt-1 text-sm">{props.subtitle}</p>
                 </Show>
               </div>
               <button
+                type="button"
                 onClick={props.onClose}
+                aria-label="Close"
                 class="text-nebula-400 rounded-xl p-2 transition-colors hover:bg-white/5 hover:text-white"
               >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path
                     d="M15 5L5 15M5 5L15 15"
                     stroke="currentColor"
@@ -334,6 +428,7 @@ interface EmptyStateProps {
   class?: string;
 }
 
+/** Centered placeholder with optional icon, description, and call to action. */
 export const EmptyState: Component<EmptyStateProps> = props => {
   return (
     <div class={cn('flex flex-col items-center justify-center py-16 text-center', props.class)}>
@@ -357,6 +452,7 @@ interface LoadingStateProps {
   class?: string;
 }
 
+/** Placeholder content in spinner, pulse, or skeleton-card variants. */
 export const LoadingState: Component<LoadingStateProps> = props => {
   const variant = () => props.variant || 'skeleton';
   const count = () => props.count || 3;

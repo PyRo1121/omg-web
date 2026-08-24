@@ -38,9 +38,9 @@ export const useAdminFirehose = (limit = 50) =>
     refetchInterval: 5000,
   });
 
-// Mutations
-
 export const useAdminRevenue = () => apiQuery(['admin-revenue'], api.getAdminRevenue);
+
+// Mutations
 
 // Accessor form keeps the query key reactive: changing page/filter refetches.
 export const useAdminAuditLog = (
@@ -111,12 +111,12 @@ export const useRemoveTag = () =>
 
 export const useAdminAdvancedMetrics = () =>
   apiQuery(['admin-advanced-metrics'], api.getAdminAdvancedMetrics, {
-    staleTime: 5 * 60 * 1000,
+    staleTime: 300000,
   });
 
 export const useSiteGeoAnalytics = (days = 30) =>
   apiQuery(['site-geo-analytics', days], () => api.getSiteGeoAnalytics(days), {
-    staleTime: 60 * 1000,
+    staleTime: 60000,
   });
 
 export const useSiteRealtimeAnalytics = () =>
@@ -126,5 +126,5 @@ export const useSiteRealtimeAnalytics = () =>
 
 export const useSiteAnalyticsOverview = (days = 30) =>
   apiQuery(['site-analytics-overview', days], () => api.getSiteAnalyticsOverview(days), {
-    staleTime: 60 * 1000,
+    staleTime: 60000,
   });

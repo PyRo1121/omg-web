@@ -2,6 +2,11 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import { D1Number } from '../../../shared/d1-rows';
+import { AdminFlagRowSchema } from './d1-extras';
+
+/** Admin flag row, canonical definition lives in `./d1-extras`. */
+export { AdminFlagRowSchema };
 
 /** A failure decoding a Worker account dashboard payload or D1 row. */
 export class AccountDashboardParseError extends Error {
@@ -14,19 +19,6 @@ export class AccountDashboardParseError extends Error {
   }
 }
 
-/** D1 aggregate that may be SQL NULL. */
-export const D1Number = Schema.Union(Schema.Number, Schema.Null).pipe(
-  Schema.transform(Schema.Number, {
-    decode: (fromA: number | null) => (fromA === null ? 0 : fromA),
-    encode: (toI: number) => toI,
-  })
-);
-
-/** Admin flag row. */
-export const AdminFlagRowSchema = Schema.Struct({
-  admin: Schema.Number,
-});
-
 /** License columns required by the account dashboard. */
 export const DashboardLicenseRowSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),
@@ -37,7 +29,6 @@ export const DashboardLicenseRowSchema = Schema.Struct({
   max_machines: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
   expires_at: Schema.Union(Schema.Null, Schema.String),
 });
-export type DashboardLicenseRow = Schema.Schema.Type<typeof DashboardLicenseRowSchema>;
 
 /** Active machine row. */
 export const DashboardMachineRowSchema = Schema.Struct({
@@ -51,7 +42,6 @@ export const DashboardMachineRowSchema = Schema.Struct({
   first_seen_at: Schema.String,
   is_active: Schema.Number,
 });
-export type DashboardMachineRow = Schema.Schema.Type<typeof DashboardMachineRowSchema>;
 
 /** 30-day usage aggregate. */
 export const UsageStatsRowSchema = Schema.Struct({
@@ -63,7 +53,6 @@ export const UsageStatsRowSchema = Schema.Struct({
   total_vulnerabilities_found: D1Number,
   total_time_saved_ms: D1Number,
 });
-export type UsageStatsRow = Schema.Schema.Type<typeof UsageStatsRowSchema>;
 
 /** Daily usage chart row. */
 export const DailyUsageRowSchema = Schema.Struct({
@@ -77,7 +66,6 @@ export const AchievementUnlockRowSchema = Schema.Struct({
   achievement_id: Schema.String,
   unlocked_at: Schema.Union(Schema.Null, Schema.String),
 });
-export type AchievementUnlockRow = Schema.Schema.Type<typeof AchievementUnlockRowSchema>;
 
 /** Streak date row. */
 export const StreakDateRowSchema = Schema.Struct({
@@ -100,7 +88,6 @@ export const SubscriptionRowSchema = Schema.Struct({
   current_period_end: Schema.Union(Schema.Null, Schema.String),
   cancel_at_period_end: D1Number,
 });
-export type SubscriptionRow = Schema.Schema.Type<typeof SubscriptionRowSchema>;
 
 /** Invoice row. */
 export const InvoiceRowSchema = Schema.Struct({

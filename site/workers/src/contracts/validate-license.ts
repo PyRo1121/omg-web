@@ -2,6 +2,7 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import { D1Number, NullableStringSchema } from '../../../shared/d1-rows';
 import { LicenseKey } from './license-key';
 
 export { LicenseKey };
@@ -17,15 +18,7 @@ export class ValidateLicenseParseError extends Error {
   }
 }
 
-const NullableString = Schema.Union(Schema.Null, Schema.String);
-
-/** D1 aggregate that may be SQL NULL. */
-const D1Number = Schema.Union(Schema.Number, Schema.Null).pipe(
-  Schema.transform(Schema.Number, {
-    decode: (fromA: number | null) => (fromA === null ? 0 : fromA),
-    encode: (toI: number) => toI,
-  })
-);
+const NullableString = NullableStringSchema;
 
 /** Untrusted GET query or POST JSON fields for license validation. */
 const Capped = (max: number) => Schema.NullOr(Schema.String.pipe(Schema.maxLength(max)));
@@ -85,8 +78,6 @@ export const ActiveMachineRowSchema = Schema.Struct({
   is_active: D1Number,
   first_seen_at: NullableString,
   last_seen_at: NullableString,
-  user_name: NullableString,
-  user_email: NullableString,
 });
 export type ActiveMachineRow = Schema.Schema.Type<typeof ActiveMachineRowSchema>;
 

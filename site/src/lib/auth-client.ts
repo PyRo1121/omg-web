@@ -1,5 +1,4 @@
 import { createAuthClient } from 'better-auth/solid';
-import { Effect } from 'effect';
 import { revokeBetterAuthSession, type BrowserSignOutResult } from './better-auth-sign-out';
 
 const authClient = createAuthClient({
@@ -13,9 +12,7 @@ export { signIn, signUp, useSession };
 
 /** Revoke the Better Auth HttpOnly cookie without browser-stored Worker credentials. */
 export function signOutBrowserSessions(): Promise<BrowserSignOutResult> {
-  return Effect.runPromise(
-    revokeBetterAuthSession(async () => {
-      await signOut();
-    })
-  );
+  return revokeBetterAuthSession(async () => {
+    await signOut();
+  });
 }

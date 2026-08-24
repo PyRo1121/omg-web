@@ -1,5 +1,5 @@
+// CLI telemetry event handlers.
 import { reportError, reportWarning } from '../observability';
-// CLI telemetry event handlers
 import { type Env, jsonResponse, errorResponse } from '../api';
 import { Effect, Exit } from 'effect';
 import { decodeJsonBody } from '../body';
@@ -18,8 +18,17 @@ const MAX_ERROR_LENGTH = 5000;
 const MAX_ARRAY_LENGTH = 100;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 
-/** Reject an invalid or oversized declared body before parsing JSON. */
-function validateContentLength(request: Request, maxBytes: number): Response | undefined {
+/**
+ * Reject an invalid or oversized declared body before parsing JSON.
+ *
+ * Shared with the site and docs analytics handlers so every ingest endpoint
+ * applies one consistent size gate instead of drifting per handler.
+ *
+ * @param request - Incoming request whose declared size is checked.
+ * @param maxBytes - Maximum accepted Content-Length in bytes.
+ * @returns A 400/413 response when the header is invalid or oversized, else undefined.
+ */
+export function validateContentLength(request: Request, maxBytes: number): Response | undefined {
   const contentLength = request.headers.get('Content-Length');
   if (contentLength === null) {
     return undefined;
@@ -205,7 +214,13 @@ function prepareTelemetryStatement(
   }
 }
 
-// Handle single telemetry event
+/**
+ * Ingest one CLI telemetry event (POST /api/cli/event).
+ *
+ * @param request - Incoming request carrying a single telemetry envelope.
+ * @param env - Worker bindings including D1 and the rate limiter.
+ * @returns The ingested event id, an opt-out acknowledgement, or an error response.
+ */
 export async function handleCliEvent(request: Request, env: Env): Promise<Response> {
   try {
     const contentLengthError = validateContentLength(request, MAX_EVENT_PAYLOAD_BYTES);
@@ -244,7 +259,13 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
   }
 }
 
-// Handle batched telemetry events
+/**
+ * Ingest a batch of CLI telemetry events (POST /api/cli/batch).
+ *
+ * @param request - Incoming request carrying up to {@linkcode MAX_BATCH_SIZE} envelopes.
+ * @param env - Worker bindings including D1 and the rate limiter.
+ * @returns The processed count, an opt-out acknowledgement, or an error response.
+ */
 export async function handleCliBatch(request: Request, env: Env): Promise<Response> {
   try {
     const contentLengthError = validateContentLength(request, MAX_BATCH_PAYLOAD_BYTES);

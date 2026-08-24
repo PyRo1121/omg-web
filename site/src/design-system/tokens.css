@@ -21,11 +21,16 @@
    DESIGN TOKENS: CSS Custom Properties
    ========================================================================== */
 
-:root {
-  /* =========================================================================
-     COLOR TOKENS: PRIMITIVES
-     ========================================================================= */
-
+/*
+ * Tailwind v4 theme registration.
+ *
+ * This app builds with Tailwind v4 (@tailwindcss/postcss), which reads its
+ * design scale from CSS `@theme` blocks instead of JS config files. The
+ * primitive palette below is declared here so utilities such as `bg-void-850`,
+ * `text-nebula-400`, and `animate-gauge-fill` are actually generated.
+ * `static` keeps every variable emitted on :root for direct var() consumers.
+ */
+@theme static {
   /* Void Blacks - The canvas */
   --color-void-950: #030304;
   --color-void-900: #07070a;
@@ -132,7 +137,222 @@
   --color-flare-100: #fee2e2;
   --color-flare-50: #fef2f2;
 
-  /* Indigo Core - Primary UI elements */
+  /* Typography */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Font Sizes */
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: 0.875rem;
+
+  /* Border Radius */
+  --radius-4xl: 2rem;
+  --radius-5xl: 2.5rem;
+
+  /* Blur */
+  --blur-xs: 2px;
+
+  /* Box Shadows */
+  --shadow-glow-sm: 0 0 10px var(--color-indigo-500, #6366f1);
+  --shadow-glow-md: 0 0 20px var(--color-indigo-500, #6366f1), 0 0 40px rgba(99, 102, 241, 0.3);
+  --shadow-glow-lg: 0 0 30px var(--color-indigo-500, #6366f1), 0 0 60px rgba(99, 102, 241, 0.4);
+  --shadow-glow-electric:
+    0 0 20px var(--color-electric-500, #22d3d3), 0 0 40px rgba(34, 211, 211, 0.3);
+  --shadow-glow-aurora: 0 0 20px var(--color-aurora-500, #10b981), 0 0 40px rgba(16, 185, 129, 0.3);
+  --shadow-glow-flare: 0 0 20px var(--color-flare-500, #ef4444), 0 0 40px rgba(239, 68, 68, 0.3);
+  --shadow-card:
+    0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 6px -1px rgba(0, 0, 0, 0.4),
+    0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover:
+    0 0 0 1px rgba(255, 255, 255, 0.08), 0 10px 15px -3px rgba(0, 0, 0, 0.5),
+    0 4px 6px -4px rgba(0, 0, 0, 0.5), 0 0 30px -10px rgba(99, 102, 241, 0.2);
+  --shadow-3xl: 0 35px 60px -15px rgba(0, 0, 0, 0.7);
+
+  /* Transition Timing Functions */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-smooth: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-swift: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Background Images */
+  --background-image-mesh-gradient:
+    radial-gradient(at 40% 20%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(34, 211, 238, 0.08) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.08) 0px, transparent 50%);
+  --background-image-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+
+  /* Animations */
+  --animate-pulse-slow: pulse-slow 4s ease-in-out infinite;
+  --animate-fade-up: fade-up 0.5s ease-out forwards;
+  --animate-slide-in-right: slide-in-right 0.3s ease-out forwards;
+  --animate-slide-in-bottom: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-scale-in: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-data-pulse: data-pulse 1.5s ease-in-out infinite;
+  --animate-stream-in: stream-in 0.5s ease-out forwards;
+  --animate-gauge-fill: gauge-fill 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  --animate-ring-expand: ring-expand 1s ease-out forwards;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-score-fill: score-fill 1s ease-out forwards;
+  --animate-spin-slow: spin 3s linear infinite;
+
+  @keyframes pulse-slow {
+    0%,
+    100% {
+      opacity: 0.3;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1.1);
+    }
+  }
+
+  @keyframes fade-up {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-in-right {
+    0% {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slide-in-bottom {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scale-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes data-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes stream-in {
+    0% {
+      opacity: 0;
+      transform: translateX(-10px) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+
+  @keyframes gauge-fill {
+    0% {
+      stroke-dashoffset: var(--gauge-circumference, 283);
+    }
+    100% {
+      stroke-dashoffset: var(--gauge-offset, 0);
+    }
+  }
+
+  @keyframes ring-expand {
+    0% {
+      transform: scale(0.8);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(2);
+      opacity: 0;
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes score-fill {
+    0% {
+      stroke-dashoffset: 100;
+    }
+    100% {
+      stroke-dashoffset: var(--score-offset, 0);
+    }
+  }
+}
+
+/* ==========================================================================
+   SEMANTIC TOKENS: CSS Custom Properties on :root
+   ========================================================================== */
+
+:root {
+  /* Indigo Core - Primary UI elements (mirrors Tailwind's default indigo; kept
+     here so semantic tokens below can reference it directly) */
   --color-indigo-950: #1e1b4b;
   --color-indigo-900: #312e81;
   --color-indigo-800: #3730a3;
@@ -326,12 +546,10 @@
      TYPOGRAPHY TOKENS
      ========================================================================= */
 
-  /* Font Families */
-  --font-display: 'Space Grotesk', system-ui, sans-serif;
-  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  /* Font Families are registered in the @theme block above so both Tailwind
+     utilities (`font-display`) and raw `var(--font-display)` consumers work.
 
-  /* Font Sizes - Modular scale (1.2 ratio) */
+     Font Sizes - Modular scale (1.2 ratio) */
   --text-2xs: 0.625rem; /* 10px */
   --text-xs: 0.75rem; /* 12px */
   --text-sm: 0.875rem; /* 14px */
@@ -870,7 +1088,7 @@
   --alert-threshold-critical-zone: rgba(239, 68, 68, 0.2);
   --alert-threshold-critical-border: rgba(239, 68, 68, 0.4);
   --alert-threshold-critical-glow: 0 0 20px rgba(239, 68, 68, 0.4);
-  --alert-threshold-indicator: var(--color-white);
+  --alert-threshold-indicator: var(--color-nebula-100);
   --alert-threshold-track: var(--color-void-700);
 }
 

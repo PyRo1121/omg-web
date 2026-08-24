@@ -1,4 +1,4 @@
-import { type Component, type JSX, Show, createSignal, onCleanup } from 'solid-js';
+import { type Component, type JSX, Show, createSignal, createUniqueId, onCleanup } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
 interface TooltipProps {
@@ -11,9 +11,10 @@ interface TooltipProps {
 export const Tooltip: Component<TooltipProps> = props => {
   const [isVisible, setIsVisible] = createSignal(false);
   const [tooltipPos, setTooltipPos] = createSignal({ x: 0, y: 0 });
+  const tooltipId = createUniqueId();
   let timeoutId: number | undefined;
 
-  const delay = () => props.delay || 200;
+  const delay = () => props.delay ?? 200;
 
   const clearShowTimeout = () => {
     if (timeoutId !== undefined) {
@@ -24,8 +25,7 @@ export const Tooltip: Component<TooltipProps> = props => {
 
   onCleanup(clearShowTimeout);
 
-  const handleMouseEnter = (e: MouseEvent) => {
-    const target = e.currentTarget;
+  const show = (target: EventTarget | null) => {
     if (!(target instanceof HTMLElement)) {
       return;
     }
@@ -62,6 +62,10 @@ export const Tooltip: Component<TooltipProps> = props => {
     }, delay());
   };
 
+  const handleEnter = (e: MouseEvent | FocusEvent) => {
+    show(e.currentTarget);
+  };
+
   const handleMouseLeave = () => {
     clearShowTimeout();
     setIsVisible(false);
@@ -84,14 +88,22 @@ export const Tooltip: Component<TooltipProps> = props => {
 
   return (
     <>
-      <div onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} class="inline-block">
+      <div
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleMouseLeave}
+        onFocusIn={handleEnter}
+        onFocusOut={handleMouseLeave}
+        class="inline-block"
+      >
         {props.children}
       </div>
 
       <Show when={isVisible()}>
         <Portal>
           <div
-            class={`bg-void-900/95 text-nebula-200 pointer-events-none fixed z-[100] max-w-xs rounded-lg border border-white/10 px-3 py-2 text-xs shadow-2xl backdrop-blur-sm transition-opacity duration-200 ${getPositionClasses()}`}
+            id={tooltipId}
+            role="tooltip"
+            class={`bg-void-900/95 text-nebula-200 pointer-events-none fixed z-[var(--z-tooltip)] max-w-xs rounded-lg border border-white/10 px-3 py-2 text-xs shadow-2xl backdrop-blur-sm transition-opacity duration-200 ${getPositionClasses()}`}
             style={{
               left: `${tooltipPos().x}px`,
               top: `${tooltipPos().y}px`,

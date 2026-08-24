@@ -1,5 +1,8 @@
-// Premium Dashboard Type Definitions
-// These types match the D1 database schema for customer health and CRM data
+// Premium Dashboard View Models
+// Presentation shapes bridged from the Worker API contracts in
+// `src/lib/contracts/worker-http.ts` by the dashboard transforms; they are
+// intentionally narrower than the raw API payloads and must not be treated as
+// database schemas.
 
 export interface CustomerHealth {
   overall_score: number; // 0-100

@@ -1,6 +1,7 @@
-import { reportError } from '../observability';
+import { reportError, reportWarning } from '../observability';
 import { Effect, Exit } from 'effect';
 import { type Env, jsonResponse, errorResponse } from '../api';
+import { validateContentLength } from './telemetry';
 import { decodeJsonBody } from '../body';
 import { TrackingBatchSchema, optionalStringField } from '../contracts/http-bodies';
 import {
@@ -23,21 +24,48 @@ import {
 } from '../contracts/d1-extras';
 
 /** Clamp the `days` query parameter to a valid 1–90-day reporting window. */
-function parseReportingDays(raw: string | null): number {
+export function parseReportingDays(raw: string | null): number {
   const parsed = Number.parseInt(raw ?? '', 10);
   return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 90) : 30;
 }
 
 const MAX_EVENTS_PER_BATCH = 50;
+/** Declared-body cap for marketing-site tracking batches. */
+const MAX_TRACK_PAYLOAD_BYTES = 512 * 1024;
+/** Visitor salts rotate on this cadence; older salts are dead and pruned by the daily cleanup. */
+const SALT_WINDOW_MS = 90_000;
+/** Domain mixed into the visitor HMAC so hashes are site-scoped. */
+const VISITOR_HASH_DOMAIN = 'omg.latham.cloud';
+/** Weight applied to CLI installs when blending engagement across surfaces. */
+const CLI_ENGAGEMENT_WEIGHT = 10;
+/** Hard caps applied to client-supplied event strings before persistence (schema-independent). */
+const MAX_EVENT_TYPE_LENGTH = 64;
+const MAX_EVENT_NAME_LENGTH = 128;
+const MAX_SESSION_ID_LENGTH = 64;
+const MAX_PATH_LENGTH = 256;
 
+/**
+ * Ingest a batch of marketing-site tracking events (POST /api/site/analytics/track).
+ *
+ * @param request - Incoming request carrying a tracking batch.
+ * @param env - Worker bindings including D1 and the rate limiter.
+ * @returns The processed count, or an error response.
+ */
 export async function handleTrackEvent(request: Request, env: Env): Promise<Response> {
   try {
+    const contentLengthError = validateContentLength(request, MAX_TRACK_PAYLOAD_BYTES);
+    if (contentLengthError) {
+      return contentLengthError;
+    }
+
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     if (env.API_RATE_LIMITER) {
       const { success } = await env.API_RATE_LIMITER.limit({ key: `site_analytics:${ip}` });
       if (!success) {
         return errorResponse('Rate limit exceeded', 429);
       }
+    } else {
+      reportWarning('API_RATE_LIMITER binding not available, skipping rate limit');
     }
 
     const decodedBody = await Effect.runPromiseExit(decodeJsonBody(request, TrackingBatchSchema));
@@ -48,6 +76,14 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     if (events.length > MAX_EVENTS_PER_BATCH) {
       return errorResponse('Invalid payload', 400);
     }
+    // The shared body contract does not bound these strings; clamp here so a
+    // crafted batch cannot persist oversized keys into D1 rows.
+    const boundedEvents = events.map(event => ({
+      ...event,
+      event_type: event.event_type.slice(0, MAX_EVENT_TYPE_LENGTH),
+      event_name: event.event_name.slice(0, MAX_EVENT_NAME_LENGTH),
+      session_id: event.session_id.slice(0, MAX_SESSION_ID_LENGTH),
+    }));
 
     const userAgent = request.headers.get('User-Agent') || '';
     let device = 'desktop';
@@ -80,7 +116,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     const now = Date.now();
     const saltResult = await env.DB.prepare(
       `SELECT salt FROM analytics_salts
-       WHERE inserted_at > (unixepoch() * 1000 - 90000)
+       WHERE inserted_at > (unixepoch() * 1000 - ${SALT_WINDOW_MS})
        ORDER BY inserted_at DESC LIMIT 1`
     ).first();
     const saltLookup = await readOptionalExtraRow(
@@ -115,7 +151,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     const visitorHash = await crypto.subtle.sign(
       'HMAC',
       visitorKey,
-      new TextEncoder().encode(`${userAgent}${ip}omg.latham.cloud`)
+      new TextEncoder().encode(`${userAgent}${ip}${VISITOR_HASH_DOMAIN}`)
     );
     const visitorId =
       'v_' +
@@ -128,7 +164,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     const currentDate = new Date(now);
     const today = currentDate.toISOString().slice(0, 10);
     const hour = currentDate.getUTCHours();
-    const statements = events.flatMap(event => {
+    const statements = boundedEvents.flatMap(event => {
       const properties = event.properties || {};
       const referrer = optionalStringField(properties['referrer']);
       let referrerDomain = 'direct';
@@ -175,7 +211,7 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
         ).bind(
           visitorId,
           event.session_id,
-          optionalStringField(properties['path']) ?? '/',
+          (optionalStringField(properties['path']) ?? '/').slice(0, MAX_PATH_LENGTH),
           country,
           city,
           referrerDomain,
@@ -212,6 +248,13 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
   }
 }
 
+/**
+ * Return blended site/docs/CLI geo engagement for the admin dashboard.
+ *
+ * @param request - Incoming request whose `days` query bounds the window.
+ * @param env - Worker bindings including D1.
+ * @returns Per-country engagement ranking over the reporting window.
+ */
 export async function handleGetGeoAnalytics(request: Request, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
@@ -322,7 +365,7 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
     for (const row of cliRows) {
       const country = getCountry(row.country_code);
       country.cli_installs = row.count;
-      country.total_engagement += row.count * 10;
+      country.total_engagement += row.count * CLI_ENGAGEMENT_WEIGHT;
     }
 
     const sortedGeo = Array.from(combined.values())
@@ -359,6 +402,13 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
   }
 }
 
+/**
+ * Return the realtime analytics snapshot for the admin dashboard.
+ *
+ * @param _request - Unused; the endpoint takes no parameters.
+ * @param env - Worker bindings including D1.
+ * @returns Active visitors, per-country counts, and top pages.
+ */
 export async function handleGetRealtimeAnalytics(_request: Request, env: Env): Promise<Response> {
   try {
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
@@ -436,6 +486,13 @@ export async function handleGetRealtimeAnalytics(_request: Request, env: Env): P
   }
 }
 
+/**
+ * Return aggregated site analytics for the admin dashboard.
+ *
+ * @param request - Incoming request whose `days` query bounds the window.
+ * @param env - Worker bindings including D1.
+ * @returns Totals, daily trend, top pages/referrers, and devices.
+ */
 export async function handleGetAnalyticsOverview(request: Request, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);

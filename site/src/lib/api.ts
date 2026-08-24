@@ -3,7 +3,12 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import type * as Schema from 'effect/Schema';
 import { casesHandled } from './prelude';
-import { browserWorkerFetcher, requestDecodedJson } from './worker-api';
+import {
+  browserWorkerFetcher,
+  requestDecodedJson,
+  requestText,
+  type WorkerApiFailure,
+} from './worker-api';
 import * as Http from './contracts/worker-http';
 import { LicensingRoutes } from '../../shared/licensing-routes';
 
@@ -11,24 +16,15 @@ type WorkerBody<S extends Schema.Schema.AnyNoContext> = Schema.Schema.Type<S>;
 
 const LICENSING_BFF_BASE = '/api/licensing';
 
-// Authenticated same-origin BFF request with Schema decode at the boundary
-async function apiRequest<S extends Schema.Schema.AnyNoContext>(
-  schema: S,
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<Schema.Schema.Type<S>> {
-  const headers = new Headers(options.headers);
-  headers.set('Content-Type', 'application/json');
-
-  const exit = await Effect.runPromiseExit(
-    requestDecodedJson(
-      browserWorkerFetcher,
-      `${LICENSING_BFF_BASE}${endpoint}`,
-      { ...options, headers },
-      schema,
-      `Worker response for ${endpoint} has an invalid shape`
-    )
-  );
+/**
+ * Runs a typed Worker request and collapses its classified failure channel
+ * into thrown {@link ApiError} exceptions. This is the single seam where the
+ * Effect error channel becomes an exception: TanStack Query (the only caller
+ * layer) classifies failures via `instanceof ApiError` in query.ts; every
+ * module below this seam stays errors-as-values.
+ */
+async function runWorkerRequest<A>(effect: Effect.Effect<A, WorkerApiFailure>): Promise<A> {
+  const exit = await Effect.runPromiseExit(effect);
   return Exit.match(exit, {
     onSuccess: value => value,
     onFailure: cause => {
@@ -51,6 +47,30 @@ async function apiRequest<S extends Schema.Schema.AnyNoContext>(
   });
 }
 
+// Authenticated same-origin BFF request with Schema decode at the boundary.
+// Keep this prefix in sync with BFF_PATH_PREFIX in lib/licensing-bff.ts,
+// which enforces the same allowlist server-side.
+async function apiRequest<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<Schema.Schema.Type<S>> {
+  const headers = new Headers(options.headers);
+  if (options.body !== undefined) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  return runWorkerRequest(
+    requestDecodedJson(
+      browserWorkerFetcher,
+      `${LICENSING_BFF_BASE}${endpoint}`,
+      { ...options, headers },
+      schema,
+      `Worker response for ${endpoint} has an invalid shape`
+    )
+  );
+}
+
 /**
  * Builds `<path>?<search>` from ordered key/value entries. Entries guarded by
  * the caller with a ternary (`cond && ['key', value]`) are skipped when absent,
@@ -69,7 +89,7 @@ function withQuery(
   return `${path}?${searchParams}`;
 }
 
-/** A classified HTTP/API failure surfaced through TanStack Query. */
+/** A classified HTTP/API failure surfaced through TanStack Query. See {@link runWorkerRequest}. */
 export class ApiError extends Error {
   readonly _tag = 'ApiError';
 
@@ -97,7 +117,10 @@ export async function getAdminUsers(page = 1, limit = 50, search = '') {
 }
 
 export const getAdminUserDetail = (userId: string) =>
-  apiRequest(Http.AdminUserDetailSchema, `${LicensingRoutes.adminUserGet.path}?id=${userId}`);
+  apiRequest(
+    Http.AdminUserDetailSchema,
+    withQuery(LicensingRoutes.adminUserGet.path, ['id', userId])
+  );
 
 export const getAdminCohorts = () =>
   apiRequest(Http.AdminCohortsSchema, LicensingRoutes.adminCohorts.path);
@@ -105,7 +128,7 @@ export const getAdminCohorts = () =>
 export const getAdminRevenue = () =>
   apiRequest(Http.AdminRevenueSchema, LicensingRoutes.adminRevenue.path);
 
-export async function getAdminAuditLog(page = 1, limit = 50, action = '') {
+export function getAdminAuditLog(page = 1, limit = 50, action = '') {
   return apiRequest(
     Http.AdminAuditLogResponseSchema,
     withQuery(
@@ -120,7 +143,7 @@ export async function getAdminAuditLog(page = 1, limit = 50, action = '') {
 export const getAdminNotes = (customerId: string) =>
   apiRequest(
     Http.NotesResponseSchema,
-    `${LicensingRoutes.adminNotesGet.path}?customerId=${customerId}`
+    withQuery(LicensingRoutes.adminNotesGet.path, ['customerId', customerId])
   );
 
 export const createAdminNote = (customerId: string, content: string, noteType = 'general') =>
@@ -130,15 +153,19 @@ export const createAdminNote = (customerId: string, content: string, noteType = 
   });
 
 export const deleteAdminNote = (noteId: string): Promise<{ success: boolean }> =>
-  apiRequest(Http.SuccessSchema, `${LicensingRoutes.adminNotesDelete.path}?noteId=${noteId}`, {
-    method: 'DELETE',
-  });
+  apiRequest(
+    Http.SuccessSchema,
+    withQuery(LicensingRoutes.adminNotesDelete.path, ['noteId', noteId]),
+    {
+      method: 'DELETE',
+    }
+  );
 
 export const getAdminTags = () =>
   apiRequest(Http.TagsResponseSchema, LicensingRoutes.adminTagsGet.path);
 
 export const createAdminTag = (name: string, color?: string, description?: string) =>
-  apiRequest(Http.CreatedTagSchema, LicensingRoutes.adminTagsGet.path, {
+  apiRequest(Http.CreatedTagSchema, LicensingRoutes.adminTagsCreate.path, {
     method: 'POST',
     body: JSON.stringify({ name, color, description }),
   });
@@ -158,14 +185,21 @@ export const assignAdminTag = (customerId: string, tagId: string): Promise<{ suc
 export const removeAdminTag = (customerId: string, tagId: string): Promise<{ success: boolean }> =>
   apiRequest(
     Http.SuccessSchema,
-    `${LicensingRoutes.adminCustomerTagsRemove.path}?customerId=${customerId}&tagId=${tagId}`,
+    withQuery(
+      LicensingRoutes.adminCustomerTagsRemove.path,
+      ['customerId', customerId],
+      ['tagId', tagId]
+    ),
     { method: 'DELETE' }
   );
 
 export type AdminUser = WorkerBody<typeof Http.AdminUsersResponseSchema>['users'][number];
 
 export const getAdminFirehose = (limit = 50) =>
-  apiRequest(Http.FirehoseResponseSchema, `${LicensingRoutes.adminFirehose.path}?limit=${limit}`);
+  apiRequest(
+    Http.FirehoseResponseSchema,
+    withQuery(LicensingRoutes.adminFirehose.path, ['limit', limit.toString()])
+  );
 
 // Advanced Metrics API
 export const getAdminAdvancedMetrics = (): Promise<AdminAdvancedMetrics> =>
@@ -173,27 +207,37 @@ export const getAdminAdvancedMetrics = (): Promise<AdminAdvancedMetrics> =>
 
 // Data Export - Fetch CSV data directly
 
-/** Fetches a BFF CSV export as raw text, throwing the given message on non-2xx. */
-const fetchCsv = (pathWithQuery: string, failureMessage: string): Promise<string> =>
-  window.fetch(`${LICENSING_BFF_BASE}${pathWithQuery}`).then(response => {
-    if (!response.ok) {
-      throw new ApiError(failureMessage, response.status);
-    }
-    return response.text();
+/** Fetches a BFF CSV export as raw text through the same allowlisted boundary as JSON calls. */
+async function fetchCsv(pathWithQuery: string, failureMessage: string): Promise<string> {
+  const exit = await Effect.runPromiseExit(
+    requestText(browserWorkerFetcher, `${LICENSING_BFF_BASE}${pathWithQuery}`)
+  );
+  return Exit.match(exit, {
+    onSuccess: text => text,
+    onFailure: cause => {
+      const failure = Cause.failureOption(cause);
+      if (Option.isNone(failure)) {
+        throw new ApiError('Request failed', 500);
+      }
+      throw failure.value._tag === 'WorkerApiHttpError'
+        ? new ApiError(failureMessage, failure.value.status)
+        : new ApiError('Request failed', 500);
+    },
   });
+}
 
 export const exportAdminUsers = (): Promise<string> =>
   fetchCsv(LicensingRoutes.adminExportUsers.path, 'Failed to export users');
 
 export const exportAdminUsage = (days = 30): Promise<string> =>
   fetchCsv(
-    `${LicensingRoutes.adminExportUsage.path}?days=${encodeURIComponent(days)}`,
+    withQuery(LicensingRoutes.adminExportUsage.path, ['days', days.toString()]),
     'Failed to export usage'
   );
 
 export const exportAdminAudit = (days = 30): Promise<string> =>
   fetchCsv(
-    `${LicensingRoutes.adminExportAudit.path}?days=${encodeURIComponent(days)}`,
+    withQuery(LicensingRoutes.adminExportAudit.path, ['days', days.toString()]),
     'Failed to audit log'
   );
 
@@ -218,7 +262,7 @@ export type DocsAnalyticsDashboard = WorkerBody<typeof Http.DocsAnalyticsDashboa
 export const getDocsAnalytics = (days = 30): Promise<DocsAnalyticsDashboard> =>
   apiRequest(
     Http.DocsAnalyticsDashboardSchema,
-    `${LicensingRoutes.docsAnalyticsDashboard.path}?days=${days}`
+    withQuery(LicensingRoutes.docsAnalyticsDashboard.path, ['days', days.toString()])
   );
 
 // ==== Site Analytics API ====
@@ -228,7 +272,10 @@ export type SiteRealtimeAnalytics = WorkerBody<typeof Http.SiteRealtimeAnalytics
 export type SiteAnalyticsOverview = WorkerBody<typeof Http.SiteAnalyticsOverviewSchema>;
 
 export const getSiteGeoAnalytics = (days = 30): Promise<SiteGeoAnalytics> =>
-  apiRequest(Http.SiteGeoAnalyticsSchema, `${LicensingRoutes.siteAnalyticsGeo.path}?days=${days}`);
+  apiRequest(
+    Http.SiteGeoAnalyticsSchema,
+    withQuery(LicensingRoutes.siteAnalyticsGeo.path, ['days', days.toString()])
+  );
 
 export const getSiteRealtimeAnalytics = (): Promise<SiteRealtimeAnalytics> =>
   apiRequest(Http.SiteRealtimeAnalyticsSchema, LicensingRoutes.siteAnalyticsRealtime.path);
@@ -236,7 +283,7 @@ export const getSiteRealtimeAnalytics = (): Promise<SiteRealtimeAnalytics> =>
 export const getSiteAnalyticsOverview = (days = 30): Promise<SiteAnalyticsOverview> =>
   apiRequest(
     Http.SiteAnalyticsOverviewSchema,
-    `${LicensingRoutes.siteAnalyticsOverview.path}?days=${days}`
+    withQuery(LicensingRoutes.siteAnalyticsOverview.path, ['days', days.toString()])
   );
 
 // ==== Helpers ====

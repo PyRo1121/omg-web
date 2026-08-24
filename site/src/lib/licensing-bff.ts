@@ -14,8 +14,9 @@ const MAX_PROXY_BODY_BYTES = 1024 * 1024;
 const LicensingIdentitySchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),
   email: EmailAddress,
-  name: Schema.String,
+  name: Schema.String.pipe(Schema.maxLength(128)),
   role: Schema.Literal('admin', 'user'),
+  emailVerified: Schema.Boolean,
 });
 
 /** Untrusted Better Auth identity accepted at the BFF boundary. */
@@ -24,6 +25,7 @@ export interface LicensingIdentity {
   readonly email: string;
   readonly name: string;
   readonly role: 'admin' | 'user';
+  readonly emailVerified: boolean;
 }
 
 /** Service binding surface used by the same-origin licensing BFF. */
@@ -42,11 +44,19 @@ export class LicensingRouteRejected extends Error {
   }
 }
 
-/** A state-changing request did not originate from the site itself. */
+/** A request (including reads such as admin CSV exports) did not come from the site itself. */
 export class LicensingSameOriginRequired extends Error {
   readonly _tag = 'LicensingSameOriginRequired';
   constructor() {
     super('Same-origin request required');
+  }
+}
+
+/** The authenticated account has not proved ownership of its email address. */
+export class LicensingEmailVerificationRequired extends Error {
+  readonly _tag = 'LicensingEmailVerificationRequired';
+  constructor() {
+    super('Verify your email before accessing licensing');
   }
 }
 
@@ -99,6 +109,7 @@ export class LicensingWorkerRejected extends Error {
 export type LicensingBffError =
   | LicensingRouteRejected
   | LicensingSameOriginRequired
+  | LicensingEmailVerificationRequired
   | LicensingBffParseError
   | LicensingServiceUnavailable
   | LicensingBodyTooLarge
@@ -113,11 +124,18 @@ function licensingParse<A, E>(
 }
 
 function requireSameOrigin(inbound: Request): Effect.Effect<void, LicensingSameOriginRequired> {
-  if (inbound.method === 'GET' || inbound.method === 'HEAD') {
-    return Effect.void;
-  }
   const url = URL.parse(inbound.url);
-  return url !== null && inbound.headers.get('Origin') === url.origin
+  if (url === null) {
+    return Effect.fail(new LicensingSameOriginRequired());
+  }
+  const origin = inbound.headers.get('Origin');
+  if (origin !== null) {
+    return origin === url.origin ? Effect.void : Effect.fail(new LicensingSameOriginRequired());
+  }
+  // Browsers omit Origin on same-origin GET/HEAD fetches, so Fetch Metadata carries the
+  // same-origin proof for reads; cross-site no-cors GETs must never ride the victim's
+  // Better Auth cookie into admin exports or session listings.
+  return inbound.headers.get('Sec-Fetch-Site') === 'same-origin'
     ? Effect.void
     : Effect.fail(new LicensingSameOriginRequired());
 }
@@ -204,6 +222,11 @@ function readBoundedBody(
   if (stream === null) {
     return Effect.succeed(undefined);
   }
+  // Reject declared-oversized bodies before streaming any bytes through the Worker.
+  const declaredLength = Number(inbound.headers.get('Content-Length'));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_PROXY_BODY_BYTES) {
+    return Effect.fail(new LicensingBodyTooLarge());
+  }
   return Effect.tryPromise({
     try: async () => {
       const reader = stream.getReader();
@@ -216,6 +239,8 @@ function readBoundedBody(
         }
         total += next.value.byteLength;
         if (total > MAX_PROXY_BODY_BYTES) {
+          // Release the connection instead of abandoning an unconsumed stream.
+          await reader.cancel().catch(() => undefined);
           throw new LicensingBodyTooLarge();
         }
         chunks.push(next.value);
@@ -244,8 +269,13 @@ export function proxyLicensingRequest(
   service: LicensingService
 ): Effect.Effect<Response, LicensingBffError> {
   return Effect.gen(function* () {
-    const target = yield* downstreamUrl(inbound);
+    if (!identity.emailVerified) {
+      return yield* Effect.fail(new LicensingEmailVerificationRequired());
+    }
+    // Same-origin is enforced before route resolution so cross-origin probes cannot use
+    // the 404-vs-403 split to enumerate which method/path pairs are BFF-routable.
     yield* requireSameOrigin(inbound);
+    const target = yield* downstreamUrl(inbound);
     const body = yield* readBoundedBody(inbound);
     const session = yield* mintWorkerSession(identity, secret, service);
 

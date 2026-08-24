@@ -1,16 +1,6 @@
-import {
-  type Component,
-  For,
-  Show,
-  createSignal,
-  createEffect,
-  createMemo,
-  onCleanup,
-} from 'solid-js';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import type { FirehoseEvent, GeoDistribution, CommandHealth, AdvancedMetrics } from './types';
+import { type Component, For, Show, createSignal, createEffect, createMemo } from 'solid-js';
 import { valueForKey } from '../../../lib/lookup';
+import { cn } from '../../../lib/prelude';
 import {
   Terminal,
   Globe,
@@ -23,10 +13,7 @@ import {
 } from 'lucide-solid';
 import { LiveIndicator } from '../../../design-system';
 import { Heatmap } from '../../../design-system/components/Charts';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import type { FirehoseEvent, GeoDistribution, CommandHealth, AdvancedMetrics } from './types';
 
 interface RealTimeCommandCenterProps {
   events: FirehoseEvent[];
@@ -210,15 +197,6 @@ interface CommandHealthPulseProps {
 }
 
 const CommandHealthPulse: Component<CommandHealthPulseProps> = props => {
-  const [pulsePhase, setPulsePhase] = createSignal(0);
-
-  createEffect(() => {
-    const interval = setInterval(() => {
-      setPulsePhase(p => (p + 1) % 100);
-    }, 50);
-    onCleanup(() => clearInterval(interval));
-  });
-
   const successAngle = () => (props.health.success / 100) * 360;
   const isHealthy = () => props.health.success >= 95;
 
@@ -281,8 +259,8 @@ const CommandHealthPulse: Component<CommandHealthPulseProps> = props => {
               cy="50"
               r="20"
               fill={isHealthy() ? '#10b981' : '#ef4444'}
-              opacity={0.3 + Math.sin(pulsePhase() * 0.1) * 0.2}
-              class="transition-all"
+              opacity="0.5"
+              class="animate-pulse"
             />
 
             <circle cx="50" cy="50" r="8" fill={isHealthy() ? '#10b981' : '#ef4444'} />
@@ -413,7 +391,9 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
   });
 
   createEffect(() => {
-    if (streamRef && props.events.length > 0) {
+    // Reset scroll whenever a newer event arrives at the head of the stream.
+    const newestEventId = props.events[0]?.id;
+    if (streamRef && newestEventId !== undefined) {
       streamRef.scrollTop = 0;
     }
   });
@@ -452,6 +432,7 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
                 <input
                   type="text"
                   placeholder="Filter events..."
+                  aria-label="Filter events by name, host, or platform"
                   value={searchQuery()}
                   onInput={e => setSearchQuery(e.currentTarget.value)}
                   class="placeholder-nebula-500 w-48 rounded-xl border border-white/10 bg-white/5 py-2 pr-4 pl-9 text-xs text-white transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
@@ -461,6 +442,7 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
               <select
                 value={filter()}
                 onChange={e => setFilter(e.currentTarget.value)}
+                aria-label="Filter events by type"
                 class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition-all focus:border-indigo-500 focus:outline-none"
               >
                 <option value="all">All Events</option>
@@ -505,10 +487,12 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
             </div>
           </Show>
 
-          <div class="bg-void-850/95 sticky bottom-0 flex items-center gap-2 border-t border-white/5 px-4 py-2 backdrop-blur-xl">
-            <div class="bg-aurora-500 h-1.5 w-1.5 animate-pulse rounded-full" />
-            <span class="text-2xs text-nebula-600 italic">Streaming telemetry data...</span>
-          </div>
+          <Show when={props.isLive}>
+            <div class="bg-void-850/95 sticky bottom-0 flex items-center gap-2 border-t border-white/5 px-4 py-2 backdrop-blur-xl">
+              <div class="bg-aurora-500 h-1.5 w-1.5 animate-pulse rounded-full" />
+              <span class="text-2xs text-nebula-600 italic">Streaming telemetry data...</span>
+            </div>
+          </Show>
         </div>
       </div>
 

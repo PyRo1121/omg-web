@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { For, Show, createSignal, onMount } from 'solid-js';
+import { For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import { parseLicenseLookup } from '../../lib/dashboard-contract';
 import { reportClientError } from '../../lib/observability';
 
@@ -28,6 +28,10 @@ function spawnConfettiPieces(): ConfettiPiece[] {
  *
  * Opens itself when the Stripe checkout redirects back with ?success=true,
  * then lets the buyer look up their license key by email.
+ *
+ * The redirect parameter is not proof of payment (no Checkout Session id is
+ * round-tripped), so the copy never asserts a completed payment — entitlements
+ * are granted exclusively by signed webhooks.
  */
 export const LicenseSuccessModal: Component = () => {
   const [showSuccess, setShowSuccess] = createSignal(false);
@@ -40,15 +44,64 @@ export const LicenseSuccessModal: Component = () => {
   const [notFound, setNotFound] = createSignal(false);
   const [lookupError, setLookupError] = createSignal<string | null>(null);
   const [retryCount, setRetryCount] = createSignal(0);
+  let panelRef: HTMLDivElement | undefined;
+  let previouslyFocused: Element | null = null;
 
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'true') {
       setShowSuccess(true);
       setConfetti(spawnConfettiPieces());
-      setTimeout(() => setConfetti([]), 4000);
+      const confettiTimer = setTimeout(() => setConfetti([]), 4000);
       window.history.replaceState({}, '', '/');
+      onCleanup(() => clearTimeout(confettiTimer));
     }
+  });
+
+  // Dialog lifecycle: initial focus, focus containment/restoration, Escape.
+  createEffect(() => {
+    if (!showSuccess()) {
+      return;
+    }
+    previouslyFocused = document.activeElement;
+    const focusTimer = setTimeout(() => {
+      panelRef?.querySelector<HTMLElement>('button')?.focus();
+    }, 0);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        handleClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !panelRef) {
+        return;
+      }
+      const focusable = panelRef.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusable[0];
+      const lastElement = focusable[focusable.length - 1];
+      if (!firstElement || !lastElement) {
+        return;
+      }
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    onCleanup(() => {
+      clearTimeout(focusTimer);
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused instanceof HTMLElement) {
+        previouslyFocused.focus();
+      }
+    });
   });
 
   const fetchLicense = async (): Promise<void> => {
@@ -133,10 +186,17 @@ export const LicenseSuccessModal: Component = () => {
             class="absolute inset-0 bg-black/80 backdrop-blur-md"
             onClick={handleClose}
           />
-          <div class="relative w-full max-w-lg rounded-3xl border border-slate-700/50 bg-gradient-to-b from-slate-800 to-slate-900 p-8 shadow-2xl">
+          <div
+            ref={el => (panelRef = el)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="license-success-title"
+            class="relative w-full max-w-lg rounded-3xl border border-slate-700/50 bg-gradient-to-b from-slate-800 to-slate-900 p-8 shadow-2xl"
+          >
             <button
               type="button"
               onClick={handleClose}
+              aria-label="Close license retrieval dialog"
               class="absolute top-4 right-4 text-slate-400 hover:text-white"
             >
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,7 +219,7 @@ export const LicenseSuccessModal: Component = () => {
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <title>Payment confirmed</title>
+                    <title>Purchase received</title>
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -168,12 +228,22 @@ export const LicenseSuccessModal: Component = () => {
                     />
                   </svg>
                 </div>
-                <h2 class="mb-2 text-3xl font-bold text-white">Payment Successful!</h2>
+                <h2 id="license-success-title" class="mb-2 text-3xl font-bold text-white">
+                  Thank You for Your Purchase
+                </h2>
                 <p class="mb-6 text-slate-400">
-                  Thank you for your purchase. Enter your email to retrieve your license key.
+                  Your payment is being processed and a receipt is on its way. Enter your email to
+                  retrieve your license key as soon as it is ready.
                 </p>
 
+                <label
+                  for="license-success-email"
+                  class="mb-2 block text-left text-sm font-medium text-slate-300"
+                >
+                  Email used at checkout
+                </label>
                 <input
+                  id="license-success-email"
                   type="email"
                   value={email()}
                   onInput={e => setEmail(e.currentTarget.value)}
@@ -222,7 +292,9 @@ export const LicenseSuccessModal: Component = () => {
                     />
                   </svg>
                 </div>
-                <h2 class="mb-2 text-3xl font-bold text-white">Your License Key</h2>
+                <h2 id="license-success-title" class="mb-2 text-3xl font-bold text-white">
+                  Your License Key
+                </h2>
                 <p class="mb-2 text-slate-400">
                   <span class="font-semibold text-indigo-400 capitalize">{tier()}</span> Plan
                   Activated

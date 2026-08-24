@@ -15,7 +15,6 @@ import {
 import {
   ActiveMachineRowSchema,
   ExistingMachineRowSchema,
-  MachineCountRowSchema,
   LicenseUsageRowSchema,
   ValidateLicenseFieldsSchema,
   type ValidateLicenseParseError,
@@ -214,33 +213,37 @@ function registerOrTouchMachine(
       return null;
     }
 
+    // Atomic seat-limit enforcement: the INSERT only proceeds while the
+    // active-machine count is below the cap. Concurrent registrations race on
+    // this single statement instead of a count-then-insert TOCTOU window.
     const maxMachines = maxMachinesFor(license);
-    const countRow = yield* queryFirst(
-      env.DB,
-      `SELECT COUNT(*) as count FROM machines WHERE license_id = ? AND is_active = 1`,
-      [license.id],
-      'countMachines'
-    );
-    if (countRow !== null) {
-      const count = (yield* decodeRow(
-        MachineCountRowSchema,
-        'Machine count row has an invalid shape',
-        countRow
-      )).count;
-      if (count >= maxMachines) {
-        return invalidLicense(
-          `Machine limit reached (${maxMachines}). Revoke a machine in your dashboard or upgrade.`
-        );
-      }
+    const seatResult = yield* Effect.tryPromise({
+      try: () =>
+        env.DB.prepare(
+          `INSERT INTO machines (id, license_id, machine_id, user_name, user_email, is_active)
+           SELECT ?, ?, ?, ?, ?, 1
+           WHERE (
+             SELECT COUNT(*) FROM machines WHERE license_id = ? AND is_active = 1
+           ) < ?
+           RETURNING id`
+        )
+          .bind(
+            crypto.randomUUID(),
+            license.id,
+            machineId,
+            body.userName,
+            body.userEmail,
+            license.id,
+            maxMachines
+          )
+          .first(),
+      catch: cause => storeUnavailable('registerMachine', cause),
+    });
+    if (seatResult === null) {
+      return invalidLicense(
+        `Machine limit reached (${maxMachines}). Revoke a machine in your dashboard or upgrade.`
+      );
     }
-
-    yield* runSql(
-      env.DB,
-      `INSERT INTO machines (id, license_id, machine_id, user_name, user_email, is_active)
-       VALUES (?, ?, ?, ?, ?, 1)`,
-      [crypto.randomUUID(), license.id, machineId, body.userName, body.userEmail],
-      'insertMachine'
-    );
     yield* logAudit(
       env.DB,
       license.customer_id,
@@ -295,40 +298,37 @@ function validateLicense(
         return invalidLicense('License has expired');
       }
     }
-    if (license.expires_at && new Date(license.expires_at) < new Date()) {
-      return invalidLicense('License has expired');
-    }
-
     const machineLimit = yield* registerOrTouchMachine(env, request, license, body);
     if (machineLimit !== null) {
       return machineLimit;
     }
 
-    const signingSecret = env.JWT_PRIVATE_KEY || env.JWT_SECRET;
-    if (!signingSecret) {
+    if (env.JWT_PRIVATE_KEY.length === 0) {
       return yield* Effect.fail(
         new LicenseHandlerError('LicenseJwtError', 'Internal server error', 500)
       );
     }
-    const algorithm = env.JWT_PRIVATE_KEY ? ('EdDSA' as const) : ('HS256' as const);
     const token = yield* Effect.tryPromise({
-      try: () => generateLicenseJWT(license, body.machineId, signingSecret, algorithm),
+      try: () => generateLicenseJWT(license, body.machineId, env.JWT_PRIVATE_KEY),
       catch: cause =>
         new LicenseHandlerError('LicenseJwtError', 'Internal server error', 500, cause),
     });
 
-    const machineResult = yield* runSql(
-      env.DB,
-      `SELECT machine_id, hostname, os, arch, omg_version, is_active, first_seen_at, last_seen_at, user_name, user_email
-       FROM machines WHERE license_id = ?`,
-      [license.id],
-      'listMachines'
-    );
-    const machines = yield* decodeRowArray(
-      ActiveMachineRowSchema,
-      'Machine rows have an invalid shape',
-      machineResult.results
-    );
+    let machines: ReadonlyArray<ActiveMachineRow> = [];
+    if (body.machineId !== null) {
+      const machineResult = yield* runSql(
+        env.DB,
+        `SELECT machine_id, hostname, os, arch, omg_version, is_active, first_seen_at, last_seen_at
+         FROM machines WHERE license_id = ? AND machine_id = ?`,
+        [license.id, body.machineId],
+        'listCurrentMachine'
+      );
+      machines = yield* decodeRowArray(
+        ActiveMachineRowSchema,
+        'Machine rows have an invalid shape',
+        machineResult.results
+      );
+    }
     const usageResult = yield* runSql(
       env.DB,
       `SELECT date, commands_run, packages_installed, packages_searched, runtimes_switched,
@@ -639,10 +639,11 @@ function reportMachineUsage(
     for (const [pkg, count] of Object.entries(packages)) {
       statements.push(
         env.DB.prepare(
-          `INSERT INTO analytics_packages (package_name, install_count, last_seen_at)
-           VALUES (?, ?, CURRENT_TIMESTAMP)
-           ON CONFLICT(package_name) DO UPDATE SET install_count = install_count + ?, last_seen_at = CURRENT_TIMESTAMP`
-        ).bind(pkg, count, count)
+          `INSERT INTO usage_package_daily (license_id, date, package_name, usage_count)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(license_id, date, package_name) DO UPDATE SET
+             usage_count = MAX(usage_package_daily.usage_count, excluded.usage_count)`
+        ).bind(licenseId, today, pkg, count)
       );
     }
   }
@@ -650,7 +651,14 @@ function reportMachineUsage(
   const runtimes = body.runtime_usage_counts;
   if (runtimes !== undefined) {
     for (const [runtime, count] of Object.entries(runtimes)) {
-      statements.push(incrementDailyMetric(env.DB, today, 'version', runtime, count));
+      statements.push(
+        env.DB.prepare(
+          `INSERT INTO usage_runtime_daily (license_id, date, runtime, usage_count)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(license_id, date, runtime) DO UPDATE SET
+             usage_count = MAX(usage_runtime_daily.usage_count, excluded.usage_count)`
+        ).bind(licenseId, today, runtime, count)
+      );
     }
   }
 
@@ -682,6 +690,13 @@ function reportMachineUsage(
  * @returns JSON success payload or a mapped error response.
  */
 export async function handleReportUsage(request: Request, env: Env): Promise<Response> {
+  if (env.API_RATE_LIMITER) {
+    const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+    const { success } = await env.API_RATE_LIMITER.limit({ key: `report_usage:${ip}` });
+    if (!success) {
+      return errorResponse('Rate limit exceeded', 429);
+    }
+  }
   return respondFromEffect(reportUsage(request, env), error => {
     const status = errorStatus(error);
     return errorResponse(status < 500 ? error.message : 'Internal server error', status);
@@ -753,16 +768,22 @@ export async function handleInstallPing(request: Request, env: Env): Promise<Res
 async function generateLicenseJWT(
   license: ValidateLicenseRow,
   machineId: string | null,
-  secret: string,
-  algorithm: 'HS256' | 'EdDSA' = 'HS256'
+  privateKey: string
 ): Promise<string> {
-  const header = { alg: algorithm, typ: 'JWT' };
+  const header = { alg: 'EdDSA', kid: 'omg-license-ed25519-v1', typ: 'JWT' } as const;
   const now = Math.floor(Date.now() / 1000);
+  const maximumExpiry = now + 60 * 60;
+  const licenseExpiry =
+    license.expires_at === null
+      ? maximumExpiry
+      : Math.floor(new Date(license.expires_at).getTime() / 1000);
   const payload = {
+    iss: 'https://omg-api.latham.cloud',
+    aud: 'omg-cli',
     sub: license.customer_id,
     tier: license.tier,
     features: [...featuresForTier(license.tier)],
-    exp: now + 7 * 24 * 60 * 60, // 7 days
+    exp: Math.min(maximumExpiry, licenseExpiry),
     iat: now,
     mid: machineId,
     lic: license.license_key,
@@ -772,9 +793,7 @@ async function generateLicenseJWT(
   const payloadB64 = base64UrlEncode(JSON.stringify(payload));
   const data = `${headerB64}.${payloadB64}`;
 
-  const signature =
-    algorithm === 'EdDSA' ? await eddsaSign(secret, data) : await hmacSign(secret, data);
-
+  const signature = await eddsaSign(privateKey, data);
   return `${data}.${signature}`;
 }
 
@@ -788,19 +807,6 @@ function base64UrlDecode(data: string): string {
   return atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
 }
 
-async function hmacSign(secret: string, data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(data));
-  return base64UrlEncode(new Uint8Array(signature));
-}
-
 async function eddsaSign(privateKeyDer: string, data: string): Promise<string> {
   const encoder = new TextEncoder();
   const keyData = base64UrlDecode(
@@ -811,13 +817,9 @@ async function eddsaSign(privateKeyDer: string, data: string): Promise<string> {
     keyBuffer[i] = keyData.charCodeAt(i);
   }
 
-  const key = await crypto.subtle.importKey(
-    'pkcs8',
-    keyBuffer,
-    { name: 'Ed25519', namedCurve: 'Ed25519' },
-    false,
-    ['sign']
-  );
+  const key = await crypto.subtle.importKey('pkcs8', keyBuffer, { name: 'Ed25519' }, false, [
+    'sign',
+  ]);
 
   const signature = await crypto.subtle.sign('Ed25519', key, encoder.encode(data));
   return base64UrlEncode(new Uint8Array(signature));
@@ -873,8 +875,9 @@ function ingestAnalytics(
     const decisionsByLicenseKey = new Map<string, TelemetryIngestionDecision>();
     const events: AnalyticsEvent[] = [];
     for (const event of requestedEvents) {
+      // Product analytics are attribution-sensitive. Anonymous events are
+      // discarded because any caller could otherwise poison global metrics.
       if (event.license_key === undefined) {
-        events.push(event);
         continue;
       }
 

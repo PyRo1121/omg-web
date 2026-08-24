@@ -16,13 +16,17 @@ function denial(error: string, status: number): Response {
 /**
  * Require a valid Better Auth session whose persisted role is `admin`.
  *
+ * Every expected failure — including server-side misconfiguration such as a
+ * missing D1 binding — is returned as an HTTP denial Response; this function
+ * never rejects, so callers handle one channel.
+ *
  * @param event - The incoming SolidStart request context.
  * @returns The authorized principal and database context, or an HTTP denial response.
  */
 export async function requireAdmin(event: Pick<APIEvent, 'nativeEvent' | 'request'>) {
   const cloudflareEnv = event.nativeEvent.context.cloudflare?.env;
   if (!cloudflareEnv) {
-    throw new Error('Cloudflare environment not available');
+    return denial('Admin authorization unavailable', 500);
   }
   const env: CloudflareEnv = {
     DB: cloudflareEnv.DB,

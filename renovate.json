@@ -4,7 +4,12 @@
   "rangeStrategy": "pin",
   "dependencyDashboard": true,
   "schedule": ["before 6am on the first day of the week"],
+  "timezone": "UTC",
   "separateMajorMinor": true,
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "minimumReleaseAge": "5 days",
   "packageRules": [
     {
       "description": "Batch non-major dependency updates into a single weekly PR",

@@ -16,8 +16,9 @@ import {
   layoutShiftDelta,
   navigationTtfbMs,
 } from './performance-entry';
+import { WORKER_API_ORIGIN } from './worker-api';
 
-const ANALYTICS_ENDPOINT = 'https://omg-api.latham.cloud/api/site/analytics/track';
+const ANALYTICS_ENDPOINT = `${WORKER_API_ORIGIN}/api/site/analytics/track`;
 const BATCH_INTERVAL_MS = 3000;
 const MAX_BATCH_SIZE = 20;
 
@@ -514,18 +515,38 @@ function observePaintAndNavigation(metrics: WebVitalsMetrics): void {
   }
 }
 
-function reportVitalsOnPageExit(metrics: WebVitalsMetrics): void {
-  const reportVitals = () => {
-    if (Object.keys(metrics).length > 0) {
-      reportWebVitals(metrics);
-    }
-  };
+type PageExitCallback = () => void;
+
+const pageExitCallbacks: PageExitCallback[] = [];
+let pageExitListenersAttached = false;
+
+function runPageExitCallbacks(): void {
+  for (const callback of pageExitCallbacks) {
+    callback();
+  }
+}
+
+/**
+ * Register work to run when the page session may be ending. All page-exit
+ * consumers share one set of listeners (visibilitychange-hidden, pagehide,
+ * beforeunload) instead of each subsystem attaching its own.
+ */
+function onPageExit(callback: PageExitCallback): void {
+  if (!('window' in globalThis)) {
+    return;
+  }
+  pageExitCallbacks.push(callback);
+  if (pageExitListenersAttached) {
+    return;
+  }
+  pageExitListenersAttached = true;
   window.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-      reportVitals();
+      runPageExitCallbacks();
     }
   });
-  window.addEventListener('pagehide', reportVitals);
+  window.addEventListener('pagehide', runPageExitCallbacks);
+  window.addEventListener('beforeunload', runPageExitCallbacks);
 }
 
 function parseCtaType(value: string): CtaType | undefined {
@@ -603,6 +624,15 @@ function initNavigationTracking(): void {
   });
 }
 
+/** Report collected vitals once the page exits (idempotent via reportWebVitals). */
+function reportVitalsOnPageExit(metrics: WebVitalsMetrics): void {
+  onPageExit(() => {
+    if (Object.keys(metrics).length > 0) {
+      reportWebVitals(metrics);
+    }
+  });
+}
+
 /**
  * Initialize all analytics tracking
  */
@@ -621,21 +651,8 @@ export function initAnalytics(): void {
   initCtaTracking();
   initNavigationTracking();
 
-  // Flush on page unload
-  window.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      trackTimeOnPage();
-      flushEvents();
-    }
-  });
-
-  window.addEventListener('pagehide', () => {
-    trackTimeOnPage();
-    flushEvents();
-  });
-
-  // Fallback for beforeunload
-  window.addEventListener('beforeunload', () => {
+  // Flush queued events on page exit (shared listeners via onPageExit)
+  onPageExit(() => {
     trackTimeOnPage();
     flushEvents();
   });

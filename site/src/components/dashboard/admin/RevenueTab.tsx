@@ -31,6 +31,18 @@ const PERIOD_MONTH_COUNTS = {
 
 type RevenuePeriod = keyof typeof PERIOD_MONTH_COUNTS;
 
+/** Month-over-month revenue change in percent, or null when it cannot be computed. */
+function monthOverMonthGrowthPercent(
+  monthly: ReadonlyArray<{ readonly revenue: number }>
+): number | null {
+  const current = monthly.at(-1);
+  const previous = monthly.at(-2);
+  if (current === undefined || previous === undefined || previous.revenue === 0) {
+    return null;
+  }
+  return ((current.revenue - previous.revenue) / previous.revenue) * 100;
+}
+
 export const RevenueTab: Component = () => {
   const revenueQuery = useAdminRevenue();
   const [selectedPeriod, setSelectedPeriod] = createSignal<RevenuePeriod>('30d');
@@ -41,6 +53,7 @@ export const RevenueTab: Component = () => {
     monthlyRevenue().slice(-PERIOD_MONTH_COUNTS[selectedPeriod()])
   );
   const latestMonth = () => monthlyRevenue().at(-1);
+  const growthPercent = () => monthOverMonthGrowthPercent(monthlyRevenue());
   const maxMonthlyRevenue = () =>
     Math.max(...selectedMonthlyRevenue().map(month => month.revenue), 1);
 
@@ -149,7 +162,7 @@ export const RevenueTab: Component = () => {
         </div>
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl lg:col-span-2">
+          <div class="bg-void-850 rounded-3xl border border-white/5 p-8 shadow-2xl">
             <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
                 <h3 class="text-xl font-black tracking-tight text-white">Revenue Trend</h3>
@@ -269,7 +282,7 @@ export const RevenueTab: Component = () => {
           </div>
         </div>
 
-        <div class="rounded-3xl border border-white/5 bg-[#0d0d0e] p-8 shadow-2xl">
+        <div class="bg-void-850 rounded-3xl border border-white/5 p-8 shadow-2xl">
           <h3 class="mb-2 text-xl font-black tracking-tight text-white">Monthly Transactions</h3>
           <p class="mb-6 text-xs font-medium text-slate-500">
             Revenue and transaction summaries for the selected period

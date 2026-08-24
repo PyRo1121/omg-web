@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 const wranglerPath = fileURLToPath(
   new URL('../node_modules/wrangler/bin/wrangler.js', import.meta.url)
 );
+const PLATFORM_D1_ID = 'fee8ddab-fb4a-4be4-b8d2-8abb7c2db188';
 
 const checks = [
   {
@@ -15,8 +16,8 @@ const checks = [
     arguments: ['deployments', 'list', '--name', 'omg-site', '--json'],
   },
   {
-    label: 'D1 omg-platform (fee8ddab-fb4a-4be4-b8d2-8abb7c2db188)',
-    arguments: ['d1', 'info', 'fee8ddab-fb4a-4be4-b8d2-8abb7c2db188', '--json'],
+    label: `D1 omg-platform (${PLATFORM_D1_ID})`,
+    arguments: ['d1', 'info', PLATFORM_D1_ID, '--json'],
   },
 ];
 
@@ -28,7 +29,7 @@ for (const check of checks) {
       NO_COLOR: '1',
       WRANGLER_SEND_METRICS: 'false',
     },
-    stdio: 'ignore',
+    encoding: 'utf8',
   });
 
   if (result.status === 0) {
@@ -37,7 +38,17 @@ for (const check of checks) {
   }
 
   failures += 1;
-  process.stderr.write(`[cloudflare-remote] missing or inaccessible: ${check.label}\n`);
+  const detail = [result.stderr, result.stdout]
+    .filter(output => output !== null && output.trim().length > 0)
+    .map(output => output.trim())
+    .join(' | ');
+  const reason =
+    result.error instanceof Error
+      ? `spawn error: ${result.error.message}`
+      : detail.length > 0
+        ? detail.slice(0, 500)
+        : `wrangler exited ${result.status ?? 'unknown'} with no output`;
+  process.stderr.write(`[cloudflare-remote] inaccessible (${reason}): ${check.label}\n`);
 }
 
 if (failures > 0) {

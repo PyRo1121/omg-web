@@ -1,5 +1,3 @@
-import { Effect } from 'effect';
-
 /** Better Auth cookie revocation failed during browser sign-out. */
 export class BetterAuthSignOutError extends Error {
   readonly _tag = 'BetterAuthSignOutError';
@@ -13,18 +11,19 @@ export interface BrowserSignOutResult {
   readonly failures: readonly BetterAuthSignOutError[];
 }
 
-/** Revoke Better Auth and return a classified error value instead of rejecting. */
-export function revokeBetterAuthSession(
+/**
+ * Revoke Better Auth and return a classified error value instead of rejecting.
+ *
+ * Plain async by design: a single fallible call needs no Effect machinery, and
+ * result-unions are the boundary convention crossing into UI callers.
+ */
+export async function revokeBetterAuthSession(
   revoke: () => Promise<void>
-): Effect.Effect<BrowserSignOutResult> {
-  return Effect.match(
-    Effect.tryPromise({
-      try: revoke,
-      catch: cause => new BetterAuthSignOutError(cause),
-    }),
-    {
-      onFailure: failure => ({ failures: [failure] }),
-      onSuccess: () => ({ failures: [] }),
-    }
-  );
+): Promise<BrowserSignOutResult> {
+  try {
+    await revoke();
+    return { failures: [] };
+  } catch (cause: unknown) {
+    return { failures: [new BetterAuthSignOutError(cause)] };
+  }
 }

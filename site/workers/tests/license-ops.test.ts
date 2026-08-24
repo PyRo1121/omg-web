@@ -1,7 +1,13 @@
 import '../src/cloudflare-test.d.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
+import * as Schema from 'effect/Schema';
 import worker from '../src/worker';
+
+const AnalyticsResponseSchema = Schema.Struct({
+  success: Schema.Boolean,
+  processed: Schema.Number,
+});
 
 const TEST_EMAIL = 'report-usage@example.com';
 const TEST_KEY = 'lic-report-key';
@@ -71,6 +77,12 @@ describe('POST /api/report-usage', () => {
   });
 
   afterEach(async () => {
+    await env.DB.prepare(`DELETE FROM usage_package_daily WHERE license_id = ?`)
+      .bind(TEST_LICENSE)
+      .run();
+    await env.DB.prepare(`DELETE FROM usage_runtime_daily WHERE license_id = ?`)
+      .bind(TEST_LICENSE)
+      .run();
     await env.DB.prepare(`DELETE FROM usage_daily WHERE license_id = ?`).bind(TEST_LICENSE).run();
     await env.DB.prepare(`DELETE FROM licenses WHERE id = ?`).bind(TEST_LICENSE).run();
     await env.DB.prepare(`DELETE FROM customers WHERE id = ?`).bind(TEST_CUSTOMER).run();
@@ -112,6 +124,94 @@ describe('POST /api/report-usage', () => {
       .bind(TEST_LICENSE)
       .first<{ commands_run: number }>();
     expect(stored?.commands_run).toBe(4);
+  });
+
+  it('rejects usage counters beyond the accepted boundary', async () => {
+    await insertActiveLicense();
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson(
+        '/api/report-usage',
+        JSON.stringify({ license_key: TEST_KEY, commands_run: 1_000_000_001 })
+      ),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(400);
+  });
+
+  it('stores package and runtime dimensions per license without changing global aggregates', async () => {
+    await insertActiveLicense();
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson(
+        '/api/report-usage',
+        JSON.stringify({
+          license_key: TEST_KEY,
+          installed_packages: { ripgrep: 4 },
+          runtime_usage_counts: { node: 3 },
+        })
+      ),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(200);
+
+    const packageRow = await env.DB.prepare(
+      `SELECT usage_count FROM usage_package_daily WHERE license_id = ? AND package_name = ?`
+    )
+      .bind(TEST_LICENSE, 'ripgrep')
+      .first<{ usage_count: number }>();
+    const runtimeRow = await env.DB.prepare(
+      `SELECT usage_count FROM usage_runtime_daily WHERE license_id = ? AND runtime = ?`
+    )
+      .bind(TEST_LICENSE, 'node')
+      .first<{ usage_count: number }>();
+    const globalPackage = await env.DB.prepare(
+      `SELECT install_count FROM analytics_packages WHERE package_name = ?`
+    )
+      .bind('ripgrep')
+      .first();
+    expect(packageRow?.usage_count).toBe(4);
+    expect(runtimeRow?.usage_count).toBe(3);
+    expect(globalPackage).toBeNull();
+  });
+
+  it('discards anonymous product analytics instead of changing global metrics', async () => {
+    const sessionId = `anonymous-${crypto.randomUUID()}`;
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson(
+        '/api/analytics',
+        JSON.stringify({
+          events: [
+            {
+              event_type: 'command',
+              event_name: 'search',
+              timestamp: new Date().toISOString(),
+              session_id: sessionId,
+              machine_id: 'anonymous-machine',
+              version: '1.0.0',
+              platform: 'linux',
+            },
+          ],
+        })
+      ),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(200);
+    const body = Schema.decodeUnknownSync(AnalyticsResponseSchema)(await response.json());
+    expect(body).toEqual({ success: true, processed: 0 });
+    const stored = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM analytics_events WHERE session_id = ?`
+    )
+      .bind(sessionId)
+      .first<{ count: number }>();
+    expect(stored?.count).toBe(0);
   });
 });
 

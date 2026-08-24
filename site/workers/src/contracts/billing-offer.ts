@@ -10,9 +10,6 @@ export const CheckoutRequestSchema = Schema.Struct({
   offer: BillingOfferSchema,
 });
 
-/** Parsed checkout request whose offer is controlled by the server contract. */
-export type CheckoutRequest = Schema.Schema.Type<typeof CheckoutRequestSchema>;
-
 const StripePriceIdSchema = Schema.String.pipe(
   Schema.pattern(/^price_[A-Za-z0-9_]+$/),
   Schema.brand('StripePriceId')

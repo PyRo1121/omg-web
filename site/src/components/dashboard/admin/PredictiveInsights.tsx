@@ -4,347 +4,85 @@ import { twMerge } from 'tailwind-merge';
 import {
   TriangleAlert,
   TrendingUp,
-  TrendingDown,
-  Zap,
-  Target,
-  Shield,
   Bell,
-  ChevronRight,
   Brain,
   Activity,
   RefreshCw,
+  Shield,
+  Target,
 } from 'lucide-solid';
 import { useAdminAdvancedMetrics, useAdminCRMUsers } from '../../../lib/api-hooks';
 import { CardSkeleton } from '../../ui/Skeleton';
-import { ProgressRing } from '../../../design-system/components/Charts';
+import {
+  type AnomalyAlert,
+  type ChurnPrediction,
+  type ExpansionPrediction,
+  type HealthTrend,
+  AnomalyAlertCard,
+  ChurnPredictionCard,
+  ExpansionOpportunityCard,
+  HealthTrendCard,
+} from './PredictiveInsightsCards';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 type PredictionType = 'churn' | 'expansion' | 'anomaly' | 'health';
-type Priority = 'urgent' | 'high' | 'medium' | 'low';
 
-function priorityFromProbability(probability: number): Priority {
-  if (probability >= 0.7) {
-    return 'urgent';
+const TIER_MRR_USD = {
+  enterprise: 199,
+  team: 29,
+  pro: 9,
+} as const;
+
+type TierMrrKey = keyof typeof TIER_MRR_USD;
+
+/** List-price MRR per seat, defaulting unknown tiers to the pro price. */
+function tierMrrUsd(tier: string | null | undefined): number {
+  if (tier === 'enterprise') {
+    return TIER_MRR_USD.enterprise;
   }
-  if (probability >= 0.5) {
-    return 'high';
+  if (tier === 'team') {
+    return TIER_MRR_USD.team;
   }
-  if (probability >= 0.3) {
-    return 'medium';
+  return TIER_MRR_USD.pro;
+}
+
+const STICKINESS_LOW_THRESHOLD = 10;
+const ACTIVATION_LOW_THRESHOLD = 50;
+
+const ANNUAL_MONTHS = 12;
+
+/** Upgrade price signals derived from list-price MRR instead of scattered literals. */
+function upgradeProbability(priority: string): number {
+  if (priority === 'urgent') {
+    return 0.85;
   }
-  return 'low';
+  if (priority === 'high') {
+    return 0.65;
+  }
+  return 0.4;
 }
 
-interface ChurnPrediction {
-  customerId: string;
-  email: string;
-  company: string | null;
-  tier: string;
-  probability: number;
-  riskFactors: string[];
-  mrrAtRisk: number;
-  recommendedAction: string;
+/** Next tier up the ladder; every non-pro tier upgrades to enterprise. */
+function nextTier(tier: string): 'team' | 'enterprise' {
+  return tier === 'pro' ? 'team' : 'enterprise';
 }
 
-interface ExpansionPrediction {
-  customerId: string;
-  email: string;
-  company: string | null;
-  tier: string;
-  probability: number;
-  signals: string[];
-  potentialUpgrade: string;
-  potentialArr: number;
-  recommendedAction: string;
+/** Per-tier health-score deltas applied to project the predicted score. */
+const HEALTH_TREND_DELTAS = { improving: 8, stable: 0, declining: -12 } as const;
+type HealthTrendDirection = keyof typeof HEALTH_TREND_DELTAS;
+
+function healthTrendDirection(score: number): HealthTrendDirection {
+  if (score > 70) {
+    return 'improving';
+  }
+  if (score > 40) {
+    return 'stable';
+  }
+  return 'declining';
 }
-
-interface AnomalyAlert {
-  id: string;
-  type: 'usage_spike' | 'usage_drop' | 'error_surge' | 'unusual_pattern';
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  description: string;
-  affectedUsers: number;
-  detectedAt: string;
-  status: 'active' | 'acknowledged' | 'resolved';
-}
-
-interface HealthTrend {
-  customerId: string;
-  email: string;
-  currentScore: number;
-  predictedScore: number;
-  trend: 'improving' | 'stable' | 'declining';
-  trendStrength: number;
-}
-
-type PriorityConfig = { [K in Priority]: { color: string; bg: string; label: string } };
-
-const PRIORITY_CONFIG: PriorityConfig = {
-  urgent: { color: 'text-flare-400', bg: 'bg-flare-500/10', label: 'Urgent' },
-  high: { color: 'text-solar-400', bg: 'bg-solar-500/10', label: 'High' },
-  medium: { color: 'text-indigo-400', bg: 'bg-indigo-500/10', label: 'Medium' },
-  low: { color: 'text-nebula-400', bg: 'bg-nebula-500/10', label: 'Low' },
-};
-
-const PriorityBadge: Component<{ priority: Priority }> = props => {
-  const config = () => PRIORITY_CONFIG[props.priority];
-  return (
-    <span
-      class={cn(
-        'text-2xs rounded-full px-2 py-0.5 font-black tracking-widest uppercase',
-        config().bg,
-        config().color
-      )}
-    >
-      {config().label}
-    </span>
-  );
-};
-
-const ChurnPredictionCard: Component<{
-  prediction: ChurnPrediction;
-}> = props => {
-  const riskLevel = createMemo(() => priorityFromProbability(props.prediction.probability));
-
-  return (
-    <div class="group bg-void-850 hover:border-flare-500/30 relative overflow-hidden rounded-2xl border border-white/5 p-5 transition-all duration-300">
-      <div class="bg-flare-500/10 pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-100" />
-
-      <div class="relative">
-        <div class="mb-4 flex items-start justify-between">
-          <div class="flex items-center gap-3">
-            <div class="bg-flare-500/10 flex h-10 w-10 items-center justify-center rounded-xl">
-              <TriangleAlert size={18} class="text-flare-400" />
-            </div>
-            <div>
-              <h4 class="font-bold text-white">{props.prediction.email}</h4>
-              <p class="text-2xs text-nebula-500">
-                {props.prediction.company || props.prediction.tier}
-              </p>
-            </div>
-          </div>
-          <PriorityBadge priority={riskLevel()} />
-        </div>
-
-        <div class="mb-4 flex items-center gap-4">
-          <ProgressRing
-            value={props.prediction.probability * 100}
-            size={60}
-            strokeWidth={5}
-            color="#ef4444"
-            showValue
-            label="Churn Risk"
-          />
-          <div class="flex-1">
-            <p class="text-nebula-400 text-xs font-bold">MRR at Risk</p>
-            <p class="font-display text-flare-400 text-xl font-black">
-              ${props.prediction.mrrAtRisk.toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        <div class="mb-4 space-y-2">
-          <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">Risk Factors</p>
-          <div class="flex flex-wrap gap-1.5">
-            <For each={props.prediction.riskFactors.slice(0, 3)}>
-              {factor => (
-                <span class="bg-flare-500/10 text-2xs text-flare-400 rounded-full px-2 py-0.5">
-                  {factor}
-                </span>
-              )}
-            </For>
-          </div>
-        </div>
-
-        <div class="border-aurora-500/20 bg-aurora-500/5 rounded-xl border p-3">
-          <div class="flex items-start gap-2">
-            <Zap size={14} class="text-aurora-400 mt-0.5 shrink-0" />
-            <div class="flex-1">
-              <p class="text-2xs text-aurora-400 font-bold tracking-widest uppercase">
-                Recommended Action
-              </p>
-              <p class="text-aurora-300 mt-1 text-xs">{props.prediction.recommendedAction}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ExpansionOpportunityCard: Component<{
-  prediction: ExpansionPrediction;
-}> = props => {
-  const opportunityLevel = createMemo(() => priorityFromProbability(props.prediction.probability));
-
-  return (
-    <div class="group bg-void-850 hover:border-aurora-500/30 relative overflow-hidden rounded-2xl border border-white/5 p-5 transition-all duration-300">
-      <div class="bg-aurora-500/10 pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-0 blur-[40px] transition-opacity duration-500 group-hover:opacity-100" />
-
-      <div class="relative">
-        <div class="mb-4 flex items-start justify-between">
-          <div class="flex items-center gap-3">
-            <div class="bg-aurora-500/10 flex h-10 w-10 items-center justify-center rounded-xl">
-              <TrendingUp size={18} class="text-aurora-400" />
-            </div>
-            <div>
-              <h4 class="font-bold text-white">{props.prediction.email}</h4>
-              <p class="text-2xs text-nebula-500">
-                {props.prediction.company ||
-                  `${props.prediction.tier} → ${props.prediction.potentialUpgrade}`}
-              </p>
-            </div>
-          </div>
-          <PriorityBadge priority={opportunityLevel()} />
-        </div>
-
-        <div class="mb-4 flex items-center gap-4">
-          <ProgressRing
-            value={props.prediction.probability * 100}
-            size={60}
-            strokeWidth={5}
-            color="#10b981"
-            showValue
-            label="Upgrade Likely"
-          />
-          <div class="flex-1">
-            <p class="text-nebula-400 text-xs font-bold">Potential ARR</p>
-            <p class="font-display text-aurora-400 text-xl font-black">
-              +${props.prediction.potentialArr.toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        <div class="mb-4 space-y-2">
-          <p class="text-2xs text-nebula-500 font-bold tracking-widest uppercase">
-            Expansion Signals
-          </p>
-          <div class="flex flex-wrap gap-1.5">
-            <For each={props.prediction.signals.slice(0, 3)}>
-              {signal => (
-                <span class="bg-aurora-500/10 text-2xs text-aurora-400 rounded-full px-2 py-0.5">
-                  {signal}
-                </span>
-              )}
-            </For>
-          </div>
-        </div>
-
-        <div class="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3">
-          <div class="flex items-start gap-2">
-            <Target size={14} class="mt-0.5 shrink-0 text-indigo-400" />
-            <div class="flex-1">
-              <p class="text-2xs font-bold tracking-widest text-indigo-400 uppercase">
-                Recommended Action
-              </p>
-              <p class="mt-1 text-xs text-indigo-300">{props.prediction.recommendedAction}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const AnomalyAlertCard: Component<{
-  alert: AnomalyAlert;
-}> = props => {
-  const severityConfig = {
-    critical: { color: 'text-flare-400', bg: 'bg-flare-500/10', icon: TriangleAlert },
-    high: { color: 'text-solar-400', bg: 'bg-solar-500/10', icon: Bell },
-    medium: { color: 'text-indigo-400', bg: 'bg-indigo-500/10', icon: Activity },
-    low: { color: 'text-nebula-400', bg: 'bg-nebula-500/10', icon: Activity },
-  } as const;
-
-  const config = () => severityConfig[props.alert.severity];
-  const IconComponent = config().icon;
-
-  return (
-    <div
-      class={cn(
-        'group relative overflow-hidden rounded-xl border p-4 transition-all duration-300',
-        props.alert.status === 'active'
-          ? 'border-flare-500/30 bg-flare-500/5'
-          : 'bg-void-850 border-white/5'
-      )}
-    >
-      <div class="flex items-start gap-3">
-        <div class={cn('flex h-8 w-8 items-center justify-center rounded-lg', config().bg)}>
-          <IconComponent size={16} class={config().color} />
-        </div>
-
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <span
-              class={cn(
-                'text-2xs rounded-full px-2 py-0.5 font-black tracking-widest uppercase',
-                config().bg,
-                config().color
-              )}
-            >
-              {props.alert.severity}
-            </span>
-            <span class="text-2xs text-nebula-500">{props.alert.detectedAt}</span>
-          </div>
-          <p class="mt-1 text-sm font-bold text-white">{props.alert.description}</p>
-          <p class="text-2xs text-nebula-500 mt-0.5">
-            {props.alert.affectedUsers.toLocaleString()} users affected
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const HealthTrendCard: Component<{ trend: HealthTrend }> = props => {
-  const trendConfig = {
-    improving: { color: 'text-aurora-400', bg: 'bg-aurora-500/10', icon: TrendingUp },
-    stable: { color: 'text-indigo-400', bg: 'bg-indigo-500/10', icon: Activity },
-    declining: { color: 'text-flare-400', bg: 'bg-flare-500/10', icon: TrendingDown },
-  };
-
-  const config = () => trendConfig[props.trend.trend];
-  const IconComponent = config().icon;
-
-  return (
-    <div class="group bg-void-850 relative overflow-hidden rounded-xl border border-white/5 p-4 transition-all duration-300 hover:border-white/10">
-      <div class="flex items-center gap-4">
-        <ProgressRing
-          value={props.trend.currentScore}
-          size={48}
-          strokeWidth={4}
-          color={
-            props.trend.trend === 'declining'
-              ? '#ef4444'
-              : props.trend.trend === 'improving'
-                ? '#10b981'
-                : '#6366f1'
-          }
-          showValue
-        />
-
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-sm font-bold text-white">{props.trend.email}</p>
-          <div class="mt-1 flex items-center gap-2">
-            <div class={cn('flex items-center gap-1 rounded-full px-2 py-0.5', config().bg)}>
-              <IconComponent size={10} class={config().color} />
-              <span class={cn('text-2xs font-bold', config().color)}>
-                {props.trend.trendStrength > 0 ? '+' : ''}
-                {props.trend.trendStrength}%
-              </span>
-            </div>
-            <span class="text-2xs text-nebula-500">→ {props.trend.predictedScore}</span>
-          </div>
-        </div>
-
-        <ChevronRight size={16} class="text-nebula-600 transition-colors group-hover:text-white" />
-      </div>
-    </div>
-  );
-};
 
 export const PredictiveInsights: Component = () => {
   const [activeTab, setActiveTab] = createSignal<PredictionType>('churn');
@@ -364,7 +102,7 @@ export const PredictiveInsights: Component = () => {
         // synthetic label is used rather than pairing with unrelated
         // expansion-opportunity records by index.
         const probability = segment.risk_segment === 'critical' ? 0.8 : 0.55;
-        const mrrPerUser = segment.tier === 'enterprise' ? 199 : segment.tier === 'team' ? 29 : 9;
+        const mrrPerUser = tierMrrUsd(segment.tier);
 
         return {
           customerId: `segment-${segment.risk_segment}-${i}`,
@@ -393,11 +131,9 @@ export const PredictiveInsights: Component = () => {
     }
 
     return metricsQuery.data.expansion_opportunities.map(opp => {
-      const probability = opp.priority === 'urgent' ? 0.85 : opp.priority === 'high' ? 0.65 : 0.4;
-      const potentialUpgrade =
-        opp.tier === 'pro' ? 'team' : opp.tier === 'team' ? 'enterprise' : 'enterprise';
-      const potentialArr =
-        potentialUpgrade === 'enterprise' ? 2388 : potentialUpgrade === 'team' ? 348 : 108;
+      const probability = upgradeProbability(opp.priority);
+      const potentialUpgrade = nextTier(opp.tier);
+      const potentialArr = (TIER_MRR_USD[potentialUpgrade] ?? 0) * ANNUAL_MONTHS;
 
       return {
         customerId: opp.customer_id,
@@ -420,47 +156,36 @@ export const PredictiveInsights: Component = () => {
     });
   });
 
+  /**
+   * Threshold breaches derived from live metrics only. Unlike fabricated alert
+   * feeds, these carry no invented timestamps or affected-user counts — the
+   * description states the measured fact.
+   */
   const anomalyAlerts = createMemo((): AnomalyAlert[] => {
-    const dau = metricsQuery.data?.engagement?.dau || 0;
-    const mau = metricsQuery.data?.engagement?.mau || 1;
-    const stickiness = (dau / mau) * 100;
+    const data = metricsQuery.data;
+    if (!data?.engagement) {
+      return [];
+    }
 
     const alerts: AnomalyAlert[] = [];
+    const dau = data.engagement.dau || 0;
+    const mau = data.engagement.mau || 0;
+    const stickiness = mau > 0 ? (dau / mau) * 100 : null;
 
-    if (stickiness > 25) {
+    if (stickiness !== null && stickiness < STICKINESS_LOW_THRESHOLD) {
       alerts.push({
-        id: 'a1',
-        type: 'usage_spike',
-        severity: 'medium',
-        description: 'Unusual spike in daily active users detected',
-        affectedUsers: Math.round(dau * 0.3),
-        detectedAt: '2 hours ago',
-        status: 'active',
-      });
-    }
-
-    if (stickiness < 10) {
-      alerts.push({
-        id: 'a2',
-        type: 'usage_drop',
+        id: 'stickiness-low',
         severity: 'high',
-        description: 'Significant drop in daily engagement ratio',
-        affectedUsers: Math.round(mau * 0.15),
-        detectedAt: '6 hours ago',
-        status: 'active',
+        description: `Daily-to-monthly active ratio is ${stickiness.toFixed(1)}%, below the ${STICKINESS_LOW_THRESHOLD}% threshold`,
       });
     }
 
-    const errorRate = 100 - (metricsQuery.data?.time_to_value?.pct_activated_week1 || 0);
-    if (errorRate > 50) {
+    const activationPct = data.time_to_value?.pct_activated_week1;
+    if (activationPct !== undefined && activationPct < ACTIVATION_LOW_THRESHOLD) {
       alerts.push({
-        id: 'a3',
-        type: 'error_surge',
+        id: 'activation-low',
         severity: 'critical',
-        description: 'Elevated activation failure rate detected',
-        affectedUsers: Math.round((metricsQuery.data?.engagement?.mau || 0) * 0.1),
-        detectedAt: '1 hour ago',
-        status: 'active',
+        description: `Week-one activation rate is ${Math.round(activationPct)}%, below the ${ACTIVATION_LOW_THRESHOLD}% threshold`,
       });
     }
 
@@ -474,21 +199,16 @@ export const PredictiveInsights: Component = () => {
 
     return usersQuery.data.users.slice(0, 8).map(user => {
       const score = user.engagement_score || 50;
-      const trend: 'improving' | 'stable' | 'declining' =
-        score > 70 ? 'improving' : score > 40 ? 'stable' : 'declining';
+      const trend = healthTrendDirection(score);
+      const delta = HEALTH_TREND_DELTAS[trend];
 
       return {
         customerId: user.id,
         email: user.email,
         currentScore: score,
-        predictedScore:
-          trend === 'improving'
-            ? Math.min(100, score + 8)
-            : trend === 'declining'
-              ? Math.max(0, score - 12)
-              : score,
+        predictedScore: Math.min(100, Math.max(0, score + delta)),
         trend,
-        trendStrength: trend === 'improving' ? 8 : trend === 'declining' ? -12 : 0,
+        trendStrength: delta,
       };
     });
   });
@@ -527,6 +247,7 @@ export const PredictiveInsights: Component = () => {
 
         <div class="flex items-center gap-3">
           <button
+            type="button"
             onClick={async () => {
               await Promise.all([metricsQuery.refetch(), usersQuery.refetch()]);
             }}
@@ -546,7 +267,9 @@ export const PredictiveInsights: Component = () => {
         <For each={tabs}>
           {tab => (
             <button
+              type="button"
               onClick={() => setActiveTab(tab.id)}
+              aria-pressed={activeTab() === tab.id}
               class={cn(
                 'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all',
                 activeTab() === tab.id
@@ -586,6 +309,7 @@ export const PredictiveInsights: Component = () => {
             {metricsQuery.error?.message || usersQuery.error?.message}
           </p>
           <button
+            type="button"
             onClick={() => void Promise.all([metricsQuery.refetch(), usersQuery.refetch()])}
             class="mt-4 rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-600"
           >
@@ -676,9 +400,9 @@ export const PredictiveInsights: Component = () => {
               fallback={
                 <div class="border-aurora-500/20 bg-aurora-500/5 rounded-2xl border p-8 text-center">
                   <Shield size={32} class="text-aurora-400 mx-auto mb-3" />
-                  <p class="text-aurora-400 font-bold">All Systems Normal</p>
+                  <p class="text-aurora-400 font-bold">All Thresholds Normal</p>
                   <p class="text-nebula-500 mt-2 text-sm">
-                    No anomalies detected in the current monitoring period
+                    Engagement and activation metrics are within their normal ranges
                   </p>
                 </div>
               }
@@ -742,7 +466,7 @@ export const PredictiveInsights: Component = () => {
               Active Alerts
             </p>
             <p class="font-display text-solar-400 mt-1 text-3xl font-black">
-              {anomalyAlerts().filter(a => a.status === 'active').length}
+              {anomalyAlerts().length}
             </p>
             <p class="text-nebula-500 mt-1 text-xs">
               {anomalyAlerts().filter(a => a.severity === 'critical').length} critical

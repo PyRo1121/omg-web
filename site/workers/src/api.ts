@@ -14,8 +14,8 @@ export interface Env extends Pick<Cloudflare.Env, 'DB'> {
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;
+  JWT_PRIVATE_KEY: string;
   EMAIL: SendEmail;
-  JWT_PRIVATE_KEY?: string;
   ADMIN_USER_ID?: string;
   STRIPE_PRO_PRICE_ID?: string;
   STRIPE_TEAM_PRICE_ID?: string;

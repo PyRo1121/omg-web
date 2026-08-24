@@ -22,10 +22,16 @@ export class WorkerApiNetworkError extends Error {
   }
 }
 
+/** Production origin of the licensing/analytics Worker (omg-saas). */
+export const WORKER_API_ORIGIN = 'https://omg-api.latham.cloud';
+
 /** Posts or gets JSON through a controlled HTTP boundary. */
 export interface WorkerFetcher {
   fetch(input: string, init: RequestInit): Effect.Effect<Response, WorkerApiNetworkError>;
 }
+
+/** Any classified failure a Worker request can produce. */
+export type WorkerApiFailure = WorkerApiHttpError | WorkerApiNetworkError | WorkerHttpParseError;
 
 /** Browser fetch seam restricted to the same-origin BFF and one public telemetry route. */
 export const browserWorkerFetcher: WorkerFetcher = {
@@ -35,8 +41,7 @@ export const browserWorkerFetcher: WorkerFetcher = {
         const url = new URL(input, window.location.origin);
         const allowed =
           (url.origin === window.location.origin && url.pathname.startsWith('/api/licensing/')) ||
-          (url.origin === 'https://omg-api.latham.cloud' &&
-            url.pathname === '/api/site/analytics/track');
+          (url.origin === WORKER_API_ORIGIN && url.pathname === '/api/site/analytics/track');
         if (!allowed) {
           throw new WorkerApiNetworkError(new Error('Worker API route is not allowed'));
         }
@@ -47,6 +52,30 @@ export const browserWorkerFetcher: WorkerFetcher = {
     });
   },
 };
+
+/** Fetch a 2xx response body as raw text (CSV exports). */
+export function requestText(
+  fetcher: WorkerFetcher,
+  url: string,
+  init: RequestInit = {}
+): Effect.Effect<string, WorkerApiHttpError | WorkerApiNetworkError> {
+  return Effect.gen(function* () {
+    const response = yield* fetcher.fetch(url, init);
+    if (!response.ok) {
+      const payload = yield* Effect.tryPromise({
+        try: () => response.json(),
+        catch: cause => new WorkerApiNetworkError(cause),
+      });
+      return yield* Effect.fail(
+        new WorkerApiHttpError(response.status, parseApiError(payload, 'Request failed'))
+      );
+    }
+    return yield* Effect.tryPromise({
+      try: () => response.text(),
+      catch: cause => new WorkerApiNetworkError(cause),
+    });
+  });
+}
 
 /** Fetch JSON and Schema-decode the 2xx response body. */
 export function requestDecodedJson<S extends Schema.Schema.AnyNoContext>(

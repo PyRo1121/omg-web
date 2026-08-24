@@ -31,6 +31,17 @@ import {
   UsageDailyRowSchema,
 } from '../contracts/d1-extras';
 
+const SESSION_LIST_LIMIT = 50;
+const AUDIT_LOG_LIMIT = 100;
+
+/** Marketing value assigned to one saved engineering hour. */
+const VALUE_PER_HOUR_USD = 100;
+/** Baseline spend the team ROI multiplier is measured against. */
+const ROI_BASELINE_COST_USD = 200;
+/** Commands a seat must run to reach a full productivity score. */
+const PRODUCTIVITY_SCORE_COMMANDS = 1000;
+const MS_PER_HOUR = 1000 * 60 * 60;
+
 const SessionListRowSchema = Schema.Struct({
   id: Schema.String,
   ip_address: Schema.Union(Schema.Null, Schema.String),
@@ -61,7 +72,7 @@ async function withDashboardSession(
 ): Promise<Response> {
   const token = getAuthToken(request);
   if (!token) {
-    return errorResponse('Authorization required', 401);
+    return errorResponse('Unauthorized', 401);
   }
   const auth = await validateSession(env.DB, token);
   if (!auth) {
@@ -145,12 +156,16 @@ async function deactivateMachine(
     return licenseId;
   }
 
-  const result = await db
-    .prepare(`UPDATE machines SET is_active = 0 WHERE license_id = ? AND ${whereColumn} = ?`)
+  const changed = await db
+    .prepare(
+      `UPDATE machines SET is_active = 0
+       WHERE license_id = ? AND ${whereColumn} = ?
+       RETURNING id`
+    )
     .bind(licenseId, machineId)
-    .run();
+    .first();
 
-  if (result.meta.changes === 0) {
+  if (changed === null) {
     return errorResponse('Machine not found', 404);
   }
 
@@ -187,9 +202,10 @@ export async function handleGetSessions(request: Request, env: Env): Promise<Res
       FROM sessions
       WHERE customer_id = ? AND expires_at > datetime('now')
       ORDER BY created_at DESC
+      LIMIT ?
     `
       )
-      .bind(userId)
+      .bind(userId, SESSION_LIST_LIMIT)
       .all();
 
     const decoded = Schema.decodeUnknownEither(Schema.Array(SessionListRowSchema))(
@@ -219,13 +235,20 @@ export async function handleRevokeSession(request: Request, env: Env): Promise<R
 
     // Can't revoke current session via this endpoint
     if (body.session_id === sessionId) {
-      return errorResponse('Cannot revoke current session. Use logout instead.');
+      return errorResponse('Cannot revoke current session. Use logout instead.', 400);
     }
 
-    await db
-      .prepare(`DELETE FROM sessions WHERE id = ? AND customer_id = ?`)
+    const revoked = await db
+      .prepare(
+        `DELETE FROM sessions WHERE id = ? AND customer_id = ?
+         RETURNING id`
+      )
       .bind(body.session_id, userId)
-      .run();
+      .first();
+
+    if (revoked === null) {
+      return errorResponse('Session not found', 404);
+    }
 
     await Effect.runPromise(
       logAudit(db, userId, 'session.revoked', 'session', body.session_id, request)
@@ -382,8 +405,8 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
         (versions.filter(v => v === latestVersion).length / (versions.length || 1)) * 100;
 
       // Calculate ROI (Return on Investment)
-      const totalHoursSaved = (totalUsage?.total_time_saved_ms ?? 0) / (1000 * 60 * 60);
-      const totalValueUSD = Math.round(totalHoursSaved * 100);
+      const totalHoursSaved = (totalUsage?.total_time_saved_ms ?? 0) / MS_PER_HOUR;
+      const totalValueUSD = Math.round(totalHoursSaved * VALUE_PER_HOUR_USD);
 
       // Get daily usage breakdown (last 14 days)
       const dailyUsage = await db
@@ -430,7 +453,7 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
           active_machines: activeMachines,
           total_commands: totalCommands,
           total_time_saved_ms: totalTimeSaved,
-          total_time_saved_hours: Math.round((totalTimeSaved / (1000 * 60 * 60)) * 10) / 10,
+          total_time_saved_hours: Math.round((totalTimeSaved / MS_PER_HOUR) * 10) / 10,
           total_value_usd: totalValueUSD,
         },
         fleet_health: {
@@ -438,10 +461,14 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
           latest_version: latestVersion,
           version_drift: uniqueVersions.length > 1,
         },
-        productivity_score: Math.min(100, Math.round((totalCommands / 1000) * 100)),
+        productivity_score: Math.min(
+          100,
+          Math.round((totalCommands / PRODUCTIVITY_SCORE_COMMANDS) * 100)
+        ),
         insights: {
           engagement_rate: Math.round((activeMachines / (totalMachines || 1)) * 100),
-          roi_multiplier: totalValueUSD > 0 ? (totalValueUSD / 200).toFixed(1) : '0',
+          roi_multiplier:
+            totalValueUSD > 0 ? (totalValueUSD / ROI_BASELINE_COST_USD).toFixed(1) : '0',
         },
       });
     } catch (error: unknown) {
@@ -497,10 +524,10 @@ export async function handleGetAuditLog(request: Request, env: Env): Promise<Res
       FROM audit_log
       WHERE customer_id = ?
       ORDER BY created_at DESC
-      LIMIT 100
+      LIMIT ?
     `
       )
-      .bind(userId)
+      .bind(userId, AUDIT_LOG_LIMIT)
       .all();
     const decodedLogs = await Effect.runPromiseExit(
       decodeExtraRowArray(
@@ -517,12 +544,16 @@ export async function handleGetAuditLog(request: Request, env: Env): Promise<Res
   });
 }
 
-// Placeholder for policies
+// Team policies are not implemented yet.
 export async function handleGetTeamPolicies(request: Request, env: Env): Promise<Response> {
-  return withDashboardSession(request, env, () => jsonResponse({ policies: [] }));
+  return withDashboardSession(request, env, () =>
+    errorResponse('Team policies are not implemented', 501)
+  );
 }
 
-// Placeholder for notifications
+// Notifications are not implemented yet.
 export async function handleGetNotifications(request: Request, env: Env): Promise<Response> {
-  return withDashboardSession(request, env, () => jsonResponse({ settings: [] }));
+  return withDashboardSession(request, env, () =>
+    errorResponse('Notifications are not implemented', 501)
+  );
 }

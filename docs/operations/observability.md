@@ -33,6 +33,16 @@ Worker application logs use Effect's JSON logger. Each event contains a stable `
 
 Browser failures are sent through Sentry only when the server-owned `SENTRY_DSN` configuration is present. Browser code must not receive Worker credentials.
 
+## Alerting
+
+Workers Logs free-tier retention is roughly 3 days, so log-only monitoring detects nothing outside a 72-hour human attention window. The following minimum alert surface is required and is NOT yet provisioned (tracked as an open production-hardening step in [`cloudflare-environment-readiness.md`](./cloudflare-environment-readiness.md)):
+
+1. A Cloudflare Notification (Webhooks/Email destination) on Workers **exception count > 0** and on elevated 5xx response rate for `omg-site` and `omg-saas`.
+2. A daily scheduled probe that asserts (a) both cron invocations succeeded and (b) zero rows in `stripe_events` with `status != 'processed'`, alerting through the same destination. A silent billing inbox is otherwise undetectable until a customer complains.
+3. Include the site's `*.workers.dev` fallback hostname in any domain-scoped alert review, or disable that hostname so it cannot serve traffic outside monitored domains.
+
+Configure notifications in the Cloudflare dashboard under Notifications > Alert Policies; keep thresholds in this document once chosen.
+
 ## Operational queries
 
 Use Cloudflare Workers Logs to monitor:

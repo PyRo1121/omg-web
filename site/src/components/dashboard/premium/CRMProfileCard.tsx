@@ -1,7 +1,6 @@
 import { type Component, For, Show, createSignal, createMemo } from 'solid-js';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import type { CRMCustomer, CustomerTag } from './types';
+import { cn } from '../../../lib/prelude';
 import {
   ChevronRight,
   Mail,
@@ -17,10 +16,6 @@ import {
 } from 'lucide-solid';
 import { HealthScore, TierBadge } from '../../../design-system';
 import { parseTier } from '~/lib/contracts/tier';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 interface CRMProfileCardProps {
   customer: CRMCustomer;
@@ -97,6 +92,7 @@ const QuickActionButton: Component<QuickActionButtonProps> = props => {
     <button
       type="button"
       onClick={props.onClick}
+      aria-label={props.label}
       class={cn(
         'flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold transition-all duration-200',
         variants[props.variant || 'default']
@@ -247,6 +243,8 @@ export const CRMProfileCard: Component<CRMProfileCardProps> = props => {
             <button
               type="button"
               onClick={() => setShowActions(!showActions())}
+              aria-label="Toggle quick actions"
+              aria-expanded={showActions()}
               class="text-nebula-500 rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
             >
               <Ellipsis size={16} />
@@ -455,6 +453,7 @@ export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = pr
           <button
             type="button"
             onClick={() => handleEmail(props.customer.email)}
+            aria-label={`Send email to ${props.customer.email}`}
             class="text-nebula-500 rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
             title="Send Email"
           >
@@ -463,6 +462,7 @@ export const CRMProfileCardTableRow: Component<CRMProfileCardTableRowProps> = pr
           <button
             type="button"
             onClick={() => props.onViewDetail?.(props.customer.id)}
+            aria-label={`View details for ${props.customer.email}`}
             class="text-nebula-500 rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
             title="View Details"
           >
