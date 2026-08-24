@@ -1,6 +1,11 @@
 import { defineConfig } from "@solidjs/start/config";
 
 export default defineConfig({
+  serialization: {
+    // JSON avoids SolidStart's JavaScript deserializer, which requires eval()
+    // and is intentionally blocked by the production Content Security Policy.
+    mode: "json",
+  },
   server: {
     preset: "cloudflare-pages",
     rollupConfig: {

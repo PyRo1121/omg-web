@@ -89,7 +89,7 @@ It performs only read operations and exits nonzero if `omg-saas`, `omg-site`, or
 ## Remaining production steps
 
 1. Configure OAuth provider callback URLs (`https://omg.latham.cloud/api/auth/callback/{github,google}`) in the GitHub/Google consoles when social sign-in is enabled.
-2. OTP stays unavailable by design: Workers Paid was declined, so Cloudflare Email Sending to arbitrary recipients is unavailable on the Free plan. A third-party sender would be required to enable it; until then email/password sign-up works fully without OTP.
+2. OTP stays unavailable by design: Workers Paid was declined, so Cloudflare Email Sending to arbitrary recipients is unavailable on the Free plan. Public registration is therefore OAuth-only; password login remains enabled only for existing controlled accounts whose email ownership was verified during provisioning.
 3. ~~Configure Stripe products/prices/webhook secret in test mode first~~ Done (2026-08-21, see the Stripe test-mode wiring section); finish the live webhook delivery verification (redeploy with the currency decode fix and confirm a signed test event is accepted). Update checkout success/return URLs only if the domain changes again.
 4. Verify Workers observability after first real traffic and exercise the rollback path once: enumerate versions with `npx wrangler deployments list`, then revert with `npx wrangler rollback` (<https://developers.cloudflare.com/workers/wrangler/commands/#rollback>, <https://developers.cloudflare.com/workers/versioning/>).
 
@@ -107,7 +107,7 @@ The site's `*.workers.dev` fallback hostname remains enabled while the API's is 
 
 ## Authenticated characterization status
 
-Password sign-up and sign-in are live-verified against production (2026-08-21). Two designated E2E users exist in the platform database (`e2e-user@latham.cloud`, `e2e-admin@latham.cloud`; passwords are provided per-run via `E2E_*` environment variables, never committed):
+The OAuth-only signup surface and password sign-in for controlled accounts are live-verified against production. Two designated E2E users exist in the platform database (`e2e-user@latham.cloud`, `e2e-admin@latham.cloud`; passwords are provided per-run via `E2E_*` environment variables, never committed):
 
 ```bash
 cd site && E2E_BASE_URL=https://omg.latham.cloud \

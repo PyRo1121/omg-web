@@ -4,7 +4,7 @@ Playwright owns browser-level authorization and critical-flow characterization f
 
 ## Anonymous checks
 
-Anonymous checks run against a local `vinxi dev` server via the `chromium` project and verify that `/admin` and `/dashboard` redirect to `/login`, that the complete login and signup surfaces are rendered, that password signup rejects mismatched passwords client-side, that invalid credentials produce a generic error without navigating away, and that the upgrade modal degrades gracefully when the checkout backend is unavailable.
+Anonymous checks run against a local `vinxi dev` server via the `chromium` project and verify that `/admin` and `/dashboard` redirect to `/login`, that the complete login and OAuth-only signup surfaces are rendered, that password registration controls remain absent, that invalid login credentials produce a generic error without navigating away, and that the upgrade modal degrades gracefully when the checkout backend is unavailable.
 
 ```bash
 npx playwright test e2e/anonymous.spec.ts e2e/signup.spec.ts e2e/billing-unconfigured.spec.ts

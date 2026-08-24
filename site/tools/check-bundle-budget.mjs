@@ -8,6 +8,11 @@ const MAX_JAVASCRIPT_CHUNK_BYTES = 500_000;
 const MAX_JAVASCRIPT_CHUNK_GZIP_BYTES = 130_000;
 const MAX_TOTAL_JAVASCRIPT_GZIP_BYTES = 400_000;
 const MAX_STYLESHEET_GZIP_BYTES = 30_000;
+// SolidStart's JavaScript serializer emits an indirect `(0, eval)(...)`
+// deserializer. `new Function(...)` is the other constructor blocked by the
+// same CSP policy. Do not match ordinary object methods named `eval` (Effect's
+// runtime legitimately uses that method name without evaluating source text).
+const DYNAMIC_CODE_PATTERN = /\(0,\s*eval\)\s*\(|\bnew\s+Function\s*\(/;
 
 function reportFailure(message) {
   process.stderr.write(`[bundle-budget] ${message}\n`);
@@ -41,6 +46,9 @@ for (const name of javascriptNames) {
   const gzipBytes = gzipSync(bytes).byteLength;
   totalJavascriptGzipBytes += gzipBytes;
 
+  if (DYNAMIC_CODE_PATTERN.test(bytes.toString('utf8'))) {
+    reportFailure(`${name} contains a dynamic code constructor, which the production CSP blocks`);
+  }
   if (bytes.byteLength > MAX_JAVASCRIPT_CHUNK_BYTES) {
     reportFailure(
       `${name} is ${bytes.byteLength} bytes; maximum raw JavaScript chunk is ${MAX_JAVASCRIPT_CHUNK_BYTES}`
