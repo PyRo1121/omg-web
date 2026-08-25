@@ -1,4 +1,7 @@
 import { createHandler, StartServer } from '@solidjs/start/server';
+// Preloaded by URL so the LCP font starts downloading before CSS @font-face discovery.
+import archivoLatinWoff2 from '@fontsource-variable/archivo/files/archivo-latin-wght-normal.woff2?url';
+import plexMonoLatin400Woff2 from '@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2?url';
 
 export default createHandler(() => (
   <StartServer
@@ -15,23 +18,21 @@ export default createHandler(() => (
           {/* Preconnects */}
           <link rel="preconnect" href="https://omg-api.latham.cloud" />
 
-          {/* Structured Data */}
-          <script type="application/ld+json">{`
-            {
-              "@context": "https://schema.org",
-              "@type": "SoftwareApplication",
-              "name": "OMG Package Manager",
-              "applicationCategory": "DeveloperApplication",
-              "operatingSystem": "Linux",
-              "description": "Fastest unified package manager for Arch Linux, Debian, and Ubuntu. Native Node.js, Python, Go, Rust, Ruby, Java, and Bun support. 22x faster than pacman.",
-              "url": "https://omg.latham.cloud",
-              "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "USD"
-              }
-            }
-          `}</script>
+          {/* LCP-critical fonts (web.dev font best practices: preload above-the-face fonts) */}
+          <link
+            rel="preload"
+            href={archivoLatinWoff2}
+            as="font"
+            type="font/woff2"
+            crossorigin="anonymous"
+          />
+          <link
+            rel="preload"
+            href={plexMonoLatin400Woff2}
+            as="font"
+            type="font/woff2"
+            crossorigin="anonymous"
+          />
 
           {assets}
         </head>

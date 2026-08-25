@@ -2,6 +2,25 @@ import { Link, Meta, Title } from '@solidjs/meta';
 import Footer from '~/components/Footer';
 import Header from '~/components/Header';
 
+const breadcrumbData = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: 'Home',
+      item: 'https://omg.latham.cloud/',
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: 'Docs',
+      item: 'https://omg.latham.cloud/docs/',
+    },
+  ],
+});
+
 const REFERENCE_BASE = 'https://github.com/PyRo1121/omg/blob/main/docs';
 
 const REFERENCE_LINKS = [
@@ -37,13 +56,38 @@ const COMMAND_GROUPS = [
 export default function DocsPage() {
   return (
     <>
-      <Title>Documentation - OMG Package Manager</Title>
+      <Title>OMG Documentation - Install, Commands, and Platforms</Title>
       <Meta
         name="description"
         content="Install OMG, learn its package and runtime commands, capture reproducible environments, and open the complete CLI reference."
       />
       <Meta name="robots" content="index, follow" />
       <Link rel="canonical" href="https://omg.latham.cloud/docs/" />
+
+      <Meta property="og:type" content="website" />
+      <Meta property="og:title" content="OMG Documentation - Install, Commands, and Platforms" />
+      <Meta
+        property="og:description"
+        content="Install OMG, learn its package and runtime commands, capture reproducible environments, and open the complete CLI reference."
+      />
+      <Meta property="og:url" content="https://omg.latham.cloud/docs/" />
+      <Meta property="og:image" content="https://omg.latham.cloud/og/omg-og.png" />
+      <Meta property="og:image:width" content="1200" />
+      <Meta property="og:image:height" content="630" />
+      <Meta property="og:image:type" content="image/png" />
+      <Meta
+        property="og:image:alt"
+        content="The OMG landing page headline beside a large orange 7→1 graphic representing seven package tools replaced by one command."
+      />
+      <Meta property="og:site_name" content="OMG Package Manager" />
+      <Meta name="twitter:card" content="summary_large_image" />
+      <Meta name="twitter:title" content="OMG Documentation - Install, Commands, and Platforms" />
+      <Meta
+        name="twitter:description"
+        content="Install OMG, learn its package and runtime commands, capture reproducible environments, and open the complete CLI reference."
+      />
+      <Meta name="twitter:image" content="https://omg.latham.cloud/og/omg-og.png" />
+      <script type="application/ld+json">{breadcrumbData}</script>
 
       <Header />
       <main id="main-content" class="manifest-shell border-x border-[var(--rule)]">
@@ -135,7 +179,9 @@ export default function DocsPage() {
             </section>
 
             <section id="platforms" class="border-b border-[var(--rule)] p-5 sm:p-8 lg:p-12">
-              <h2 class="text-4xl font-semibold tracking-[-0.05em]">Supported platforms</h2>
+              <h2 class="text-4xl font-semibold tracking-[-0.05em]">
+                Platforms: Arch, Debian, Ubuntu, Fedora, and macOS
+              </h2>
               <dl class="mt-8 grid sm:grid-cols-2">
                 <div class="border-t border-[var(--rule)] py-6 sm:pr-8">
                   <dt class="font-semibold">Linux</dt>
@@ -165,7 +211,7 @@ export default function DocsPage() {
             </section>
 
             <section id="reference" class="p-5 sm:p-8 lg:p-12">
-              <h2 class="text-4xl font-semibold tracking-[-0.05em]">Full reference</h2>
+              <h2 class="text-4xl font-semibold tracking-[-0.05em]">OMG CLI reference</h2>
               <p class="mt-4 max-w-2xl leading-relaxed text-[var(--ink-muted)]">
                 The CLI repository owns the versioned technical reference. These links open the
                 source documentation for the current main branch.

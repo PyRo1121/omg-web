@@ -10,18 +10,38 @@ import Pricing from '../components/Pricing';
 
 const structuredData = JSON.stringify({
   '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'OMG Package Manager',
-  applicationCategory: 'DeveloperApplication',
-  operatingSystem: 'Linux, macOS, Windows Subsystem for Linux',
-  description:
-    'A fast package and runtime manager for Linux system packages and reproducible development environments.',
-  url: 'https://omg.latham.cloud/',
-  downloadUrl: 'https://omg.latham.cloud/#install',
-  softwareHelp: 'https://omg.latham.cloud/docs/',
-  codeRepository: 'https://github.com/PyRo1121/omg',
-  license: 'https://www.gnu.org/licenses/agpl-3.0.html',
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': 'https://omg.latham.cloud/#org',
+      name: 'OMG Package Manager',
+      url: 'https://omg.latham.cloud/',
+      logo: 'https://omg.latham.cloud/apple-touch-icon.png',
+      sameAs: ['https://github.com/PyRo1121/omg'],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': 'https://omg.latham.cloud/#website',
+      url: 'https://omg.latham.cloud/',
+      name: 'OMG Package Manager',
+      publisher: { '@id': 'https://omg.latham.cloud/#org' },
+    },
+    {
+      '@type': 'SoftwareApplication',
+      name: 'OMG Package Manager',
+      applicationCategory: 'DeveloperApplication',
+      operatingSystem: 'Linux, macOS, Windows Subsystem for Linux',
+      description:
+        'A fast package and runtime manager for Linux system packages and reproducible development environments.',
+      url: 'https://omg.latham.cloud/',
+      downloadUrl: 'https://omg.latham.cloud/#install',
+      softwareHelp: 'https://omg.latham.cloud/docs/',
+      codeRepository: 'https://github.com/PyRo1121/omg',
+      license: 'https://www.gnu.org/licenses/agpl-3.0.html',
+      publisher: { '@id': 'https://omg.latham.cloud/#org' },
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    },
+  ],
 });
 
 /** Marketing page with static search metadata and post-checkout fulfillment. */
@@ -31,11 +51,7 @@ export default function Home() {
       <Title>OMG: One CLI for Packages, Runtimes, and Project Toolchains</Title>
       <Meta
         name="description"
-        content="Stop juggling package and runtime managers. OMG manages Linux packages, Node.js, Python, Go, Rust, Bun, and reproducible project environments through one fast Rust CLI."
-      />
-      <Meta
-        name="keywords"
-        content="Linux package manager, runtime manager, Node version manager, Python version manager, reproducible development environment, Rust CLI"
+        content="OMG is a free, open-source CLI that installs apps and manages Node.js, Python, Go, and Rust versions on Linux and macOS — one command instead of apt, brew, nvm, pyenv, and rustup."
       />
       <Meta name="robots" content="index, follow, max-image-preview:large" />
       <Link rel="canonical" href="https://omg.latham.cloud/" />
@@ -50,7 +66,11 @@ export default function Home() {
       <Meta property="og:image" content="https://omg.latham.cloud/og/omg-og.png" />
       <Meta property="og:image:width" content="1200" />
       <Meta property="og:image:height" content="630" />
-      <Meta property="og:image:alt" content="OMG package manager workflow" />
+      <Meta property="og:image:type" content="image/png" />
+      <Meta
+        property="og:image:alt"
+        content="The OMG landing page headline beside a large orange 7→1 graphic representing seven package tools replaced by one command."
+      />
       <Meta property="og:site_name" content="OMG Package Manager" />
 
       <Meta name="twitter:card" content="summary_large_image" />

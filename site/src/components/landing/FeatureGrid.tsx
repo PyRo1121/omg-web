@@ -9,13 +9,13 @@ const WORKFLOWS = [
     result: 'Installed with your system’s own package manager',
   },
   {
-    job: 'Set up a language',
+    job: 'Install Node.js, Python, or Rust',
     before: 'Instead of configuring nvm, pyenv, or rustup',
     command: 'omg use node 22',
     result: 'Node 22 installed and ready to use',
   },
   {
-    job: 'Move to a new machine',
+    job: 'Set up a new machine',
     before: 'Instead of replaying setup notes from memory',
     command: 'omg env sync <share-url>',
     result: 'Every package and language reinstalled for you',

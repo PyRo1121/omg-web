@@ -83,8 +83,9 @@ test.describe('anonymous authorization', () => {
     const sitemap = await page.request.get('/sitemap.xml');
     const sitemapText = await sitemap.text();
     expect(sitemap.ok()).toBe(true);
-    expect(sitemapText).toContain('<loc>https://omg.latham.cloud/docs</loc>');
-    expect(sitemapText).not.toContain('/dashboard');
+    expect(sitemapText).toContain('<loc>https://omg.latham.cloud/docs/</loc>');
+    expect(sitemapText).toContain('<lastmod>');
+    expect(sitemapText).not.toContain('https://omg.latham.cloud/dashboard');
     expect(sitemapText).not.toContain('/docs/getting-started');
     expect(
       await page.evaluate(

@@ -2,12 +2,19 @@
 # /api/*) are produced by the Worker script and bypass this file entirely; their
 # headers are owned by the Worker code.
 #
+# Cache-Control is intentionally NOT set on the `/*` rule: this file is concatenated
+# with Nitro's generated rules (writeCFHeaders in nitropack's Cloudflare preset), and
+# Cloudflare concatenates duplicate header names across matching rules. A blanket
+# `max-age=0` here previously produced `max-age=0, ... immutable, max-age=31536000`
+# on hashed assets. Nitro's generated rules already cover prerendered HTML
+# (max-age=0) and /_build/assets/* (immutable); the explicit rules below cover the
+# remaining static files.
+#
 # CSP notes: 'unsafe-inline' is retained in script-src only because SolidStart's
 # prerendered pages ship an inline hydration bootstrap; migrating to a nonce/hash
 # requires touching server rendering code. 'unsafe-eval' is not needed by any
 # production bundle and must not be reintroduced.
 /*
-  Cache-Control: public, max-age=0, must-revalidate
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
@@ -16,6 +23,29 @@
   Cross-Origin-Opener-Policy: same-origin
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://omg.latham.cloud https://omg-api.latham.cloud https://api.github.com https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://omg.latham.cloud https://github.com https://accounts.google.com
   Vary: Accept-Encoding
+
+/og/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Prerendered HTML must always revalidate (Nitro's generated rules cover
+# /_build/assets/* but not the directory-index URLs below).
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/login/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/signup/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/docs/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/privacy/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/terms/
+  Cache-Control: public, max-age=0, must-revalidate
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
@@ -26,11 +56,23 @@
   Content-Type: application/x-pem-file
   Vary: Accept-Encoding
 
-/*.html
-  Cache-Control: public, max-age=0, must-revalidate
+/install.sh
+  Cache-Control: public, max-age=3600
 
-/
-  Cache-Control: public, max-age=0, must-revalidate
+/install.ps1
+  Cache-Control: public, max-age=3600
 
-/dashboard
-  Cache-Control: public, max-age=0, must-revalidate
+/favicon.svg
+  Cache-Control: public, max-age=86400
+
+/favicon.png
+  Cache-Control: public, max-age=86400
+
+/apple-touch-icon.png
+  Cache-Control: public, max-age=86400
+
+/manifest.json
+  Cache-Control: public, max-age=86400
+
+/site.webmanifest
+  Cache-Control: public, max-age=86400

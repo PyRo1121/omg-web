@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         name="description"
         content="How OMG Package Manager collects, uses, and protects your data: telemetry opt-out, data export, deletion, and retention periods."
       />
-      <Link rel="canonical" href="https://omg.latham.cloud/privacy" />
+      <Link rel="canonical" href="https://omg.latham.cloud/privacy/" />
 
       <div class="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
         <Header />

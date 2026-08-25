@@ -12,7 +12,7 @@ export default function TermsPage() {
         name="description"
         content="Terms of Service for the OMG Package Manager website, CLI, licenses, and subscriptions."
       />
-      <Link rel="canonical" href="https://omg.latham.cloud/terms" />
+      <Link rel="canonical" href="https://omg.latham.cloud/terms/" />
 
       <div class="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
         <Header />

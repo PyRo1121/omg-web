@@ -3,18 +3,20 @@ import type { APIEvent } from '@solidjs/start/server';
 // Site configuration
 const SITE_URL = 'https://omg.latham.cloud';
 
-// Static pages with their priorities and change frequencies
+// Static pages with their priorities, change frequencies, and content last-modified dates.
+// lastmod values reflect meaningful content changes only (never build timestamps).
 interface PageEntry {
   path: string;
   priority: number;
   changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
+  lastmod: string;
 }
 
 const STATIC_PAGES: PageEntry[] = [
-  { path: '/', priority: 1.0, changefreq: 'weekly' },
-  { path: '/docs', priority: 0.9, changefreq: 'weekly' },
-  { path: '/privacy', priority: 0.3, changefreq: 'yearly' },
-  { path: '/terms', priority: 0.3, changefreq: 'yearly' },
+  { path: '/', priority: 1.0, changefreq: 'weekly', lastmod: '2026-08-25' },
+  { path: '/docs/', priority: 0.9, changefreq: 'weekly', lastmod: '2026-08-25' },
+  { path: '/privacy/', priority: 0.3, changefreq: 'yearly', lastmod: '2026-02-07' },
+  { path: '/terms/', priority: 0.3, changefreq: 'yearly', lastmod: '2026-02-07' },
 ];
 
 /**
@@ -25,6 +27,7 @@ function generateUrlEntry(page: PageEntry, baseUrl: string): string {
 
   return `  <url>
     <loc>${escapeXml(loc)}</loc>
+    <lastmod>${page.lastmod}</lastmod>
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority.toFixed(1)}</priority>
   </url>`;
