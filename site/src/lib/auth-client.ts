@@ -7,8 +7,8 @@ const authClient = createAuthClient({
     : window.location.origin,
 });
 
-const { signIn, signUp, signOut, useSession } = authClient;
-export { signIn, signUp, useSession };
+const { signIn, signOut, useSession } = authClient;
+export { signIn, useSession };
 
 /** Revoke the Better Auth HttpOnly cookie without browser-stored Worker credentials. */
 export function signOutBrowserSessions(): Promise<BrowserSignOutResult> {

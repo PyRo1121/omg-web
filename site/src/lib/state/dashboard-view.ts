@@ -83,7 +83,7 @@ const loadTelemetryPipeline = (fetchImpl: DashboardFetch) =>
   });
 
 /** The reactive view state backing the account dashboard page. */
-export interface DashboardView {
+interface DashboardView {
   dashboardData: Accessor<DashboardData | null>;
   telemetryData: Accessor<TelemetryDashboard | null>;
   loading: Accessor<boolean>;

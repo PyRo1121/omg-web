@@ -3,18 +3,6 @@ import * as Schema from 'effect/Schema';
 /** Raw value accepted only at a Schema-decoded browser boundary. */
 type BrowserBoundaryInput = Schema.Schema.Encoded<Schema.Schema.Any>;
 
-const LicenseLookupSchema = Schema.Union(
-  Schema.Struct({ found: Schema.Literal(false) }),
-  Schema.Struct({
-    found: Schema.Literal(true),
-    license_key: Schema.String,
-    tier: Schema.String,
-  })
-);
-
-/** A license lookup response used by the public landing page. */
-type LicenseLookup = Schema.Schema.Type<typeof LicenseLookupSchema>;
-
 /** A parsed localStorage cache of rendered GitHub activity bars. */
 const NonEmptyString = Schema.String.pipe(Schema.minLength(1));
 const ApiErrorSchema = Schema.Union(
@@ -44,15 +32,6 @@ export function parseApiError(value: BrowserBoundaryInput, fallback: string): st
   return 'error' in decoded.right ? decoded.right.error : decoded.right.message;
 }
 
-/** Parse a public license lookup response. */
-export function parseLicenseLookup(value: BrowserBoundaryInput): ParseResult<LicenseLookup> {
-  return parseWithSchema(
-    LicenseLookupSchema,
-    value,
-    'License lookup response has an invalid shape'
-  );
-}
-
 const CheckoutSessionStatusSchema = Schema.Struct({
   status: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(32)),
   email: Schema.optional(Schema.Union(Schema.Null, Schema.String)),
@@ -68,7 +47,7 @@ const CheckoutSessionStatusSchema = Schema.Struct({
 });
 
 /** A parsed post-checkout fulfillment probe response. */
-export type CheckoutSessionStatus = Schema.Schema.Type<typeof CheckoutSessionStatusSchema>;
+type CheckoutSessionStatus = Schema.Schema.Type<typeof CheckoutSessionStatusSchema>;
 
 /** Parse the checkout-session fulfillment probe response. */
 export function parseCheckoutSessionStatus(
