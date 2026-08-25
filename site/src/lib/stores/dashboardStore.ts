@@ -10,12 +10,9 @@ import {
 export interface DashboardState {
   navigation: {
     activeTab: AdminTab;
-    tabHistory: AdminTab[];
   };
   filters: {
     dateRange: DateRange;
-    segment: string;
-    compareEnabled: boolean;
   };
   views: {
     saved: SavedView[];
@@ -29,14 +26,12 @@ export interface DashboardState {
   crm: {
     page: number;
     search: string;
-    viewMode: 'cards' | 'table';
     selectedUserId: string | null;
   };
 }
 
 const STORAGE_KEY = 'omg-dashboard-state';
-const STORAGE_VERSION = 1;
-const TAB_HISTORY_LIMIT = 10;
+const STORAGE_VERSION = 2;
 
 function browserWindow(): Window | undefined {
   return 'window' in globalThis ? globalThis.window : undefined;
@@ -48,10 +43,9 @@ function mergePersisted(
 ): DashboardState {
   return {
     ...defaults,
-    navigation: { ...defaults.navigation, activeTab: persisted.navigation.activeTab },
-    filters: { ...defaults.filters, ...persisted.filters },
+    navigation: { activeTab: persisted.navigation.activeTab },
+    filters: { dateRange: persisted.filters.dateRange },
     views: { ...defaults.views, saved: [...persisted.views.saved] },
-    crm: { ...defaults.crm, viewMode: persisted.crm.viewMode },
   };
 }
 
@@ -83,12 +77,9 @@ function createDefaultState(): DashboardState {
   return {
     navigation: {
       activeTab: 'overview',
-      tabHistory: [],
     },
     filters: {
       dateRange: '30d',
-      segment: 'all',
-      compareEnabled: false,
     },
     views: {
       saved: [],
@@ -102,7 +93,6 @@ function createDefaultState(): DashboardState {
     crm: {
       page: 1,
       search: '',
-      viewMode: 'table',
       selectedUserId: null,
     },
   };
@@ -120,9 +110,6 @@ export function createDashboardStore() {
       filters: state.filters,
       views: {
         saved: state.views.saved,
-      },
-      crm: {
-        viewMode: state.crm.viewMode,
       },
     },
   });
@@ -144,41 +131,11 @@ export function createDashboardStore() {
 
   const actions = {
     setTab(tab: AdminTab) {
-      setState('navigation', prev => ({
-        activeTab: tab,
-        tabHistory: [...prev.tabHistory.slice(-(TAB_HISTORY_LIMIT - 1)), prev.activeTab],
-      }));
-    },
-
-    goToPreviousTab() {
-      const history = state.navigation.tabHistory;
-      if (history.length === 0) {
-        return;
-      }
-      const previousTab = history.at(-1);
-      if (previousTab === undefined) {
-        return;
-      }
-      setState('navigation', {
-        activeTab: previousTab,
-        tabHistory: history.slice(0, -1),
-      });
-    },
-
-    updateFilters(filters: Partial<DashboardState['filters']>) {
-      setState('filters', prev => ({ ...prev, ...filters }));
+      setState('navigation', 'activeTab', tab);
     },
 
     setDateRange(dateRange: DateRange) {
       setState('filters', 'dateRange', dateRange);
-    },
-
-    setSegment(segment: string) {
-      setState('filters', 'segment', segment);
-    },
-
-    toggleCompare() {
-      setState('filters', 'compareEnabled', prev => !prev);
     },
 
     saveView() {
@@ -192,8 +149,6 @@ export function createDashboardStore() {
         name: viewName,
         tab: state.navigation.activeTab,
         dateRange: state.filters.dateRange,
-        segment: state.filters.segment,
-        compareEnabled: state.filters.compareEnabled,
       };
 
       setState('views', 'saved', prev => [...prev, newView]);
@@ -205,15 +160,7 @@ export function createDashboardStore() {
 
     loadView(view: SavedView) {
       setState('navigation', 'activeTab', view.tab);
-      setState('filters', {
-        dateRange: view.dateRange,
-        segment: view.segment,
-        compareEnabled: view.compareEnabled,
-      });
-    },
-
-    deleteView(viewId: string) {
-      setState('views', 'saved', prev => prev.filter(v => v.id !== viewId));
+      setState('filters', 'dateRange', view.dateRange);
     },
 
     showSaveViewModal() {
@@ -254,16 +201,8 @@ export function createDashboardStore() {
       });
     },
 
-    setCRMViewMode(viewMode: 'cards' | 'table') {
-      setState('crm', 'viewMode', viewMode);
-    },
-
     setSelectedUserId(userId: string | null) {
       setState('crm', 'selectedUserId', userId);
-    },
-
-    resetCRM() {
-      setState('crm', createDefaultState().crm);
     },
   };
 

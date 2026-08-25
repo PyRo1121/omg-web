@@ -16,10 +16,9 @@ import ErrorCard from '../shared/ErrorCard';
 import { DocsAnalytics } from '../DocsAnalytics';
 import { CohortAnalysis } from '../CohortAnalysis';
 import type { SiteAnalyticsOverview, SiteGeoAnalytics, SiteRealtimeAnalytics } from '~/lib/api';
+import type { DateRange } from '~/types';
 
-type DateRange = '7d' | '30d' | '90d' | 'custom';
-
-function getDateRangeDays(range: DateRange): number {
+export function getDateRangeDays(range: DateRange): number {
   switch (range) {
     case '7d':
       return 7;

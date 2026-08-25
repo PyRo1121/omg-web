@@ -1,18 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import { decodePersistedDashboardState } from './dashboard-store';
 
-const validPersisted = {
-  version: 1,
+const validCurrent = {
+  version: 2,
   state: {
     navigation: { activeTab: 'analytics' },
-    filters: { dateRange: '90d', segment: 'enterprise', compareEnabled: true },
+    filters: { dateRange: '90d' },
     views: {
       saved: [
         {
-          id: 'v1',
-          name: 'Enterprise health',
-          tab: 'insights',
+          id: 'view-1',
+          name: 'Analytics month',
+          tab: 'analytics',
           dateRange: '30d',
+        },
+      ],
+    },
+  },
+};
+
+const legacyPersisted = {
+  version: 1,
+  state: {
+    navigation: { activeTab: 'insights' },
+    filters: { dateRange: 'custom', segment: 'enterprise', compareEnabled: true },
+    views: {
+      saved: [
+        {
+          id: 'legacy-view',
+          name: 'Legacy custom view',
+          tab: 'insights',
+          dateRange: 'custom',
           segment: 'enterprise',
           compareEnabled: false,
         },
@@ -23,24 +41,42 @@ const validPersisted = {
 };
 
 describe('decodePersistedDashboardState', () => {
-  it('decodes a valid persisted dashboard state', () => {
-    const decoded = decodePersistedDashboardState(validPersisted);
-    expect(decoded).not.toBeNull();
-    expect(decoded?.state.navigation.activeTab).toBe('analytics');
-    expect(decoded?.state.filters.dateRange).toBe('90d');
-    expect(decoded?.state.views.saved.at(0)?.name).toBe('Enterprise health');
-    expect(decoded?.state.crm.viewMode).toBe('cards');
+  it('decodes current version-2 preferences', () => {
+    const decoded = decodePersistedDashboardState(validCurrent);
+
+    expect(decoded).toEqual(validCurrent);
   });
 
-  it('rejects a state with an unknown version (forward-incompatible)', () => {
-    const malformed = { ...validPersisted, version: 2 };
-    expect(decodePersistedDashboardState(malformed)).toBeNull();
+  it('migrates version-1 saved views without preserving obsolete fake controls', () => {
+    const decoded = decodePersistedDashboardState(legacyPersisted);
+
+    expect(decoded).toEqual({
+      version: 2,
+      state: {
+        navigation: { activeTab: 'insights' },
+        filters: { dateRange: '30d' },
+        views: {
+          saved: [
+            {
+              id: 'legacy-view',
+              name: 'Legacy custom view',
+              tab: 'insights',
+              dateRange: '30d',
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it('rejects an unknown forward version', () => {
+    expect(decodePersistedDashboardState({ ...validCurrent, version: 3 })).toBeNull();
   });
 
   it('rejects a state with an invalid tab value', () => {
     const malformed = {
-      ...validPersisted,
-      state: { ...validPersisted.state, navigation: { activeTab: 'billing' } },
+      ...validCurrent,
+      state: { ...validCurrent.state, navigation: { activeTab: 'billing' } },
     };
     expect(decodePersistedDashboardState(malformed)).toBeNull();
   });

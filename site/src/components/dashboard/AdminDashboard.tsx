@@ -1,6 +1,6 @@
 import { reportClientError } from '~/lib/observability';
 import type { AdminTab } from '~/types';
-import { type Component, createMemo, For, Match, onCleanup, Show, Switch } from 'solid-js';
+import { type Component, createMemo, For, Match, onCleanup, onMount, Show, Switch } from 'solid-js';
 import { createQuery } from '@tanstack/solid-query';
 import {
   Activity,
@@ -12,8 +12,6 @@ import {
   ChevronDown,
   Lightbulb,
   Calendar,
-  Funnel,
-  GitCompare,
   Save,
 } from 'lucide-solid';
 import * as api from '../../lib/api';
@@ -31,7 +29,7 @@ import { CustomerDetailDrawer } from './admin/CustomerDetailDrawer';
 import { InsightsTab } from './admin/insights/InsightsTab';
 import { OverviewTab } from './admin/tabs/OverviewTab';
 import { CRMTab } from './admin/tabs/CRMTab';
-import { AnalyticsTab } from './admin/tabs/AnalyticsTab';
+import { AnalyticsTab, getDateRangeDays } from './admin/tabs/AnalyticsTab';
 import { TabErrorBoundary } from './admin/shared/TabErrorBoundary';
 import ErrorCard from './admin/shared/ErrorCard';
 import { createDashboardStore } from '../../lib/stores/dashboardStore';
@@ -42,23 +40,6 @@ import type { OverviewMetrics } from './admin/tabs/OverviewTab';
 function oneOf<T extends string>(values: ReadonlyArray<T>, key: string): T | undefined {
   return values.find(value => value === key);
 }
-
-const SEGMENTS = [
-  { id: 'all', name: 'All Customers' },
-  { id: 'enterprise', name: 'Enterprise' },
-  { id: 'team', name: 'Team' },
-  { id: 'pro', name: 'Pro' },
-  { id: 'power_users', name: 'Power Users' },
-  { id: 'at_risk', name: 'At Risk' },
-  { id: 'new_users', name: 'New Users (30d)' },
-];
-
-const DATE_RANGE_DAYS = {
-  '7d': 7,
-  '30d': 30,
-  '90d': 90,
-  custom: 30,
-} as const;
 
 function toOverviewMetrics(
   dashboard: api.AdminOverview | undefined,
@@ -174,6 +155,41 @@ function transformToCRMCustomer(user: api.AdminUser): CRMCustomer {
 
 const AdminDashboard: Component = () => {
   const [store, actions] = createDashboardStore();
+  let exportMenuRoot: HTMLDivElement | undefined;
+  let exportButton: HTMLButtonElement | undefined;
+  let saveViewButton: HTMLButtonElement | undefined;
+
+  onMount(() => {
+    const closeOnPointerDown = (event: PointerEvent): void => {
+      if (
+        store.ui.exportMenuOpen &&
+        event.target instanceof Node &&
+        !exportMenuRoot?.contains(event.target)
+      ) {
+        actions.closeExportMenu();
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      if (store.ui.exportMenuOpen) {
+        actions.closeExportMenu();
+        exportButton?.focus();
+      }
+      if (store.views.showSaveModal) {
+        actions.hideSaveViewModal();
+        saveViewButton?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', closeOnPointerDown);
+    document.addEventListener('keydown', closeOnEscape);
+    onCleanup(() => {
+      document.removeEventListener('pointerdown', closeOnPointerDown);
+      document.removeEventListener('keydown', closeOnEscape);
+    });
+  });
+
   const dashboardQuery = useAdminDashboard();
   const firehoseQuery = useAdminFirehose(100, () => store.navigation.activeTab === 'overview');
   const crmUsersQuery = createQuery(() => ({
@@ -185,15 +201,15 @@ const AdminDashboard: Component = () => {
     () => store.navigation.activeTab === 'overview'
   );
   const siteGeoQuery = createQuery(() => ({
-    queryKey: ['site-geo-analytics', DATE_RANGE_DAYS[store.filters.dateRange]],
-    queryFn: () => api.getSiteGeoAnalytics(DATE_RANGE_DAYS[store.filters.dateRange]),
+    queryKey: ['site-geo-analytics', getDateRangeDays(store.filters.dateRange)],
+    queryFn: () => api.getSiteGeoAnalytics(getDateRangeDays(store.filters.dateRange)),
     staleTime: 60 * 1000,
     enabled: store.navigation.activeTab === 'analytics',
   }));
   const realtimeQuery = useSiteRealtimeAnalytics(() => store.navigation.activeTab === 'analytics');
   const siteOverviewQuery = createQuery(() => ({
-    queryKey: ['site-analytics-overview', DATE_RANGE_DAYS[store.filters.dateRange]],
-    queryFn: () => api.getSiteAnalyticsOverview(DATE_RANGE_DAYS[store.filters.dateRange]),
+    queryKey: ['site-analytics-overview', getDateRangeDays(store.filters.dateRange)],
+    queryFn: () => api.getSiteAnalyticsOverview(getDateRangeDays(store.filters.dateRange)),
     staleTime: 60 * 1000,
     enabled: store.navigation.activeTab === 'analytics',
   }));
@@ -252,11 +268,11 @@ const AdminDashboard: Component = () => {
           filename = `omg-users-${new Date().toISOString().split('T')[0]}.csv`;
           break;
         case 'usage':
-          data = await api.exportAdminUsage(DATE_RANGE_DAYS[store.filters.dateRange]);
+          data = await api.exportAdminUsage(getDateRangeDays(store.filters.dateRange));
           filename = `omg-usage-${new Date().toISOString().split('T')[0]}.csv`;
           break;
         case 'audit':
-          data = await api.exportAdminAudit(DATE_RANGE_DAYS[store.filters.dateRange]);
+          data = await api.exportAdminAudit(getDateRangeDays(store.filters.dateRange));
           filename = `omg-audit-${new Date().toISOString().split('T')[0]}.csv`;
           break;
       }
@@ -275,12 +291,7 @@ const AdminDashboard: Component = () => {
 
   const TABS_ORDER: AdminTab[] = ['overview', 'crm', 'analytics', 'insights', 'revenue', 'audit'];
 
-  let tabFocusTimer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => {
-    if (tabFocusTimer !== undefined) {
-      clearTimeout(tabFocusTimer);
-    }
-  });
+  const tabButtons = new Map<AdminTab, HTMLButtonElement>();
 
   const handleTabKeyDown = (e: KeyboardEvent, tabId: AdminTab) => {
     const currentIndex = TABS_ORDER.indexOf(tabId);
@@ -307,19 +318,7 @@ const AdminDashboard: Component = () => {
       return;
     }
     actions.setTab(nextTab);
-
-    if (tabFocusTimer !== undefined) {
-      clearTimeout(tabFocusTimer);
-    }
-    tabFocusTimer = setTimeout(() => {
-      tabFocusTimer = undefined;
-      const nextButton = document.querySelector(
-        `[role="tab"][aria-controls="tabpanel-${nextTab}"]`
-      );
-      if (nextButton instanceof HTMLElement) {
-        nextButton.focus();
-      }
-    }, 0);
+    tabButtons.get(nextTab)?.focus();
   };
 
   const TabButton = (props: {
@@ -332,6 +331,7 @@ const AdminDashboard: Component = () => {
 
     return (
       <button
+        ref={element => tabButtons.set(props.id, element)}
         id={`tab-${props.id}`}
         role="tab"
         aria-selected={isActive()}
@@ -381,43 +381,21 @@ const AdminDashboard: Component = () => {
             <select
               value={store.filters.dateRange}
               onChange={e =>
-                actions.setDateRange(
-                  oneOf(['7d', '30d', '90d', 'custom'], e.currentTarget.value) ?? '30d'
-                )
+                actions.setDateRange(oneOf(['7d', '30d', '90d'], e.currentTarget.value) ?? '30d')
               }
               class="bg-transparent text-sm font-bold text-white focus:outline-none"
             >
               <option value="7d">Last 7 days</option>
               <option value="30d">Last 30 days</option>
               <option value="90d">Last 90 days</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
-
-          <div class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
-            <Funnel size={14} class="text-nebula-500" />
-            <select
-              value={store.filters.segment}
-              onChange={e => actions.setSegment(e.currentTarget.value)}
-              class="bg-transparent text-sm font-bold text-white focus:outline-none"
-            >
-              <For each={SEGMENTS}>{seg => <option value={seg.id}>{seg.name}</option>}</For>
             </select>
           </div>
 
           <button
-            onClick={() => actions.toggleCompare()}
-            class={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all sm:text-sm ${
-              store.filters.compareEnabled
-                ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-400'
-                : 'border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.06]'
-            }`}
-          >
-            <GitCompare size={14} />
-            <span class="hidden sm:inline">Compare</span>
-          </button>
-
-          <button
+            ref={element => {
+              saveViewButton = element;
+            }}
+            type="button"
             onClick={() => actions.showSaveViewModal()}
             class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-bold text-white transition-all hover:bg-white/[0.06] sm:text-sm"
           >
@@ -425,8 +403,19 @@ const AdminDashboard: Component = () => {
             <span class="hidden sm:inline">Save View</span>
           </button>
 
-          <div class="relative">
+          <div
+            ref={element => {
+              exportMenuRoot = element;
+            }}
+            class="relative"
+          >
             <button
+              ref={element => {
+                exportButton = element;
+              }}
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={store.ui.exportMenuOpen}
               onClick={e => {
                 e.stopPropagation();
                 actions.toggleExportMenu();
@@ -443,8 +432,12 @@ const AdminDashboard: Component = () => {
             </button>
 
             <Show when={store.ui.exportMenuOpen}>
-              <div class="absolute top-full right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border border-white/10 bg-[#0d0d0e] p-1 shadow-2xl max-sm:right-0 max-sm:left-auto sm:right-0">
+              <div
+                role="menu"
+                class="absolute top-full right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border border-white/10 bg-[#0d0d0e] p-1 shadow-2xl max-sm:right-0 max-sm:left-auto sm:right-0"
+              >
                 <button
+                  role="menuitem"
                   onClick={() => handleExport('users')}
                   class="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm text-white transition-colors hover:bg-white/5"
                 >
@@ -455,6 +448,7 @@ const AdminDashboard: Component = () => {
                   </div>
                 </button>
                 <button
+                  role="menuitem"
                   onClick={() => handleExport('usage')}
                   class="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm text-white transition-colors hover:bg-white/5"
                 >
@@ -465,6 +459,7 @@ const AdminDashboard: Component = () => {
                   </div>
                 </button>
                 <button
+                  role="menuitem"
                   onClick={() => handleExport('audit')}
                   class="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm text-white transition-colors hover:bg-white/5"
                 >
@@ -479,21 +474,6 @@ const AdminDashboard: Component = () => {
           </div>
         </div>
       </header>
-
-      <Show when={store.filters.compareEnabled}>
-        <div class="flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3">
-          <GitCompare size={18} class="text-indigo-400" />
-          <span class="text-sm font-medium text-indigo-300">
-            Comparing current period with previous {DATE_RANGE_DAYS[store.filters.dateRange]} days
-          </span>
-          <button
-            onClick={() => actions.toggleCompare()}
-            class="ml-auto rounded-lg bg-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-300 hover:bg-indigo-500/30"
-          >
-            Exit Comparison
-          </button>
-        </div>
-      </Show>
 
       <Show when={store.views.saved.length > 0}>
         <div class="flex items-center gap-2 overflow-x-auto">
@@ -631,10 +611,27 @@ const AdminDashboard: Component = () => {
       </Show>
 
       <Show when={store.views.showSaveModal}>
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div class="bg-void-900 w-full max-w-md rounded-2xl border border-white/10 p-6 shadow-2xl">
-            <h3 class="mb-4 text-lg font-black text-white">Save Current View</h3>
+        <div
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          role="presentation"
+          onClick={event => {
+            if (event.target === event.currentTarget) {
+              actions.hideSaveViewModal();
+              saveViewButton?.focus();
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-view-title"
+            class="bg-void-900 w-full max-w-md rounded-2xl border border-white/10 p-6 shadow-2xl"
+          >
+            <h3 id="save-view-title" class="mb-4 text-lg font-black text-white">
+              Save Current View
+            </h3>
             <input
+              ref={element => element.focus()}
               type="text"
               value={store.views.newViewName}
               onInput={e => actions.setNewViewName(e.currentTarget.value)}
@@ -649,18 +646,6 @@ const AdminDashboard: Component = () => {
               <div class="flex justify-between">
                 <span>Date Range:</span>
                 <span class="font-bold text-white">{store.filters.dateRange}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>Segment:</span>
-                <span class="font-bold text-white">
-                  {SEGMENTS.find(s => s.id === store.filters.segment)?.name}
-                </span>
-              </div>
-              <div class="flex justify-between">
-                <span>Compare Mode:</span>
-                <span class="font-bold text-white">
-                  {store.filters.compareEnabled ? 'On' : 'Off'}
-                </span>
               </div>
             </div>
             <div class="flex justify-end gap-3">
