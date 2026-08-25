@@ -15,12 +15,9 @@ const Benchmarks: Component = () => (
           Speed you do not wait for.
         </h2>
         <p class="mt-7 max-w-sm leading-relaxed text-[var(--ink-muted)]">
-          Real command latency measured over ten iterations on an Intel i9-14900K.
+          Real command latency, measured. Lower is better.
         </p>
       </div>
-      <p class="m-0 mt-16 font-mono text-[10px] text-[var(--ink-muted)]">
-        SEARCH BENCHMARK / LOWER IS BETTER
-      </p>
     </header>
 
     <div class="grid bg-[var(--paper-raised)]">
@@ -32,7 +29,7 @@ const Benchmarks: Component = () => (
           <strong class="block text-[clamp(5rem,12vw,10rem)] leading-[0.7] font-semibold tracking-[-0.09em] text-[var(--signal)]">
             22×
           </strong>
-          <span class="mt-4 block font-mono text-[10px] text-[var(--ink-muted)]">faster</span>
+          <span class="mt-4 block text-sm text-[var(--ink-muted)]">faster search</span>
         </p>
       </div>
 

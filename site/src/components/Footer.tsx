@@ -3,16 +3,19 @@ import type { Component } from 'solid-js';
 
 const Footer: Component = () => (
   <footer class="manifest-shell border-t border-[var(--rule)]">
-    <section class="grid gap-10 py-20 sm:py-24 lg:grid-cols-[1fr_auto] lg:items-end">
+    <section class="grid gap-10 py-24 sm:py-32 lg:grid-cols-[1fr_auto] lg:items-end">
       <div>
-        <h2 class="max-w-[13ch] text-5xl leading-[0.9] font-semibold tracking-[-0.065em] sm:text-7xl">
-          One command surface for the whole machine.
+        <h2 class="max-w-[12ch] text-5xl leading-[0.9] font-semibold tracking-[-0.065em] sm:text-7xl">
+          One command. Your whole machine.
         </h2>
-        <p class="mt-7 max-w-lg leading-relaxed text-[var(--ink-muted)]">
-          Install the core for free. Learn the rest when you need it.
+        <p class="mt-7 max-w-lg text-lg leading-relaxed text-[var(--ink-muted)]">
+          Free to install. No account required until you want Pro.
         </p>
       </div>
-      <a href="/#install" class="manifest-button manifest-button--primary group lg:mb-1">
+      <a
+        href="/#install"
+        class="manifest-button manifest-button--primary group h-14 px-8 text-base"
+      >
         Install OMG
         <ArrowDown
           class="h-4 w-4 transition-transform group-hover:translate-y-0.5"
@@ -21,18 +24,12 @@ const Footer: Component = () => (
       </a>
     </section>
 
-    <div class="grid gap-8 border-t border-[var(--rule)] py-8 lg:grid-cols-[1fr_auto] lg:items-end">
-      <section aria-labelledby="footer-brand">
-        <h2 id="footer-brand" class="text-lg font-bold tracking-[-0.055em]">
-          OMG<span class="text-[var(--signal)]">/</span>
-        </h2>
-        <p class="mt-3 max-w-sm text-sm leading-relaxed text-[var(--ink-muted)]">
-          Packages, runtimes, and reproducible environments through one CLI.
-        </p>
-      </section>
-
+    <div class="flex flex-wrap items-center justify-between gap-6 border-t border-[var(--rule)] py-6">
+      <p class="m-0 text-lg font-bold tracking-[-0.055em]">
+        OMG<span class="text-[var(--signal)]">/</span>
+      </p>
       <nav aria-label="Footer navigation">
-        <ul class="m-0 flex list-none flex-wrap gap-x-6 gap-y-1 p-0 font-mono text-[10px] text-[var(--ink-muted)] [&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center">
+        <ul class="m-0 flex list-none flex-wrap gap-x-7 gap-y-2 p-0 text-sm text-[var(--ink-muted)]">
           <li>
             <a href="/docs/" class="hover:text-[var(--ink)]">
               Docs
@@ -58,19 +55,9 @@ const Footer: Component = () => (
               Terms
             </a>
           </li>
-          <li>
-            <a href="mailto:support@latham.cloud" class="hover:text-[var(--ink)]">
-              Support
-            </a>
-          </li>
         </ul>
       </nav>
     </div>
-
-    <p class="m-0 flex flex-col justify-between gap-2 border-t border-[var(--rule)] py-5 font-mono text-[10px] text-[var(--ink-muted)] sm:flex-row">
-      <span>AGPL-3.0-or-later © 2026 OMG Team</span>
-      <span>Built in Rust</span>
-    </p>
   </footer>
 );
 
