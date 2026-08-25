@@ -278,6 +278,34 @@ describe('POST /api/validate-license', () => {
     expect(stored).not.toBeNull();
   });
 
+  it('reactivates a previously revoked machine when a seat is available', async () => {
+    await insertCustomer();
+    await insertLicense('active', null, 1);
+    await env.DB.prepare(
+      `INSERT INTO machines (id, license_id, machine_id, is_active)
+       VALUES (?, ?, ?, 0)`
+    )
+      .bind('m-revoked', TEST_LICENSE, 'machine-revoked')
+      .run();
+
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson(JSON.stringify({ key: TEST_KEY, machine_id: 'machine-revoked' })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+    expect((await decodeResponse(response, ValidPayloadSchema)).valid).toBe(true);
+    const machine = await env.DB.prepare(
+      `SELECT is_active FROM machines WHERE license_id = ? AND machine_id = ?`
+    )
+      .bind(TEST_LICENSE, 'machine-revoked')
+      .first<{ is_active: number }>();
+    expect(machine?.is_active).toBe(1);
+  });
+
   it('returns only the current machine and excludes seat-owner PII', async () => {
     await insertCustomer();
     await insertLicense('active', null, 2);
@@ -301,6 +329,28 @@ describe('POST /api/validate-license', () => {
     expect(payload.machines[0]?.['machine_id']).toBe('machine-current');
     expect(Object.hasOwn(payload.machines[0] ?? {}, 'user_name')).toBe(false);
     expect(Object.hasOwn(payload.machines[0] ?? {}, 'user_email')).toBe(false);
+  });
+
+  it('treats concurrent registration of the same machine as success', async () => {
+    await insertCustomer();
+    await insertLicense('active', null, 1);
+    const contexts = [createExecutionContext(), createExecutionContext()];
+    const serializedBody = JSON.stringify({ key: TEST_KEY, machine_id: 'same-machine' });
+    const responses = await Promise.all(
+      contexts.map(context => worker.fetch(postJson(serializedBody), env, context))
+    );
+    await Promise.all(contexts.map(context => waitOnExecutionContext(context)));
+
+    const payloads = await Promise.all(
+      responses.map(response => decodeResponse(response, ValidPayloadSchema))
+    );
+    expect(payloads.every(payload => payload.valid)).toBe(true);
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM machines WHERE license_id = ? AND machine_id = ?`
+    )
+      .bind(TEST_LICENSE, 'same-machine')
+      .first<{ count: number }>();
+    expect(row?.count).toBe(1);
   });
 
   it('never exceeds the seat limit under concurrent registrations', async () => {

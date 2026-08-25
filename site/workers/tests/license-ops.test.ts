@@ -9,12 +9,21 @@ const AnalyticsResponseSchema = Schema.Struct({
   processed: Schema.Number,
 });
 
+const PublicLicenseResponseSchema = Schema.Struct({
+  found: Schema.Literal(true),
+  tier: Schema.String,
+  status: Schema.String,
+  max_machines: Schema.Number,
+  used_machines: Schema.Number,
+});
+
 const TEST_EMAIL = 'report-usage@example.com';
 const TEST_KEY = 'lic-report-key';
 const TEST_CUSTOMER = 'report-cust';
 const TEST_LICENSE = 'report-lic';
 const GET_LICENSE_ATTACKER = 'get-license-attacker';
 const GET_LICENSE_ATTACKER_TOKEN = 'get-license-attacker-token';
+const GET_LICENSE_OWNER_TOKEN = 'get-license-owner-token';
 
 async function ensureSchema(): Promise<void> {
   try {
@@ -221,10 +230,15 @@ describe('GET /api/get-license', () => {
   });
 
   afterEach(async () => {
-    await env.DB.prepare(`DELETE FROM sessions WHERE customer_id = ?`)
-      .bind(GET_LICENSE_ATTACKER)
+    await env.DB.prepare(`DELETE FROM sessions WHERE customer_id IN (?, ?)`)
+      .bind(GET_LICENSE_ATTACKER, TEST_CUSTOMER)
       .run();
-    await env.DB.prepare(`DELETE FROM licenses WHERE id = ?`).bind(TEST_LICENSE).run();
+    await env.DB.prepare(
+      `DELETE FROM machines WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)`
+    )
+      .bind(TEST_CUSTOMER)
+      .run();
+    await env.DB.prepare(`DELETE FROM licenses WHERE customer_id = ?`).bind(TEST_CUSTOMER).run();
     await env.DB.prepare(`DELETE FROM customers WHERE id IN (?, ?)`)
       .bind(TEST_CUSTOMER, GET_LICENSE_ATTACKER)
       .run();
@@ -258,6 +272,48 @@ describe('GET /api/get-license', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(401);
+  });
+
+  it('counts machines only on the deterministically selected active license', async () => {
+    await insertActiveLicense();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_machines, max_seats)
+           VALUES ('secondary-license', ?, 'secondary-key', 'team', 'cancelled', 10, 10)`
+      ).bind(TEST_CUSTOMER),
+      env.DB.prepare(
+        `INSERT INTO machines (id, license_id, machine_id, is_active)
+         VALUES ('primary-machine', ?, 'primary-machine', 1)`
+      ).bind(TEST_LICENSE),
+      env.DB.prepare(
+        `INSERT INTO machines (id, license_id, machine_id, is_active)
+         VALUES ('secondary-machine', 'secondary-license', 'secondary-machine', 1)`
+      ),
+      env.DB.prepare(
+        `INSERT INTO sessions (id, customer_id, token, expires_at)
+           VALUES ('get-license-owner-session', ?, ?, datetime('now', '+1 hour'))`
+      ).bind(TEST_CUSTOMER, GET_LICENSE_OWNER_TOKEN),
+    ]);
+
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      new Request(`http://localhost/api/get-license?email=${TEST_EMAIL}`, {
+        headers: { Authorization: `Bearer ${GET_LICENSE_OWNER_TOKEN}` },
+      }),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+    const payload = Schema.decodeUnknownSync(PublicLicenseResponseSchema)(await response.json());
+    expect(payload).toMatchObject({
+      found: true,
+      tier: 'free',
+      status: 'active',
+      max_machines: 1,
+      used_machines: 1,
+    });
   });
 
   it('returns 403 when an authenticated customer requests another customer license', async () => {

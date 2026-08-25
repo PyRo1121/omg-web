@@ -394,7 +394,7 @@ export const CurrentMrrRowSchema = Schema.Struct({ current_mrr: D1Number });
 
 /** Persisted Stripe webhook inbox state. */
 export const StripeEventStateRowSchema = Schema.Struct({
-  status: Schema.Literal('received', 'processing', 'processed', 'failed'),
+  status: Schema.Literal('received', 'processing', 'processed', 'failed', 'dead'),
   processed: Schema.Number,
 });
 

@@ -8,10 +8,11 @@ import { handleStripeWebhook } from '../src/handlers/billing';
 import type { StripeFetch } from '../src/stripe-reconciliation';
 import inboxMigration from '../migrations/011_stripe_event_inbox.sql?raw';
 import claimTokenMigration from '../migrations/018_stripe_event_claim_tokens.sql?raw';
+import deadLetterMigration from '../migrations/021_stripe_event_dead_letter.sql?raw';
 
 const WEBHOOK_SECRET = 'whsec_test_inbox';
 const InboxRowSchema = Schema.Struct({
-  status: Schema.Literal('received', 'processing', 'processed', 'failed'),
+  status: Schema.Literal('received', 'processing', 'processed', 'failed', 'dead'),
   attempt_count: Schema.Number,
   processed: Schema.Number,
 });
@@ -272,13 +273,22 @@ describe('Stripe webhook inbox', () => {
     for (const statement of statements) {
       await env.DB.prepare(statement).run();
     }
+    const deadLetterStatements = deadLetterMigration
+      .split(';')
+      .map(statement => statement.trim())
+      .filter(statement => statement.length > 0);
+    for (const statement of deadLetterStatements) {
+      await env.DB.prepare(statement).run();
+    }
   });
 
   afterEach(async () => {
     await env.DB.prepare(`DELETE FROM invoices WHERE customer_id = 'billing-customer'`).run();
     await env.DB.prepare(`DELETE FROM subscriptions`).run();
     await env.DB.prepare(`DELETE FROM licenses WHERE customer_id = 'billing-customer'`).run();
-    await env.DB.prepare(`DELETE FROM customers WHERE id = 'billing-customer'`).run();
+    await env.DB.prepare(
+      `DELETE FROM customers WHERE id IN ('billing-customer', 'poison-customer')`
+    ).run();
     await env.DB.prepare(`DROP TABLE IF EXISTS stripe_events`).run();
   });
 
@@ -455,6 +465,62 @@ describe('Stripe webhook inbox', () => {
       license_status: 'active',
       max_seats: 10,
       subscription_status: 'active',
+    });
+  });
+
+  it('dead-letters a poison event after twenty attempts and acknowledges later retries', async () => {
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, tier, stripe_customer_id)
+       VALUES ('poison-customer', 'poison@example.com', 'team', 'cus_poison')`
+    ).run();
+    const request = await subscriptionWebhookRequest(
+      'evt_poison_projection',
+      'customer.subscription.updated',
+      'sub_poison',
+      'cus_poison',
+      'active',
+      'price_team_server'
+    );
+    await env.DB.prepare(
+      `INSERT INTO stripe_events (
+         id, stripe_event_id, event_type, event_data, status, attempt_count, processed
+       ) VALUES (?, ?, ?, '', 'failed', 19, 0)`
+    )
+      .bind('poison-inbox', 'evt_poison_projection', 'customer.subscription.updated')
+      .run();
+
+    const finalFailure = await handleStripeWebhook(
+      request.clone(),
+      env,
+      stripeSubscriptionFetch({
+        id: 'sub_poison',
+        customer: 'cus_poison',
+        status: 'active',
+        priceId: 'price_unknown',
+      })
+    );
+    expect(finalFailure.status).toBe(500);
+    expect(await readInboxRow('evt_poison_projection')).toEqual({
+      status: 'dead',
+      attempt_count: 20,
+      processed: 0,
+    });
+
+    const acknowledged = await handleStripeWebhook(
+      request.clone(),
+      env,
+      stripeSubscriptionFetch({
+        id: 'sub_poison',
+        customer: 'cus_poison',
+        status: 'active',
+        priceId: 'price_pro_server',
+      })
+    );
+    expect(acknowledged.status).toBe(200);
+    expect(await readInboxRow('evt_poison_projection')).toEqual({
+      status: 'dead',
+      attempt_count: 20,
+      processed: 0,
     });
   });
 

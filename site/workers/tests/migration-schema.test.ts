@@ -40,6 +40,7 @@ describe('canonical D1 migrations', () => {
       '018_stripe_event_claim_tokens.sql',
       '019_license_usage_dimensions.sql',
       '020_marketing_offer_leads.sql',
+      '021_stripe_event_dead_letter.sql',
     ]);
   });
 

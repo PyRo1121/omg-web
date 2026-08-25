@@ -107,6 +107,7 @@ export const PublicLicenseRowSchema = Schema.Struct({
   status: Schema.String,
   expires_at: Schema.Union(Schema.Null, Schema.String),
   max_machines: Schema.Union(Schema.Null, Schema.Number),
+  used_machines: Schema.Number,
 });
 
 function mapParseError(reason: string) {

@@ -217,11 +217,16 @@ async function syncStripeList<
   }
 }
 
+const MAX_STRIPE_EVENT_ATTEMPTS = 20;
+
 async function claimStripeEvent(
   db: D1Database,
   event: StripeWebhookEvent,
   eventData: string
-): Promise<{ outcome: 'claimed' | 'processed' | 'busy' | 'invalid'; claimToken?: string }> {
+): Promise<{
+  outcome: 'claimed' | 'processed' | 'busy' | 'dead' | 'invalid';
+  claimToken?: string;
+}> {
   await db
     .prepare(
       `INSERT OR IGNORE INTO stripe_events (
@@ -242,13 +247,13 @@ async function claimStripeEvent(
        SET status = 'processing', attempt_count = attempt_count + 1,
            processing_started_at = CURRENT_TIMESTAMP, last_error = NULL,
            claim_token = ?
-       WHERE stripe_event_id = ? AND (
+       WHERE stripe_event_id = ? AND attempt_count < ? AND (
          status IN ('received', 'failed') OR
          (status = 'processing' AND processing_started_at < datetime('now', '-5 minutes'))
        )
        RETURNING stripe_event_id`
     )
-    .bind(claimToken, event.id)
+    .bind(claimToken, event.id, MAX_STRIPE_EVENT_ATTEMPTS)
     .first();
   if (claimed !== null) {
     return { outcome: 'claimed', claimToken };
@@ -270,7 +275,9 @@ async function claimStripeEvent(
     outcome:
       stateLookup.value.processed === 1 || stateLookup.value.status === 'processed'
         ? 'processed'
-        : 'busy',
+        : stateLookup.value.status === 'dead'
+          ? 'dead'
+          : 'busy',
   };
 }
 
@@ -302,10 +309,20 @@ async function failedStripeEventResponse(
   await db
     .prepare(
       `UPDATE stripe_events
-       SET status = 'failed', processed = 0, processing_started_at = NULL, last_error = ?
+       SET status = CASE WHEN attempt_count >= ? THEN 'dead' ELSE 'failed' END,
+           processed = 0,
+           processing_started_at = NULL,
+           last_error = ?,
+           event_data = CASE WHEN attempt_count >= ? THEN '' ELSE event_data END
        WHERE stripe_event_id = ? AND status = 'processing' AND claim_token IS ?`
     )
-    .bind(detail.slice(0, 1000), eventId, claimToken ?? null)
+    .bind(
+      MAX_STRIPE_EVENT_ATTEMPTS,
+      detail.slice(0, 1000),
+      MAX_STRIPE_EVENT_ATTEMPTS,
+      eventId,
+      claimToken ?? null
+    )
     .run();
   return new Response('Stripe event reconciliation failed', { status: 500 });
 }
@@ -852,6 +869,12 @@ export async function handleStripeWebhook(
   const claimToken = claim.claimToken;
   if (claim.outcome === 'processed') {
     return new Response('OK');
+  }
+  if (claim.outcome === 'dead') {
+    // Acknowledge terminal poison events so Stripe stops redelivering them.
+    // The final failed attempt was already reported and its bounded error is
+    // retained in the inbox while the raw PII-bearing payload is cleared.
+    return new Response('Event permanently failed');
   }
   if (claim.outcome === 'busy') {
     return new Response('Event processing in progress', {

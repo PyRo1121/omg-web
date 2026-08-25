@@ -30,7 +30,6 @@ import {
 import { EmailAddress } from '../../../shared/site-session';
 import {
   AnalyticsBatchSchema,
-  CountRowSchema,
   type LicenseOpsParseError,
   PublicLicenseRowSchema,
   ReportUsageRequestSchema,
@@ -197,16 +196,27 @@ function registerOrTouchMachine(
       return null;
     }
 
-    // Atomic seat-limit enforcement: the INSERT only proceeds while the
-    // active-machine count is below the cap. Concurrent registrations race on
-    // this single statement instead of a count-then-insert TOCTOU window.
+    // One guarded upsert covers first registration, reactivation after revoke,
+    // and concurrent duplicate registration. Existing active rows may always
+    // be touched; new or inactive rows proceed only while capacity remains.
     const maxMachines = maxMachinesFor(license);
     const seatResult = yield* Effect.tryPromise({
       try: () =>
         env.DB.prepare(
           `INSERT INTO machines (id, license_id, machine_id, user_name, user_email, is_active)
            SELECT ?, ?, ?, ?, ?, 1
-           WHERE (
+           WHERE EXISTS (
+             SELECT 1 FROM machines
+             WHERE license_id = ? AND machine_id = ? AND is_active = 1
+           ) OR (
+             SELECT COUNT(*) FROM machines WHERE license_id = ? AND is_active = 1
+           ) < ?
+           ON CONFLICT(license_id, machine_id) DO UPDATE SET
+             is_active = 1,
+             last_seen_at = CURRENT_TIMESTAMP,
+             user_name = COALESCE(excluded.user_name, machines.user_name),
+             user_email = COALESCE(excluded.user_email, machines.user_email)
+           WHERE machines.is_active = 1 OR (
              SELECT COUNT(*) FROM machines WHERE license_id = ? AND is_active = 1
            ) < ?
            RETURNING id`
@@ -217,6 +227,10 @@ function registerOrTouchMachine(
             machineId,
             body.userName,
             body.userEmail,
+            license.id,
+            machineId,
+            license.id,
+            maxMachines,
             license.id,
             maxMachines
           )
@@ -453,10 +467,16 @@ function lookupPublicLicense(
     );
     const licenseRow = yield* queryFirst(
       env.DB,
-      `SELECT l.license_key, l.tier, l.status, l.expires_at, l.max_seats as max_machines
+      `SELECT l.license_key, l.tier, l.status, l.expires_at,
+              l.max_seats as max_machines,
+              (SELECT COUNT(*) FROM machines m
+               WHERE m.license_id = l.id AND m.is_active = 1) as used_machines
        FROM licenses l
        JOIN customers c ON l.customer_id = c.id
-       WHERE c.email = ?`,
+       WHERE c.email = ?
+       ORDER BY CASE WHEN l.status = 'active' THEN 0 ELSE 1 END,
+                l.created_at DESC, l.id DESC
+       LIMIT 1`,
       [email],
       'publicLicense'
     );
@@ -468,23 +488,6 @@ function lookupPublicLicense(
       'Public license row has an invalid shape',
       licenseRow
     );
-    const countRow = yield* queryFirst(
-      env.DB,
-      `SELECT COUNT(*) as count FROM machines m
-       JOIN licenses l ON m.license_id = l.id
-       JOIN customers c ON l.customer_id = c.id
-       WHERE c.email = ? AND m.is_active = 1`,
-      [email],
-      'publicMachineCount'
-    );
-    const used =
-      countRow === null
-        ? 0
-        : (yield* decodeLicenseOpsRow(
-            CountRowSchema,
-            'Machine count row has an invalid shape',
-            countRow
-          )).count;
     return {
       found: true as const,
       license_key: maskKey(license.license_key),
@@ -492,7 +495,7 @@ function lookupPublicLicense(
       status: license.status,
       expires_at: license.expires_at,
       max_machines: license.max_machines,
-      used_machines: used,
+      used_machines: license.used_machines,
     };
   });
 }
@@ -870,7 +873,7 @@ function ingestAnalytics(
     // Content-Length header trust is needed.
     const body = yield* decodeJsonBody(request, AnalyticsBatchSchema);
     const requestedEvents = body.events === undefined ? [] : body.events;
-    if (requestedEvents.length === 0 || requestedEvents.length > 50) {
+    if (requestedEvents.length === 0) {
       return { success: true as const, processed: 0 };
     }
 
