@@ -145,33 +145,41 @@ async function catalogArm(
  *
  * An active subscription must map onto exactly one recognized billing price;
  * anything else is a loud configuration error, not a silent downgrade.
+ * Returns the recognized price id so the projection stores the price that
+ * actually grants the tier — never an unrecognized co-resident item
+ * (`items.data[0]` alone would break tier SQL for mixed-item subscriptions).
  */
+interface ProjectedSubscriptionEntitlement {
+  readonly entitlement: BillingEntitlement;
+  readonly priceId: string;
+}
+
 async function resolveProjectedEntitlement(
   subscription: StripeSubscription,
   catalog: BillingCatalog
-): Promise<BillingEntitlement | undefined> {
+): Promise<ProjectedSubscriptionEntitlement | undefined> {
   if (subscription.status !== 'active' && subscription.status !== 'trialing') {
     return undefined;
   }
-  let entitlement: BillingEntitlement | undefined;
+  let recognized: ProjectedSubscriptionEntitlement | undefined;
   for (const item of subscription.items.data) {
     const resolved = await Effect.runPromiseExit(resolveBillingEntitlement(item.price.id, catalog));
     if (Exit.isFailure(resolved)) continue;
-    if (entitlement !== undefined) {
+    if (recognized !== undefined) {
       throw new BillingEntitlementUnavailable(
         item.price.id,
         new Error('Subscription contains multiple recognized billing prices')
       );
     }
-    entitlement = resolved.value;
+    recognized = { entitlement: resolved.value, priceId: item.price.id };
   }
-  if (entitlement === undefined) {
+  if (recognized === undefined) {
     throw new BillingEntitlementUnavailable(
       subscription.id,
       new Error('Active subscription has no recognized billing price')
     );
   }
-  return entitlement;
+  return recognized;
 }
 
 /**
@@ -209,7 +217,7 @@ export async function applyStripeSubscriptionProjection(
   subscription: StripeSubscription,
   catalog: BillingCatalog
 ): Promise<void> {
-  await resolveProjectedEntitlement(subscription, catalog);
+  const projected = await resolveProjectedEntitlement(subscription, catalog);
 
   const pro = await catalogArm(catalog, 'pro');
   const team = await catalogArm(catalog, 'team');
@@ -254,7 +262,9 @@ export async function applyStripeSubscriptionProjection(
         crypto.randomUUID(),
         customerId,
         subscription.id,
-        subscription.items.data[0]?.price.id ?? null,
+        // Store the recognized catalog price so tier SQL matches; fall back to
+        // the first item only for non-active subscriptions (no tier impact).
+        projected?.priceId ?? subscription.items.data[0]?.price.id ?? null,
         subscription.status,
         subscription.current_period_end,
         statusRank(subscription.status)

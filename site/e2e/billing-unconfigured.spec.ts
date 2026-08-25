@@ -16,9 +16,9 @@ test.describe('checkout degradation', () => {
   }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    const planPicker = page.getByRole('heading', { name: 'Choose Your Plan' });
+    const planPicker = page.getByRole('heading', { name: 'Choose a plan' });
     await clickUntilEffectHolds(
-      () => page.getByRole('button', { name: 'Upgrade to Pro' }).click(),
+      () => page.getByRole('button', { name: 'Choose Pro' }).click(),
       async () => {
         await expect(planPicker).toBeVisible();
       },
@@ -29,7 +29,7 @@ test.describe('checkout degradation', () => {
     // took effect, but Solid attaches delegated handlers after DOM insertion,
     // so the next click still goes through the hydration-tolerant helper.
     await page.getByRole('button', { name: 'Select Pro' }).click();
-    const continueButton = page.getByRole('button', { name: /Continue to Checkout/ });
+    const continueButton = page.getByRole('button', { name: /Continue to Stripe/ });
     await expect(continueButton).toBeVisible();
 
     // Anonymous deployments reject with 401 ("sign in first"); unconfigured

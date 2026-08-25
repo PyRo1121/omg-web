@@ -14,6 +14,7 @@ import {
   logAudit,
 } from '../api';
 import { reportError, reportInfo } from '../observability';
+import { enforceIpRateLimit } from './auth';
 import {
   decodeExtraRow,
   decodeExtraRowArray,
@@ -97,9 +98,19 @@ async function loadPrivacyRows<S extends Schema.Schema.AnyNoContext>(
  * - License records (anonymized)
  * - Payment history (Stripe requirement)
  * - Audit logs (30-day retention for security)
+ *
+ * The retained customer row is anonymized in the same deletion batch: the
+ * email is replaced with `deleted+<id>@invalid`, and company and Stripe
+ * customer linkage are destroyed, so the identity cannot be re-adopted by a
+ * future login.
  */
 export async function handleDeleteMyData(request: Request, env: Env): Promise<Response> {
   try {
+    // Deletion runs a multi-statement destructive batch; throttle per IP.
+    const limited = await enforceIpRateLimit(request, env, 'privacy_delete');
+    if (limited !== null) {
+      return limited;
+    }
     return await withPrivacyPrincipal(request, env, async ({ customerId, email }) => {
       const decoded = await Effect.runPromiseExit(decodeJsonBody(request, DeleteRequestSchema));
       if (Exit.isFailure(decoded)) {
@@ -177,6 +188,19 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
          SET status = 'deleted_by_user', updated_at = datetime('now')
          WHERE customer_id = ?`
         ).bind(customerId),
+        // Anonymize the retained customer row (GDPR Art. 17): the id stays for
+        // license/payment referential integrity, but identity fields are
+        // destroyed so a future login mints a fresh identity instead of
+        // re-adopting the deleted one. `deleted+<id>@invalid` keeps the email
+        // UNIQUE constraint satisfied.
+        env.DB.prepare(
+          `UPDATE customers
+         SET email = 'deleted+' || id || '@invalid',
+             company = NULL,
+             stripe_customer_id = NULL,
+             updated_at = datetime('now')
+         WHERE id = ?`
+        ).bind(customerId),
         env.DB.prepare(
           `INSERT INTO audit_log
            (id, customer_id, action, resource_type, resource_id, ip_address, user_agent, metadata, created_at)
@@ -221,6 +245,12 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
  */
 export async function handleExportMyData(request: Request, env: Env): Promise<Response> {
   try {
+    // Export runs ~7 aggregate D1 queries per call; throttle per IP so one
+    // session cannot amplify database cost.
+    const limited = await enforceIpRateLimit(request, env, 'privacy_export');
+    if (limited !== null) {
+      return limited;
+    }
     return await withPrivacyPrincipal(request, env, async ({ customerId }) => {
       const exportDate = new Date().toISOString();
       const customerLookup = await readOptionalExtraRow(

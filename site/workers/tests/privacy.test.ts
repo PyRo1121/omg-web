@@ -77,6 +77,8 @@ describe('Privacy API', () => {
   const VICTIM_MACHINE_ID = 'privacy-victim-machine';
 
   beforeEach(async () => {
+    // Privacy export/delete are rate limited per IP; tests use an allow-all limiter.
+    env.AUTH_RATE_LIMITER = { limit: async () => ({ success: true }) };
     // Set up test customer and license with telemetry data
     await env.DB.prepare(
       `
@@ -553,6 +555,58 @@ describe('Privacy API', () => {
         .first();
 
       expect(license?.status).toBe('deleted_by_user');
+    });
+
+    it('anonymizes the retained customer identity in the same deletion batch', async () => {
+      const request = new Request('http://localhost/api/privacy/delete', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ confirm: true }),
+      });
+
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(request, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+
+      const customer = await env.DB.prepare(
+        'SELECT email, company, stripe_customer_id FROM customers WHERE id = ?'
+      )
+        .bind(TEST_CUSTOMER_ID)
+        .first<{ email: string; company: string | null; stripe_customer_id: string | null }>();
+
+      // The row survives for license/payment referential integrity, but the
+      // identity is destroyed and cannot be re-adopted by a future login.
+      expect(customer?.email).toBe(`deleted+${TEST_CUSTOMER_ID}@invalid`);
+      expect(customer?.company).toBeNull();
+      expect(customer?.stripe_customer_id).toBeNull();
+    });
+
+    it('throttles deletion per IP when the rate limiter rejects', async () => {
+      env.AUTH_RATE_LIMITER = { limit: async () => ({ success: false }) };
+      const request = new Request('http://localhost/api/privacy/delete', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ confirm: true }),
+      });
+
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(request, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(429);
+      // Nothing was deleted.
+      const license = await env.DB.prepare('SELECT status FROM licenses WHERE id = ?')
+        .bind(TEST_LICENSE_ID)
+        .first<{ status: string }>();
+      expect(license?.status).not.toBe('deleted_by_user');
     });
   });
 

@@ -25,4 +25,5 @@ persist = true
 
 [vars]
 MAIN_SITE = "https://omg-site-4gd.pages.dev"
-DOCS_SITE = "https://omg-docs.pages.dev"
+# The Pages docs origin is retired; /docs/ is served by the omg-site Worker.
+DOCS_SITE = "https://omg.latham.cloud"

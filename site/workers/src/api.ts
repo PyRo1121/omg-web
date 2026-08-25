@@ -192,9 +192,10 @@ export const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// Helper to get origin-specific CORS headers (for authenticated endpoints)
-export function getCorsHeaders(_origin: string | null) {
-  return { ...corsHeaders, 'Access-Control-Allow-Credentials': 'true' };
+// Fixed-origin CORS headers (no origin reflection; same-origin requests are the
+// primary consumer, so credentials are not granted cross-origin).
+export function getCorsHeaders() {
+  return { ...corsHeaders };
 }
 
 export function jsonResponse<TResponse>(data: TResponse, status = 200): Response {

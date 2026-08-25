@@ -54,6 +54,26 @@ function stripeSubscriptionFetch(fixture: CurrentSubscriptionFixture): StripeFet
   };
 }
 
+/** Subscription fixture whose first item is an unrecognized add-on price. */
+const mixedItemSubscriptionFetch: StripeFetch = async input => {
+  const url = new URL(input);
+  if (url.pathname !== '/v1/subscriptions/sub_team') {
+    return new Response('Unexpected Stripe test request', { status: 404 });
+  }
+  return Response.json({
+    id: 'sub_team',
+    customer: 'cus_team',
+    status: 'active',
+    current_period_end: Math.floor(Date.now() / 1000) + 86_400,
+    items: {
+      data: [
+        { price: { id: 'price_addon_unknown' }, quantity: 1 },
+        { price: { id: 'price_team_server' }, quantity: 1 },
+      ],
+    },
+  });
+};
+
 async function stripeSignature(payload: string): Promise<string> {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const encoder = new TextEncoder();
@@ -394,6 +414,47 @@ describe('Stripe webhook inbox', () => {
       license_status: 'active',
       max_seats: 10,
       subscription_status: 'trialing',
+    });
+  });
+
+  it('projects the recognized price when an unrecognized item precedes it', async () => {
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, tier, stripe_customer_id)
+       VALUES ('billing-customer', 'billing@example.com', 'free', 'cus_team')`
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_machines, max_seats)
+       VALUES ('billing-license', 'billing-customer', 'license-team', 'free', 'active', 1, 1)`
+    ).run();
+
+    // Mixed-item subscription: an unrecognized add-on price occupies items[0];
+    // the recognized Team price must be the one projected into subscriptions.
+    const response = await handleStripeWebhook(
+      await subscriptionWebhookRequest(
+        'evt_mixed_projection',
+        'customer.subscription.updated',
+        'sub_team',
+        'cus_team',
+        'active',
+        'price_team_server'
+      ),
+      env,
+      mixedItemSubscriptionFetch
+    );
+
+    expect(response.status).toBe(200);
+    const storedPrice = await env.DB.prepare(
+      'SELECT stripe_price_id FROM subscriptions WHERE stripe_subscription_id = ?'
+    )
+      .bind('sub_team')
+      .first<{ stripe_price_id: string | null }>();
+    expect(storedPrice?.stripe_price_id).toBe('price_team_server');
+    expect(await readBillingProjection('billing-customer')).toEqual({
+      customer_tier: 'team',
+      license_tier: 'team',
+      license_status: 'active',
+      max_seats: 10,
+      subscription_status: 'active',
     });
   });
 

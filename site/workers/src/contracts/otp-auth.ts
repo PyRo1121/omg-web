@@ -61,11 +61,6 @@ export const VerifyCodeResponseSchema = Schema.Struct({
 });
 export type VerifyCodeResponse = Schema.Schema.Type<typeof VerifyCodeResponseSchema>;
 
-/** COUNT(*) row used for OTP rate limiting. */
-export const AuthCodeCountRowSchema = Schema.Struct({
-  count: Schema.Number,
-});
-
 /** A valid unused OTP row. */
 export const AuthCodeRowSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),
@@ -94,17 +89,6 @@ function decodeRow<S extends Schema.Schema.AnyNoContext>(
   const decode = Schema.decodeUnknown(schema);
   return value => Effect.mapError(decode(value), mapParseError(reason));
 }
-
-/**
- * Decode a D1 COUNT(*) row used for OTP rate limiting.
- *
- * @param value - The D1 `.first()` result.
- * @returns The typed count row, or `AuthParseError`.
- */
-export const decodeAuthCodeCountRow = decodeRow(
-  AuthCodeCountRowSchema,
-  'Auth code count row has an invalid shape'
-);
 
 /**
  * Decode a D1 OTP row selected for verification.

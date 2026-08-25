@@ -87,7 +87,12 @@ async function authorizeTelemetry(
         return { _tag: 'rejected', response };
       }
     } catch (error: unknown) {
+      // Fail closed: a broken limiter must not turn into unlimited ingestion.
       reportError('Rate limit check failed:', error);
+      return {
+        _tag: 'rejected',
+        response: errorResponse('Rate limit check failed', 503),
+      };
     }
   } else {
     reportWarning('API_RATE_LIMITER binding not available, skipping rate limit');

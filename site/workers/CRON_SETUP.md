@@ -35,6 +35,7 @@ bunx wrangler tail --format=pretty
 ```
 
 On the next scheduled run (2 AM UTC), you should see:
+
 ```
 Running scheduled cleanup tasks
 Successfully cleaned up N old docs analytics events
@@ -43,6 +44,7 @@ Successfully cleaned up N old docs analytics events
 ## Cron Schedule Explanation
 
 `0 2 * * *` means:
+
 - Minute: 0 (at the top of the hour)
 - Hour: 2 (2 AM)
 - Day of month: * (every day)
@@ -54,11 +56,13 @@ Result: Runs daily at 2:00 AM UTC
 ## Why This Matters
 
 Without cleanup:
+
 - Raw events table grows indefinitely (~50MB/day)
 - Database queries slow down
 - Storage costs increase
 
 With cleanup:
+
 - Only 7 days of raw events kept
 - Aggregates kept forever (much smaller)
 - Fast queries, low storage costs

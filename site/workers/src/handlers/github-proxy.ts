@@ -44,8 +44,7 @@ export async function handleGitHubProxy(
   request: Request,
   ctx: ExecutionContext
 ): Promise<Response> {
-  const origin = request.headers.get('Origin');
-  const cors = getCorsHeaders(origin);
+  const cors = getCorsHeaders();
 
   if (request.method !== 'GET') {
     return errorResponse('Method not allowed', 405);
@@ -73,7 +72,7 @@ export async function handleGitHubProxy(
       if (cacheState === 'STALE') {
         // Never let background refresh failures bubble as uncaught Worker exceptions.
         ctx.waitUntil(
-          refreshCache(cache, cacheKey, origin).catch(error => {
+          refreshCache(cache, cacheKey).catch(error => {
             reportError('GitHub cache background refresh failed:', error);
           })
         );
@@ -92,7 +91,7 @@ export async function handleGitHubProxy(
     }
   }
 
-  return refreshCache(cache, cacheKey, origin);
+  return refreshCache(cache, cacheKey);
 }
 
 /**
@@ -120,11 +119,7 @@ function cacheEntryAgeSeconds(cachedResponse: Response): number {
  * Failures never touch the existing cache entry, so stale data survives
  * upstream outages until a successful refresh overwrites it.
  */
-async function refreshCache(
-  cache: Cache,
-  cacheKey: Request,
-  origin: string | null
-): Promise<Response> {
+async function refreshCache(cache: Cache, cacheKey: Request): Promise<Response> {
   let ghResponse: Response;
   try {
     ghResponse = await fetch(GITHUB_COMMIT_ACTIVITY_URL, {
@@ -155,7 +150,7 @@ async function refreshCache(
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
           'Retry-After': RETRY_AFTER_SECONDS.toString(),
-          ...getCorsHeaders(origin),
+          ...getCorsHeaders(),
           'X-GitHub-Status': 'computing',
         },
       }
@@ -198,7 +193,7 @@ async function refreshCache(
   const clientHeaders = new Headers({
     'Content-Type': 'application/json',
     'Cache-Control': CLIENT_CACHE_CONTROL,
-    ...getCorsHeaders(origin),
+    ...getCorsHeaders(),
     'X-Cache': 'MISS',
     'X-RateLimit-Remaining': remainingHeader,
   });

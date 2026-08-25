@@ -18,7 +18,6 @@ import {
   SessionToken,
   SessionTokenRequestSchema,
   VerifyCodeRequestSchema,
-  decodeAuthCodeCountRow,
   decodeAuthCodeRow,
   decodeAuthCustomerRow,
   type AuthCodeRow,
@@ -246,33 +245,16 @@ export function sendVerificationCode(
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, SendCodeRequestSchema);
     yield* requireTurnstile(request, env, body.turnstileToken, body.email);
-    // Retention sweep piggybacks on this read: expired codes are purged with
-    // the replacement batch below because no scheduled job covers this table.
-    const recent = yield* Effect.tryPromise({
-      try: () =>
-        env.DB.prepare(
-          `SELECT COUNT(*) as count FROM auth_codes
-           WHERE email = ? AND created_at > datetime('now', '-10 minutes')`
-        )
-          .bind(body.email)
-          .first(),
-      catch: cause => new AuthStoreUnavailable('countRecentCodes', cause),
-    }).pipe(
-      Effect.flatMap(row =>
-        row === null
-          ? Effect.succeed({ count: 0 })
-          : decodeAuthCodeCountRow(row).pipe(
-              Effect.mapError(cause => new AuthStoreUnavailable('countRecentCodes', cause))
-            )
-      )
-    );
-    if (recent.count >= 3) {
-      yield* Effect.fail(new AuthRateLimitedError());
-    }
     const code = generateCode();
     const digest = yield* digestOtpCode(body.email, code, env.JWT_SECRET);
     const expiresAt = new Date(Date.now() + OTP_TTL_MS).toISOString();
-    yield* Effect.tryPromise({
+    // Atomic per-email cap: the conditional INSERT ... SELECT admits a new code
+    // only when fewer than 3 codes exist for the email in the window, so
+    // concurrent requests cannot both pass a count-then-insert race. The
+    // RETURNING row is the insertion receipt; an empty result means the cap
+    // was hit and no email is sent. The expired-code sweep piggybacks here
+    // because no scheduled job covers this table.
+    const batchResults = yield* Effect.tryPromise({
       try: () =>
         env.DB.batch([
           env.DB.prepare(`DELETE FROM auth_codes WHERE expires_at <= datetime('now')`),
@@ -280,11 +262,20 @@ export function sendVerificationCode(
             body.email
           ),
           env.DB.prepare(
-            `INSERT INTO auth_codes (id, email, code, expires_at) VALUES (?, ?, ?, ?)`
-          ).bind(crypto.randomUUID(), body.email, digest, expiresAt),
+            `INSERT INTO auth_codes (id, email, code, expires_at)
+             SELECT ?, ?, ?, ?
+             WHERE
+               (SELECT COUNT(*) FROM auth_codes
+                WHERE email = ? AND created_at > datetime('now', '-10 minutes')) < 3
+             RETURNING id`
+          ).bind(crypto.randomUUID(), body.email, digest, expiresAt, body.email),
         ]),
       catch: cause => new AuthStoreUnavailable('replaceCode', cause),
     });
+    const insertedRows = batchResults[2]?.results ?? [];
+    if (insertedRows.length === 0) {
+      yield* Effect.fail(new AuthRateLimitedError());
+    }
     yield* mailer(body.email, code);
     yield* logAudit(env.DB, null, 'auth.code_sent', 'auth_code', null, request, {
       email: body.email,
@@ -564,7 +555,7 @@ function responseFromExit<A, E extends Error>(
 }
 
 /** Per-IP throttle shared by every public auth endpoint; missing binding fails closed. */
-async function enforceIpRateLimit(
+export async function enforceIpRateLimit(
   request: Request,
   env: Env,
   scope: string
