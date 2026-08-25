@@ -471,7 +471,8 @@ export async function handleAdminHealth(request: Request, env: Env): Promise<Res
     let db: 'connected' | 'unavailable' = 'connected';
     try {
       await env.DB.prepare('SELECT 1').first();
-    } catch {
+    } catch (error: unknown) {
+      reportError('Admin health database probe failed', error);
       db = 'unavailable';
     }
     return secureJsonResponse({

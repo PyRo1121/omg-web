@@ -72,6 +72,21 @@ describe('parseLicensingDashboard', () => {
     expect(dashboard.achievements[0]).toMatchObject({ progress: 100, unlocked: true });
   });
 
+  it('preserves unavailable global metrics instead of inventing defaults', async () => {
+    const dashboard = await Effect.runPromise(
+      parseLicensingDashboard({
+        ...canonicalDashboard,
+        global_stats: { top_package: null, top_runtime: null, percentile: null },
+      })
+    );
+
+    expect(dashboard.global_stats).toEqual({
+      top_package: null,
+      top_runtime: null,
+      percentile: null,
+    });
+  });
+
   it('rejects malformed Worker payloads as typed failures', async () => {
     const exit = await Effect.runPromiseExit(
       parseLicensingDashboard({ ...canonicalDashboard, usage: null })

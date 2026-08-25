@@ -1,6 +1,7 @@
 // API Types and Utilities for OMG Dashboard
 // All authenticated endpoints require a valid session token
 
+import * as Sentry from '@sentry/cloudflare';
 import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
 import {
@@ -354,7 +355,11 @@ export function logAudit<TMetadata extends object>(
     catch: cause => new AuditLogWriteError(cause),
   }).pipe(
     Effect.asVoid,
-    Effect.catchAll(error => Effect.logError('Best-effort audit write failed', error))
+    Effect.catchAll(error =>
+      Effect.sync(() => Sentry.captureException(error)).pipe(
+        Effect.zipRight(Effect.logError('Best-effort audit write failed', error))
+      )
+    )
   );
 }
 

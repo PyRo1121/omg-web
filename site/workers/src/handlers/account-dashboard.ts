@@ -298,7 +298,7 @@ function getAccountDashboard(
       { installed: 0, searched: 0, switched: 0, sbom: 0, vulns: 0 }
     );
 
-    const topPackage = yield* queryFirst(
+    const topPackageRow = yield* queryFirst(
       env.DB,
       `SELECT package_name
        FROM usage_package_daily
@@ -308,20 +308,17 @@ function getAccountDashboard(
        LIMIT 1`,
       [license.id],
       'topPackage'
-    ).pipe(
-      Effect.catchAll(() => Effect.succeed(null)),
-      Effect.flatMap(row => {
-        if (row === null) {
-          return Effect.succeed('ripgrep');
-        }
-        return decodeRow(TopPackageRowSchema, 'Top package row has an invalid shape', row).pipe(
-          Effect.map(decoded => decoded.package_name),
-          Effect.catchAll(() => Effect.succeed('ripgrep'))
-        );
-      })
     );
+    const topPackage =
+      topPackageRow === null
+        ? null
+        : (yield* decodeRow(
+            TopPackageRowSchema,
+            'Top package row has an invalid shape',
+            topPackageRow
+          )).package_name;
 
-    const topRuntime = yield* queryFirst(
+    const topRuntimeRow = yield* queryFirst(
       env.DB,
       `SELECT runtime AS dimension
        FROM usage_runtime_daily
@@ -331,18 +328,15 @@ function getAccountDashboard(
        LIMIT 1`,
       [license.id],
       'topRuntime'
-    ).pipe(
-      Effect.catchAll(() => Effect.succeed(null)),
-      Effect.flatMap(row => {
-        if (row === null) {
-          return Effect.succeed('node');
-        }
-        return decodeRow(TopRuntimeRowSchema, 'Top runtime row has an invalid shape', row).pipe(
-          Effect.map(decoded => decoded.dimension),
-          Effect.catchAll(() => Effect.succeed('node'))
-        );
-      })
     );
+    const topRuntime =
+      topRuntimeRow === null
+        ? null
+        : (yield* decodeRow(
+            TopRuntimeRowSchema,
+            'Top runtime row has an invalid shape',
+            topRuntimeRow
+          )).dimension;
 
     const rankRow = yield* queryFirst(
       env.DB,
@@ -351,29 +345,30 @@ function getAccountDashboard(
        )`,
       [usageStats.total_commands],
       'percentileRank'
-    ).pipe(Effect.catchAll(() => Effect.succeed(null)));
+    );
     const totalUsersRow = yield* queryFirst(
       env.DB,
       `SELECT COUNT(DISTINCT license_id) as count FROM usage_daily`,
       [],
       'percentileTotal'
-    ).pipe(Effect.catchAll(() => Effect.succeed(null)));
+    );
     const betterUsers =
       rankRow === null
-        ? 0
-        : (yield* decodeRow(BetterUsersRowSchema, 'Rank row has an invalid shape', rankRow).pipe(
-            Effect.catchAll(() => Effect.succeed({ better_users: 0 }))
-          )).better_users;
-    const totalUsersRaw =
+        ? null
+        : (yield* decodeRow(BetterUsersRowSchema, 'Rank row has an invalid shape', rankRow))
+            .better_users;
+    const totalUsers =
       totalUsersRow === null
-        ? 1
+        ? null
         : (yield* decodeRow(
             DistinctCountRowSchema,
             'User count row has an invalid shape',
             totalUsersRow
-          ).pipe(Effect.catchAll(() => Effect.succeed({ count: 1 })))).count;
-    const totalUsers = totalUsersRaw === 0 ? 1 : totalUsersRaw;
-    const percentile = Math.round((1 - betterUsers / totalUsers) * 100);
+          )).count;
+    const percentile =
+      betterUsers === null || totalUsers === null || totalUsers === 0
+        ? null
+        : Math.round((1 - betterUsers / totalUsers) * 100);
 
     const leaderboardResult = yield* queryAll(
       env.DB,
@@ -386,12 +381,12 @@ function getAccountDashboard(
        LIMIT 3`,
       [],
       'leaderboard'
-    ).pipe(Effect.catchAll(() => Effect.succeed({ results: undefined })));
+    );
     const leaderboard = yield* decodeRowArray(
       LeaderboardRowSchema,
       'Leaderboard rows have an invalid shape',
       leaderboardResult.results
-    ).pipe(Effect.catchAll(() => Effect.succeed([])));
+    );
 
     return {
       user: {

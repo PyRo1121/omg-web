@@ -8,7 +8,7 @@ import {
   MarketingOfferRequestSchema,
   type MarketingOfferResponse,
 } from '../../../shared/marketing-offer';
-import { decodeStripeJson } from '../contracts/stripe';
+import { decodeStripeJson, type StripeParseError } from '../contracts/stripe';
 
 const OFFER_PERCENT = 20 as const;
 const OFFER_MONTHS = 3 as const;
@@ -83,7 +83,8 @@ type MarketingOfferError =
   | OfferClaimBusy
   | OfferStoreUnavailable
   | OfferGenerationUnavailable
-  | StripeOfferUnavailable;
+  | StripeOfferUnavailable
+  | StripeParseError;
 
 function storeOperation<A>(run: () => Promise<A>): Effect.Effect<A, OfferStoreUnavailable> {
   return Effect.tryPromise({ try: run, catch: cause => new OfferStoreUnavailable(cause) });
@@ -124,7 +125,10 @@ function createStripePromotion(
   code: string,
   expiresAtSeconds: number,
   stripeFetch: typeof fetch
-): Effect.Effect<{ readonly id: string; readonly code: string }, StripeOfferUnavailable> {
+): Effect.Effect<
+  { readonly id: string; readonly code: string },
+  StripeOfferUnavailable | StripeParseError
+> {
   const body = new URLSearchParams({
     'promotion[type]': 'coupon',
     'promotion[coupon]': couponId,
@@ -147,16 +151,17 @@ function createStripePromotion(
         body,
       });
       const payload: unknown = await response.json();
-      return Effect.runPromise(
-        decodeStripeJson(
-          StripePromotionCodeSchema,
-          'Stripe promotion code has an invalid shape',
-          payload
-        )
-      );
+      return payload;
     },
     catch: cause => new StripeOfferUnavailable(cause),
   }).pipe(
+    Effect.flatMap(payload =>
+      decodeStripeJson(
+        StripePromotionCodeSchema,
+        'Stripe promotion code has an invalid shape',
+        payload
+      )
+    ),
     Effect.flatMap(promotion =>
       promotion.error !== undefined ||
       promotion.id === undefined ||
@@ -276,17 +281,24 @@ function claimOffer(
       )
     );
     if (Exit.isFailure(promotionExit)) {
+      const promotionFailure = Cause.failureOption(promotionExit.cause);
+      const lastError =
+        Option.isSome(promotionFailure) && promotionFailure.value._tag === 'StripeParseError'
+          ? 'stripe response invalid'
+          : 'stripe unavailable';
       yield* storeOperation(() =>
         env.DB.prepare(
           `UPDATE marketing_offer_leads
            SET status = 'failed', claim_token = NULL, updated_at = CURRENT_TIMESTAMP,
-               last_error = 'stripe unavailable'
+               last_error = ?
            WHERE id = ? AND claim_token = ?`
         )
-          .bind(claimedLeadId, claimToken)
+          .bind(lastError, claimedLeadId, claimToken)
           .run()
       );
-      return yield* Effect.fail(new StripeOfferUnavailable(promotionExit.cause));
+      return yield* Option.isSome(promotionFailure)
+        ? Effect.fail(promotionFailure.value)
+        : Effect.fail(new StripeOfferUnavailable(promotionExit.cause));
     }
 
     const promotion = promotionExit.value;
@@ -350,6 +362,7 @@ export async function handleMarketingOffer(
         case 'OfferStoreUnavailable':
         case 'OfferGenerationUnavailable':
         case 'StripeOfferUnavailable':
+        case 'StripeParseError':
           reportError(error.message, error.cause);
           return errorResponse('Unable to create offer', 502);
       }

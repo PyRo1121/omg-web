@@ -698,19 +698,21 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                               <div>
                                 <div class="mb-1 text-sm text-slate-400">Top Package</div>
                                 <div class="text-xl font-bold text-white">
-                                  {stats().top_package}
+                                  {stats().top_package ?? 'No data'}
                                 </div>
                               </div>
                               <div>
                                 <div class="mb-1 text-sm text-slate-400">Top Runtime</div>
                                 <div class="text-xl font-bold text-white">
-                                  {stats().top_runtime}
+                                  {stats().top_runtime ?? 'No data'}
                                 </div>
                               </div>
                               <div>
-                                <div class="mb-1 text-sm text-slate-400">Your Percentile</div>
+                                <div class="mb-1 text-sm text-slate-400">Usage percentile</div>
                                 <div class="text-xl font-bold text-emerald-400">
-                                  Top {stats().percentile}%
+                                  {stats().percentile === null
+                                    ? 'No data'
+                                    : `Percentile ${stats().percentile}`}
                                 </div>
                               </div>
                             </div>

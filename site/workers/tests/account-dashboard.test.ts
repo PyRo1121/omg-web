@@ -5,6 +5,13 @@ import * as Schema from 'effect/Schema';
 import worker from '../src/worker';
 
 const ErrorPayloadSchema = Schema.Struct({ error: Schema.String });
+const DashboardStatsPayloadSchema = Schema.Struct({
+  global_stats: Schema.Struct({
+    top_package: Schema.NullOr(Schema.String),
+    top_runtime: Schema.NullOr(Schema.String),
+    percentile: Schema.NullOr(Schema.Number),
+  }),
+});
 
 async function decodeError(response: Response): Promise<{ readonly error: string }> {
   return Schema.decodeUnknownSync(ErrorPayloadSchema)(await response.json());
@@ -95,6 +102,37 @@ describe('GET /api/dashboard', () => {
       .bind('dash-cust')
       .first<{ company: string }>();
     expect(customer?.company).toBe('After');
+  });
+
+  it('returns null global metrics when the license has no usage', async () => {
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', 0)`
+    )
+      .bind('dash-cust', TEST_EMAIL, 'Dash')
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO sessions (id, customer_id, token, expires_at) VALUES (?, ?, ?, ?)`
+    )
+      .bind('dash-sess', 'dash-cust', TEST_TOKEN, new Date(Date.now() + 60_000).toISOString())
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats, max_machines)
+       VALUES (?, ?, ?, 'free', 'active', 1, 1)`
+    )
+      .bind('dash-license', 'dash-cust', 'OMG-DASH-TEST')
+      .run();
+
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(getDashboard(TEST_TOKEN), env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+    const payload = Schema.decodeUnknownSync(DashboardStatsPayloadSchema)(await response.json());
+    expect(payload.global_stats).toEqual({
+      top_package: null,
+      top_runtime: null,
+      percentile: null,
+    });
   });
 
   it('returns 404 when the customer has no license', async () => {

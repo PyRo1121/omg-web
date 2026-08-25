@@ -110,6 +110,25 @@ function badgeResponse(message: string): Response {
   );
 }
 
+function unavailableBadgeResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      schemaVersion: 1,
+      label: 'installs',
+      message: 'unavailable',
+      color: 'lightgrey',
+    }),
+    {
+      status: 503,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+        ...corsHeaders,
+      },
+    }
+  );
+}
+
 async function handleInstallsBadge(env: Env): Promise<Response> {
   try {
     const result = await env.DB.prepare(
@@ -120,14 +139,14 @@ async function handleInstallsBadge(env: Env): Promise<Response> {
       'Installs badge row has an invalid shape',
       result
     );
-    if (badgeLookup._tag === 'invalid') {
-      Sentry.captureMessage('Installs badge row has an invalid shape');
+    if (badgeLookup._tag !== 'present') {
+      Sentry.captureMessage('Installs badge row is unavailable or has an invalid shape');
+      return unavailableBadgeResponse();
     }
-    const total = badgeLookup._tag === 'present' ? badgeLookup.value.total : 0;
-    return badgeResponse(total.toLocaleString());
+    return badgeResponse(badgeLookup.value.total.toLocaleString());
   } catch (error: unknown) {
     Sentry.captureException(error);
-    return badgeResponse('0');
+    return unavailableBadgeResponse();
   }
 }
 
