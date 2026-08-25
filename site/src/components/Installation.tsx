@@ -71,7 +71,7 @@ const Installation: Component = () => {
             {INSTALL_OPTIONS.map(option => (
               <Tabs.Trigger
                 value={option.id}
-                class="min-h-14 min-w-0 border-r border-[var(--rule)] px-2 font-mono text-[9px] whitespace-nowrap text-[var(--ink-muted)] hover:text-[var(--ink)] data-[selected]:bg-[var(--signal)] data-[selected]:text-[var(--signal-ink)] sm:px-5 sm:text-[10px]"
+                class="min-h-14 min-w-0 border-r border-[var(--rule)] px-2 text-xs font-medium whitespace-nowrap text-[var(--ink-muted)] hover:text-[var(--ink)] data-[selected]:bg-[var(--signal)] data-[selected]:font-semibold data-[selected]:text-[var(--signal-ink)] sm:px-5 sm:text-sm"
               >
                 {option.label}
               </Tabs.Trigger>
@@ -85,10 +85,7 @@ const Installation: Component = () => {
               class="flex flex-1 flex-col justify-between p-5 sm:p-8 xl:p-12"
             >
               <div>
-                <p class="m-0 font-mono text-[10px] tracking-[0.06em] text-[var(--signal)]">
-                  COPY AND RUN
-                </p>
-                <code class="mt-12 block overflow-x-auto text-xs leading-relaxed text-[var(--ink)] sm:text-sm xl:text-base">
+                <code class="block text-sm leading-relaxed text-[var(--ink)] sm:text-base">
                   <span class="text-[var(--signal)]">$ </span>
                   {option.command}
                 </code>

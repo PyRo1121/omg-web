@@ -4,19 +4,19 @@ import { For } from 'solid-js';
 const WORKFLOWS = [
   {
     job: 'Install an app',
-    before: 'apt · pacman · brew',
+    before: 'Instead of learning apt, pacman, or brew',
     command: 'omg install ripgrep',
     result: 'Installed with your system’s own package manager',
   },
   {
     job: 'Set up a language',
-    before: 'nvm · pyenv · rustup',
+    before: 'Instead of configuring nvm, pyenv, or rustup',
     command: 'omg use node 22',
     result: 'Node 22 installed and ready to use',
   },
   {
     job: 'Move to a new machine',
-    before: 'README · shell history · memory',
+    before: 'Instead of replaying setup notes from memory',
     command: 'omg env sync <share-url>',
     result: 'Every package and language reinstalled for you',
   },
@@ -50,38 +50,24 @@ const FeatureGrid: Component = () => (
         </p>
         <a
           href="/docs/"
-          class="mt-5 inline-flex min-h-6 items-center py-1 font-mono text-[11px] text-[var(--signal)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
+          class="mt-5 inline-flex min-h-6 items-center py-1 text-sm font-medium text-[var(--signal)] underline decoration-[var(--rule)] underline-offset-4 hover:decoration-[var(--signal)]"
         >
-          Read the technical details →
+          Read the full documentation
         </a>
       </div>
     </header>
 
     <ol class="mt-20 list-none p-0">
       <For each={WORKFLOWS}>
-        {(workflow, index) => (
+        {workflow => (
           <li class="grid gap-6 border-t border-[var(--rule)] py-9 lg:grid-cols-[0.8fr_0.75fr_1.25fr] lg:gap-12 lg:py-12">
-            <div class="flex items-start gap-5">
-              <span class="pt-1 font-mono text-[10px] text-[var(--signal)]">0{index() + 1}</span>
-              <h3 class="text-2xl font-medium tracking-[-0.04em] sm:text-3xl">{workflow.job}</h3>
-            </div>
-
+            <h3 class="text-2xl font-medium tracking-[-0.04em] sm:text-3xl">{workflow.job}</h3>
+            <p class="m-0 max-w-56 text-sm leading-relaxed text-[var(--ink-muted)]">
+              {workflow.before}
+            </p>
             <div>
-              <p class="m-0 font-mono text-[9px] tracking-[0.06em] text-[var(--ink-muted)]">
-                BEFORE
-              </p>
-              <p class="mt-3 font-mono text-xs leading-relaxed text-[var(--ink-muted)]">
-                {workflow.before}
-              </p>
-            </div>
-
-            <div>
-              <p class="m-0 font-mono text-[9px] tracking-[0.06em] text-[var(--signal)]">
-                WITH OMG
-              </p>
-              <code class="mt-3 block bg-[var(--paper-raised)] px-4 py-3 text-sm text-[var(--ink)]">
-                <span class="text-[var(--signal)]">$ </span>
-                <span class="break-all">{workflow.command}</span>
+              <code class="block bg-[var(--paper-raised)] px-4 py-3 text-sm text-[var(--ink)]">
+                {workflow.command}
               </code>
               <p class="mt-4 text-sm text-[var(--ink-muted)]">{workflow.result}</p>
             </div>
@@ -100,20 +86,13 @@ const FeatureGrid: Component = () => (
         </p>
         <a
           href="/docs/"
-          class="mt-6 inline-flex min-h-6 items-center py-1 font-mono text-[11px] text-[var(--signal)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
+          class="mt-6 inline-flex min-h-6 items-center py-1 text-sm font-medium text-[var(--signal)] underline decoration-[var(--rule)] underline-offset-4 hover:decoration-[var(--signal)]"
         >
-          Full command reference →
+          Full command reference
         </a>
       </div>
-      <ul class="m-0 grid list-none gap-x-10 gap-y-2.5 p-0 font-mono text-[13px] sm:grid-cols-2">
-        <For each={COMMAND_SURFACE}>
-          {command => (
-            <li class="border-b border-[var(--rule)] py-2.5 text-[var(--ink)]">
-              <span class="text-[var(--signal)]">$ </span>
-              {command}
-            </li>
-          )}
-        </For>
+      <ul class="m-0 grid list-none gap-x-10 gap-y-2 p-0 font-mono text-[13px] text-[var(--ink-muted)] sm:grid-cols-2">
+        <For each={COMMAND_SURFACE}>{command => <li>{command}</li>}</For>
       </ul>
     </div>
   </section>

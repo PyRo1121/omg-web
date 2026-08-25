@@ -1,8 +1,6 @@
 import { ArrowDown, ArrowRight } from 'lucide-solid';
 import type { Component } from 'solid-js';
 
-const REPLACED_MANAGERS = ['pacman', 'yay', 'nvm', 'pyenv', 'rustup', 'rbenv', 'jenv'] as const;
-
 const Hero: Component = () => (
   <section class="manifest-shell" aria-labelledby="hero-title">
     <div class="grid gap-10 pt-10 sm:pt-16 lg:grid-cols-[1fr_24rem] lg:gap-0 lg:pt-20">
@@ -41,7 +39,7 @@ const Hero: Component = () => (
         </div>
       </header>
 
-      <aside class="editorial-reveal editorial-reveal--late flex min-h-80 flex-col justify-between bg-[var(--signal)] p-6 text-[var(--signal-ink)] sm:p-8 lg:min-h-full">
+      <aside class="editorial-reveal editorial-reveal--late flex min-h-80 flex-col justify-between gap-10 bg-[var(--signal)] p-6 text-[var(--signal-ink)] sm:p-8 lg:min-h-full">
         <p class="m-0 max-w-52 text-xl leading-tight font-semibold tracking-[-0.035em]">
           Seven tools you won’t open again.
         </p>
@@ -50,13 +48,6 @@ const Hero: Component = () => (
         </p>
       </aside>
     </div>
-
-    <ul class="m-0 flex list-none flex-wrap items-center gap-x-6 gap-y-2 border-t border-[var(--rule)] p-0 py-5">
-      {REPLACED_MANAGERS.map(manager => (
-        <li class="font-mono text-[11px] text-[var(--ink-muted)]">{manager}</li>
-      ))}
-      <li class="ml-auto font-mono text-[11px] text-[var(--ink)]">→ one: omg</li>
-    </ul>
   </section>
 );
 

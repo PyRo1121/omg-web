@@ -64,10 +64,10 @@ const Pricing: Component = () => {
           </p>
           <button
             type="button"
-            class="mt-4 min-h-6 py-1 text-left font-mono text-[11px] text-[var(--signal)] underline decoration-[var(--rule-strong)] underline-offset-6 hover:decoration-[var(--signal)]"
+            class="mt-4 min-h-6 py-1 text-left text-sm font-medium text-[var(--signal)] underline decoration-[var(--rule)] underline-offset-4 hover:decoration-[var(--signal)]"
             onClick={() => setShowOffer(true)}
           >
-            Get a private code →
+            Get a private code
           </button>
         </aside>
       </header>
@@ -78,9 +78,7 @@ const Pricing: Component = () => {
             <li class="grid gap-6 border-b border-[var(--rule)] py-8 sm:grid-cols-[0.5fr_0.55fr_1.35fr_auto] sm:items-center lg:py-10">
               <header>
                 <h3 class="text-2xl font-semibold tracking-[-0.04em]">{plan.name}</h3>
-                <span class="mt-1 block font-mono text-[10px] text-[var(--ink-muted)]">
-                  {plan.cadence}
-                </span>
+                <span class="mt-1 block text-xs text-[var(--ink-muted)]">{plan.cadence}</span>
               </header>
               <p class="m-0 text-4xl leading-none font-semibold tracking-[-0.06em] text-[var(--ink)]">
                 {plan.price}

@@ -62,7 +62,7 @@ const Header: Component = () => {
                   href={item.href}
                   target={item.href.startsWith('http') ? '_blank' : undefined}
                   rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                  class="flex min-h-10 items-center font-mono text-[10px] tracking-[0.04em] text-[var(--ink-muted)] no-underline hover:text-[var(--ink)]"
+                  class="flex min-h-10 items-center text-sm text-[var(--ink-muted)] no-underline hover:text-[var(--ink)]"
                 >
                   {item.label}
                 </a>
@@ -74,17 +74,14 @@ const Header: Component = () => {
             <Show
               when={session()?.data?.user}
               fallback={
-                <A
-                  href="/login"
-                  class="hidden min-h-10 items-center px-5 font-mono text-[10px] tracking-[0.04em] sm:flex"
-                >
+                <A href="/login" class="hidden min-h-10 items-center px-5 text-sm sm:flex">
                   Sign in
                 </A>
               }
             >
               {user => (
                 <DropdownMenu.Root>
-                  <DropdownMenu.Trigger class="hidden min-h-10 max-w-48 items-center px-5 font-mono text-[10px] text-[var(--ink-muted)] hover:text-[var(--ink)] sm:flex">
+                  <DropdownMenu.Trigger class="hidden min-h-10 max-w-48 items-center px-5 text-sm text-[var(--ink-muted)] hover:text-[var(--ink)] sm:flex">
                     <span class="block truncate">{user().email}</span>
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
@@ -137,7 +134,7 @@ const Header: Component = () => {
                     href={item.href}
                     target={item.href.startsWith('http') ? '_blank' : undefined}
                     rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                    class="block px-4 py-4 font-mono text-[11px] text-[var(--ink-muted)] no-underline hover:bg-[var(--paper-raised)] hover:text-[var(--ink)]"
+                    class="block px-4 py-4 text-sm text-[var(--ink-muted)] no-underline hover:bg-[var(--paper-raised)] hover:text-[var(--ink)]"
                     onClick={() => setMenuOpen(false)}
                   >
                     {item.label}
@@ -148,12 +145,12 @@ const Header: Component = () => {
                 <Show
                   when={session()?.data?.user}
                   fallback={
-                    <A href="/login" class="block px-4 py-4 font-mono text-[11px]">
+                    <A href="/login" class="block px-4 py-4 text-sm">
                       Sign in
                     </A>
                   }
                 >
-                  <A href="/dashboard" class="block px-4 py-4 font-mono text-[11px]">
+                  <A href="/dashboard" class="block px-4 py-4 text-sm">
                     Dashboard
                   </A>
                 </Show>
