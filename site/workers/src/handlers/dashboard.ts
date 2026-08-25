@@ -394,15 +394,21 @@ export async function handleGetTeamMembers(request: Request, env: Env): Promise<
         };
       });
 
-      // Calculate fleet compliance (version drift)
-      const versions = machines.map(member => member.omg_version || 'unknown');
+      // Calculate fleet compliance only from machines that reported a version;
+      // missing telemetry is not a competing release and not part of the rate.
+      const versions = machines.flatMap(member => {
+        const version = member.omg_version?.trim();
+        return version ? [version] : [];
+      });
       const uniqueVersions = [...new Set(versions)];
       const latestVersion =
         uniqueVersions.toSorted((left, right) =>
           right.localeCompare(left, undefined, { numeric: true, sensitivity: 'base' })
         )[0] ?? 'unknown';
       const complianceRate =
-        (versions.filter(v => v === latestVersion).length / (versions.length || 1)) * 100;
+        versions.length === 0
+          ? 0
+          : (versions.filter(version => version === latestVersion).length / versions.length) * 100;
 
       // Calculate ROI (Return on Investment)
       const totalHoursSaved = (totalUsage?.total_time_saved_ms ?? 0) / MS_PER_HOUR;

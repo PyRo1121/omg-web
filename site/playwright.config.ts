@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const externalBaseUrl = process.env['E2E_BASE_URL']?.trim();
+const externalBaseUrl = process.env['E2E_BASE_URL']?.trim() || undefined;
 const baseURL = externalBaseUrl ?? 'http://localhost:3000';
 const localWebServer =
   externalBaseUrl === undefined

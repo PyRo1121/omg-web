@@ -3,6 +3,8 @@ export interface Env {
 }
 
 const MAX_ATTACHMENT_FILENAME_LENGTH = 128;
+const RELEASE_OBJECT_PREFIX = 'releases/';
+const RELEASE_FILENAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
 /** R2 lookup or stream failed at the storage layer (distinct from a code defect). */
 class ReleaseStoreUnavailableError extends Error {
@@ -18,6 +20,12 @@ export default {
     const url = URL.parse(request.url);
     if (url === null) {
       return new Response('Invalid request URL', { status: 400 });
+    }
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      return new Response('Method Not Allowed', {
+        status: 405,
+        headers: { Allow: 'GET, HEAD' },
+      });
     }
     try {
       return await handleRequest(url.pathname, env);
@@ -41,7 +49,7 @@ async function handleRequest(path: string, env: Env): Promise<Response> {
   // Endpoint: GET /latest-version
   // Returns the semantic version string of the latest stable release (e.g. "0.1.215")
   if (path === '/latest-version') {
-    const object = await readReleaseObject(env, 'latest-version');
+    const object = await readReleaseObject(env, `${RELEASE_OBJECT_PREFIX}latest-version`);
     if (!object) {
       // No version marker in R2 — the release pipeline hasn't synced yet.
       // Return 503 so `omg self-update` reports a clear error instead of
@@ -66,12 +74,14 @@ async function handleRequest(path: string, env: Env): Promise<Response> {
   // Endpoint: GET /download/:filename
   // Serves release artifacts (binaries, sigs, sha256)
   if (path.startsWith('/download/')) {
-    // An empty key is invalid in R2 and would throw instead of returning a miss.
+    // Artifacts are flat, bounded filenames under one dedicated R2 prefix.
+    // Reject path separators and dot-segments rather than exposing arbitrary
+    // bucket keys to anyone who can guess them.
     const filename = path.slice('/download/'.length);
-    if (filename.length === 0) {
+    if (!RELEASE_FILENAME_PATTERN.test(filename) || filename === '.' || filename === '..') {
       return new Response('Not Found', { status: 404 });
     }
-    const object = await readReleaseObject(env, filename);
+    const object = await readReleaseObject(env, `${RELEASE_OBJECT_PREFIX}${filename}`);
 
     if (!object) {
       return new Response('Not Found', { status: 404 });

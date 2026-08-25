@@ -209,7 +209,7 @@ function getAccountDashboard(
       env.DB,
       `SELECT date FROM usage_daily
        WHERE license_id = ? AND commands_run > 0
-       ORDER BY date DESC LIMIT 60`,
+       ORDER BY date DESC`,
       [license.id],
       'streak'
     );
@@ -219,25 +219,29 @@ function getAccountDashboard(
       streakResult.results
     );
     const streakDates = streakRows.map(row => row.date);
-    let streak = 0;
-    if (streakDates.length > 0) {
-      const today = new Date().toISOString().slice(0, 10);
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-      const first = streakDates[0];
-      if (first === today || first === yesterday) {
-        streak = 1;
-        for (let i = 1; i < streakDates.length; i++) {
-          const previous = streakDates[i - 1];
-          const current = streakDates[i];
-          if (
-            previous === undefined ||
-            current === undefined ||
-            (new Date(previous).getTime() - new Date(current).getTime()) / 86400000 !== 1
-          ) {
-            break;
-          }
-          streak += 1;
+    const dayNumbers = streakDates
+      .map(date => Date.parse(`${date}T00:00:00Z`) / 86_400_000)
+      .filter(Number.isFinite);
+    let longestStreak = 0;
+    let runLength = 0;
+    let previousDay: number | undefined;
+    for (const day of dayNumbers) {
+      runLength = previousDay !== undefined && previousDay - day === 1 ? runLength + 1 : 1;
+      longestStreak = Math.max(longestStreak, runLength);
+      previousDay = day;
+    }
+
+    const today = Math.floor(Date.now() / 86_400_000);
+    const startsNow = dayNumbers[0] === today || dayNumbers[0] === today - 1;
+    let currentStreak = startsNow ? 1 : 0;
+    if (startsNow) {
+      for (let index = 1; index < dayNumbers.length; index += 1) {
+        const previous = dayNumbers[index - 1];
+        const current = dayNumbers[index];
+        if (previous === undefined || current === undefined || previous - current !== 1) {
+          break;
         }
+        currentStreak += 1;
       }
     }
 
@@ -373,7 +377,7 @@ function getAccountDashboard(
 
     const leaderboardResult = yield* queryAll(
       env.DB,
-      `SELECT SUBSTR(c.email, 1, 3) || '***' as user, SUM(u.time_saved_ms) as time_saved
+      `SELECT SUBSTR(c.email, 1, 1) || '***' as user, SUM(u.time_saved_ms) as time_saved
        FROM usage_daily u
        JOIN licenses l ON u.license_id = l.id
        JOIN customers c ON l.customer_id = c.id
@@ -418,8 +422,8 @@ function getAccountDashboard(
         total_sbom_generated: usageStats.total_sbom_generated,
         total_vulnerabilities_found: usageStats.total_vulnerabilities_found,
         total_time_saved_ms: usageStats.total_time_saved_ms,
-        current_streak: streak,
-        longest_streak: streak,
+        current_streak: currentStreak,
+        longest_streak: longestStreak,
         daily,
         breakdown,
       },
