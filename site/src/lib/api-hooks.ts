@@ -56,17 +56,7 @@ export const useAdminAuditLog = (
 export const useAdminCRMUsers = (page = 1, limit = 50, search = '') =>
   apiQuery(['admin-crm-users', page, limit, search], () => api.getAdminUsers(page, limit, search));
 
-export const useAdminUserDetail = (userId: string) =>
-  apiQuery(['admin-user-detail', userId], () => api.getAdminUserDetail(userId), {
-    enabled: Boolean(userId),
-  });
-
 export const useAdminCohorts = () => apiQuery(['admin-cohorts'], api.getAdminCohorts);
-
-export const useAdminNotes = (customerId: string) =>
-  apiQuery(['admin-notes', customerId], () => api.getAdminNotes(customerId), {
-    enabled: Boolean(customerId),
-  });
 
 export const useCreateNote = () =>
   invalidatingMutation(
@@ -82,11 +72,6 @@ export const useDeleteNote = () =>
   );
 
 export const useAdminTags = () => apiQuery(['admin-tags'], api.getAdminTags);
-
-export const useAdminCustomerTags = (customerId: string) =>
-  apiQuery(['admin-customer-tags', customerId], () => api.getAdminCustomerTags(customerId), {
-    enabled: Boolean(customerId),
-  });
 
 export const useCreateTag = () =>
   invalidatingMutation(
@@ -114,17 +99,7 @@ export const useAdminAdvancedMetrics = () =>
     staleTime: 300000,
   });
 
-export const useSiteGeoAnalytics = (days = 30) =>
-  apiQuery(['site-geo-analytics', days], () => api.getSiteGeoAnalytics(days), {
-    staleTime: 60000,
-  });
-
 export const useSiteRealtimeAnalytics = () =>
   apiQuery(['site-realtime-analytics'], api.getSiteRealtimeAnalytics, {
     refetchInterval: 10000,
-  });
-
-export const useSiteAnalyticsOverview = (days = 30) =>
-  apiQuery(['site-analytics-overview', days], () => api.getSiteAnalyticsOverview(days), {
-    staleTime: 60000,
   });

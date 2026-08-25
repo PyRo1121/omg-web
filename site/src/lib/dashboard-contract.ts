@@ -15,38 +15,7 @@ const LicenseLookupSchema = Schema.Union(
 /** A license lookup response used by the public landing page. */
 type LicenseLookup = Schema.Schema.Type<typeof LicenseLookupSchema>;
 
-const GitHubActivityWeekSchema = Schema.Struct({
-  week: Schema.Number.pipe(Schema.finite()),
-  total: Schema.Number.pipe(Schema.finite()),
-});
-
-const GitHubActivityBarSchema = Schema.Struct({
-  label: Schema.String,
-  value: Schema.Number.pipe(Schema.finite()),
-});
-
-const GitHubActivityCacheSchema = Schema.Struct({
-  data: Schema.Array(GitHubActivityBarSchema),
-  total: Schema.Number.pipe(Schema.finite()),
-  timestamp: Schema.Number.pipe(Schema.finite()),
-});
-
 /** A parsed localStorage cache of rendered GitHub activity bars. */
-export type GitHubActivityCache = Schema.Schema.Type<typeof GitHubActivityCacheSchema>;
-
-const GitHubComputingResponseSchema = Schema.Struct({
-  computing: Schema.Boolean,
-  message: Schema.optional(Schema.String),
-});
-
-const GitHubActivityResponseSchema = Schema.Union(
-  Schema.Array(GitHubActivityWeekSchema),
-  GitHubComputingResponseSchema
-);
-
-/** GitHub activity or its temporary computing response. */
-type GitHubActivityResponse = Schema.Schema.Type<typeof GitHubActivityResponseSchema>;
-
 const NonEmptyString = Schema.String.pipe(Schema.minLength(1));
 const ApiErrorSchema = Schema.Union(
   Schema.Struct({ error: NonEmptyString }),
@@ -109,27 +78,5 @@ export function parseCheckoutSessionStatus(
     CheckoutSessionStatusSchema,
     value,
     'Checkout session response has an invalid shape'
-  );
-}
-
-/** Parse GitHub commit activity or its temporary computing response. */
-export function parseGitHubActivity(
-  value: BrowserBoundaryInput
-): ParseResult<GitHubActivityResponse> {
-  return parseWithSchema(
-    GitHubActivityResponseSchema,
-    value,
-    'GitHub activity response has an invalid shape'
-  );
-}
-
-/** Parse a locally cached GitHub activity payload. */
-export function parseGitHubActivityCache(
-  value: BrowserBoundaryInput
-): ParseResult<GitHubActivityCache> {
-  return parseWithSchema(
-    GitHubActivityCacheSchema,
-    value,
-    'GitHub activity cache has an invalid shape'
   );
 }
