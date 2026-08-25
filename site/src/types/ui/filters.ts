@@ -1,7 +1,6 @@
 export type DateRange = '7d' | '30d' | '90d' | 'custom';
 
-export type AdminTab =
-  'overview' | 'crm' | 'analytics' | 'insights' | 'revenue' | 'audit' | 'segments' | 'predictions';
+export type AdminTab = 'overview' | 'crm' | 'analytics' | 'insights' | 'revenue' | 'audit';
 
 export interface SavedView {
   id: string;

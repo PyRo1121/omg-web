@@ -145,16 +145,3 @@ export interface CRMCustomer {
   machine_count: number;
   mrr: number;
 }
-
-export interface ExecutiveKPI {
-  mrr: number;
-  mrr_change: number;
-  arr: number;
-  dau: number;
-  wau: number;
-  mau: number;
-  stickiness: number;
-  churn_rate: number;
-  at_risk_count: number;
-  expansion_pipeline: number;
-}

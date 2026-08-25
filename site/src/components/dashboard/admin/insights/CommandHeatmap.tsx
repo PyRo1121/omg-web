@@ -60,12 +60,12 @@ export const CommandHeatmap: Component<CommandHeatmapProps> = props => {
   const totalEvents = createMemo(() => props.data.reduce((sum, d) => sum + d.event_count, 0));
 
   const cellCounts = createMemo(() => {
+    // Duplicate day/hour rows (e.g. across report windows) sum into the cell
+    // instead of silently dropping all but the first occurrence.
     const counts = new Map<string, number>();
     for (const cell of props.data) {
       const key = `${parseInt(cell.day_of_week)}:${parseInt(cell.hour)}`;
-      if (!counts.has(key)) {
-        counts.set(key, cell.event_count);
-      }
+      counts.set(key, (counts.get(key) ?? 0) + cell.event_count);
     }
     return counts;
   });

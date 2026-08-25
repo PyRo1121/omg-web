@@ -9,9 +9,7 @@ const AdminTabSchema = Schema.Literal(
   'analytics',
   'insights',
   'revenue',
-  'audit',
-  'segments',
-  'predictions'
+  'audit'
 );
 
 const PersistedDashboardStateSchema = Schema.Struct({

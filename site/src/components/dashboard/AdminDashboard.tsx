@@ -15,8 +15,6 @@ import {
   Funnel,
   GitCompare,
   Save,
-  Layers,
-  Brain,
 } from 'lucide-solid';
 import * as api from '../../lib/api';
 import { valueForKey } from '../../lib/lookup';
@@ -31,8 +29,6 @@ import { RevenueTab } from './admin/RevenueTab';
 import { AuditLogTab } from './admin/AuditLogTab';
 import { CustomerDetailDrawer } from './admin/CustomerDetailDrawer';
 import { InsightsTab } from './admin/insights/InsightsTab';
-import { SegmentAnalytics } from './admin/SegmentAnalytics';
-import { PredictiveInsights } from './admin/PredictiveInsights';
 import { OverviewTab } from './admin/tabs/OverviewTab';
 import { CRMTab } from './admin/tabs/CRMTab';
 import { AnalyticsTab } from './admin/tabs/AnalyticsTab';
@@ -40,13 +36,13 @@ import { TabErrorBoundary } from './admin/shared/TabErrorBoundary';
 import ErrorCard from './admin/shared/ErrorCard';
 import { createDashboardStore } from '../../lib/stores/dashboardStore';
 import type {
-  ExecutiveKPI,
   AdvancedMetrics,
   FirehoseEvent,
   GeoDistribution,
   CommandHealth,
   CRMCustomer,
 } from './premium/types';
+import type { OverviewMetrics } from './admin/tabs/OverviewTab';
 
 /** Match an untrusted string against a fixed set of allowed values. */
 function oneOf<T extends string>(values: ReadonlyArray<T>, key: string): T | undefined {
@@ -84,30 +80,20 @@ const DATE_RANGE_DAYS = {
   custom: 30,
 } as const;
 
-function transformToExecutiveKPI(
+function toOverviewMetrics(
   dashboard: api.AdminOverview | undefined,
   metrics: api.AdminAdvancedMetrics | undefined
-): ExecutiveKPI {
-  const mrr = dashboard?.overview?.mrr || 0;
+): OverviewMetrics {
   const atRiskUsers =
-    metrics?.churn_risk_segments?.reduce(
-      (acc, s) =>
-        s.risk_segment === 'high' || s.risk_segment === 'critical' ? acc + s.user_count : acc,
-      0
-    ) ?? 0;
+    metrics?.churn_risk_segments
+      ?.filter(s => s.risk_segment === 'high' || s.risk_segment === 'critical')
+      .reduce((acc, s) => acc + s.user_count, 0) ?? 0;
   return {
-    mrr,
-    mrr_change: 0,
-    arr: mrr * 12,
-    dau: metrics?.engagement?.dau || dashboard?.daily_active_users?.[0]?.active_users || 0,
-    wau: metrics?.engagement?.wau || 0,
-    mau: metrics?.engagement?.mau || 0,
-    stickiness: parseFloat(
-      metrics?.engagement?.stickiness?.daily_to_monthly?.replaceAll('%', '') || '0'
-    ),
-    churn_rate: atRiskUsers ? (atRiskUsers / (metrics?.engagement?.mau || 1)) * 100 : 0,
-    at_risk_count: atRiskUsers,
-    expansion_pipeline: metrics?.revenue_metrics?.expansion_mrr_12m || 0,
+    mrr: dashboard?.overview?.mrr ?? 0,
+    dau: metrics?.engagement?.dau ?? dashboard?.daily_active_users?.[0]?.active_users ?? 0,
+    wau: metrics?.engagement?.wau ?? 0,
+    mau: metrics?.engagement?.mau ?? 0,
+    atRiskCount: atRiskUsers,
   };
 }
 
@@ -315,8 +301,8 @@ const AdminDashboard: Component = () => {
     staleTime: 60 * 1000,
   }));
 
-  const executiveKPI = createMemo(() =>
-    transformToExecutiveKPI(dashboardQuery.data, advancedMetricsQuery.data)
+  const overviewMetrics = createMemo(() =>
+    toOverviewMetrics(dashboardQuery.data, advancedMetricsQuery.data)
   );
 
   const advancedMetrics = createMemo(() => transformToAdvancedMetrics(advancedMetricsQuery.data));
@@ -388,22 +374,9 @@ const AdminDashboard: Component = () => {
   const tabCounts = createMemo(() => ({
     crm: crmUsersQuery.data?.pagination?.total || 0,
     insights: advancedMetricsQuery.data?.expansion_opportunities?.length || 0,
-    predictions:
-      (advancedMetricsQuery.data?.churn_risk_segments?.filter(
-        s => s.risk_segment === 'high' || s.risk_segment === 'critical'
-      ).length || 0) + (advancedMetricsQuery.data?.expansion_opportunities?.length || 0),
   }));
 
-  const TABS_ORDER: AdminTab[] = [
-    'overview',
-    'crm',
-    'analytics',
-    'insights',
-    'segments',
-    'predictions',
-    'revenue',
-    'audit',
-  ];
+  const TABS_ORDER: AdminTab[] = ['overview', 'crm', 'analytics', 'insights', 'revenue', 'audit'];
 
   let tabFocusTimer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => {
@@ -650,13 +623,6 @@ const AdminDashboard: Component = () => {
         <TabButton id="crm" icon={Users} label="CRM" count={tabCounts().crm} />
         <TabButton id="analytics" icon={ChartColumn} label="Analytics" />
         <TabButton id="insights" icon={Lightbulb} label="Insights" count={tabCounts().insights} />
-        <TabButton id="segments" icon={Layers} label="Segments" />
-        <TabButton
-          id="predictions"
-          icon={Brain}
-          label="Predictions"
-          count={tabCounts().predictions}
-        />
         <TabButton id="revenue" icon={CreditCard} label="Revenue" />
         <TabButton id="audit" icon={RotateCcwClock} label="Audit Log" />
       </div>
@@ -686,7 +652,7 @@ const AdminDashboard: Component = () => {
               <div role="tabpanel" id="tabpanel-overview" aria-labelledby="tab-overview">
                 <TabErrorBoundary tab="Overview">
                   <OverviewTab
-                    executiveKPI={executiveKPI()}
+                    metrics={overviewMetrics()}
                     advancedMetrics={advancedMetrics()}
                     firehoseEvents={firehoseEvents()}
                     geoDistribution={geoDistribution()}
@@ -743,22 +709,6 @@ const AdminDashboard: Component = () => {
               <div role="tabpanel" id="tabpanel-insights" aria-labelledby="tab-insights">
                 <TabErrorBoundary tab="Insights">
                   <InsightsTab />
-                </TabErrorBoundary>
-              </div>
-            </Match>
-
-            <Match when={store.navigation.activeTab === 'segments'}>
-              <div role="tabpanel" id="tabpanel-segments" aria-labelledby="tab-segments">
-                <TabErrorBoundary tab="Segments">
-                  <SegmentAnalytics />
-                </TabErrorBoundary>
-              </div>
-            </Match>
-
-            <Match when={store.navigation.activeTab === 'predictions'}>
-              <div role="tabpanel" id="tabpanel-predictions" aria-labelledby="tab-predictions">
-                <TabErrorBoundary tab="Predictions">
-                  <PredictiveInsights />
                 </TabErrorBoundary>
               </div>
             </Match>

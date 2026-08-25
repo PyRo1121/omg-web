@@ -8,8 +8,6 @@ import {
 } from '../../../../lib/api-hooks';
 import { CardSkeleton } from '../../../ui/Skeleton';
 import { EngagementMetrics } from './EngagementMetrics';
-import { ChurnRiskSegments } from './ChurnRiskSegments';
-import { ExpansionOpportunities } from './ExpansionOpportunities';
 import { TimeToValueMetrics } from './TimeToValueMetrics';
 import { FeatureAdoptionChart } from './FeatureAdoptionChart';
 import { CommandHeatmap } from './CommandHeatmap';
@@ -18,13 +16,11 @@ import { CohortRetentionHeatmap } from '../analytics/CohortRetentionHeatmap';
 import { GeoDistribution } from '../analytics/GeoDistribution';
 import { Lightbulb, RefreshCw, Bookmark } from 'lucide-solid';
 
-type InsightCategory = 'all' | 'engagement' | 'revenue' | 'risk' | 'growth';
+type InsightCategory = 'all' | 'engagement' | 'growth';
 
 const INSIGHT_CATEGORIES: { id: InsightCategory; label: string }[] = [
   { id: 'all', label: 'All Insights' },
   { id: 'engagement', label: 'Engagement' },
-  { id: 'revenue', label: 'Revenue' },
-  { id: 'risk', label: 'Risk' },
   { id: 'growth', label: 'Growth' },
 ];
 
@@ -209,35 +205,6 @@ export const InsightsTab: Component = () => {
                   </div>
                 )}
               </Show>
-            </Show>
-
-            <Show
-              when={
-                activeCategory() === 'all' ||
-                activeCategory() === 'risk' ||
-                activeCategory() === 'growth'
-              }
-            >
-              <div class="grid gap-6 lg:grid-cols-2">
-                <Show
-                  when={
-                    activeCategory() === 'all' || activeCategory() === 'risk'
-                      ? metrics().churn_risk_segments
-                      : undefined
-                  }
-                >
-                  {segments => <ChurnRiskSegments data={segments()} />}
-                </Show>
-                <Show
-                  when={
-                    activeCategory() === 'all' || activeCategory() === 'growth'
-                      ? metrics().expansion_opportunities
-                      : undefined
-                  }
-                >
-                  {opportunities => <ExpansionOpportunities data={opportunities()} />}
-                </Show>
-              </div>
             </Show>
 
             <Show when={activeCategory() === 'all' || activeCategory() === 'engagement'}>
