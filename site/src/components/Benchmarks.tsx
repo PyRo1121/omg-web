@@ -1,4 +1,5 @@
 import type { Component } from 'solid-js';
+import { For } from 'solid-js';
 
 const BENCHMARKS = [
   { name: 'Package search', omg: '6 ms', native: '133 ms' },

@@ -66,7 +66,7 @@ const FeatureGrid: Component = () => (
               {workflow.before}
             </p>
             <div>
-              <code class="block bg-[var(--paper-raised)] px-4 py-3 text-sm text-[var(--ink)]">
+              <code class="block bg-[var(--paper-raised)] px-4 py-3 text-sm break-all text-[var(--ink)]">
                 {workflow.command}
               </code>
               <p class="mt-4 text-sm text-[var(--ink-muted)]">{workflow.result}</p>
