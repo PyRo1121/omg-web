@@ -28,9 +28,14 @@ test.describe('checkout degradation', () => {
     // Reaching the modal proves the landing page rendered and the first click
     // took effect, but Solid attaches delegated handlers after DOM insertion,
     // so the next click still goes through the hydration-tolerant helper.
-    await page.getByRole('button', { name: 'Select Pro' }).click();
     const continueButton = page.getByRole('button', { name: /Continue to Stripe/ });
-    await expect(continueButton).toBeVisible();
+    await clickUntilEffectHolds(
+      () => page.getByRole('button', { name: 'Select Pro' }).click(),
+      async () => {
+        await expect(continueButton).toBeVisible();
+      },
+      { timeout: PATIENT_HYDRATION_TIMEOUT }
+    );
 
     // Anonymous deployments reject with 401 ("sign in first"); unconfigured
     // ones reject with a 5xx. Both must land in the same recoverable state.

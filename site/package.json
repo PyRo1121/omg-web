@@ -23,7 +23,7 @@
     "preview": "wrangler dev --config wrangler.toml --port 3000",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:e2e:anonymous": "playwright test e2e/anonymous.spec.ts",
+    "test:e2e:anonymous": "playwright test e2e/anonymous.spec.ts e2e/signup.spec.ts e2e/billing-unconfigured.spec.ts",
     "test:e2e:staging": "playwright test e2e/staging-auth.spec.ts",
     "test:watch": "vitest",
     "typecheck": "node tools/prepare-worker-assets.mjs --clean && wrangler types worker-configuration.d.ts --include-runtime=false --check && tsc --noEmit"

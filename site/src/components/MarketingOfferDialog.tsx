@@ -9,6 +9,7 @@ interface MarketingOfferDialogProps {
   readonly onOpenChange: (open: boolean) => void;
   readonly onOfferCreated: (offer: MarketingOfferResponse) => void;
   readonly onChoosePro: () => void;
+  readonly restoreFocus: () => void;
 }
 
 const MarketingOfferDialog: Component<MarketingOfferDialogProps> = props => {
@@ -55,7 +56,13 @@ const MarketingOfferDialog: Component<MarketingOfferDialogProps> = props => {
       <Dialog.Portal>
         <Dialog.Overlay class="fixed inset-0 z-40 bg-black/85" />
         <div class="fixed inset-0 z-40 grid items-start overflow-y-auto p-2 sm:place-items-center sm:p-4">
-          <Dialog.Content class="relative my-auto max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto border border-t-4 border-[var(--rule-strong)] border-t-[var(--signal)] bg-[var(--paper-raised)] p-5 shadow-[0_3rem_10rem_rgba(0,0,0,0.55)] sm:max-h-[calc(100dvh-2rem)] sm:p-10">
+          <Dialog.Content
+            class="relative my-auto max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto border border-t-4 border-[var(--rule-strong)] border-t-[var(--signal)] bg-[var(--paper-raised)] p-5 shadow-[0_3rem_10rem_rgba(0,0,0,0.55)] sm:max-h-[calc(100dvh-2rem)] sm:p-10"
+            onCloseAutoFocus={event => {
+              event.preventDefault();
+              props.restoreFocus();
+            }}
+          >
             <Dialog.CloseButton
               class="absolute top-5 right-5 grid h-10 w-10 place-items-center border border-[var(--rule)] text-[var(--ink-muted)] hover:bg-white/[0.06] hover:text-[var(--ink)]"
               aria-label="Close offer"

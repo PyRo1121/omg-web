@@ -33,8 +33,14 @@ const Pricing: Component = () => {
   const [showOffer, setShowOffer] = createSignal(false);
   const [promotionCode, setPromotionCode] = createSignal<MarketingPromotionCode>();
   const [initialTier, setInitialTier] = createSignal<'pro' | 'team'>('pro');
+  let offerTrigger: HTMLButtonElement | undefined;
+  let upgradeTrigger: HTMLButtonElement | undefined;
 
-  const openUpgrade = (tier: 'pro' | 'team'): void => {
+  const openUpgrade = (
+    tier: 'pro' | 'team',
+    returnFocusTarget: HTMLButtonElement | undefined
+  ): void => {
+    upgradeTrigger = returnFocusTarget;
     setInitialTier(tier);
     setShowUpgradeModal(true);
   };
@@ -65,7 +71,10 @@ const Pricing: Component = () => {
           <button
             type="button"
             class="mt-4 min-h-6 py-1 text-left text-sm font-medium text-[var(--signal)] underline decoration-[var(--rule)] underline-offset-4 hover:decoration-[var(--signal)]"
-            onClick={() => setShowOffer(true)}
+            onClick={event => {
+              offerTrigger = event.currentTarget;
+              setShowOffer(true);
+            }}
           >
             Get a private code
           </button>
@@ -99,7 +108,9 @@ const Pricing: Component = () => {
                       ? 'manifest-button manifest-button--primary justify-self-start'
                       : 'manifest-button justify-self-start'
                   }
-                  onClick={() => openUpgrade(plan.id === 'team' ? 'team' : 'pro')}
+                  onClick={event =>
+                    openUpgrade(plan.id === 'team' ? 'team' : 'pro', event.currentTarget)
+                  }
                 >
                   Choose {plan.name}
                 </button>
@@ -123,17 +134,17 @@ const Pricing: Component = () => {
         open={showOffer()}
         onOpenChange={setShowOffer}
         onOfferCreated={offer => setPromotionCode(offer.code)}
-        onChoosePro={() => openUpgrade('pro')}
+        onChoosePro={() => openUpgrade('pro', offerTrigger)}
+        restoreFocus={() => offerTrigger?.focus()}
       />
 
-      <Show when={showUpgradeModal()}>
-        <UpgradeModal
-          isOpen={showUpgradeModal()}
-          onClose={() => setShowUpgradeModal(false)}
-          initialTier={initialTier()}
-          promotionCode={promotionCode()}
-        />
-      </Show>
+      <UpgradeModal
+        isOpen={showUpgradeModal()}
+        onClose={() => setShowUpgradeModal(false)}
+        initialTier={initialTier()}
+        promotionCode={promotionCode()}
+        restoreFocus={() => upgradeTrigger?.focus()}
+      />
     </section>
   );
 };

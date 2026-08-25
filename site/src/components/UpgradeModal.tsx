@@ -9,6 +9,7 @@ interface UpgradeModalProps {
   onClose: () => void;
   initialTier?: 'pro' | 'team';
   promotionCode: MarketingPromotionCode | undefined;
+  restoreFocus: () => void;
 }
 
 const TIERS = {
@@ -112,7 +113,13 @@ const UpgradeModal: Component<UpgradeModalProps> = props => {
       <Dialog.Portal>
         <Dialog.Overlay class="fixed inset-0 z-40 bg-black/85" />
         <div class="fixed inset-0 z-40 grid items-start overflow-y-auto p-2 sm:place-items-center sm:p-4">
-          <Dialog.Content class="relative my-auto max-h-[calc(100dvh-1rem)] w-full max-w-4xl overflow-y-auto border border-[var(--rule-strong)] bg-[var(--paper-raised)] shadow-[0_3rem_10rem_rgba(0,0,0,0.5)] sm:max-h-[calc(100dvh-2rem)]">
+          <Dialog.Content
+            class="relative my-auto max-h-[calc(100dvh-1rem)] w-full max-w-4xl overflow-y-auto border border-[var(--rule-strong)] bg-[var(--paper-raised)] shadow-[0_3rem_10rem_rgba(0,0,0,0.5)] sm:max-h-[calc(100dvh-2rem)]"
+            onCloseAutoFocus={event => {
+              event.preventDefault();
+              props.restoreFocus();
+            }}
+          >
             <header class="sticky top-0 z-10 flex items-start justify-between border-b border-[var(--rule)] bg-[var(--paper-raised)] p-5 sm:p-7">
               <div>
                 <p class="font-mono text-xs text-[var(--signal)]">Secure checkout</p>

@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { AUTH_FIELDS, suppressNativeFormSubmission } from './helpers';
 
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
 test.describe('anonymous authorization', () => {
   test('redirects the admin surface to login', async ({ page }) => {
     await page.goto('/admin', { waitUntil: 'domcontentloaded' });
@@ -27,11 +29,13 @@ test.describe('anonymous authorization', () => {
       )
       .toBe(true);
 
+    const offerButton = page.getByRole('button', { name: 'Get a private code' });
+    const offerHeading = page.getByRole('heading', {
+      name: 'Take 20% off your first three months.',
+    });
     await expect(async () => {
-      await page.getByRole('button', { name: 'Get a private code' }).click();
-      await expect(
-        page.getByRole('heading', { name: 'Take 20% off your first three months.' })
-      ).toBeVisible();
+      await offerButton.click();
+      await expect(offerHeading).toBeVisible();
     }).toPass();
     await expect(page.getByLabel('Email address')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create my code' })).toBeVisible();
@@ -39,15 +43,20 @@ test.describe('anonymous authorization', () => {
     expect(dialogBounds).not.toBeNull();
     expect(dialogBounds?.y).toBeGreaterThanOrEqual(0);
     expect((dialogBounds?.y ?? 0) + (dialogBounds?.height ?? 0)).toBeLessThanOrEqual(568);
+
+    await page.keyboard.press('Escape');
+    await expect(offerHeading).toBeHidden();
+    await expect(offerButton).toBeFocused();
   });
 
   test('keeps plan selection reachable on a compact viewport', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
+    const chooseProButton = page.getByRole('button', { name: 'Choose Pro' });
     const dialog = page.getByRole('dialog');
     await expect(async () => {
-      await page.getByRole('button', { name: 'Choose Pro' }).click();
+      await chooseProButton.click();
       await expect(dialog.getByRole('heading', { name: 'Choose a plan' })).toBeVisible();
     }).toPass();
     const dialogBounds = await dialog.boundingBox();
@@ -57,6 +66,10 @@ test.describe('anonymous authorization', () => {
     expect(await dialog.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(
       true
     );
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(chooseProButton).toBeFocused();
   });
 
   test('keeps purchase status reachable on a compact viewport', async ({ page }) => {
@@ -96,6 +109,25 @@ test.describe('anonymous authorization', () => {
         )
       )
       .toBe(true);
+  });
+
+  test('renders legal pages and the crawler policy', async ({ page }) => {
+    const privacyResponse = await page.goto('/privacy/', { waitUntil: 'domcontentloaded' });
+    expect(privacyResponse?.ok()).toBe(true);
+    await expect(page.getByRole('heading', { name: 'Privacy policy' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Data retention' })).toBeVisible();
+
+    const termsResponse = await page.goto('/terms/', { waitUntil: 'domcontentloaded' });
+    expect(termsResponse?.ok()).toBe(true);
+    await expect(page.getByRole('heading', { name: 'Terms of service' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '3. Acceptable use' })).toBeVisible();
+
+    const robotsResponse = await page.request.get('/robots.txt');
+    expect(robotsResponse.ok()).toBe(true);
+    const robots = await robotsResponse.text();
+    expect(robots).toContain('Disallow: /dashboard');
+    expect(robots).toContain('Disallow: /admin');
+    expect(robots).toContain('Sitemap: https://omg.latham.cloud/sitemap.xml');
   });
 
   test('renders the complete login entry surface', async ({ page }) => {

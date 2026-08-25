@@ -101,7 +101,9 @@ export async function performUiLogin(page: Page, email: string, password: string
       await page.getByLabel(AUTH_FIELDS.passwordLabel).fill(password);
       await page.getByRole('button', { name: AUTH_FIELDS.signInButton }).click();
     }
-    await expect(page).toHaveURL(DASHBOARD_URL_PATTERN);
-    await expect(page.getByRole('heading', { name: DASHBOARD_HEADING })).toBeVisible();
+    await expect(page).toHaveURL(DASHBOARD_URL_PATTERN, { timeout: 5_000 });
+    await expect(page.getByRole('heading', { name: DASHBOARD_HEADING })).toBeVisible({
+      timeout: 5_000,
+    });
   }).toPass({ timeout: HYDRATION_TOLERANT_TIMEOUT });
 }
