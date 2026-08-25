@@ -102,13 +102,12 @@ export async function handleDocsAnalytics(
       statements.push(
         env.DB.prepare(
           `INSERT INTO docs_analytics_events (id, event_type, event_name, properties, timestamp, session_id, duration_ms, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, CURRENT_TIMESTAMP)`
         ).bind(
           eventId,
           event.event_type,
           event.event_name,
           JSON.stringify({ ...event.properties, country, user_agent: userAgent }),
-          event.timestamp,
           event.session_id,
           event.duration_ms || null
         )
@@ -120,7 +119,7 @@ export async function handleDocsAnalytics(
         statements.push(
           env.DB.prepare(
             `INSERT INTO docs_analytics_sessions (session_id, first_seen_at, last_seen_at, page_count, utm_source, utm_medium, utm_campaign, referrer, entry_page, exit_page, total_time_ms)
-             VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 0)
+             VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, ?, ?, ?, ?, ?, ?, 0)
              ON CONFLICT(session_id) DO UPDATE SET
                last_seen_at = excluded.last_seen_at,
                page_count = page_count + 1,
@@ -128,8 +127,6 @@ export async function handleDocsAnalytics(
                total_time_ms = total_time_ms + ?`
           ).bind(
             event.session_id,
-            event.timestamp,
-            event.timestamp,
             props['utm']?.source || null,
             props['utm']?.medium || null,
             props['utm']?.campaign || null,
@@ -450,7 +447,7 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
  *
  * Prunes expired raw docs analytics rows (7 days), docs sessions (30 days),
  * CLI telemetry rows at the retention promised by the privacy disclosures
- * (90 days), rotated visitor salts, and stale realtime presence rows.
+ * (90 days), raw site analytics (90 days), rotated visitor salts, and stale realtime presence rows.
  * This function owns all analytics retention because the scheduled handler
  * currently calls only this cleanup. Failures propagate to the caller so the
  * scheduled handler is the single failure path.
@@ -482,7 +479,17 @@ export async function cleanupDocsAnalytics(db: D1Database): Promise<void> {
   }
 
   await db
-    .prepare(`DELETE FROM analytics_salts WHERE inserted_at <= unixepoch() * 1000 - 90000`)
+    .prepare(
+      `DELETE FROM site_analytics_events
+       WHERE created_at < (unixepoch() - ${TELEMETRY_RETENTION_DAYS * 24 * 60 * 60}) * 1000`
+    )
+    .run();
+  reportInfo('Cleaned up expired site analytics rows');
+
+  // Keep today's and yesterday's daily salts so the scheduled cleanup cannot
+  // fragment visitor identity during the current UTC day.
+  await db
+    .prepare(`DELETE FROM analytics_salts WHERE inserted_at < (unixepoch() - 172800) * 1000`)
     .run();
   reportInfo('Cleaned up rotated analytics salts');
 

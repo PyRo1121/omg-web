@@ -18,6 +18,48 @@ class OfferProxyUnavailable extends Error {
   }
 }
 
+/** Read the request stream without ever buffering more than the offer contract permits. */
+function readOfferBody(
+  request: Request
+): Effect.Effect<string, OfferProxyRejected | OfferProxyUnavailable> {
+  const declaredLength = Number(request.headers.get('Content-Length') ?? '0');
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_OFFER_BODY_BYTES) {
+    return Effect.fail(new OfferProxyRejected(413));
+  }
+
+  return Effect.tryPromise({
+    try: async () => {
+      const reader = request.body?.getReader();
+      if (reader === undefined) {
+        return '';
+      }
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      for (;;) {
+        const next = await reader.read();
+        if (next.done) {
+          break;
+        }
+        total += next.value.byteLength;
+        if (total > MAX_OFFER_BODY_BYTES) {
+          await reader.cancel().catch(() => undefined);
+          throw new OfferProxyRejected(413);
+        }
+        chunks.push(next.value);
+      }
+      const body = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) {
+        body.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      return new TextDecoder().decode(body);
+    },
+    catch: cause =>
+      cause instanceof OfferProxyRejected ? cause : new OfferProxyUnavailable(cause),
+  });
+}
+
 function proxyOffer(
   event: APIEvent
 ): Effect.Effect<Response, OfferProxyRejected | OfferProxyUnavailable> {
@@ -35,13 +77,7 @@ function proxyOffer(
       return yield* Effect.fail(new OfferProxyUnavailable());
     }
 
-    const body = yield* Effect.tryPromise({
-      try: () => event.request.text(),
-      catch: cause => new OfferProxyUnavailable(cause),
-    });
-    if (new TextEncoder().encode(body).byteLength > MAX_OFFER_BODY_BYTES) {
-      return yield* Effect.fail(new OfferProxyRejected(413));
-    }
+    const body = yield* readOfferBody(event.request);
 
     return yield* Effect.tryPromise({
       try: () =>

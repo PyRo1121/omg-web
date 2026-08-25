@@ -36,8 +36,6 @@ export function parseReportingDays(raw: string | null): number {
 const MAX_EVENTS_PER_BATCH = 50;
 /** Declared-body cap for marketing-site tracking batches. */
 const MAX_TRACK_PAYLOAD_BYTES = 512 * 1024;
-/** Visitor salts rotate on this cadence; older salts are dead and pruned by the daily cleanup. */
-const SALT_WINDOW_MS = 90_000;
 /** Domain mixed into the visitor HMAC so hashes are site-scoped. */
 const VISITOR_HASH_DOMAIN = 'omg.latham.cloud';
 /** Weight applied to CLI installs when blending engagement across surfaces. */
@@ -130,32 +128,39 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
     }
 
     const now = Date.now();
-    const saltResult = await env.DB.prepare(
-      `SELECT salt FROM analytics_salts
-       WHERE inserted_at > (unixepoch() * 1000 - ${SALT_WINDOW_MS})
-       ORDER BY inserted_at DESC LIMIT 1`
-    ).first();
+    const dayStart = Date.UTC(
+      new Date(now).getUTCFullYear(),
+      new Date(now).getUTCMonth(),
+      new Date(now).getUTCDate()
+    );
+    // One atomic conditional insert establishes a single salt for the UTC day.
+    // D1 serializes writes, so concurrent cold starts either create the row or
+    // observe the winner instead of fragmenting visitor identity.
+    const insertedSalt = await env.DB.prepare(
+      `INSERT INTO analytics_salts (salt, inserted_at)
+       SELECT randomblob(16), ?
+       WHERE NOT EXISTS (SELECT 1 FROM analytics_salts WHERE inserted_at >= ?)
+       RETURNING salt`
+    )
+      .bind(now, dayStart)
+      .first();
+    const saltResult =
+      insertedSalt ??
+      (await env.DB.prepare(
+        `SELECT salt FROM analytics_salts WHERE inserted_at >= ? ORDER BY inserted_at ASC LIMIT 1`
+      )
+        .bind(dayStart)
+        .first());
     const saltLookup = await readOptionalExtraRow(
       AnalyticsSaltRowSchema,
       'Analytics salt row has an invalid shape',
       saltResult
     );
-    if (saltLookup._tag === 'invalid') {
+    if (saltLookup._tag !== 'present') {
       reportError('Analytics salt row has an invalid shape');
       return errorResponse('Failed to process events', 500);
     }
-    const salt =
-      saltLookup._tag === 'present'
-        ? saltLookup.value.salt
-        : crypto.getRandomValues(new Uint8Array(16));
-    if (saltLookup._tag === 'missing') {
-      const saltHex = Array.from(salt)
-        .map(byte => byte.toString(16).padStart(2, '0'))
-        .join('');
-      await env.DB.prepare(
-        `INSERT INTO analytics_salts (salt, inserted_at) VALUES (x'${saltHex}', unixepoch() * 1000)`
-      ).run();
-    }
+    const salt = saltLookup.value.salt;
 
     const visitorKey = await crypto.subtle.importKey(
       'raw',
@@ -177,9 +182,6 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
 
     const country = request.headers.get('CF-IPCountry') || 'XX';
     const city = request.headers.get('CF-City') || 'Unknown';
-    const currentDate = new Date(now);
-    const today = currentDate.toISOString().slice(0, 10);
-    const hour = currentDate.getUTCHours();
     const statements = boundedEvents.flatMap(event => {
       const properties = event.properties || {};
       const referrer = optionalStringField(properties['referrer']);
@@ -235,22 +237,6 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
         ),
       ];
 
-      if (event.event_type === 'pageview') {
-        eventStatements.push(
-          env.DB.prepare(
-            `INSERT INTO site_analytics_geo_daily (date, country_code, city, visitors, sessions, pageviews)
-             VALUES (?, ?, ?, 1, 1, 1)
-             ON CONFLICT(date, country_code, city) DO UPDATE SET
-               pageviews = pageviews + 1,
-               sessions = sessions + (CASE WHEN excluded.visitors = 1 THEN 1 ELSE 0 END)`
-          ).bind(today, country, city),
-          env.DB.prepare(
-            `INSERT INTO site_analytics_hourly (date, hour, visitors, sessions, pageviews)
-             VALUES (?, ?, 1, 1, 1)
-             ON CONFLICT(date, hour) DO UPDATE SET pageviews = pageviews + 1`
-          ).bind(today, hour)
-        );
-      }
       return eventStatements;
     });
     if (statements.length > 0) {
@@ -281,9 +267,13 @@ export async function handleGetGeoAnalytics(request: Request, env: Env): Promise
 
     const [siteGeo, docsGeo, cliGeo] = await Promise.all([
       env.DB.prepare(
-        `SELECT country_code, SUM(visitors) as visitors, SUM(sessions) as sessions, SUM(pageviews) as pageviews
-         FROM site_analytics_geo_daily
-         WHERE date >= ?
+        `SELECT country_code,
+                COUNT(DISTINCT visitor_id) as visitors,
+                COUNT(DISTINCT session_id) as sessions,
+                COUNT(*) as pageviews
+         FROM site_analytics_events
+         WHERE event_type = 'pageview'
+           AND date(created_at / 1000, 'unixepoch') >= ?
          GROUP BY country_code
          ORDER BY visitors DESC`
       )
@@ -519,30 +509,37 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
 
     const [totalStats, dailyTrend, topPages, topReferrers, deviceBreakdown] = await Promise.all([
       env.DB.prepare(
-        `SELECT 
-           SUM(pageviews) as total_pageviews,
-           SUM(visitors) as total_visitors,
-           SUM(sessions) as total_sessions
-         FROM site_analytics_geo_daily
-         WHERE date >= ?`
+        `SELECT
+           COUNT(*) as total_pageviews,
+           COUNT(DISTINCT visitor_id) as total_visitors,
+           COUNT(DISTINCT session_id) as total_sessions
+         FROM site_analytics_events
+         WHERE event_type = 'pageview'
+           AND date(created_at / 1000, 'unixepoch') >= ?`
       )
         .bind(startDateStr)
         .first(),
 
       env.DB.prepare(
-        `SELECT date, SUM(pageviews) as pageviews, SUM(visitors) as visitors
-         FROM site_analytics_geo_daily
-         WHERE date >= ?
-         GROUP BY date
+        `SELECT date(created_at / 1000, 'unixepoch') as date,
+                COUNT(*) as pageviews,
+                COUNT(DISTINCT visitor_id) as visitors
+         FROM site_analytics_events
+         WHERE event_type = 'pageview'
+           AND date(created_at / 1000, 'unixepoch') >= ?
+         GROUP BY date(created_at / 1000, 'unixepoch')
          ORDER BY date ASC`
       )
         .bind(startDateStr)
         .all(),
 
       env.DB.prepare(
-        `SELECT path, SUM(views) as views, SUM(unique_visitors) as visitors
-         FROM site_analytics_pageviews_daily
-         WHERE date >= ?
+        `SELECT COALESCE(json_extract(properties, '$.path'), '/') as path,
+                COUNT(*) as views,
+                COUNT(DISTINCT visitor_id) as visitors
+         FROM site_analytics_events
+         WHERE event_type = 'pageview'
+           AND date(created_at / 1000, 'unixepoch') >= ?
          GROUP BY path
          ORDER BY views DESC
          LIMIT 20`
@@ -551,9 +548,13 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
         .all(),
 
       env.DB.prepare(
-        `SELECT referrer_domain, SUM(visitors) as visitors, SUM(pageviews) as pageviews
-         FROM site_analytics_referrers_daily
-         WHERE date >= ? AND referrer_domain != 'direct'
+        `SELECT json_extract(properties, '$.referrer_domain') as referrer_domain,
+                COUNT(DISTINCT visitor_id) as visitors,
+                COUNT(*) as pageviews
+         FROM site_analytics_events
+         WHERE event_type = 'pageview'
+           AND date(created_at / 1000, 'unixepoch') >= ?
+           AND json_extract(properties, '$.referrer_domain') != 'direct'
          GROUP BY referrer_domain
          ORDER BY visitors DESC
          LIMIT 10`
@@ -562,9 +563,11 @@ export async function handleGetAnalyticsOverview(request: Request, env: Env): Pr
         .all(),
 
       env.DB.prepare(
-        `SELECT device_type, SUM(visitors) as visitors
-         FROM site_analytics_devices_daily
-         WHERE date >= ?
+        `SELECT json_extract(properties, '$.device') as device_type,
+                COUNT(DISTINCT visitor_id) as visitors
+         FROM site_analytics_events
+         WHERE event_type = 'pageview'
+           AND date(created_at / 1000, 'unixepoch') >= ?
          GROUP BY device_type
          ORDER BY visitors DESC`
       )

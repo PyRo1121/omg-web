@@ -8,6 +8,7 @@ import * as Schema from 'effect/Schema';
 import { describe, it, expect, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import worker from '../src/worker';
+import { handleGetAnalyticsOverview } from '../src/handlers/site-analytics';
 import type { TrackingBatch } from '../src/contracts/http-bodies';
 
 type TrackingEvent = TrackingBatch['events'][number];
@@ -25,9 +26,15 @@ const StoredRealtimeRowSchema = Schema.Struct({
   page_count: Schema.Number,
 });
 
-const StoredPageviewCountSchema = Schema.Struct({
-  pageviews: Schema.Number,
+const AnalyticsOverviewSchema = Schema.Struct({
+  summary: Schema.Struct({
+    total_pageviews: Schema.Number,
+    total_visitors: Schema.Number,
+    total_sessions: Schema.Number,
+  }),
 });
+
+const ServerTimestampRowSchema = Schema.Struct({ timestamp: Schema.String });
 
 const TrackedPropertiesSchema = Schema.Struct({
   device: Schema.String,
@@ -101,6 +108,45 @@ afterEach(async () => {
   await env.DB.prepare('DELETE FROM site_analytics_realtime').run();
   await env.DB.prepare('DELETE FROM site_analytics_geo_daily').run();
   await env.DB.prepare('DELETE FROM site_analytics_hourly').run();
+  await env.DB.prepare('DELETE FROM docs_analytics_events').run();
+  await env.DB.prepare('DELETE FROM docs_analytics_sessions').run();
+});
+
+describe('POST /api/docs/analytics', () => {
+  it('uses server time as the canonical event and session timestamp', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      new Request('https://internal.test/api/docs/analytics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          events: [
+            {
+              event_type: 'pageview',
+              event_name: 'page_view',
+              properties: { url: '/docs/' },
+              timestamp: '2000-01-01T00:00:00.000Z',
+              session_id: 'docs-server-time-test',
+            },
+          ],
+        }),
+      }),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+    const eventRow = Schema.decodeUnknownSync(ServerTimestampRowSchema)(
+      await env.DB.prepare(`SELECT timestamp FROM docs_analytics_events WHERE session_id = ?`)
+        .bind('docs-server-time-test')
+        .first()
+    );
+    expect(eventRow.timestamp).not.toBe('2000-01-01T00:00:00.000Z');
+    expect(Date.parse(`${eventRow.timestamp.replace(' ', 'T')}Z`)).toBeGreaterThan(
+      Date.now() - 60_000
+    );
+  });
 });
 
 describe('POST /api/site/analytics/track', () => {
@@ -128,12 +174,6 @@ describe('POST /api/site/analytics/track', () => {
     const realtime = decodeSingleRow(StoredRealtimeRowSchema, realtimeRows.results);
     expect(realtime.page_path).toBe('/pricing');
     expect(realtime.page_count).toBe(1);
-
-    const geoRows = await env.DB.prepare('SELECT pageviews FROM site_analytics_geo_daily').all();
-    expect(decodeSingleRow(StoredPageviewCountSchema, geoRows.results).pageviews).toBe(1);
-
-    const hourlyRows = await env.DB.prepare('SELECT pageviews FROM site_analytics_hourly').all();
-    expect(decodeSingleRow(StoredPageviewCountSchema, hourlyRows.results).pageviews).toBe(1);
   });
 
   it('maps semantic CTA events to the constrained click storage category', async () => {
@@ -160,6 +200,25 @@ describe('POST /api/site/analytics/track', () => {
     ).all();
     const realtime = decodeSingleRow(StoredRealtimeRowSchema, realtimeRows.results);
     expect(realtime.page_count).toBe(2);
+  });
+
+  it('reports pageviews separately from distinct visitors and sessions', async () => {
+    const sharedSession = 'shared-analytics-session';
+    expect((await track({ events: [event({ session_id: sharedSession })] })).status).toBe(200);
+    expect((await track({ events: [event({ session_id: sharedSession })] })).status).toBe(200);
+
+    const response = await handleGetAnalyticsOverview(
+      new Request('https://internal.test/api/site/analytics/overview?days=1'),
+      env
+    );
+
+    expect(response.status).toBe(200);
+    const payload = Schema.decodeUnknownSync(AnalyticsOverviewSchema)(await response.json());
+    expect(payload.summary).toEqual({
+      total_pageviews: 2,
+      total_visitors: 1,
+      total_sessions: 1,
+    });
   });
 
   it('rejects malformed events inside a batch at the boundary', async () => {

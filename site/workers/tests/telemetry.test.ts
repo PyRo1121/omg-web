@@ -85,7 +85,7 @@ describe('Telemetry API', () => {
             success: true,
             result_count: 10,
           },
-          timestamp: new Date().toISOString(),
+          timestamp: '2000-01-01T00:00:00.000Z',
           machine_id: TEST_MACHINE_ID,
           version: '0.1.0',
           platform: 'linux',
@@ -111,6 +111,9 @@ describe('Telemetry API', () => {
       expect(stored?.command).toBe('search');
       expect(stored?.success).toBe(1);
       expect(stored?.duration_ms).toBe(45);
+      expect(stored?.timestamp).not.toBe('2000-01-01T00:00:00.000Z');
+      const storedAt = Date.parse(`${String(stored?.timestamp).replace(' ', 'T')}Z`);
+      expect(storedAt).toBeGreaterThan(Date.now() - 60_000);
     });
 
     it('should store a session event', async () => {

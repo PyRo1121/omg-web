@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { type Env, errorResponse, logAudit, respondFromEffect } from '../api';
+import { type Env, errorResponse, generateToken, logAudit, respondFromEffect } from '../api';
 import { decodeJsonBody, type InvalidJsonBodyError } from '../body';
 import * as Schema from 'effect/Schema';
 import {
@@ -143,7 +143,7 @@ function mintSiteSession(
     }
 
     const sessionId = crypto.randomUUID();
-    const token = Schema.decodeUnknownSync(SessionToken)(crypto.randomUUID());
+    const token = Schema.decodeUnknownSync(SessionToken)(generateToken());
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     yield* storeOperation('insertSession', () =>
       env.DB.prepare(

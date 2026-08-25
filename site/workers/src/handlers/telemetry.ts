@@ -124,8 +124,6 @@ function prepareTelemetryStatement(
   const event = sanitizeEvent(item.event);
   const eventId = crypto.randomUUID();
   const machineId = truncateString(item.machine_id, MAX_STRING_LENGTH);
-  const timestamp = truncateString(item.timestamp, MAX_STRING_LENGTH);
-
   switch (event.type) {
     case 'command':
       return {
@@ -135,7 +133,7 @@ function prepareTelemetryStatement(
             `INSERT INTO command_event (
               id, license_id, machine_id, session_id, command, subcommand,
               packages, duration_ms, success, error, result_count, updated_count, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
           )
           .bind(
             eventId,
@@ -149,8 +147,7 @@ function prepareTelemetryStatement(
             event.success ? 1 : 0,
             event.error,
             event.result_count || null,
-            event.updated_count || null,
-            timestamp
+            event.updated_count || null
           ),
       };
     case 'session':
@@ -161,7 +158,7 @@ function prepareTelemetryStatement(
             `INSERT INTO session (
               id, license_id, machine_id, session_id, event_type,
               start_time, end_time, commands_run, duration_secs, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
           )
           .bind(
             eventId,
@@ -172,8 +169,7 @@ function prepareTelemetryStatement(
             event.start_time,
             event.end_time,
             event.commands_run || null,
-            event.duration_secs || null,
-            timestamp
+            event.duration_secs || null
           ),
       };
     case 'performance':
@@ -183,17 +179,9 @@ function prepareTelemetryStatement(
           .prepare(
             `INSERT INTO performance_metric (
               id, license_id, machine_id, metric_type, duration_ms, context, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
           )
-          .bind(
-            eventId,
-            licenseId,
-            machineId,
-            event.metric_type,
-            event.duration_ms,
-            event.context,
-            timestamp
-          ),
+          .bind(eventId, licenseId, machineId, event.metric_type, event.duration_ms, event.context),
       };
     case 'feature':
       return {
@@ -202,7 +190,7 @@ function prepareTelemetryStatement(
           .prepare(
             `INSERT INTO feature_usage (
               id, license_id, machine_id, feature, enabled, metadata, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
           )
           .bind(
             eventId,
@@ -210,8 +198,7 @@ function prepareTelemetryStatement(
             machineId,
             event.feature,
             event.enabled ? 1 : 0,
-            JSON.stringify(event.metadata || {}),
-            timestamp
+            JSON.stringify(event.metadata || {})
           ),
       };
     default:
