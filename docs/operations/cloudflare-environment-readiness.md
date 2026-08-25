@@ -1,20 +1,24 @@
 # Cloudflare environment readiness
 
-**Last inventory/provisioning pass:** 2026-08-23
+**Last inventory/provisioning pass:** 2026-08-25
 
-**Deployment status:** live on `omg.latham.cloud` and `omg-api.latham.cloud` (Workers Custom Domains)
+**Deployment status:** production is live on `omg.latham.cloud` and `omg-api.latham.cloud`; an isolated Alchemy-managed SvelteKit shadow is live only on `workers.dev`
 
 This document records the deployed Cloudflare topology, the free-tier usage ceilings it must never exceed, and the remaining steps to finish production hardening.
 
 ## Deployed topology (free plan)
 
-| Kind                        | Resource                                                | Repository authority         | Public URL                     |
-| --------------------------- | ------------------------------------------------------- | ---------------------------- | ------------------------------ |
-| Worker                      | `omg-saas`                                              | `site/workers/wrangler.toml` | `https://omg-api.latham.cloud` |
-| Worker + static assets      | `omg-site`                                              | `site/wrangler.toml`         | `https://omg.latham.cloud`     |
-| D1 (single shared database) | `omg-platform` / `fee8ddab-fb4a-4be4-b8d2-8abb7c2db188` | both wrangler configs        | n/a                            |
+| Kind                        | Resource                                                | Repository authority         | Public URL                                                                           |
+| --------------------------- | ------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------ |
+| Worker                      | `omg-saas`                                              | `site/workers/wrangler.toml` | `https://omg-api.latham.cloud`                                                       |
+| Worker + static assets      | `omg-site`                                              | `site/wrangler.toml`         | `https://omg.latham.cloud`                                                           |
+| D1 (single shared database) | `omg-platform` / `fee8ddab-fb4a-4be4-b8d2-8abb7c2db188` | both wrangler configs        | n/a                                                                                  |
+| SvelteKit shadow Worker     | `omgsveltesite-website-shadow-jav5h3wa32bnkqce`         | `site-svelte/alchemy.run.ts` | `https://omgsveltesite-website-shadow-jav5h3wa32bnkqce.latham.workers.dev`           |
+| Alchemy state Worker + DO   | `alchemy-state-store`                                   | Alchemy bootstrap            | `https://alchemy-state-store.latham.workers.dev` (authenticated state protocol only) |
 
-Both hostnames are Workers Custom Domains on the `latham.cloud` zone; Cloudflare provisions DNS and certificates automatically. The `omg-saas` workers.dev hostname is disabled; the site's workers.dev hostname remains available as a fallback.
+Both production hostnames are Workers Custom Domains on the `latham.cloud` zone; Cloudflare provisions DNS and certificates automatically. Both production Workers have their `workers.dev` application surface disabled. The SvelteKit shadow deliberately uses only a generated `workers.dev` hostname, has no production route or binding, and adds `X-Robots-Tag: noindex, nofollow` outside an explicit `prod` stage.
+
+Alchemy's Cloudflare state backend adds one infrastructure-only Worker backed by a SQLite Durable Object and stores its bearer token and encryption key in the account Secrets Store. No application Durable Object was added. The state endpoint is not an application origin and its credentials must never be printed, committed, or copied into project environment files.
 
 Deliberately **not provisioned** (free-tier and ownership constraints):
 
@@ -22,6 +26,7 @@ Deliberately **not provisioned** (free-tier and ownership constraints):
 - All R2 buckets (`omg-assets`, `omg-releases`, `omg-releases-preview`): metered storage/operations can exceed the free allowance, so binary downloads stay on GitHub Releases.
 - Workers AI binding: removed with the AI insights feature; inference is a paid metered product.
 - Separate auth/analytics D1 databases: the Free plan allows 10 databases per account and this account already holds ten unrelated databases (11 total including `omg-platform`, re-counted 2026-08-23 via the D1 API). One physical database is used with strict table-level ownership instead.
+- Application Durable Objects: the only Durable Object is Alchemy's encrypted deployment-state backend; OMG runtime behavior does not depend on a Durable Object.
 
 ### Shared-database ownership contract
 
@@ -75,6 +80,8 @@ The historical test-mode catalog remains isolated in Stripe and is not reference
 | D1 storage           | 5 GB account total; 500 MB/database  | One platform database; analytics tables are prunable.                                                                                                                                                                 |
 | Workers Logs/Traces  | ~200k events/day, 3-day retention    | Logs at 100%, traces sampled at 1%.                                                                                                                                                                                   |
 | R2 / Workers AI      | metered beyond small free allowances | Not used at all.                                                                                                                                                                                                      |
+| Durable Objects      | free-plan request/storage allowance  | One low-traffic SQLite Durable Object is used only by Alchemy's authenticated state Worker; no application request path reaches it.                                                                                   |
+| Secrets Store        | 100 production secrets/account       | Alchemy uses two account secrets for state authentication and encryption; application secrets remain Worker-owned.                                                                                                    |
 
 If sustained traffic approaches any ceiling, the correct response is a capacity decision, not silent overage: reduce ingestion, tighten sampling, or upgrade the plan explicitly.
 
@@ -103,9 +110,24 @@ Workers rollback reverts **code only, never D1 schema or data** (<https://develo
 2. After any rollback, ship a corrective **forward** migration for anything contracted; never roll schema back.
 3. The full expand → backfill → contract sequencing guidance lives in [`../research/production-recovery-and-svelte-migration.md`](../research/production-recovery-and-svelte-migration.md); treat that research note as operational reference until it is folded into this runbook.
 
-### Secondary origin
+### Alchemy migration authority
 
-The site's `*.workers.dev` fallback hostname remains enabled while the API's is disabled. It serves the same app outside domain-scoped monitoring; either disable it or include it when reviewing Workers Logs (see [`observability.md`](./observability.md)).
+`site-svelte/` is exact-pinned to Alchemy `2.0.0-beta.74`, Effect `4.0.0-rc.112`, SvelteKit `3.0.0-next.9`, and Vite `8.2.1`. Alchemy's current SvelteKit adapter fails with newer SvelteKit 3 prereleases despite its published peer range, so updates require a successful shadow plan, deploy, browser smoke, and rollback check before lockfile changes are accepted. The generated static-assets layer must keep `runWorkerFirst: true`; otherwise browser HTML navigation is intercepted by the asset fallback and returns a plaintext 404 before SvelteKit runs.
+
+The Alchemy OAuth profile is local and currently limited to account/user read, Secrets Store write, Workers Scripts write, Workers Observability read/write, and Workers Tail read. D1, DNS, zones, routes, Pages, R2, AI, queues, and container permissions were not granted. Add a permission only in the slice that needs it, then remove it when no longer required.
+
+Do not run `alchemy deploy --adopt` against existing production resources as a bulk operation. During coexistence, Alchemy is authoritative for the new Svelte deployment while the two current production Workers and shared D1 remain under their existing Wrangler owners. Each eventual adoption requires a resource-specific plan, characterization gate, rollback command, and explicit confirmation that the plan does not replace the physical resource.
+
+Useful commands:
+
+```bash
+cd site-svelte
+npm run plan -- --stage shadow
+npm run deploy -- --stage shadow --yes
+npm run destroy -- --stage shadow # rollback only the isolated shadow stage
+```
+
+The shadow's `workers.dev` hostname is the only intentional secondary application origin. It must remain noindex and receive no production route until a complete URL-path slice passes its observation gate.
 
 ## Authenticated characterization status
 

@@ -483,13 +483,20 @@ A 6–8 week full migration is not credible unless major dashboard/admin scope i
 8. Establish migration, staging, observability, and rollback ownership.
 9. Capture current cookie/OAuth, route, bundle, and Core Web Vitals baselines.
 
+### Alchemy deployment decision (2026-08-25)
+
+The migration uses Alchemy as the deployment authority for the new Svelte runtime. The compatibility boundary is intentionally exact rather than semver-wide: Alchemy `2.0.0-beta.74`, Effect `4.0.0-rc.112`, SvelteKit `3.0.0-next.9`, `@sveltejs/vite-plugin-svelte` `7.2.0`, and Vite `8.2.1`. Alchemy's published SvelteKit peer range accepts newer Kit 3 prereleases, but its adapter-injection API does not; `next.25` failed before upload and confirmed that lockfile updates require deployment-level verification.
+
+Alchemy injects its Cloudflare adapter in memory. The Svelte package therefore has no `svelte.config`, Wrangler deployment config, or `@sveltejs/adapter-cloudflare` dependency. `assets.runWorkerFirst` is required so browser HTML requests reach SvelteKit instead of terminating in the static-asset 404 fallback. Alchemy state uses its encrypted Cloudflare Worker/Durable Object backend; application state remains in the existing D1.
+
+The coexistence package is `site-svelte/`. It owns only the generated shadow Worker until a complete URL-path slice passes characterization. Existing production Workers and D1 are not bulk-adopted: every future Alchemy adoption requires a resource-specific plan and rollback gate, and `--adopt` must never be applied indiscriminately to the whole production stack.
+
 ### Target SvelteKit structure
 
 ```text
-site/
-├── svelte.config.ts
+site-svelte/
+├── alchemy.run.ts
 ├── vite.config.ts
-├── wrangler.toml
 └── src/
     ├── app.html
     ├── app.d.ts
@@ -533,7 +540,8 @@ Official SvelteKit basis:
 - Hooks/locals: <https://svelte.dev/docs/kit/hooks>
 - Server-only modules: <https://svelte.dev/docs/kit/server-only-modules>
 - Authentication: <https://svelte.dev/docs/kit/auth>
-- Cloudflare adapter: <https://svelte.dev/docs/kit/adapter-cloudflare>
+- Alchemy SvelteKit deployment: <https://alchemy.run/cloudflare/frontend/sveltekit>
+- Cloudflare adapter behavior reference: <https://svelte.dev/docs/kit/adapter-cloudflare>
 - Svelte runes: <https://svelte.dev/docs/svelte/what-are-runes>
 - Testing: <https://svelte.dev/docs/svelte/testing>
 - `sv check`: <https://svelte.dev/docs/cli/sv-check>
@@ -553,7 +561,7 @@ Official SvelteKit basis:
 
 Solid and Svelte should coexist only at **complete URL-path deployment boundaries**:
 
-1. Deploy SvelteKit to a shadow hostname.
+1. Deploy SvelteKit through the `OmgSvelteSite` Alchemy stack to a stage-specific shadow hostname.
 2. Keep the Solid deployment immutable and routable.
 3. Route an explicit path allowlist at the edge.
 4. Move complete pages/endpoints, not components.
@@ -567,7 +575,7 @@ Cross-framework navigation may require full-document transitions; in-memory stat
 | Slice | Scope                              | Gate                                                                                                  |
 | ----- | ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | 0     | stabilization and characterization | clean install/check/test/build, route matrix, cookie/OAuth baseline, Playwright, rollback design      |
-| 1     | shadow SvelteKit shell             | `svelte-check`, strict TS, adapter build/dry run, health/robots/sitemap parity, no production traffic |
+| 1     | shadow SvelteKit shell             | `svelte-check`, strict TS, Alchemy plan/deploy, health/robots/sitemap parity, browser HTML smoke, no production traffic |
 | 2     | auth foundation and login/signup   | exact cookies/callbacks, CSRF/trusted origins, login/logout/OAuth E2E                                 |
 | 3     | marketing home                     | SSR/SEO/accessibility/visual parity, lazy Three.js, analytics contract                                |
 | 4     | account dashboard                  | server auth/load, no hydration duplicate fetch, schema decoding, lifecycle cleanup                    |

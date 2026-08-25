@@ -5,12 +5,13 @@ const sourceRoots = [
   'site/src',
   'site/shared',
   'site/e2e',
+  'site-svelte/src',
   'site/workers/src',
   'site/workers/tests',
   'workers/router/src',
   'workers/releases/src',
 ];
-const sourceExtensions = new Set(['.js', '.jsx', '.mjs', '.ts', '.tsx']);
+const sourceExtensions = new Set(['.js', '.jsx', '.mjs', '.svelte', '.ts', '.tsx']);
 const forbiddenPolicies = [
   { marker: '@effect/schema', reason: 'use Schema from the main effect package' },
   { marker: 'Effect.promise(', reason: 'use a typed Effect.tryPromise boundary' },

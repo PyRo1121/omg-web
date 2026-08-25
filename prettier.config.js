@@ -2,7 +2,7 @@ export default {
   arrowParens: 'avoid',
   bracketSpacing: true,
   endOfLine: 'lf',
-  plugins: ['prettier-plugin-tailwindcss'],
+  plugins: ['prettier-plugin-svelte', 'prettier-plugin-tailwindcss'],
   printWidth: 100,
   semi: true,
   singleQuote: true,
