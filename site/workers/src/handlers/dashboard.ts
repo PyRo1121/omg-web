@@ -1,15 +1,9 @@
 import { reportError } from '../observability';
 // Dashboard API handlers (all require authentication)
 import * as Schema from 'effect/Schema';
-import {
-  type Env,
-  jsonResponse,
-  errorResponse,
-  validateSession,
-  getAuthToken,
-  logAudit,
-} from '../api';
+import { type Env, jsonResponse, errorResponse, logAudit } from '../api';
 import { Effect, Exit } from 'effect';
+import { authenticateSession } from '../admin-auth';
 import { decodeJsonBody } from '../body';
 import {
   MachineIdBodySchema,
@@ -70,13 +64,9 @@ async function withDashboardSession(
     readonly sessionId: string;
   }) => Response | Promise<Response>
 ): Promise<Response> {
-  const token = getAuthToken(request);
-  if (!token) {
-    return errorResponse('Unauthorized', 401);
-  }
-  const auth = await validateSession(env.DB, token);
-  if (!auth) {
-    return errorResponse('Invalid or expired session', 401);
+  const auth = await authenticateSession(request, env);
+  if (auth instanceof Response) {
+    return auth;
   }
   return handler({ db: env.DB, userId: auth.user.id, sessionId: auth.session.id });
 }

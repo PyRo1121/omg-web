@@ -1,23 +1,20 @@
 import { reportError, reportInfo, reportWarning } from '../observability';
-import {
-  type Env,
-  jsonResponse,
-  errorResponse,
-  validateSession,
-  getAuthToken,
-  logAudit,
-} from '../api';
+import { type Env, jsonResponse, errorResponse, logAudit } from '../api';
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import { decodeJsonBody } from '../body';
 import { EmailAddress } from '../../../shared/site-session';
-import { forbiddenUnlessAdminSession } from '../admin-auth';
+import {
+  authenticateSession,
+  forbiddenUnlessAdminSession,
+  isAdminCustomer,
+  type AuthedSession,
+} from '../admin-auth';
 import { decodeThrownMessage } from '../contracts/http-bodies';
 import {
   StripeCustomerIdRowSchema,
   StripeEventStateRowSchema,
   BillingCustomerRowSchema,
-  customerIsAdmin,
   IdRowSchema,
   optionalRowValue,
   readOptionalExtraRow,
@@ -100,30 +97,18 @@ function billingCatalog(env: Env): BillingCatalog {
   };
 }
 
-/** Authenticated session, or the error response that denies the caller. */
-type SessionAuth = NonNullable<Awaited<ReturnType<typeof validateSession>>>;
-
-/** Authenticate the bearer token; Response denies the caller. */
-async function authenticate(request: Request, env: Env): Promise<SessionAuth | Response> {
-  const token = getAuthToken(request);
-  if (!token) return errorResponse('Unauthorized', 401);
-
-  const auth = await validateSession(env.DB, token);
-  if (!auth) return errorResponse('Invalid session', 401);
-  return auth;
-}
-
 /** Require an admin session plus a configured Stripe key; Response denies the caller. */
-async function requireAdmin(request: Request, env: Env): Promise<SessionAuth | Response> {
-  const authOrDenied = await authenticate(request, env);
+async function requireAdmin(request: Request, env: Env): Promise<AuthedSession | Response> {
+  const authOrDenied = await authenticateSession(request, env);
   if (authOrDenied instanceof Response) return authOrDenied;
 
-  const adminCheck = await env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`)
-    .bind(authOrDenied.user.id)
-    .first();
-
-  if (!(await customerIsAdmin(adminCheck))) {
-    return errorResponse('Unauthorized', 403);
+  const adminExit = await Effect.runPromiseExit(isAdminCustomer(env.DB, authOrDenied.user.id));
+  if (Exit.isFailure(adminExit)) {
+    reportError('Billing admin authorization failed', adminExit.cause);
+    return errorResponse('Admin authorization unavailable', 503);
+  }
+  if (!adminExit.value) {
+    return errorResponse('Forbidden', 403);
   }
   if (!env.STRIPE_SECRET_KEY) {
     return errorResponse('Billing is not configured', 503);
@@ -532,7 +517,7 @@ export async function handleCreateCheckout(
   env: Env,
   stripeFetch: typeof fetch = fetch
 ): Promise<Response> {
-  const authOrDenied = await authenticate(request, env);
+  const authOrDenied = await authenticateSession(request, env);
   if (authOrDenied instanceof Response) return authOrDenied;
   const auth = authOrDenied;
 
@@ -663,7 +648,7 @@ export async function handleCheckoutSessionStatus(
   env: Env,
   stripeFetch: typeof fetch = fetch
 ): Promise<Response> {
-  const authOrDenied = await authenticate(request, env);
+  const authOrDenied = await authenticateSession(request, env);
   if (authOrDenied instanceof Response) return authOrDenied;
   const auth = authOrDenied;
   if (!env.STRIPE_SECRET_KEY) {
@@ -744,7 +729,7 @@ export async function handleCheckoutSessionStatus(
 }
 
 export async function handleBillingPortal(request: Request, env: Env): Promise<Response> {
-  const authOrDenied = await authenticate(request, env);
+  const authOrDenied = await authenticateSession(request, env);
   if (authOrDenied instanceof Response) return authOrDenied;
   const auth = authOrDenied;
 

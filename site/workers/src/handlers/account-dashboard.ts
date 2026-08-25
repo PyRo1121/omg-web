@@ -5,12 +5,11 @@ import {
   type LicensingDashboard,
 } from '../../../shared/licensing-dashboard';
 import { type Env, errorResponse, respondFromEffect, ACHIEVEMENTS, TIER_FEATURES } from '../api';
-import { requireSession, type SessionUnauthorizedError } from '../admin-auth';
+import { isAdminCustomer, requireSession, type SessionUnauthorizedError } from '../admin-auth';
 import { casesHandled } from '../prelude';
 import {
   AccountDashboardParseError,
   AchievementUnlockRowSchema,
-  AdminFlagRowSchema,
   CommandBreakdownRowSchema,
   DailyUsageRowSchema,
   DashboardLicenseRowSchema,
@@ -100,17 +99,9 @@ function getAccountDashboard(
     const auth = yield* requireSession(request, env);
     const user = auth.user;
 
-    const adminRow = yield* queryFirst(
-      env.DB,
-      `SELECT admin FROM customers WHERE id = ?`,
-      [user.id],
-      'adminFlag'
+    const isAdmin = yield* isAdminCustomer(env.DB, user.id).pipe(
+      Effect.mapError(error => new DashboardStoreUnavailable('adminFlag', error))
     );
-    const isAdmin =
-      adminRow === null
-        ? false
-        : (yield* decodeRow(AdminFlagRowSchema, 'Admin flag row has an invalid shape', adminRow))
-            .admin === 1;
 
     const licenseRow = yield* queryFirst(
       env.DB,

@@ -1,5 +1,4 @@
 import { Cause, Effect, Exit, Option } from 'effect';
-import * as Schema from 'effect/Schema';
 import {
   type Env,
   errorResponse,
@@ -8,6 +7,7 @@ import {
   type Session,
   type User,
 } from './api';
+import { customerIsAdmin } from './contracts/d1-extras';
 
 /** The request has no valid Bearer session. */
 export class SessionUnauthorizedError extends Error {
@@ -28,8 +28,16 @@ class SessionForbiddenError extends Error {
   }
 }
 
+/** D1 could not determine the persisted admin flag. */
+export class AdminAuthorizationUnavailable extends Error {
+  readonly _tag = 'AdminAuthorizationUnavailable';
+  constructor(override readonly cause?: unknown) {
+    super('Admin authorization unavailable');
+  }
+}
+
 /** A validated Worker session and customer. */
-interface AuthedSession {
+export interface AuthedSession {
   readonly user: User;
   readonly session: Session;
 }
@@ -60,6 +68,41 @@ export function requireSession(
   );
 }
 
+/** Convert the typed session gate into the common HTTP-handler result shape. */
+export async function authenticateSession(
+  request: Request,
+  env: Env
+): Promise<AuthedSession | Response> {
+  const exit = await Effect.runPromiseExit(requireSession(request, env));
+  return Exit.match(exit, {
+    onSuccess: auth => auth,
+    onFailure: cause => {
+      const failure = Cause.failureOption(cause);
+      return errorResponse(
+        Option.isSome(failure) ? failure.value.message : 'Invalid or expired session',
+        401
+      );
+    },
+  });
+}
+
+/** Read and decode the server-owned customer admin flag. */
+export function isAdminCustomer(
+  db: D1Database,
+  customerId: string
+): Effect.Effect<boolean, AdminAuthorizationUnavailable> {
+  return Effect.tryPromise({
+    try: async () => {
+      const row = await db
+        .prepare(`SELECT admin FROM customers WHERE id = ?`)
+        .bind(customerId)
+        .first();
+      return customerIsAdmin(row);
+    },
+    catch: cause => new AdminAuthorizationUnavailable(cause),
+  });
+}
+
 /**
  * Require a valid Worker session and an admin customer flag.
  *
@@ -70,21 +113,13 @@ export function requireSession(
 function requireAdminSession(
   request: Request,
   env: Env
-): Effect.Effect<void, SessionUnauthorizedError | SessionForbiddenError> {
+): Effect.Effect<
+  void,
+  SessionUnauthorizedError | SessionForbiddenError | AdminAuthorizationUnavailable
+> {
   return Effect.gen(function* () {
     const auth = yield* requireSession(request, env);
-    const row = yield* Effect.tryPromise({
-      try: () =>
-        env.DB.prepare(`SELECT admin FROM customers WHERE id = ?`).bind(auth.user.id).first(),
-      catch: cause => new SessionUnauthorizedError('invalid', cause),
-    });
-    if (row === null) {
-      return yield* Effect.fail(new SessionUnauthorizedError('invalid'));
-    }
-    const decoded = yield* Schema.decodeUnknown(Schema.Struct({ admin: Schema.Number }))(row).pipe(
-      Effect.mapError(cause => new SessionForbiddenError(cause))
-    );
-    if (decoded.admin !== 1) {
+    if (!(yield* isAdminCustomer(env.DB, auth.user.id))) {
       yield* Effect.fail(new SessionForbiddenError());
     }
   });
@@ -106,8 +141,15 @@ export async function forbiddenUnlessAdminSession(
     onSuccess: () => null,
     onFailure: cause => {
       const failure = Cause.failureOption(cause);
-      if (Option.isSome(failure) && failure.value._tag === 'SessionForbiddenError') {
-        return errorResponse('Forbidden', 403);
+      if (Option.isSome(failure)) {
+        switch (failure.value._tag) {
+          case 'SessionForbiddenError':
+            return errorResponse('Forbidden', 403);
+          case 'AdminAuthorizationUnavailable':
+            return errorResponse('Admin authorization unavailable', 503);
+          case 'SessionUnauthorizedError':
+            return errorResponse(failure.value.message, 401);
+        }
       }
       return errorResponse('Unauthorized', 401);
     },
