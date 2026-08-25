@@ -35,33 +35,13 @@ import { AnalyticsTab } from './admin/tabs/AnalyticsTab';
 import { TabErrorBoundary } from './admin/shared/TabErrorBoundary';
 import ErrorCard from './admin/shared/ErrorCard';
 import { createDashboardStore } from '../../lib/stores/dashboardStore';
-import type {
-  AdvancedMetrics,
-  FirehoseEvent,
-  GeoDistribution,
-  CommandHealth,
-  CRMCustomer,
-} from './premium/types';
+import type { FirehoseEvent, GeoDistribution, CommandHealth, CRMCustomer } from './premium/types';
 import type { OverviewMetrics } from './admin/tabs/OverviewTab';
 
 /** Match an untrusted string against a fixed set of allowed values. */
 function oneOf<T extends string>(values: ReadonlyArray<T>, key: string): T | undefined {
   return values.find(value => value === key);
 }
-
-const LIFECYCLE_STAGES = [
-  'new',
-  'onboarding',
-  'activated',
-  'engaged',
-  'power_user',
-  'at_risk',
-  'churning',
-  'churned',
-  'reactivated',
-  'trial',
-  'active',
-] as const;
 
 const SEGMENTS = [
   { id: 'all', name: 'All Customers' },
@@ -84,87 +64,17 @@ function toOverviewMetrics(
   dashboard: api.AdminOverview | undefined,
   metrics: api.AdminAdvancedMetrics | undefined
 ): OverviewMetrics {
-  const atRiskUsers =
-    metrics?.churn_risk_segments
-      ?.filter(s => s.risk_segment === 'high' || s.risk_segment === 'critical')
-      .reduce((acc, s) => acc + s.user_count, 0) ?? 0;
+  const atRiskUsers = metrics?.churn_risk_segments
+    ? metrics.churn_risk_segments
+        .filter(segment => segment.risk_segment === 'high' || segment.risk_segment === 'critical')
+        .reduce((total, segment) => total + segment.user_count, 0)
+    : null;
   return {
-    mrr: dashboard?.overview?.mrr ?? 0,
-    dau: metrics?.engagement?.dau ?? dashboard?.daily_active_users?.[0]?.active_users ?? 0,
-    wau: metrics?.engagement?.wau ?? 0,
-    mau: metrics?.engagement?.mau ?? 0,
+    mrr: dashboard?.overview?.mrr ?? null,
+    dau: metrics?.engagement?.dau ?? dashboard?.daily_active_users?.[0]?.active_users ?? null,
+    wau: metrics?.engagement?.wau ?? null,
+    mau: metrics?.engagement?.mau ?? null,
     atRiskCount: atRiskUsers,
-  };
-}
-
-function transformToAdvancedMetrics(
-  metrics: api.AdminAdvancedMetrics | undefined
-): AdvancedMetrics | undefined {
-  if (!metrics) {
-    return undefined;
-  }
-  return {
-    engagement: {
-      dau: metrics.engagement?.dau || 0,
-      wau: metrics.engagement?.wau || 0,
-      mau: metrics.engagement?.mau || 0,
-      stickiness: {
-        daily_to_monthly: metrics.engagement?.stickiness?.daily_to_monthly || '0%',
-        daily_to_weekly: metrics.engagement?.stickiness?.weekly_to_monthly || '0%',
-      },
-    },
-    retention: {
-      cohorts:
-        metrics.retention?.cohorts?.map(c => ({
-          cohort_date: c.cohort_date,
-          week_number: Number(c.week_number),
-          retained_users: c.retained_users,
-          retention_rate: 0,
-        })) || [],
-    },
-    ltv_by_tier: [...(metrics.ltv_by_tier ?? [])],
-    feature_adoption: {
-      install_adopters: metrics.feature_adoption?.install_adopters || 0,
-      search_adopters: metrics.feature_adoption?.search_adopters || 0,
-      runtime_adopters: metrics.feature_adoption?.runtime_adopters || 0,
-      total_users: metrics.feature_adoption?.total_active_users || 0,
-    },
-    command_heatmap: [...(metrics.command_heatmap ?? [])],
-    runtime_adoption:
-      metrics.runtime_adoption?.map(r => ({
-        runtime: r.runtime,
-        unique_users: r.unique_users,
-        total_uses: r.total_uses,
-        growth_rate: 0,
-      })) || [],
-    churn_risk_segments:
-      metrics.churn_risk_segments?.map(s => ({
-        risk_segment: oneOf(['low', 'medium', 'high', 'critical'], s.risk_segment) ?? 'medium',
-        user_count: s.user_count,
-        tier: s.tier,
-        avg_days_inactive: 0,
-      })) || [],
-    expansion_opportunities:
-      metrics.expansion_opportunities?.map(o => ({
-        email: o.email,
-        tier: o.tier,
-        opportunity_type:
-          oneOf(['usage_based', 'feature_gate', 'team_growth', 'enterprise'], o.opportunity_type) ??
-          'usage_based',
-        priority: oneOf(['low', 'medium', 'high', 'urgent'], o.priority) ?? 'medium',
-        potential_arr: 0,
-      })) || [],
-    time_to_value: {
-      avg_days_to_activation: metrics.time_to_value?.avg_days_to_activation || 0,
-      pct_activated_week1: metrics.time_to_value?.pct_activated_week1 || 0,
-      pct_activated_month1: 0,
-    },
-    revenue_metrics: {
-      current_mrr: metrics.revenue_metrics?.current_mrr || 0,
-      projected_arr: metrics.revenue_metrics?.projected_arr || 0,
-      expansion_mrr_12m: metrics.revenue_metrics?.expansion_mrr_12m || 0,
-      net_revenue_retention: 0,
-    },
   };
 }
 
@@ -249,63 +159,48 @@ function getCountryName(code: string): string {
 }
 
 function transformToCRMCustomer(user: api.AdminUser): CRMCustomer {
-  const score = user.engagement_score || 50;
-  const stage = oneOf(LIFECYCLE_STAGES, user.lifecycle_stage || 'active') ?? 'active';
-
   return {
     id: user.id,
     email: user.email,
-    company: user.company || undefined,
-    tier: user.tier || 'free',
-    status: oneOf(['active', 'suspended', 'cancelled'], user.status) ?? 'active',
-    health: {
-      overall_score: score,
-      engagement_score: Math.min(100, score + 10),
-      activation_score: Math.min(100, score + 5),
-      growth_score: Math.max(0, score - 10),
-      risk_score: Math.max(0, 100 - score),
-      lifecycle_stage: stage,
-      predicted_churn_probability: stage === 'at_risk' ? 0.6 : stage === 'churned' ? 0.9 : 0.1,
-      predicted_upgrade_probability: score > 70 ? 0.7 : 0.3,
-      expansion_readiness_score: score,
-      command_velocity_7d: user.total_commands || 0,
-      command_velocity_trend: score > 60 ? 'growing' : score > 40 ? 'stable' : 'declining',
-    },
-    tags: [],
+    company: user.company ?? undefined,
+    tier: user.tier,
+    status: user.status,
+    engagement_score: user.engagement_score,
     created_at: user.created_at,
-    last_activity_at: user.last_active || user.created_at,
-    total_commands: user.total_commands || 0,
-    machine_count: user.machine_count || 0,
-    mrr: user.tier === 'enterprise' ? 199 : user.tier === 'team' ? 29 : user.tier === 'pro' ? 9 : 0,
+    total_commands: user.total_commands,
+    machine_count: user.machine_count,
   };
 }
 
 const AdminDashboard: Component = () => {
   const [store, actions] = createDashboardStore();
   const dashboardQuery = useAdminDashboard();
-  const firehoseQuery = useAdminFirehose(100);
+  const firehoseQuery = useAdminFirehose(100, () => store.navigation.activeTab === 'overview');
   const crmUsersQuery = createQuery(() => ({
     queryKey: ['admin-crm-users', store.crm.page, 25, store.crm.search],
     queryFn: () => api.getAdminUsers(store.crm.page, 25, store.crm.search),
+    enabled: store.navigation.activeTab === 'crm',
   }));
-  const advancedMetricsQuery = useAdminAdvancedMetrics();
+  const advancedMetricsQuery = useAdminAdvancedMetrics(
+    () => store.navigation.activeTab === 'overview'
+  );
   const siteGeoQuery = createQuery(() => ({
     queryKey: ['site-geo-analytics', DATE_RANGE_DAYS[store.filters.dateRange]],
     queryFn: () => api.getSiteGeoAnalytics(DATE_RANGE_DAYS[store.filters.dateRange]),
     staleTime: 60 * 1000,
+    enabled: store.navigation.activeTab === 'analytics',
   }));
-  const realtimeQuery = useSiteRealtimeAnalytics();
+  const realtimeQuery = useSiteRealtimeAnalytics(() => store.navigation.activeTab === 'analytics');
   const siteOverviewQuery = createQuery(() => ({
     queryKey: ['site-analytics-overview', DATE_RANGE_DAYS[store.filters.dateRange]],
     queryFn: () => api.getSiteAnalyticsOverview(DATE_RANGE_DAYS[store.filters.dateRange]),
     staleTime: 60 * 1000,
+    enabled: store.navigation.activeTab === 'analytics',
   }));
 
   const overviewMetrics = createMemo(() =>
     toOverviewMetrics(dashboardQuery.data, advancedMetricsQuery.data)
   );
-
-  const advancedMetrics = createMemo(() => transformToAdvancedMetrics(advancedMetricsQuery.data));
 
   const firehoseEvents = createMemo(() =>
     transformFirehoseEvents(firehoseQuery.data?.events || [])
@@ -326,13 +221,15 @@ const AdminDashboard: Component = () => {
 
   const commandHealth = createMemo((): CommandHealth => {
     const health = dashboardQuery.data?.overview?.command_health;
-    const total = (health?.success || 0) + (health?.failure || 0);
+    const success = health?.success ?? 0;
+    const failure = health?.failure ?? 0;
+    const total = success + failure;
     if (total === 0) {
-      return { success: 95, failure: 5 };
+      return { success: null, failure: null };
     }
     return {
-      success: ((health?.success || 0) / total) * 100,
-      failure: ((health?.failure || 0) / total) * 100,
+      success: (success / total) * 100,
+      failure: (failure / total) * 100,
     };
   });
 
@@ -653,11 +550,12 @@ const AdminDashboard: Component = () => {
                 <TabErrorBoundary tab="Overview">
                   <OverviewTab
                     metrics={overviewMetrics()}
-                    advancedMetrics={advancedMetrics()}
                     firehoseEvents={firehoseEvents()}
                     geoDistribution={geoDistribution()}
                     commandHealth={commandHealth()}
                     isMetricsLoading={advancedMetricsQuery.isLoading}
+                    isMetricsError={advancedMetricsQuery.isError}
+                    onRetryMetrics={() => advancedMetricsQuery.refetch()}
                     onRefresh={() => firehoseQuery.refetch()}
                   />
                 </TabErrorBoundary>

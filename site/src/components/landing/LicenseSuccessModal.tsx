@@ -2,8 +2,6 @@ import { Dialog } from '@kobalte/core';
 import { Check, Copy, KeyRound, LoaderCircle, X } from 'lucide-solid';
 import type { Component } from 'solid-js';
 import { createMemo, createSignal, onMount, Show } from 'solid-js';
-import { parseCheckoutSessionStatus } from '../../lib/dashboard-contract';
-import { reportClientError } from '../../lib/observability';
 
 const CHECKOUT_SESSION_ID_PATTERN = /^cs_[A-Za-z0-9]{10,200}$/;
 
@@ -24,9 +22,14 @@ async function verifyCheckoutSession(
     if (!response.ok) {
       return { ok: false };
     }
+    const { parseCheckoutSessionStatus } = await import('../../lib/dashboard-contract');
     const parsed = parseCheckoutSessionStatus(await response.json());
     if (!parsed.ok) {
-      reportClientError('Checkout session response has an invalid shape', parsed.error);
+      void import('../../lib/observability').then(
+        ({ reportClientError }) =>
+          reportClientError('Checkout session response has an invalid shape', parsed.error),
+        () => undefined
+      );
       return { ok: false };
     }
     const license = parsed.value.license;
@@ -41,7 +44,10 @@ async function verifyCheckoutSession(
     }
     return { ok: true, state: { _tag: 'unverified' } };
   } catch (cause: unknown) {
-    reportClientError('Unhandled client operation failed', cause);
+    void import('../../lib/observability').then(
+      ({ reportClientError }) => reportClientError('Unhandled client operation failed', cause),
+      () => undefined
+    );
     return { ok: false };
   }
 }

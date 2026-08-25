@@ -33,10 +33,13 @@ function invalidatingMutation<TData, TVariables>(
 
 export const useAdminDashboard = () => apiQuery(['admin-dashboard'], api.getAdminDashboard);
 
-export const useAdminFirehose = (limit = 50) =>
-  apiQuery(['admin-firehose', limit], () => api.getAdminFirehose(limit), {
-    refetchInterval: 5000,
-  });
+export const useAdminFirehose = (limit = 50, enabled: () => boolean = () => true) =>
+  createQuery(() => ({
+    queryKey: ['admin-firehose', limit],
+    queryFn: () => api.getAdminFirehose(limit),
+    enabled: enabled(),
+    refetchInterval: enabled() ? 5000 : false,
+  }));
 
 export const useAdminRevenue = () => apiQuery(['admin-revenue'], api.getAdminRevenue);
 
@@ -94,12 +97,18 @@ export const useRemoveTag = () =>
     params => [['admin-customer-tags', params.customerId], ['admin-tags']]
   );
 
-export const useAdminAdvancedMetrics = () =>
-  apiQuery(['admin-advanced-metrics'], api.getAdminAdvancedMetrics, {
+export const useAdminAdvancedMetrics = (enabled: () => boolean = () => true) =>
+  createQuery(() => ({
+    queryKey: ['admin-advanced-metrics'],
+    queryFn: api.getAdminAdvancedMetrics,
+    enabled: enabled(),
     staleTime: 300000,
-  });
+  }));
 
-export const useSiteRealtimeAnalytics = () =>
-  apiQuery(['site-realtime-analytics'], api.getSiteRealtimeAnalytics, {
-    refetchInterval: 10000,
-  });
+export const useSiteRealtimeAnalytics = (enabled: () => boolean = () => true) =>
+  createQuery(() => ({
+    queryKey: ['site-realtime-analytics'],
+    queryFn: api.getSiteRealtimeAnalytics,
+    enabled: enabled(),
+    refetchInterval: enabled() ? 10000 : false,
+  }));

@@ -1,3 +1,6 @@
+/** Production origin of the licensing and analytics Worker. */
+export const LICENSING_API_ORIGIN = 'https://omg-api.latham.cloud';
+
 /** Version of the licensing HTTP route contract shared by the site BFF and Worker. */
 export const LICENSING_HTTP_API_VERSION = 1;
 

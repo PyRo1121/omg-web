@@ -259,18 +259,6 @@ a[role='button']:active {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums lining-nums;
 }
-.shiki-wrapper pre {
-  margin: 0 !important;
-  overflow-x: auto;
-  padding: 1.25rem !important;
-  background: transparent !important;
-}
-.shiki-wrapper code {
-  padding: 0 !important;
-  background: transparent !important;
-  font-size: 0.8125rem !important;
-  line-height: 1.7 !important;
-}
 .prose pre {
   border: 1px solid var(--rule);
   border-radius: 0.125rem;

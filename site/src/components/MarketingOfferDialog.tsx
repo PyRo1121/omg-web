@@ -1,8 +1,6 @@
 import { Dialog } from '@kobalte/core';
 import { Check, Copy, LoaderCircle, X } from 'lucide-solid';
 import { type Component, createSignal, Show } from 'solid-js';
-import { claimMarketingOffer } from '~/lib/api';
-import { reportClientError } from '~/lib/observability';
 import type { MarketingOfferResponse } from '../../shared/marketing-offer';
 
 interface MarketingOfferDialogProps {
@@ -25,12 +23,16 @@ const MarketingOfferDialog: Component<MarketingOfferDialogProps> = props => {
     setError('');
     setLoading(true);
     try {
+      const { claimMarketingOffer } = await import('~/lib/api');
       const claimed = await claimMarketingOffer(email());
       setOffer(claimed);
       props.onOfferCreated(claimed);
     } catch (cause: unknown) {
-      reportClientError('Marketing offer claim failed', cause);
       setError('We could not create the offer right now. Try again in a moment.');
+      void import('~/lib/observability').then(
+        ({ reportClientError }) => reportClientError('Marketing offer claim failed', cause),
+        () => undefined
+      );
     } finally {
       setLoading(false);
     }

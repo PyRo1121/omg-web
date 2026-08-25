@@ -1,29 +1,14 @@
-// Boundary parser internals decode TanStack Query failure objects.
-
 import { QueryClient } from '@tanstack/solid-query';
-import * as Schema from 'effect/Schema';
-import { ApiError } from './api';
-
-const QueryHttpErrorSchema = Schema.Struct({
-  response: Schema.optional(
-    Schema.Struct({
-      status: Schema.optional(Schema.Number),
-    })
-  ),
-});
+import { ApiError } from './api-error';
 
 /**
  * Read an HTTP status from a query/mutation failure.
  *
  * @param error - TanStack Query's thrown error.
- * @returns The status when the error is an `ApiError` or an axios-shaped object.
+ * @returns The status when the error is a classified `ApiError`.
  */
 export function queryErrorStatus(error: Error): number | undefined {
-  if (error instanceof ApiError) {
-    return error.status;
-  }
-  const decoded = Schema.decodeUnknownEither(QueryHttpErrorSchema)(error);
-  return decoded._tag === 'Right' ? decoded.right.response?.status : undefined;
+  return error instanceof ApiError ? error.status : undefined;
 }
 
 /**

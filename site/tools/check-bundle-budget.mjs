@@ -7,7 +7,9 @@ const assetsDirectory = new URL('../.vinxi/build/client/_build/assets/', import.
 const MAX_JAVASCRIPT_CHUNK_BYTES = 500_000;
 const MAX_JAVASCRIPT_CHUNK_GZIP_BYTES = 130_000;
 const MAX_TOTAL_JAVASCRIPT_GZIP_BYTES = 400_000;
+const MAX_ENTRY_MODULEPRELOAD_GZIP_BYTES = 110_000;
 const MAX_STYLESHEET_GZIP_BYTES = 30_000;
+const entryHtml = new URL('../dist/index.html', import.meta.url);
 // SolidStart's JavaScript serializer emits an indirect `(0, eval)(...)`
 // deserializer. `new Function(...)` is the other constructor blocked by the
 // same CSP policy. Do not match ordinary object methods named `eval` (Effect's
@@ -67,6 +69,34 @@ if (totalJavascriptGzipBytes > MAX_TOTAL_JAVASCRIPT_GZIP_BYTES) {
   );
 }
 
+let entryModulepreloadGzipBytes = 0;
+try {
+  const html = await readFile(entryHtml, 'utf8');
+  const preloadedNames = new Set();
+  for (const match of html.matchAll(/<link\b[^>]*>/g)) {
+    const tag = match[0];
+    if (!/\brel=["']modulepreload["']/.test(tag)) continue;
+    const href = tag.match(/\bhref=["']\/_build\/assets\/([^"']+)["']/)?.[1];
+    if (href !== undefined) preloadedNames.add(href);
+  }
+  if (preloadedNames.size === 0) {
+    reportFailure(
+      'landing page has no modulepreload assets; generated HTML shape may have changed'
+    );
+  }
+  for (const name of preloadedNames) {
+    const bytes = await readFile(new URL(name, assetsDirectory));
+    entryModulepreloadGzipBytes += gzipSync(bytes).byteLength;
+  }
+  if (entryModulepreloadGzipBytes > MAX_ENTRY_MODULEPRELOAD_GZIP_BYTES) {
+    reportFailure(
+      `landing modulepreloads total ${entryModulepreloadGzipBytes} gzip bytes; maximum is ${MAX_ENTRY_MODULEPRELOAD_GZIP_BYTES}`
+    );
+  }
+} catch (error) {
+  reportFailure(`could not measure landing modulepreloads: ${String(error)}`);
+}
+
 for (const name of stylesheetNames) {
   const bytes = await readFile(new URL(name, assetsDirectory));
   const gzipBytes = gzipSync(bytes).byteLength;
@@ -79,6 +109,6 @@ for (const name of stylesheetNames) {
 
 if (process.exitCode === undefined) {
   process.stdout.write(
-    `[bundle-budget] ${javascriptNames.length} JavaScript chunks total ${totalJavascriptGzipBytes} gzip bytes; all budgets pass\n`
+    `[bundle-budget] ${javascriptNames.length} JavaScript chunks total ${totalJavascriptGzipBytes} gzip bytes; landing modulepreloads ${entryModulepreloadGzipBytes} gzip bytes; all budgets pass\n`
   );
 }

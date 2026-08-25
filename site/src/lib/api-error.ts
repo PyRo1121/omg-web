@@ -9,3 +9,16 @@ export function storedDataErrorResponse(): Response {
     headers: { 'Content-Type': 'application/json' },
   });
 }
+
+/** A classified HTTP/API failure surfaced at the Promise-based UI boundary. */
+export class ApiError extends Error {
+  readonly _tag = 'ApiError';
+
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}

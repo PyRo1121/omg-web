@@ -2,6 +2,7 @@
 
 import { Cause, Effect, Exit, Option } from 'effect';
 import type * as Schema from 'effect/Schema';
+import { ApiError } from './api-error';
 import { casesHandled } from './prelude';
 import {
   browserWorkerFetcher,
@@ -94,7 +95,7 @@ function withQuery(
   return `${path}?${searchParams}`;
 }
 
-/** A classified HTTP/API failure surfaced through TanStack Query. See {@link runWorkerRequest}. */
+/** Claim a marketing offer through the same-origin public BFF. */
 export async function claimMarketingOffer(email: string): Promise<MarketingOfferResponse> {
   return runWorkerRequest(
     requestDecodedJson(
@@ -109,18 +110,6 @@ export async function claimMarketingOffer(email: string): Promise<MarketingOffer
       'Marketing offer response has an invalid shape'
     )
   );
-}
-
-export class ApiError extends Error {
-  readonly _tag = 'ApiError';
-
-  constructor(
-    message: string,
-    public readonly status: number
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
 }
 
 // ==== Account API ====

@@ -4,7 +4,6 @@ import { Suspense, onMount } from 'solid-js';
 import { MetaProvider } from '@solidjs/meta';
 import { QueryClientProvider } from '@tanstack/solid-query';
 import { queryClient } from './lib/query';
-import { initAnalytics } from './lib/analytics-client';
 import '@fontsource-variable/archivo/wght.css';
 import '@fontsource/ibm-plex-mono/latin-400.css';
 import '@fontsource/ibm-plex-mono/latin-500.css';
@@ -13,7 +12,10 @@ import './app.css';
 
 export default function App() {
   onMount(() => {
-    initAnalytics();
+    void import('./lib/analytics-client').then(
+      ({ initAnalytics }) => initAnalytics(),
+      () => undefined
+    );
   });
 
   return (

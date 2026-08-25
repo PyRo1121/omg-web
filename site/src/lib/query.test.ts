@@ -1,17 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError } from './api';
+import { ApiError } from './api-error';
 import { isServerQueryError, queryErrorStatus, shouldRetryMutation } from './query';
 
 describe('queryErrorStatus', () => {
   it('reads ApiError.status', () => {
     expect(queryErrorStatus(new ApiError('boom', 503))).toBe(503);
-  });
-
-  it('reads an axios-shaped status', () => {
-    const error = Object.assign(new Error('request failed'), {
-      response: { status: 429 },
-    });
-    expect(queryErrorStatus(error)).toBe(429);
   });
 
   it('returns undefined for a plain Error', () => {

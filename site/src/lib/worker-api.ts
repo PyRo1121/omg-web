@@ -1,5 +1,6 @@
 import { Effect } from 'effect';
 import type * as Schema from 'effect/Schema';
+import { LICENSING_API_ORIGIN } from '../../shared/licensing-routes';
 import { parseApiError } from './dashboard-contract';
 import { decodeWorkerHttp, type WorkerHttpParseError } from './contracts/worker-http';
 
@@ -22,9 +23,6 @@ export class WorkerApiNetworkError extends Error {
   }
 }
 
-/** Production origin of the licensing/analytics Worker (omg-saas). */
-export const WORKER_API_ORIGIN = 'https://omg-api.latham.cloud';
-
 /** Posts or gets JSON through a controlled HTTP boundary. */
 export interface WorkerFetcher {
   fetch(input: string, init: RequestInit): Effect.Effect<Response, WorkerApiNetworkError>;
@@ -41,7 +39,7 @@ export const browserWorkerFetcher: WorkerFetcher = {
         const url = new URL(input, window.location.origin);
         const allowed =
           (url.origin === window.location.origin && url.pathname.startsWith('/api/licensing/')) ||
-          (url.origin === WORKER_API_ORIGIN && url.pathname === '/api/site/analytics/track');
+          (url.origin === LICENSING_API_ORIGIN && url.pathname === '/api/site/analytics/track');
         if (!allowed) {
           throw new WorkerApiNetworkError(new Error('Worker API route is not allowed'));
         }

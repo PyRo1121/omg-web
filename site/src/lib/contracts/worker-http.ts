@@ -135,8 +135,8 @@ const AdminUserSchema = Schema.Struct({
   machine_count: Num,
   total_commands: Num,
   last_active: Schema.optional(NullableStringSchema),
-  engagement_score: Schema.optional(Schema.Number),
-  lifecycle_stage: Schema.optional(Schema.String),
+  engagement_score: Num,
+  lifecycle_stage: Str,
 });
 
 export const AdminUsersResponseSchema = Schema.Struct({

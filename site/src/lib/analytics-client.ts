@@ -10,15 +10,14 @@
  * - Geo derived from edge/CDN headers on server
  */
 
+import { LICENSING_API_ORIGIN } from '../../shared/licensing-routes';
 import {
   inputDelayMs,
   interactionMs,
   layoutShiftDelta,
   navigationTtfbMs,
 } from './performance-entry';
-import { WORKER_API_ORIGIN } from './worker-api';
-
-const ANALYTICS_ENDPOINT = `${WORKER_API_ORIGIN}/api/site/analytics/track`;
+const ANALYTICS_ENDPOINT = `${LICENSING_API_ORIGIN}/api/site/analytics/track`;
 const BATCH_INTERVAL_MS = 3000;
 const MAX_BATCH_SIZE = 20;
 

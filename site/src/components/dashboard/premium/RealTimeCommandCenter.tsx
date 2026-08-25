@@ -1,14 +1,12 @@
 import { RefreshCw, Search } from 'lucide-solid';
 import type { Component } from 'solid-js';
 import { createMemo, createSignal, For, Show } from 'solid-js';
-import { Heatmap } from '../../../design-system/components/Charts';
-import type { AdvancedMetrics, CommandHealth, FirehoseEvent, GeoDistribution } from './types';
+import type { CommandHealth, FirehoseEvent, GeoDistribution } from './types';
 
 interface RealTimeCommandCenterProps {
   events: FirehoseEvent[];
   geoDistribution: GeoDistribution[];
   commandHealth: CommandHealth;
-  commandHeatmap?: AdvancedMetrics['command_heatmap'];
   isLive?: boolean;
   onRefresh?: () => void;
 }
@@ -71,14 +69,6 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
   const totalNodes = createMemo(() =>
     props.geoDistribution.reduce((total, location) => total + location.count, 0)
   );
-  const heatmapData = createMemo(() =>
-    (props.commandHeatmap ?? []).map(item => ({
-      x: Number.parseInt(item.hour, 10),
-      y: Number.parseInt(item.day_of_week, 10),
-      value: item.event_count,
-    }))
-  );
-
   const setEventFilter = (value: string): void => {
     if (
       value === 'all' ||
@@ -227,13 +217,17 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
               <div class="border-r border-[var(--rule)] p-4">
                 <dt class="manifest-label text-[var(--ink-muted)]">Success</dt>
                 <dd class="m-0 mt-2 font-mono text-3xl text-emerald-700">
-                  {props.commandHealth.success.toFixed(1)}%
+                  {props.commandHealth.success === null
+                    ? 'No data'
+                    : `${props.commandHealth.success.toFixed(1)}%`}
                 </dd>
               </div>
               <div class="p-4">
                 <dt class="manifest-label text-[var(--ink-muted)]">Failure</dt>
                 <dd class="m-0 mt-2 font-mono text-3xl text-red-700">
-                  {props.commandHealth.failure.toFixed(1)}%
+                  {props.commandHealth.failure === null
+                    ? 'No data'
+                    : `${props.commandHealth.failure.toFixed(1)}%`}
                 </dd>
               </div>
             </dl>
@@ -265,22 +259,6 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
           </section>
         </aside>
       </div>
-
-      <Show when={heatmapData().length > 0}>
-        <section class="border-t border-[var(--ink)] p-5" aria-labelledby="heatmap-title">
-          <h3 id="heatmap-title" class="manifest-label mb-5 text-[var(--ink-muted)]">
-            Activity by weekday and hour
-          </h3>
-          <Heatmap
-            data={heatmapData()}
-            xLabels={Array.from({ length: 24 }, (_, hour) => hour.toString().padStart(2, '0'))}
-            yLabels={['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']}
-            colorScale="indigo"
-            cellSize="sm"
-            showLegend
-          />
-        </section>
-      </Show>
     </section>
   );
 };

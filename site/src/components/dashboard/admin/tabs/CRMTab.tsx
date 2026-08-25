@@ -29,17 +29,20 @@ const statusClass = (status: CRMCustomer['status']): string => {
   if (status === 'active') {
     return 'text-emerald-700';
   }
-  if (status === 'suspended') {
+  if (status === 'suspended' || status === 'expired') {
     return 'text-amber-700';
   }
-  return 'text-red-700';
+  if (status === 'cancelled' || status === 'inactive') {
+    return 'text-red-700';
+  }
+  return 'text-[var(--ink-muted)]';
 };
 
 const responsiveColumnClass = (id: string): string => {
   if (id === 'machines' || id === 'commands' || id === 'joined') {
     return 'hidden lg:table-cell';
   }
-  if (id === 'health') {
+  if (id === 'engagement') {
     return 'hidden md:table-cell';
   }
   return '';
@@ -77,9 +80,9 @@ export const CRMTab: Component<CRMTabProps> = props => {
         </span>
       ),
     }),
-    columnHelper.accessor(customer => customer.health.overall_score, {
-      id: 'health',
-      header: 'Health',
+    columnHelper.accessor('engagement_score', {
+      id: 'engagement',
+      header: 'Engagement',
       cell: context => <data value={context.getValue()}>{context.getValue()} / 100</data>,
     }),
     columnHelper.accessor('machine_count', {
