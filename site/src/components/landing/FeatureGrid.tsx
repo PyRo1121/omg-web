@@ -3,22 +3,22 @@ import { For } from 'solid-js';
 
 const WORKFLOWS = [
   {
-    job: 'Install a package',
+    job: 'Install an app',
     before: 'apt · pacman · brew',
     command: 'omg install ripgrep',
-    result: 'Native package, one command',
+    result: 'Installed with your system’s own package manager',
   },
   {
-    job: 'Pin a runtime',
+    job: 'Set up a language',
     before: 'nvm · pyenv · rustup',
     command: 'omg use node 22',
-    result: 'Runtime installed and selected',
+    result: 'Node 22 installed and ready to use',
   },
   {
-    job: 'Restore a toolchain',
-    before: 'README · shell hooks · memory',
+    job: 'Move to a new machine',
+    before: 'README · shell history · memory',
     command: 'omg env sync <share-url>',
-    result: 'The shared environment restored',
+    result: 'Every package and language reinstalled for you',
   },
 ] as const;
 
@@ -45,8 +45,8 @@ const FeatureGrid: Component = () => (
       </h2>
       <div class="max-w-xl lg:justify-self-end">
         <p class="m-0 text-lg leading-relaxed text-[var(--ink-muted)]">
-          OMG does not replace the package repositories you trust. It replaces the commands, version
-          managers, and setup notes you have to remember.
+          OMG uses the package managers you already trust under the hood. You just learn one command
+          instead of seven.
         </p>
         <a
           href="/docs/"

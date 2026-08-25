@@ -13,8 +13,9 @@ const Hero: Component = () => (
         >
           Stop managing package managers.
         </h1>
-        <p class="mt-8 max-w-lg text-xl leading-relaxed text-[var(--ink-muted)]">
-          System packages, language runtimes, and project toolchains through one command.
+        <p class="mt-8 max-w-xl text-xl leading-relaxed text-[var(--ink-muted)]">
+          OMG is a free, open-source command that installs apps and programming languages on Linux
+          and macOS — so you stop juggling apt, brew, nvm, pyenv, and friends.
         </p>
         <div class="mt-10 flex flex-wrap items-center gap-5">
           <a
