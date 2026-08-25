@@ -19,11 +19,13 @@ test.describe('anonymous authorization', () => {
   test('opens the introductory offer only from pricing intent', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+        )
       )
-    ).toBe(true);
+      .toBe(true);
 
     await expect(async () => {
       await page.getByRole('button', { name: 'Get a private code' }).click();
@@ -87,11 +89,13 @@ test.describe('anonymous authorization', () => {
     expect(sitemapText).toContain('<lastmod>');
     expect(sitemapText).not.toContain('https://omg.latham.cloud/dashboard');
     expect(sitemapText).not.toContain('/docs/getting-started');
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+        )
       )
-    ).toBe(true);
+      .toBe(true);
   });
 
   test('renders the complete login entry surface', async ({ page }) => {
