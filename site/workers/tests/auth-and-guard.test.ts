@@ -284,6 +284,44 @@ describe('POST /api/auth/verify-code', () => {
     expect(response.status).toBe(200);
   });
 
+  it('atomically caps successful login sessions at five', async () => {
+    const customerId = 'session-cap-customer';
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, company, tier, admin)
+       VALUES (?, ?, 'Session cap', 'free', 0)`
+    )
+      .bind(customerId, TEST_EMAIL)
+      .run();
+    await env.DB.batch(
+      Array.from({ length: 5 }, (_, index) =>
+        env.DB.prepare(
+          `INSERT INTO sessions (id, customer_id, token, expires_at)
+             VALUES (?, ?, ?, datetime('now', '+1 hour'))`
+        ).bind(`old-session-${index}`, customerId, `old-token-${index}`)
+      )
+    );
+
+    const deliveredCode = await sendCodeWithTestMailer();
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/auth/verify-code', JSON.stringify({ email: TEST_EMAIL, code: deliveredCode })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+    const payload = Schema.decodeUnknownSync(VerifyCodeResponseSchema)(await response.json());
+    const sessions = await env.DB.prepare(
+      `SELECT COUNT(*) as count,
+              SUM(CASE WHEN token = ? THEN 1 ELSE 0 END) as minted
+       FROM sessions WHERE customer_id = ?`
+    )
+      .bind(payload.token, customerId)
+      .first<{ count: number; minted: number }>();
+    expect(sessions).toEqual({ count: 5, minted: 1 });
+  });
+
   it('allows only one concurrent verification of the same code', async () => {
     const deliveredCode = await sendCodeWithTestMailer();
     const firstContext = createExecutionContext();
@@ -377,6 +415,9 @@ describe('admin handler authorization', () => {
     await env.DB.prepare(`DELETE FROM audit_log WHERE customer_id IN (?, ?)`)
       .bind(adminCustomerId, userCustomerId)
       .run();
+    await env.DB.prepare(`DELETE FROM licenses WHERE customer_id IN (?, ?)`)
+      .bind(adminCustomerId, userCustomerId)
+      .run();
     await env.DB.prepare(`DELETE FROM sessions WHERE customer_id IN (?, ?)`)
       .bind(adminCustomerId, userCustomerId)
       .run();
@@ -404,6 +445,36 @@ describe('admin handler authorization', () => {
 
     expect(userResponse.status).toBe(403);
     expect(adminResponse.status).toBe(200);
+  });
+
+  it('updates a customer license through one returning mutation', async () => {
+    await env.DB.prepare(
+      `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_machines, max_seats)
+       VALUES ('admin-update-license', ?, 'admin-update-key', 'free', 'active', 1, 1)`
+    )
+      .bind(userCustomerId)
+      .run();
+
+    const context = createExecutionContext();
+    const response = await worker.fetch(
+      new Request('http://localhost/api/admin/user', {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: userCustomerId, tier: 'pro' }),
+      }),
+      env,
+      context
+    );
+    await waitOnExecutionContext(context);
+
+    expect(response.status).toBe(200);
+    const license = await env.DB.prepare(`SELECT tier FROM licenses WHERE id = ?`)
+      .bind('admin-update-license')
+      .first<{ tier: string }>();
+    expect(license?.tier).toBe('pro');
   });
 
   it('lists users with a count from the independently batched query', async () => {

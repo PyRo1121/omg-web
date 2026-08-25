@@ -433,35 +433,33 @@ function verifyCode(
       catch: cause => new AuthStoreUnavailable('invalidateCodes', cause),
     });
     const customer = yield* findOrCreateCustomer(env.DB, body.email, request);
+    const sessionId = crypto.randomUUID();
     const sessionToken = brandGeneratedId(SessionToken, generateToken());
     const sessionExpires = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+    // Insert and cap sessions in one D1 transaction so concurrent logins cannot
+    // observe a successful insert without its corresponding prune.
     yield* Effect.tryPromise({
       try: () =>
-        env.DB.prepare(
-          `INSERT INTO sessions (id, customer_id, token, ip_address, user_agent, expires_at)
-           VALUES (?, ?, ?, ?, ?, ?)`
-        )
-          .bind(
-            crypto.randomUUID(),
+        env.DB.batch([
+          env.DB.prepare(
+            `INSERT INTO sessions (id, customer_id, token, ip_address, user_agent, expires_at)
+               VALUES (?, ?, ?, ?, ?, ?)`
+          ).bind(
+            sessionId,
             customer.id,
             sessionToken,
             request.headers.get('CF-Connecting-IP'),
             request.headers.get('User-Agent'),
             sessionExpires
-          )
-          .run(),
-      catch: cause => new AuthStoreUnavailable('insertSession', cause),
-    });
-    yield* Effect.tryPromise({
-      try: () =>
-        env.DB.prepare(
-          `DELETE FROM sessions WHERE customer_id = ? AND id NOT IN (
-            SELECT id FROM sessions WHERE customer_id = ? ORDER BY created_at DESC LIMIT ${MAX_SESSIONS_PER_CUSTOMER}
-          )`
-        )
-          .bind(customer.id, customer.id)
-          .run(),
-      catch: cause => new AuthStoreUnavailable('pruneSessions', cause),
+          ),
+          env.DB.prepare(
+            `DELETE FROM sessions WHERE customer_id = ? AND id NOT IN (
+                SELECT id FROM sessions WHERE customer_id = ?
+                ORDER BY created_at DESC, rowid DESC LIMIT ?
+              )`
+          ).bind(customer.id, customer.id, MAX_SESSIONS_PER_CUSTOMER),
+        ]),
+      catch: cause => new AuthStoreUnavailable('insertAndPruneSessions', cause),
     });
     yield* logAudit(env.DB, customer.id, 'auth.login', 'session', null, request);
     return {

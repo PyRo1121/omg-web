@@ -44,6 +44,7 @@ import {
   GlobalUsageRowSchema,
   GrowthRowSchema,
   HoursSavedRowSchema,
+  IdRowSchema,
   JourneyRowSchema,
   PerformanceStatsRowSchema,
   RateRowSchema,
@@ -474,24 +475,23 @@ export const updateUser = (
   input: UpdateUserInput
 ): Effect.Effect<UpdateUserResult, AdminStoreError> =>
   Effect.gen(function* () {
-    const existing = yield* Effect.tryPromise({
-      try: () =>
-        statement(db, 'SELECT id FROM licenses WHERE customer_id = ?', [input.userId]).first(),
-      catch: fail('updateUser'),
-    });
-    if (existing === null) {
-      return { _tag: 'customer-not-found' } as const;
-    }
-    yield* Effect.tryPromise({
+    const updatedRow = yield* Effect.tryPromise({
       try: () =>
         statement(
           db,
-          'UPDATE licenses SET tier = COALESCE(?, tier), status = COALESCE(?, status), updated_at = CURRENT_TIMESTAMP WHERE customer_id = ?',
+          'UPDATE licenses SET tier = COALESCE(?, tier), status = COALESCE(?, status), updated_at = CURRENT_TIMESTAMP WHERE customer_id = ? RETURNING id',
           [input.tier ?? null, input.status ?? null, input.userId]
-        ).run(),
+        ).first(),
       catch: fail('updateUser'),
     });
-    return { _tag: 'updated' } as const;
+    const updated = yield* decodeOptionalExtraRow(
+      IdRowSchema,
+      'Admin updated license row has an invalid shape',
+      updatedRow
+    ).pipe(Effect.mapError(cause => new AdminStoreError('updateUser', cause)));
+    return updated === null
+      ? ({ _tag: 'customer-not-found' } as const)
+      : ({ _tag: 'updated' } as const);
   });
 
 /** Load one page of the latest admin activity. */
@@ -691,9 +691,6 @@ export const listAuditLog = (db: D1Database, limit: number, offset: number) =>
       batchResults[1]?.results?.[0]
     );
     return { logs, total: totalRow?.count ?? 0 };
-  });
-
-/** Load one page of enriched audit events, plus the total event count.
   });
 
 /** Load advanced engagement, retention, adoption, and revenue metrics. */
