@@ -372,21 +372,6 @@ function verifyCode(
 ): Effect.Effect<VerifyCodeResponse, VerifyCodeError> {
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, VerifyCodeRequestSchema);
-    // Privacy-safe per-email throttle in addition to the adapter's per-IP
-    // limit: the bucket key is a SHA-256 digest of the normalized email, so
-    // distributed guesses against one victim account are bounded without
-    // storing addresses or consuming stored OTP attempts.
-    if (env.AUTH_RATE_LIMITER === undefined) {
-      return yield* Effect.fail(new AuthRateLimiterUnavailable());
-    }
-    const emailKey = yield* hashEmailForLimiting(body.email);
-    const emailAllowed = yield* checkRateLimitBucket(
-      env.AUTH_RATE_LIMITER,
-      `verify_code_email:${emailKey}`
-    );
-    if (!emailAllowed) {
-      return yield* Effect.fail(new AuthRateLimitedError());
-    }
     const digest = yield* digestOtpCode(body.email, body.code, env.JWT_SECRET);
     yield* Effect.tryPromise({
       try: () =>
@@ -405,20 +390,39 @@ function verifyCode(
           .first(),
       catch: cause => new AuthStoreUnavailable('claimCode', cause),
     }).pipe(
-      Effect.flatMap((row): Effect.Effect<AuthCodeRow, AuthStoreUnavailable | InvalidOtpError> => {
+      Effect.flatMap((row): Effect.Effect<AuthCodeRow, VerifyCodeError> => {
         if (row !== null) {
           return decodeAuthCodeRow(row).pipe(
             Effect.mapError(cause => new AuthStoreUnavailable('claimCode', cause))
           );
         }
-        // Do NOT increment attempt_count here: doing so lets an attacker who
-        // knows the victim's email burn their legitimate code by submitting
-        // wrong codes. Guesses are instead bounded by the per-IP limiter and
-        // the privacy-safe per-email hashed bucket checked above; this gate
-        // stays as defense-in-depth for any future writer that counts tries.
-        return logAudit(env.DB, null, 'auth.code_verify_failed', 'auth_code', null, request, {
-          email: body.email.slice(0, AUDIT_EMAIL_MAX_LENGTH),
-        }).pipe(Effect.zipRight(Effect.fail(new InvalidOtpError())));
+        // A correct code must remain usable even if an attacker has exhausted
+        // the victim's per-email failure bucket. Only failed guesses consume
+        // that bucket; the adapter's per-IP limiter still runs before this
+        // database lookup, while the hashed email bucket bounds distributed
+        // invalid guesses without storing an address.
+        return Effect.gen(function* () {
+          if (env.AUTH_RATE_LIMITER === undefined) {
+            return yield* Effect.fail(new AuthRateLimiterUnavailable());
+          }
+          const emailKey = yield* hashEmailForLimiting(body.email);
+          const emailAllowed = yield* checkRateLimitBucket(
+            env.AUTH_RATE_LIMITER,
+            `verify_code_email:${emailKey}`
+          );
+          if (!emailAllowed) {
+            return yield* Effect.fail(new AuthRateLimitedError());
+          }
+          return yield* logAudit(
+            env.DB,
+            null,
+            'auth.code_verify_failed',
+            'auth_code',
+            null,
+            request,
+            { email: body.email.slice(0, AUDIT_EMAIL_MAX_LENGTH) }
+          ).pipe(Effect.zipRight(Effect.fail(new InvalidOtpError())));
+        });
       })
     );
     yield* Effect.tryPromise({

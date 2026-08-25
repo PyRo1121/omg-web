@@ -21,15 +21,26 @@ const EVENT_LABELS = {
   error: 'Error',
 } as const satisfies Record<FirehoseEvent['event_type'], string>;
 
-const formatTimestamp = (timestamp: string): string =>
-  new Intl.DateTimeFormat('en', {
+const formatTimestamp = (timestamp: string | undefined): string => {
+  if (timestamp === undefined) {
+    return 'Unknown';
+  }
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown';
+  }
+  return new Intl.DateTimeFormat('en', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-  }).format(new Date(timestamp));
+  }).format(date);
+};
 
-const formatDuration = (milliseconds: number): string => {
+const formatDuration = (milliseconds: number | undefined): string => {
+  if (milliseconds === undefined) {
+    return '—';
+  }
   if (milliseconds < 1) {
     return '<1 ms';
   }
@@ -160,7 +171,11 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
                 {event => (
                   <tr class="border-b border-[var(--rule)] last:border-b-0 hover:bg-[var(--paper-muted)]">
                     <td class="p-4 text-[var(--ink-muted)]">
-                      <time dateTime={event.timestamp}>{formatTimestamp(event.timestamp)}</time>
+                      <Show when={event.timestamp} fallback="Unknown">
+                        {timestamp => (
+                          <time dateTime={timestamp()}>{formatTimestamp(timestamp())}</time>
+                        )}
+                      </Show>
                     </td>
                     <td
                       class={`p-4 font-semibold uppercase ${event.event_type === 'error' ? 'text-red-700' : 'text-[var(--signal)]'}`}
@@ -172,9 +187,19 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
                     <td class="p-4">{event.platform}</td>
                     <td class="p-4 text-right">{formatDuration(event.duration_ms)}</td>
                     <td
-                      class={`p-4 text-right font-semibold ${event.success === false ? 'text-red-700' : 'text-emerald-700'}`}
+                      class={`p-4 text-right font-semibold ${
+                        event.success === true
+                          ? 'text-emerald-700'
+                          : event.success === false
+                            ? 'text-red-700'
+                            : 'text-[var(--ink-muted)]'
+                      }`}
                     >
-                      {event.success === false ? 'Failed' : 'OK'}
+                      {event.success === true
+                        ? 'OK'
+                        : event.success === false
+                          ? 'Failed'
+                          : 'Unknown'}
                     </td>
                   </tr>
                 )}

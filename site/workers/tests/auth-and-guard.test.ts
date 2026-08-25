@@ -267,6 +267,23 @@ describe('POST /api/auth/verify-code', () => {
     expect(payload.token.length).toBeGreaterThan(0);
   });
 
+  it('accepts a valid code even when its failed-guess bucket is exhausted', async () => {
+    const deliveredCode = await sendCodeWithTestMailer();
+    env.AUTH_RATE_LIMITER = {
+      limit: async ({ key }) => ({ success: !key.startsWith('verify_code_email:') }),
+    };
+
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/auth/verify-code', JSON.stringify({ email: TEST_EMAIL, code: deliveredCode })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+  });
+
   it('allows only one concurrent verification of the same code', async () => {
     const deliveredCode = await sendCodeWithTestMailer();
     const firstContext = createExecutionContext();

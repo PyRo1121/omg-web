@@ -47,9 +47,9 @@ export interface FirehoseEvent {
   machine_id: string;
   hostname: string;
   platform: string;
-  timestamp: string;
-  duration_ms: number;
-  success?: boolean;
+  timestamp: string | undefined;
+  duration_ms: number | undefined;
+  success: boolean | undefined;
   metadata?: Readonly<Record<string, string | number | boolean | null>>;
 }
 

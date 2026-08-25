@@ -235,11 +235,12 @@ export const InsightsTab: Component = () => {
                 {cohorts => (
                   <CohortRetentionHeatmap
                     data={cohorts().map(c => ({
-                      cohort_month: c.cohort_week,
-                      month_index: c.weeks_since_signup,
+                      cohort_period: c.cohort_week,
+                      period_index: c.weeks_since_signup,
                       active_users: c.active_users,
                     }))}
-                    maxMonths={12}
+                    periodUnit="Week"
+                    maxPeriods={12}
                   />
                 )}
               </Show>

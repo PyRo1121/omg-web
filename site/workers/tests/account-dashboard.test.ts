@@ -63,6 +63,40 @@ describe('GET /api/dashboard', () => {
     expect(payload.error).toBe('Invalid or expired session');
   });
 
+  it('updates the authenticated customer company field', async () => {
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', 0)`
+    )
+      .bind('dash-cust', TEST_EMAIL, 'Before')
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO sessions (id, customer_id, token, expires_at) VALUES (?, ?, ?, ?)`
+    )
+      .bind('dash-sess', 'dash-cust', TEST_TOKEN, new Date(Date.now() + 60_000).toISOString())
+      .run();
+
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      new Request('http://localhost/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${TEST_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ company: 'After' }),
+      }),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+    const customer = await env.DB.prepare(`SELECT company FROM customers WHERE id = ?`)
+      .bind('dash-cust')
+      .first<{ company: string }>();
+    expect(customer?.company).toBe('After');
+  });
+
   it('returns 404 when the customer has no license', async () => {
     await env.DB.prepare(
       `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', 0)`

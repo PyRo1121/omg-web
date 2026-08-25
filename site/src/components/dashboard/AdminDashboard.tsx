@@ -193,9 +193,9 @@ function transformFirehoseEvents(events: ReadonlyArray<RawFirehoseEvent>): Fireh
     machine_id: e.machine_id || '',
     hostname: e.hostname || e.metadata?.hostname || '',
     platform: e.platform || e.metadata?.platform || 'unknown',
-    timestamp: e.timestamp || e.created_at || new Date().toISOString(),
-    duration_ms: e.duration_ms || 0,
-    success: e.success !== false,
+    timestamp: e.timestamp || e.created_at,
+    duration_ms: e.duration_ms,
+    success: e.success,
   }));
 }
 

@@ -32,9 +32,9 @@ const JsonValueSchema: Schema.Schema.AnyNoContext = Schema.suspend(() =>
 );
 const JsonObject = Schema.Record({ key: Schema.String, value: JsonValueSchema });
 
-/** Dashboard profile update. */
+/** Dashboard company profile update. */
 export const UpdateProfileBodySchema = Schema.Struct({
-  name: Schema.optional(Schema.String.pipe(Schema.maxLength(120))),
+  company: Schema.optional(Schema.String.pipe(Schema.maxLength(120))),
 });
 
 /** Dashboard machine revoke. */

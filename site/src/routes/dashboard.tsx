@@ -12,8 +12,16 @@ async function requireAuth() {
   const event = getRequestEvent();
   const cf = event?.nativeEvent.context.cloudflare?.env;
 
-  if (!event || !cf?.DB) {
-    throw redirect('/login');
+  if (event === undefined) {
+    throw new Error('Dashboard authorization is unavailable');
+  }
+  if (cf?.DB === undefined) {
+    // Anonymous visitors still belong on login, but an authenticated request
+    // with no D1 binding is a deployment outage, not an auth failure.
+    if (event.request.headers.get('cookie') === null) {
+      throw redirect('/login');
+    }
+    throw new Error('Dashboard authorization is unavailable');
   }
 
   const env: CloudflareEnv = {

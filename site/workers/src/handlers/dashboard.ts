@@ -101,10 +101,10 @@ export async function handleUpdateProfile(request: Request, env: Env): Promise<R
     if (Exit.isFailure(decoded)) {
       return errorResponse('Invalid JSON body', 400);
     }
-    if (decoded.value.name !== undefined) {
+    if (decoded.value.company !== undefined) {
       await db
         .prepare(`UPDATE customers SET company = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-        .bind(decoded.value.name || null, userId)
+        .bind(decoded.value.company || null, userId)
         .run();
     }
     await Effect.runPromise(

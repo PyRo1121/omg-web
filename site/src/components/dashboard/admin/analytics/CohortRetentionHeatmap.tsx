@@ -3,15 +3,18 @@ import { Calendar, Users, TrendingUp, Info, Maximize2, Minimize2 } from 'lucide-
 import { cn } from '~/lib/prelude';
 
 interface CohortData {
-  cohort_month: string;
-  month_index: number;
+  /** Period the cohort signed up in (e.g. `2026-08` for months, `2026-08-05` for weeks). */
+  cohort_period: string;
+  period_index: number;
   active_users: number;
   retention_rate?: number;
 }
 
 interface CohortRetentionHeatmapProps {
   data: CohortData[];
-  maxMonths?: number;
+  /** Label for the elapsed-period axis (e.g. `Month`, `Week`). */
+  periodUnit?: 'Month' | 'Week';
+  maxPeriods?: number;
 }
 
 const RETENTION_COLORS = [
@@ -33,9 +36,22 @@ function getRetentionColor(rate: number) {
   return RETENTION_COLORS[0];
 }
 
-function formatMonth(monthStr: string): string {
-  const date = new Date(monthStr + '-01');
-  return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+/**
+ * Format a cohort period for display. Monthly periods are `YYYY-MM`; weekly
+ * periods are full dates. Appending `-01` to a weekly date would produce an
+ * invalid value, so full dates are parsed as-is.
+ */
+function formatCohortPeriod(period: string): string {
+  const date = new Date(period.length === 7 ? `${period}-01` : period);
+  if (Number.isNaN(date.getTime())) {
+    return period;
+  }
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: '2-digit',
+    timeZone: 'UTC',
+  });
 }
 
 /** Render an average retention rate as `NN%`, or `-` when no data exists. */
@@ -49,7 +65,7 @@ function formatAvgRate(rate: number | null | undefined): string {
 export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = props => {
   const [mounted, setMounted] = createSignal(false);
   const [isExpanded, setIsExpanded] = createSignal(false);
-  const [hoveredCell, setHoveredCell] = createSignal<{ cohort: string; month: number } | null>(
+  const [hoveredCell, setHoveredCell] = createSignal<{ cohort: string; period: number } | null>(
     null
   );
 
@@ -58,67 +74,68 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
     onCleanup(() => cancelAnimationFrame(animationFrame));
   });
 
-  const maxMonths = () => props.maxMonths ?? 12;
+  const maxPeriods = () => props.maxPeriods ?? 12;
+  const periodUnitLabel = () => (props.periodUnit ?? 'Month').charAt(0);
 
-  const monthIndices = createMemo(() => Array.from({ length: maxMonths() + 1 }, (_, i) => i));
+  const periodIndices = createMemo(() => Array.from({ length: maxPeriods() + 1 }, (_, i) => i));
 
   const cohortMap = createMemo(() => {
-    const groupedByMonth = new Map<string, Map<number, CohortData>>();
+    const groupedByPeriod = new Map<string, Map<number, CohortData>>();
 
     for (const item of props.data) {
-      const existing = groupedByMonth.get(item.cohort_month);
+      const existing = groupedByPeriod.get(item.cohort_period);
       if (existing === undefined) {
-        groupedByMonth.set(item.cohort_month, new Map([[item.month_index, item]]));
+        groupedByPeriod.set(item.cohort_period, new Map([[item.period_index, item]]));
       } else {
-        existing.set(item.month_index, item);
+        existing.set(item.period_index, item);
       }
     }
 
-    return Array.from(groupedByMonth.entries())
+    return Array.from(groupedByPeriod.entries())
       .toSorted((a, b) => b[0].localeCompare(a[0]))
       .slice(0, 12);
   });
 
   const cohortLookup = createMemo(() => new Map(cohortMap()));
 
-  const getRetentionRate = (cohortMonth: string, monthIndex: number) => {
-    const cohort = cohortLookup().get(cohortMonth);
+  const getRetentionRate = (cohortPeriod: string, periodIndex: number) => {
+    const cohort = cohortLookup().get(cohortPeriod);
     if (!cohort) {
       return null;
     }
 
-    const monthData = cohort.get(monthIndex);
-    const baseData = cohort.get(0);
+    const periodData = cohort.get(periodIndex);
+    const basePeriod = cohort.get(0);
 
-    if (!monthData || !baseData || baseData.active_users === 0) {
+    if (!periodData || !basePeriod || basePeriod.active_users === 0) {
       return null;
     }
 
     const retentionRate =
-      monthData.retention_rate ?? (monthData.active_users / baseData.active_users) * 100;
+      periodData.retention_rate ?? (periodData.active_users / basePeriod.active_users) * 100;
     return Math.round(retentionRate);
   };
 
-  const getActiveUsers = (cohortMonth: string, monthIndex: number) => {
-    return cohortLookup().get(cohortMonth)?.get(monthIndex)?.active_users ?? null;
+  const getActiveUsers = (cohortPeriod: string, periodIndex: number) => {
+    return cohortLookup().get(cohortPeriod)?.get(periodIndex)?.active_users ?? null;
   };
 
-  const getBaseUsers = (cohortMonth: string) => {
-    return cohortLookup().get(cohortMonth)?.get(0)?.active_users ?? 0;
+  const getBaseUsers = (cohortPeriod: string) => {
+    return cohortLookup().get(cohortPeriod)?.get(0)?.active_users ?? 0;
   };
 
-  const avgRetentionByMonth = createMemo(() => {
+  const avgRetentionByPeriod = createMemo(() => {
     const totals: number[] = [];
     const counts: number[] = [];
 
-    for (let i = 0; i <= maxMonths(); i++) {
+    for (let i = 0; i <= maxPeriods(); i++) {
       totals[i] = 0;
       counts[i] = 0;
     }
 
-    for (const [cohortMonth] of cohortMap()) {
-      for (let i = 0; i <= maxMonths(); i++) {
-        const rate = getRetentionRate(cohortMonth, i);
+    for (const [cohortPeriod] of cohortMap()) {
+      for (let i = 0; i <= maxPeriods(); i++) {
+        const rate = getRetentionRate(cohortPeriod, i);
         if (rate !== null) {
           totals[i] = (totals[i] ?? 0) + rate;
           counts[i] = (counts[i] ?? 0) + 1;
@@ -133,17 +150,17 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
   });
 
   const overallHealth = createMemo(() => {
-    const month3Avg = avgRetentionByMonth()[3];
-    if (month3Avg === undefined || month3Avg === null) {
+    const period3Avg = avgRetentionByPeriod()[3];
+    if (period3Avg === undefined || period3Avg === null) {
       return { label: 'N/A', color: 'var(--color-nebula-400)' };
     }
-    if (month3Avg >= 60) {
+    if (period3Avg >= 60) {
       return { label: 'Excellent', color: 'var(--color-aurora-400)' };
     }
-    if (month3Avg >= 40) {
+    if (period3Avg >= 40) {
       return { label: 'Good', color: 'var(--color-electric-400)' };
     }
-    if (month3Avg >= 25) {
+    if (period3Avg >= 25) {
       return { label: 'Fair', color: 'var(--color-solar-400)' };
     }
     return { label: 'Needs Work', color: 'var(--color-flare-400)' };
@@ -179,7 +196,7 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
               <h3 class="text-nebula-100 text-lg font-bold tracking-tight">Cohort Retention</h3>
               <p class="text-nebula-500 text-xs">
                 <span class="text-nebula-300 font-bold">{cohortMap().length}</span> cohorts •
-                Monthly retention tracking
+                {props.periodUnit ?? 'Month'}ly retention tracking
               </p>
             </div>
           </div>
@@ -238,15 +255,16 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                 <th class="bg-void-900 text-nebula-500 sticky left-[100px] z-10 px-2 py-2 text-center text-xs font-bold">
                   Users
                 </th>
-                <For each={monthIndices()}>
-                  {month => (
+                <For each={periodIndices()}>
+                  {period => (
                     <th
                       class={cn(
                         'px-1 py-2 text-center text-xs font-bold transition-colors',
-                        hoveredCell()?.month === month ? 'text-nebula-200' : 'text-nebula-600'
+                        hoveredCell()?.period === period ? 'text-nebula-200' : 'text-nebula-600'
                       )}
                     >
-                      M{month}
+                      {periodUnitLabel()}
+                      {period}
                     </th>
                   )}
                 </For>
@@ -254,31 +272,31 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
             </thead>
             <tbody>
               <For each={cohortMap()}>
-                {([cohortMonth], rowIndex) => (
+                {([cohortPeriod], rowIndex) => (
                   <tr
                     class={cn(
                       'transition-colors duration-200',
-                      hoveredCell()?.cohort === cohortMonth && 'bg-white/[0.02]'
+                      hoveredCell()?.cohort === cohortPeriod && 'bg-white/[0.02]'
                     )}
                   >
                     <td class="bg-void-900 sticky left-0 z-10 px-3 py-1.5">
                       <span class="text-nebula-200 text-sm font-bold">
-                        {formatMonth(cohortMonth)}
+                        {formatCohortPeriod(cohortPeriod)}
                       </span>
                     </td>
                     <td class="bg-void-900 sticky left-[100px] z-10 px-2 py-1.5 text-center">
                       <span class="text-nebula-400 font-mono text-xs tabular-nums">
-                        {getBaseUsers(cohortMonth).toLocaleString()}
+                        {getBaseUsers(cohortPeriod).toLocaleString()}
                       </span>
                     </td>
-                    <For each={monthIndices()}>
-                      {monthIndex => {
-                        const rate = getRetentionRate(cohortMonth, monthIndex);
-                        const users = getActiveUsers(cohortMonth, monthIndex);
+                    <For each={periodIndices()}>
+                      {periodIndex => {
+                        const rate = getRetentionRate(cohortPeriod, periodIndex);
+                        const users = getActiveUsers(cohortPeriod, periodIndex);
                         const colors = rate === null ? null : getRetentionColor(rate);
                         const isHovered =
-                          hoveredCell()?.cohort === cohortMonth &&
-                          hoveredCell()?.month === monthIndex;
+                          hoveredCell()?.cohort === cohortPeriod &&
+                          hoveredCell()?.period === periodIndex;
 
                         return (
                           <td class="px-1 py-1.5">
@@ -300,10 +318,10 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                                 style={{
                                   background: colors?.bg,
                                   'box-shadow': isHovered ? `0 0 12px ${colors?.glow}` : undefined,
-                                  'animation-delay': `${(rowIndex() * (maxMonths() + 1) + monthIndex) * 20}ms`,
+                                  'animation-delay': `${(rowIndex() * (maxPeriods() + 1) + periodIndex) * 20}ms`,
                                 }}
                                 onMouseEnter={() =>
-                                  setHoveredCell({ cohort: cohortMonth, month: monthIndex })
+                                  setHoveredCell({ cohort: cohortPeriod, period: periodIndex })
                                 }
                                 onMouseLeave={() => setHoveredCell(null)}
                               >
@@ -312,8 +330,8 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                                     {rate}%
                                   </span>
                                   <span class="sr-only">
-                                    Month {monthIndex} retention {rate}%, {users?.toLocaleString()}{' '}
-                                    active users
+                                    {props.periodUnit ?? 'Month'} {periodIndex} retention {rate}%,{' '}
+                                    {users?.toLocaleString()} active users
                                   </span>
                                 </div>
 
@@ -330,7 +348,8 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                                   }}
                                 >
                                   <div class="text-nebula-400 mb-1">
-                                    {formatMonth(cohortMonth)} → Month {monthIndex}
+                                    {formatCohortPeriod(cohortPeriod)} →{' '}
+                                    {props.periodUnit ?? 'Month'} {periodIndex}
                                   </div>
                                   <div class="flex items-center gap-3">
                                     <div>
@@ -365,7 +384,7 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                   </span>
                 </td>
                 <td class="bg-void-900 sticky left-[100px] z-10 px-2 py-2" />
-                <For each={avgRetentionByMonth()}>
+                <For each={avgRetentionByPeriod()}>
                   {avgRate => {
                     const colors = avgRate === null ? null : getRetentionColor(avgRate);
                     return (
@@ -419,25 +438,25 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
             <div class="flex items-center gap-2">
               <TrendingUp size={14} class="text-aurora-400" />
               <span class="text-nebula-400">
-                Month 3 Avg:{' '}
+                {props.periodUnit ?? 'Month'} 3 Avg:{' '}
                 <span class="text-nebula-200 font-bold">
-                  {formatAvgRate(avgRetentionByMonth()[3])}
+                  {formatAvgRate(avgRetentionByPeriod()[3])}
                 </span>
               </span>
             </div>
             <div class="flex items-center gap-2">
               <Users size={14} class="text-indigo-400" />
               <span class="text-nebula-400">
-                Month 6 Avg:{' '}
+                {props.periodUnit ?? 'Month'} 6 Avg:{' '}
                 <span class="text-nebula-200 font-bold">
-                  {formatAvgRate(avgRetentionByMonth()[6])}
+                  {formatAvgRate(avgRetentionByPeriod()[6])}
                 </span>
               </span>
             </div>
           </div>
         </div>
 
-        <Show when={avgRetentionByMonth()[1] !== null}>
+        <Show when={avgRetentionByPeriod()[1] !== null}>
           <div
             class={cn(
               'mt-4 rounded-xl border p-4 transition-all duration-500',
@@ -461,11 +480,11 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
                 <p class="text-nebula-100 text-sm font-semibold">Retention Insight</p>
                 <p class="text-nebula-400 mt-0.5 text-xs leading-relaxed">
                   {(() => {
-                    const month3 = avgRetentionByMonth()[3] ?? 0;
-                    if (month3 >= 50) {
+                    const period3 = avgRetentionByPeriod()[3] ?? 0;
+                    if (period3 >= 50) {
                       return 'Strong retention! Your product has good stickiness. Focus on converting more trial users.';
                     }
-                    if (month3 >= 30) {
+                    if (period3 >= 30) {
                       return 'Moderate retention. Consider improving onboarding and feature discovery to boost engagement.';
                     }
                     return 'Retention needs attention. Prioritize understanding why users churn and improving first-week experience.';
