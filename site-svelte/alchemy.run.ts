@@ -1,6 +1,7 @@
 import * as Alchemy from 'alchemy';
 import * as Cloudflare from 'alchemy/Cloudflare';
 import * as RemovalPolicy from 'alchemy/RemovalPolicy';
+import * as Config from 'effect/Config';
 import * as Effect from 'effect/Effect';
 
 export const ShadowAuthSecret = Alchemy.Random('ShadowAuthSecret');
@@ -32,6 +33,8 @@ export const Website = Cloudflare.Website.SvelteKit(
         BETTER_AUTH_SECRET: authSecret.text,
         DB: PlatformDatabase,
         DEPLOYMENT_STAGE: stage,
+        GITHUB_CLIENT_ID: Config.string('GITHUB_CLIENT_ID'),
+        GITHUB_CLIENT_SECRET: Config.redacted('GITHUB_CLIENT_SECRET'),
       },
       memo: {
         include: [

@@ -1,7 +1,10 @@
 import { betterAuth } from 'better-auth';
 import type { WebsiteEnv } from '../../../alchemy.run';
 
-type AuthEnvironment = Pick<WebsiteEnv, 'BETTER_AUTH_SECRET' | 'DB'>;
+type AuthEnvironment = Pick<
+  WebsiteEnv,
+  'BETTER_AUTH_SECRET' | 'DB' | 'GITHUB_CLIENT_ID' | 'GITHUB_CLIENT_SECRET'
+>;
 
 interface AuthRateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
@@ -52,6 +55,13 @@ export function createShadowAuth(env: AuthEnvironment, requestUrl: URL) {
       enabled: true,
       disableSignUp: true,
       requireEmailVerification: true,
+    },
+    socialProviders: {
+      github: {
+        clientId: env.GITHUB_CLIENT_ID,
+        clientSecret: env.GITHUB_CLIENT_SECRET,
+        redirectURI: `${requestUrl.origin}/api/auth/callback/github`,
+      },
     },
     user: {
       modelName: 'auth_user',
