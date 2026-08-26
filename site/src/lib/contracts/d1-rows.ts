@@ -7,7 +7,6 @@
 
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
-import { NullableStringSchema } from '../../../shared/d1-rows';
 
 /** Raw value accepted only at a Schema-decoded D1 boundary. */
 type D1BoundaryInput = Schema.Schema.Encoded<Schema.Schema.Any>;
@@ -22,16 +21,6 @@ class D1RowParseError extends Error {
     super(reason);
   }
 }
-
-const D1Timestamp = Schema.Union(
-  Schema.instanceOf(Date),
-  Schema.Number.pipe(
-    Schema.transform(Schema.instanceOf(Date), {
-      decode: (fromA: number) => new Date(fromA),
-      encode: (toI: Date) => toI.getTime(),
-    })
-  )
-);
 
 /** Decode a single D1/drizzle row. */
 function decodeD1Row<S extends Schema.Schema.AnyNoContext>(
@@ -126,18 +115,4 @@ export { CountRowSchema } from '../../../shared/d1-rows';
 /** Customer role lookup row. */
 export const UserRoleRowSchema = Schema.Struct({
   role: Schema.Union(Schema.Literal('user'), Schema.Literal('admin')),
-});
-/** Session row used by the account dashboard. */
-export const SessionRowSchema = Schema.Struct({
-  id: Schema.String.pipe(Schema.minLength(1)),
-  token: Schema.String,
-  ipAddress: Schema.optional(NullableStringSchema),
-  userAgent: Schema.optional(NullableStringSchema),
-  createdAt: D1Timestamp,
-  expiresAt: D1Timestamp,
-});
-/** OAuth/account row used by the account dashboard. */
-export const AccountRowSchema = Schema.Struct({
-  providerId: Schema.String,
-  accountId: Schema.String,
 });

@@ -1,12 +1,16 @@
 import { redirect } from '@sveltejs/kit';
-import { getRequestSession } from '../../lib/server/auth.server';
+import { loadAccountDashboard } from '../../lib/server/account-dashboard.server';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async event => {
-  const session = await getRequestSession(event);
-  if (session === null) {
+  const dashboard = await loadAccountDashboard(event);
+  if (dashboard === null) {
     redirect(302, '/login/');
   }
 
-  return session;
+  const currentSession = dashboard.sessions.find(session => session.isCurrent);
+  return {
+    ...dashboard,
+    currentSessionExpiresAt: currentSession?.expiresAt ?? null,
+  };
 };

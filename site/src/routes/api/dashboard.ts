@@ -5,8 +5,13 @@ import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import * as schema from '../../../shared/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
-import { parseAccountDashboard, type DashboardData } from '~/lib/contracts/dashboard';
-import { AccountRowSchema, SessionRowSchema, readD1RowArray } from '~/lib/contracts/d1-rows';
+import {
+  AccountDashboardAccountRowSchema,
+  AccountDashboardSessionRowSchema,
+  parseAccountDashboard,
+} from '~/lib/contracts/account-dashboard';
+import type { DashboardData } from '../../../shared/account-dashboard';
+import { readD1RowArray } from '~/lib/contracts/d1-rows';
 import { casesHandled } from '~/lib/prelude';
 
 class DashboardUnauthorized extends Error {
@@ -97,8 +102,16 @@ function loadDashboard(
     const [sessionsLookup, accountsLookup] = yield* Effect.tryPromise({
       try: () =>
         Promise.all([
-          readD1RowArray(SessionRowSchema, 'Session rows have an invalid shape', userSessions),
-          readD1RowArray(AccountRowSchema, 'Account rows have an invalid shape', userAccounts),
+          readD1RowArray(
+            AccountDashboardSessionRowSchema,
+            'Session rows have an invalid shape',
+            userSessions
+          ),
+          readD1RowArray(
+            AccountDashboardAccountRowSchema,
+            'Account rows have an invalid shape',
+            userAccounts
+          ),
         ]),
       catch: cause => new DashboardUnavailable('decodeDashboardRows', cause),
     });

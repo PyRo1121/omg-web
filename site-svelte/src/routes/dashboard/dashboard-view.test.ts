@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatExpiry, verificationLabel } from './dashboard-view';
+import { formatTimestamp, providerLabel, verificationLabel } from './dashboard-view';
 
 describe('verificationLabel', () => {
   it('labels a verified email', () => {
@@ -11,12 +11,22 @@ describe('verificationLabel', () => {
   });
 });
 
-describe('formatExpiry', () => {
+describe('providerLabel', () => {
+  it.each([
+    ['github', 'GitHub'],
+    ['credential', 'Password'],
+    ['custom', 'custom'],
+  ])('labels %s as %s', (provider, label) => {
+    expect(providerLabel(provider)).toBe(label);
+  });
+});
+
+describe('formatTimestamp', () => {
   it('formats an ISO timestamp in UTC', () => {
-    expect(formatExpiry('2026-02-14T09:30:00.000Z')).toBe('Feb 14, 2026, 9:30 AM UTC');
+    expect(formatTimestamp('2026-02-14T09:30:00.000Z')).toBe('Feb 14, 2026, 9:30 AM UTC');
   });
 
-  it('returns the raw value when it is not a valid date', () => {
-    expect(formatExpiry('not-a-date')).toBe('not-a-date');
+  it.each([null, 'not-a-date'])('marks %s as unavailable', value => {
+    expect(formatTimestamp(value)).toBe('Unavailable');
   });
 });

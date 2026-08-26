@@ -1,6 +1,7 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import { createSignal, type Accessor } from 'solid-js';
-import { parseAccountDashboard, type DashboardData } from '~/lib/contracts/dashboard';
+import { parseAccountDashboard } from '~/lib/contracts/account-dashboard';
+import type { DashboardData } from '../../../shared/account-dashboard';
 import type { TelemetryDashboard } from '~/lib/contracts/telemetry-dashboard';
 import { parseLicensingDashboard } from '~/lib/contracts/licensing-dashboard';
 import { LicensingRoutes } from '../../../shared/licensing-routes';

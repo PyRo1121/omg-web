@@ -1,9 +1,10 @@
-// Boundary parser internals intentionally inspect unknown account dashboard payloads.
+// Effect 3 boundary adapter for the shared account dashboard contract.
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import type { DashboardData } from '../../../shared/account-dashboard';
+import { NullableStringSchema } from '../../../shared/d1-rows';
 
-/** A failure decoding or encoding an account dashboard payload. */
 export class DashboardDataParseError extends Error {
   readonly _tag = 'DashboardDataParseError';
   constructor(
@@ -14,7 +15,37 @@ export class DashboardDataParseError extends Error {
   }
 }
 
-const DashboardDataSchema = Schema.Struct({
+const D1TimestampSchema = Schema.Union(
+  Schema.instanceOf(Date),
+  Schema.Number.pipe(
+    Schema.transform(Schema.instanceOf(Date), {
+      decode: value => new Date(value),
+      encode: value => value.getTime(),
+    })
+  ),
+  Schema.String.pipe(
+    Schema.transform(Schema.instanceOf(Date), {
+      decode: value => new Date(value),
+      encode: value => value.toISOString(),
+    })
+  )
+).pipe(Schema.filter(value => Number.isFinite(value.getTime())));
+
+export const AccountDashboardSessionRowSchema = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1)),
+  token: Schema.String,
+  ipAddress: Schema.optional(NullableStringSchema),
+  userAgent: Schema.optional(NullableStringSchema),
+  createdAt: D1TimestampSchema,
+  expiresAt: D1TimestampSchema,
+});
+
+export const AccountDashboardAccountRowSchema = Schema.Struct({
+  providerId: Schema.String,
+  accountId: Schema.String,
+});
+
+const DashboardDataSchema: Schema.Schema<DashboardData> = Schema.Struct({
   user: Schema.Struct({
     id: Schema.String,
     name: Schema.String,
@@ -41,9 +72,6 @@ const DashboardDataSchema = Schema.Struct({
   ),
 });
 
-export type DashboardData = Schema.Schema.Type<typeof DashboardDataSchema>;
-
-/** Parse an account dashboard payload at the network boundary. */
 export function parseAccountDashboard(
   value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): Effect.Effect<DashboardData, DashboardDataParseError> {
@@ -54,7 +82,6 @@ export function parseAccountDashboard(
   );
 }
 
-/** Decode an untrusted account dashboard payload, returning `null` when invalid. */
 export function decodeDashboardData(
   value: Schema.Schema.Encoded<Schema.Schema.Any>
 ): DashboardData | null {

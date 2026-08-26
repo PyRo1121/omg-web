@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { betterAuth } from 'better-auth';
 import type { WebsiteEnv } from '../../../alchemy.run';
 
-type AuthEnvironment = Pick<
+export type AuthEnvironment = Pick<
   WebsiteEnv,
   'BETTER_AUTH_SECRET' | 'DB' | 'GITHUB_CLIENT_ID' | 'GITHUB_CLIENT_SECRET'
 >;
