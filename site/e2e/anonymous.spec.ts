@@ -136,7 +136,6 @@ test.describe('anonymous authorization', () => {
     await expect(page.getByLabel(AUTH_FIELDS.emailLabel)).toBeVisible();
     await expect(page.getByLabel(AUTH_FIELDS.passwordLabel)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/signup');
   });
 

@@ -30,8 +30,6 @@ async function requireAuth() {
     BETTER_AUTH_URL: cf.BETTER_AUTH_URL,
     GITHUB_CLIENT_ID: cf.GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET: cf.GITHUB_CLIENT_SECRET,
-    GOOGLE_CLIENT_ID: cf.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: cf.GOOGLE_CLIENT_SECRET,
   };
 
   const auth = createAuth(env);

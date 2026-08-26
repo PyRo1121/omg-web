@@ -9,8 +9,6 @@ export interface CloudflareEnv {
   BETTER_AUTH_URL: string;
   GITHUB_CLIENT_ID?: string | undefined;
   GITHUB_CLIENT_SECRET?: string | undefined;
-  GOOGLE_CLIENT_ID?: string | undefined;
-  GOOGLE_CLIENT_SECRET?: string | undefined;
   ADMIN_API_SECRET?: string | undefined;
   LICENSING_API?: Fetcher | undefined;
 }
@@ -23,7 +21,6 @@ interface SocialProviderConfig {
 
 interface SocialProviders {
   github?: SocialProviderConfig;
-  google?: SocialProviderConfig;
 }
 
 export function createAuth(env: CloudflareEnv) {
@@ -41,14 +38,6 @@ export function createAuth(env: CloudflareEnv) {
       clientId: env.GITHUB_CLIENT_ID,
       clientSecret: env.GITHUB_CLIENT_SECRET,
       redirectURI: `${baseUrl}/api/auth/callback/github`,
-    };
-  }
-
-  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
-    socialProviders.google = {
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
-      redirectURI: `${baseUrl}/api/auth/callback/google`,
     };
   }
 

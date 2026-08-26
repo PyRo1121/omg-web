@@ -34,8 +34,6 @@ export async function requireAdmin(event: Pick<APIEvent, 'nativeEvent' | 'reques
     BETTER_AUTH_URL: cloudflareEnv.BETTER_AUTH_URL,
     GITHUB_CLIENT_ID: cloudflareEnv.GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET: cloudflareEnv.GITHUB_CLIENT_SECRET,
-    GOOGLE_CLIENT_ID: cloudflareEnv.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: cloudflareEnv.GOOGLE_CLIENT_SECRET,
   };
   const auth = createAuth(env);
 

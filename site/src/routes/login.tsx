@@ -2,7 +2,7 @@ import { Meta, Title } from '@solidjs/meta';
 import { A, useNavigate } from '@solidjs/router';
 import { CircleAlert, LoaderCircle, Mail } from 'lucide-solid';
 import { createEffect, createSignal, Show } from 'solid-js';
-import { GitHubIcon, GoogleIcon } from '~/components/ui/BrandIcons';
+import { GitHubIcon } from '~/components/ui/BrandIcons';
 import { signIn, useSession } from '~/lib/auth-client';
 import { getErrorMessage } from '~/lib/error-message';
 
@@ -37,11 +37,11 @@ export default function LoginPage() {
     }
   };
 
-  const handleOAuthLogin = async (provider: 'github' | 'google'): Promise<void> => {
+  const handleOAuthLogin = async (): Promise<void> => {
     setLoading(true);
     setError('');
     try {
-      const result = await signIn.social({ provider, callbackURL: '/dashboard' });
+      const result = await signIn.social({ provider: 'github', callbackURL: '/dashboard' });
       if (result?.error) setError(result.error.message || 'OAuth login failed');
     } catch (cause: unknown) {
       setError(
@@ -85,24 +85,15 @@ export default function LoginPage() {
             Use a verified provider or an existing controlled account.
           </p>
 
-          <p class="mt-9 grid gap-3 sm:grid-cols-2">
+          <p class="mt-9 grid">
             <button
               type="button"
-              onClick={() => void handleOAuthLogin('github')}
+              onClick={() => void handleOAuthLogin()}
               disabled={loading()}
               class="manifest-button"
               aria-label="Continue with GitHub"
             >
               <GitHubIcon class="h-5 w-5" /> Continue with GitHub
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleOAuthLogin('google')}
-              disabled={loading()}
-              class="manifest-button"
-              aria-label="Continue with Google"
-            >
-              <GoogleIcon class="h-5 w-5" /> Continue with Google
             </button>
           </p>
 

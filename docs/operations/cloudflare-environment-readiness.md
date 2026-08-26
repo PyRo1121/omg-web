@@ -97,7 +97,7 @@ It performs only read operations and exits nonzero if `omg-saas`, `omg-site`, or
 
 ## Remaining production steps
 
-1. Configure OAuth provider callback URLs (`https://omg.latham.cloud/api/auth/callback/{github,google}`) in the GitHub/Google consoles when social sign-in is enabled.
+1. Configure the GitHub OAuth callback URL (`https://omg.latham.cloud/api/auth/callback/github`) in the GitHub console when social sign-in is enabled. Google is intentionally not supported: the product accepts GitHub identities only.
 2. OTP stays unavailable by design: Workers Paid was declined, so Cloudflare Email Sending to arbitrary recipients is unavailable on the Free plan. Public registration is therefore OAuth-only; password login remains enabled only for existing controlled accounts whose email ownership was verified during provisioning.
 3. ~~Configure Stripe live products, prices, restricted key, and webhook endpoint~~ Done (2026-08-24, see the live-mode wiring section). Re-run the controlled checkout/webhook smoke test after billing-code or catalog changes; update checkout success/return URLs only if the domain changes again.
 4. Verify Workers observability after first real traffic and exercise the rollback path once: enumerate versions with `npx wrangler deployments list`, then revert with `npx wrangler rollback` (<https://developers.cloudflare.com/workers/wrangler/commands/#rollback>, <https://developers.cloudflare.com/workers/versioning/>).

@@ -1,5 +1,4 @@
 import githubIconUrl from 'simple-icons/icons/github.svg?url';
-import googleIconUrl from 'simple-icons/icons/google.svg?url';
 import type { Component } from 'solid-js';
 
 interface BrandIconProps {
@@ -20,4 +19,3 @@ function createBrandIcon(iconUrl: string): Component<BrandIconProps> {
 }
 
 export const GitHubIcon = createBrandIcon(githubIconUrl);
-export const GoogleIcon = createBrandIcon(googleIconUrl);

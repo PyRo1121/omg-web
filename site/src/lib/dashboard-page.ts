@@ -1,4 +1,4 @@
-import { GitHubIcon, GoogleIcon } from '~/components/ui/BrandIcons';
+import { GitHubIcon } from '~/components/ui/BrandIcons';
 import type { TelemetryDashboard } from '~/lib/contracts/telemetry-dashboard';
 import {
   Award,
@@ -140,8 +140,6 @@ export function getProviderIcon(provider: string): DashboardIcon {
   switch (provider) {
     case 'github':
       return GitHubIcon;
-    case 'google':
-      return GoogleIcon;
     case 'credential':
       return Mail;
     default:

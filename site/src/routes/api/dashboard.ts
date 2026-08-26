@@ -67,8 +67,6 @@ function readCloudflareEnv(event: APIEvent): CloudflareEnv | null {
     BETTER_AUTH_URL: env.BETTER_AUTH_URL,
     GITHUB_CLIENT_ID: env.GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET: env.GITHUB_CLIENT_SECRET,
-    GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: env.GOOGLE_CLIENT_SECRET,
   };
 }
 

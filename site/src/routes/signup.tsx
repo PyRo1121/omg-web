@@ -2,32 +2,32 @@ import { Meta, Title } from '@solidjs/meta';
 import { A, useNavigate } from '@solidjs/router';
 import { CircleAlert, LoaderCircle } from 'lucide-solid';
 import { createEffect, createSignal, Show } from 'solid-js';
-import { GitHubIcon, GoogleIcon } from '~/components/ui/BrandIcons';
+import { GitHubIcon } from '~/components/ui/BrandIcons';
 import { signIn, useSession } from '~/lib/auth-client';
 import { getErrorMessage } from '~/lib/error-message';
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const session = useSession();
-  const [providerLoading, setProviderLoading] = createSignal<'github' | 'google' | null>(null);
+  const [providerLoading, setProviderLoading] = createSignal(false);
   const [error, setError] = createSignal('');
 
   createEffect(() => {
     if (session()?.data?.user) navigate('/dashboard', { replace: true });
   });
 
-  const handleOAuthSignup = async (provider: 'github' | 'google'): Promise<void> => {
-    setProviderLoading(provider);
+  const handleOAuthSignup = async (): Promise<void> => {
+    setProviderLoading(true);
     setError('');
     try {
-      const result = await signIn.social({ provider, callbackURL: '/dashboard' });
+      const result = await signIn.social({ provider: 'github', callbackURL: '/dashboard' });
       if (result?.error) {
         setError(result.error.message || 'Signup failed');
-        setProviderLoading(null);
+        setProviderLoading(false);
       }
     } catch (cause: unknown) {
       setError(cause instanceof Error ? getErrorMessage(cause, 'Signup failed') : 'Signup failed');
-      setProviderLoading(null);
+      setProviderLoading(false);
     }
   };
 
@@ -62,25 +62,17 @@ export default function SignupPage() {
           <p class="mt-8 grid gap-3">
             <button
               type="button"
-              onClick={() => void handleOAuthSignup('github')}
-              disabled={providerLoading() !== null}
+              onClick={() => void handleOAuthSignup()}
+              disabled={providerLoading()}
               class="manifest-button justify-start px-5"
             >
-              <Show when={providerLoading() === 'github'} fallback={<GitHubIcon class="h-5 w-5" />}>
-                <LoaderCircle class="h-5 w-5 animate-spin" />
+              <Show
+                when={!providerLoading()}
+                fallback={<LoaderCircle class="h-5 w-5 animate-spin" />}
+              >
+                <GitHubIcon class="h-5 w-5" />
               </Show>
               Continue with GitHub
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleOAuthSignup('google')}
-              disabled={providerLoading() !== null}
-              class="manifest-button justify-start px-5"
-            >
-              <Show when={providerLoading() === 'google'} fallback={<GoogleIcon class="h-5 w-5" />}>
-                <LoaderCircle class="h-5 w-5 animate-spin" />
-              </Show>
-              Continue with Google
             </button>
           </p>
 
