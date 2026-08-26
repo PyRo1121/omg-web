@@ -3,6 +3,45 @@ import type { WebsiteEnv } from '../../../alchemy.run';
 
 type AuthEnvironment = Pick<WebsiteEnv, 'BETTER_AUTH_SECRET' | 'DB'>;
 
+interface AuthRateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
+const RATE_LIMIT_FAILURE_HEADERS = { 'Cache-Control': 'no-store' } as const;
+const RATE_LIMITED_HEADERS = { ...RATE_LIMIT_FAILURE_HEADERS, 'Retry-After': '60' } as const;
+
+export async function enforceAuthMutationRateLimit(
+  request: Request,
+  limiter: AuthRateLimiter
+): Promise<Response | null> {
+  if (request.method !== 'POST') {
+    return null;
+  }
+
+  const clientIp = request.headers.get('CF-Connecting-IP');
+  if (clientIp === null) {
+    return Response.json(
+      { error: 'Authentication service unavailable' },
+      { headers: RATE_LIMIT_FAILURE_HEADERS, status: 503 }
+    );
+  }
+
+  try {
+    const result = await limiter.limit({ key: clientIp });
+    return result.success
+      ? null
+      : Response.json(
+          { error: 'Too many authentication attempts' },
+          { headers: RATE_LIMITED_HEADERS, status: 429 }
+        );
+  } catch {
+    return Response.json(
+      { error: 'Authentication service unavailable' },
+      { headers: RATE_LIMIT_FAILURE_HEADERS, status: 503 }
+    );
+  }
+}
+
 export function createShadowAuth(env: AuthEnvironment, requestUrl: URL) {
   return betterAuth({
     database: env.DB,

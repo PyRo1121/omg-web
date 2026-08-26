@@ -25,6 +25,10 @@ export const Website = Cloudflare.Website.SvelteKit(
         runWorkerFirst: true,
       },
       env: {
+        AUTH_RATE_LIMITER: Cloudflare.RateLimit('AUTH_RATE_LIMITER', {
+          namespaceId: 2001,
+          simple: { limit: 10, period: 60 },
+        }),
         BETTER_AUTH_SECRET: authSecret.text,
         DB: PlatformDatabase,
         DEPLOYMENT_STAGE: stage,
