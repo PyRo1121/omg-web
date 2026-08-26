@@ -1,7 +1,35 @@
 import { describe, expect, it, vi } from 'vitest';
-import { enforceAuthMutationRateLimit } from './auth.server';
+import { createShadowAuth, enforceAuthMutationRateLimit, getRequestSession } from './auth.server';
+
+type AuthEnvironment = Parameters<typeof createShadowAuth>[0];
 
 const AUTH_URL = 'https://shadow.example/api/auth/sign-in/email';
+const PAGE_URL = new URL('https://shadow.example/dashboard/');
+
+function unavailable(): never {
+  throw new Error('The database stub must not be called');
+}
+
+const AUTH_ENVIRONMENT: AuthEnvironment = {
+  BETTER_AUTH_SECRET: 'test-auth-secret',
+  DB: {
+    batch: unavailable,
+    dump: unavailable,
+    exec: unavailable,
+    prepare: unavailable,
+    withSession: unavailable,
+  },
+  GITHUB_CLIENT_ID: 'test-github-client',
+  GITHUB_CLIENT_SECRET: 'test-github-secret',
+};
+
+function sessionRequest(platform: { readonly env: AuthEnvironment } | undefined) {
+  return {
+    platform,
+    request: new Request(PAGE_URL, { headers: { cookie: 'better-auth.session=test-session' } }),
+    url: PAGE_URL,
+  };
+}
 
 function authRequest(method: string, clientIp?: string): Request {
   const headers = new Headers();
@@ -10,6 +38,61 @@ function authRequest(method: string, clientIp?: string): Request {
   }
   return new Request(AUTH_URL, { headers, method });
 }
+
+describe('getRequestSession', () => {
+  it('fails closed before lookup when the platform is unavailable', async () => {
+    let lookupCalled = false;
+
+    const result = getRequestSession(sessionRequest(undefined), async () => {
+      lookupCalled = true;
+      return null;
+    });
+
+    await expect(result).rejects.toMatchObject({
+      body: { message: 'Authentication service unavailable' },
+      status: 503,
+    });
+    expect(lookupCalled).toBe(false);
+  });
+
+  it('returns null for an anonymous request', async () => {
+    const session = await getRequestSession(
+      sessionRequest({ env: AUTH_ENVIRONMENT }),
+      async () => null
+    );
+
+    expect(session).toBeNull();
+  });
+
+  it('forwards request authority and returns only serialized dashboard fields', async () => {
+    const request = sessionRequest({ env: AUTH_ENVIRONMENT });
+    const providerSession = {
+      session: {
+        expiresAt: new Date('2027-01-02T03:04:05.000Z'),
+        id: 'private-session-id',
+        token: 'private-session-token',
+      },
+      user: {
+        email: 'member@example.com',
+        emailVerified: true,
+        id: 'private-user-id',
+        name: 'Member',
+      },
+    };
+
+    const session = await getRequestSession(request, async input => {
+      expect(input.env).toBe(AUTH_ENVIRONMENT);
+      expect(input.headers).toBe(request.request.headers);
+      expect(input.requestUrl).toBe(PAGE_URL);
+      return providerSession;
+    });
+
+    expect(session).toEqual({
+      session: { expiresAt: '2027-01-02T03:04:05.000Z' },
+      user: { email: 'member@example.com', emailVerified: true },
+    });
+  });
+});
 
 describe('enforceAuthMutationRateLimit', () => {
   it('does not count non-mutating auth requests', async () => {

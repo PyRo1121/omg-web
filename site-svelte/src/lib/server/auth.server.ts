@@ -1,3 +1,4 @@
+import { error, redirect } from '@sveltejs/kit';
 import { betterAuth } from 'better-auth';
 import type { WebsiteEnv } from '../../../alchemy.run';
 
@@ -10,8 +11,96 @@ interface AuthRateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
+interface AuthSessionRequest {
+  readonly platform: { readonly env: AuthEnvironment } | undefined;
+  readonly request: { readonly headers: Headers };
+  readonly url: URL;
+}
+
+interface AuthProviderSession {
+  readonly session: {
+    readonly expiresAt: Date;
+  };
+  readonly user: {
+    readonly email: string;
+    readonly emailVerified: boolean;
+  };
+}
+
+interface AuthSessionLookupInput {
+  readonly env: AuthEnvironment;
+  readonly headers: Headers;
+  readonly requestUrl: URL;
+}
+
+interface RequestSession {
+  readonly session: {
+    readonly expiresAt: string;
+  };
+  readonly user: {
+    readonly email: string;
+    readonly emailVerified: boolean;
+  };
+}
+
+type AuthSessionLookup = (input: AuthSessionLookupInput) => Promise<AuthProviderSession | null>;
+
 const RATE_LIMIT_FAILURE_HEADERS = { 'Cache-Control': 'no-store' } as const;
 const RATE_LIMITED_HEADERS = { ...RATE_LIMIT_FAILURE_HEADERS, 'Retry-After': '60' } as const;
+
+async function lookupAuthSession({
+  env,
+  headers,
+  requestUrl,
+}: AuthSessionLookupInput): Promise<AuthProviderSession | null> {
+  const auth = createShadowAuth(env, requestUrl);
+  return auth.api.getSession({ headers });
+}
+
+/**
+ * Reads and serializes the current request's session without retaining per-user server state.
+ *
+ * @param event - Request-local platform, URL, and authentication headers.
+ * @param lookup - Session provider seam; defaults to Better Auth.
+ * @returns The minimal authenticated session fields used by routes, or `null` for an anonymous request.
+ */
+export async function getRequestSession(
+  event: AuthSessionRequest,
+  lookup: AuthSessionLookup = lookupAuthSession
+): Promise<RequestSession | null> {
+  const platform = event.platform;
+  if (platform === undefined) {
+    error(503, 'Authentication service unavailable');
+  }
+
+  const session = await lookup({
+    env: platform.env,
+    headers: event.request.headers,
+    requestUrl: event.url,
+  });
+  if (session === null) {
+    return null;
+  }
+
+  return {
+    session: {
+      expiresAt: session.session.expiresAt.toISOString(),
+    },
+    user: {
+      email: session.user.email,
+      emailVerified: session.user.emailVerified,
+    },
+  };
+}
+
+export async function loadAuthEntry(event: AuthSessionRequest): Promise<Record<string, never>> {
+  const session = await getRequestSession(event);
+  if (session !== null) {
+    redirect(302, '/dashboard/');
+  }
+
+  return {};
+}
 
 export async function enforceAuthMutationRateLimit(
   request: Request,
