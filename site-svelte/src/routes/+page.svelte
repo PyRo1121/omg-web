@@ -1,24 +1,108 @@
+<script lang="ts">
+  import HomeBenchmarks from '../lib/components/home/HomeBenchmarks.svelte';
+  import HomeFeatureGrid from '../lib/components/home/HomeFeatureGrid.svelte';
+  import HomeHero from '../lib/components/home/HomeHero.svelte';
+  import HomeInstallation from '../lib/components/home/HomeInstallation.svelte';
+  import HomePricing from '../lib/components/home/HomePricing.svelte';
+
+  const structuredData = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': 'https://omg.latham.cloud/#org',
+        name: 'OMG Package Manager',
+        url: 'https://omg.latham.cloud/',
+        logo: 'https://omg.latham.cloud/icons/icon-512.png',
+        sameAs: ['https://github.com/PyRo1121/omg'],
+      },
+      {
+        '@type': 'WebSite',
+        '@id': 'https://omg.latham.cloud/#website',
+        url: 'https://omg.latham.cloud/',
+        name: 'OMG Package Manager',
+        publisher: { '@id': 'https://omg.latham.cloud/#org' },
+      },
+      {
+        '@type': 'SoftwareApplication',
+        name: 'OMG Package Manager',
+        applicationCategory: 'DeveloperApplication',
+        operatingSystem: 'Linux, macOS, Windows Subsystem for Linux',
+        description:
+          'A fast package and runtime manager for Linux system packages and reproducible development environments.',
+        url: 'https://omg.latham.cloud/',
+        downloadUrl: 'https://omg.latham.cloud/#install',
+        softwareHelp: 'https://omg.latham.cloud/docs/',
+        codeRepository: 'https://github.com/PyRo1121/omg',
+        license: 'https://www.gnu.org/licenses/agpl-3.0.html',
+        publisher: { '@id': 'https://omg.latham.cloud/#org' },
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      },
+    ],
+  });
+</script>
+
 <svelte:head>
-  <title>OMG SvelteKit migration shadow</title>
+  <title>OMG: One CLI for Packages, Runtimes, and Project Toolchains</title>
   <meta
     name="description"
-    content="An isolated migration target for the OMG package manager website."
+    content="OMG is a free, open-source CLI that installs apps and manages Node.js, Python, Go, and Rust versions on Linux and macOS — one command instead of apt, brew, nvm, pyenv, and rustup."
   />
-  <meta name="robots" content="noindex, nofollow" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="https://omg.latham.cloud/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="OMG: Stop Managing Package Managers" />
+  <meta
+    property="og:description"
+    content="System packages, language runtimes, and project toolchains through one fast Rust CLI."
+  />
+  <meta property="og:url" content="https://omg.latham.cloud/" />
+  <meta property="og:image" content="https://omg.latham.cloud/og/omg-og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta
+    property="og:image:alt"
+    content="The OMG landing page headline beside a large orange 7→1 graphic representing seven package tools replaced by one command."
+  />
+  <meta property="og:site_name" content="OMG Package Manager" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="OMG: Stop Managing Package Managers" />
+  <meta
+    name="twitter:description"
+    content="Packages, runtimes, and project toolchains through one Rust CLI."
+  />
+  <meta name="twitter:image" content="https://omg.latham.cloud/og/omg-og.png" />
+  <meta name="twitter:image:alt" content="OMG package manager workflow" />
+  <svelte:element this={"script"} type="application/ld+json">{structuredData}</svelte:element>
 </svelte:head>
 
-<main id="main-content" class="shadow-shell">
-  <p class="shadow-kicker">Migration target / no production traffic</p>
-  <h1 class="shadow-title">Seven tools. One command.</h1>
-  <p class="shadow-copy">
-    This Alchemy-managed SvelteKit surface is isolated while route, metadata, accessibility, and
-    Cloudflare behavior are characterized against the current site.
-  </p>
-  <nav class="shadow-links" aria-label="Migration checks">
-    <a href="/login">Sign in</a>
-    <a href="/signup">Sign up</a>
-    <a href="/health">Health</a>
-    <a href="/robots.txt">Robots</a>
-    <a href="/sitemap.xml">Sitemap</a>
-  </nav>
+<main id="main-content" class="home">
+  <HomeHero />
+  <HomeFeatureGrid />
+  <HomeBenchmarks />
+  <HomePricing />
+  <HomeInstallation />
 </main>
+
+<style>
+  :global(html) {
+    scroll-behavior: smooth;
+  }
+
+  .home {
+    --content-width: 88rem;
+    overflow: hidden;
+    background:
+      linear-gradient(var(--rule), var(--rule)) top / 100% 1px no-repeat,
+      var(--paper);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(html) {
+      scroll-behavior: auto;
+    }
+  }
+</style>

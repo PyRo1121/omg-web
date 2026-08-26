@@ -12,12 +12,12 @@
   <link rel="canonical" href="https://omg.latham.cloud/privacy/" />
 </svelte:head>
 
-<main id="main-content" class="policy-shell">
-  <p class="policy-kicker">Privacy and data rights</p>
-  <h1 class="policy-title">Privacy policy</h1>
-  <p class="policy-meta">Version 2.0 / Last updated February 7, 2026</p>
+<main id="main-content" class="legal-shell">
+  <p class="page-kicker">Privacy and data rights</p>
+  <h1 class="legal-title">Privacy policy</h1>
+  <p class="legal-meta">Version 2.0 / Last updated February 7, 2026</p>
 
-  <div class="policy-body">
+  <div class="legal-body">
     <section>
       <h2>What we collect</h2>
       <ul>
@@ -82,105 +82,16 @@
     </section>
   </div>
 
-  <a href="/" class="policy-home">← Back to home</a>
+  <a href="/" class="legal-home">← Back to home</a>
 </main>
 
 <style>
-  .policy-shell {
-    max-width: calc(42rem + clamp(2rem, 8vw, 6rem));
-    min-height: 100vh;
-    margin: 0 auto;
-    padding: clamp(4rem, 12vw, 10rem) clamp(1rem, 4vw, 3rem) clamp(5rem, 14vw, 9rem);
-  }
-
-  .policy-kicker {
-    margin: 0;
-    color: var(--signal);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-
-  .policy-title {
-    margin: 1.25rem 0 0;
-    font-family: var(--font-display);
-    font-size: clamp(3rem, 9vw, 5.75rem);
-    font-weight: 650;
-    letter-spacing: -0.06em;
-    line-height: 0.92;
-  }
-
-  .policy-meta {
-    margin: 1.5rem 0 0;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid var(--rule);
-    color: var(--ink-muted);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-  }
-
-  .policy-body {
-    max-width: 42rem;
-    display: grid;
-    gap: 2.5rem;
-    padding-top: 2.5rem;
-    color: var(--ink-muted);
-    font-size: 0.9375rem;
-    line-height: 1.85;
-  }
-
-  .policy-body h2 {
-    margin: 0 0 0.75rem;
-    color: var(--ink);
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-  }
-
-  .policy-body p {
-    margin: 0;
-  }
-
   .policy-lead {
     margin-bottom: 0.75rem !important;
   }
 
-  .policy-body ul {
-    display: grid;
-    gap: 0.5rem;
-    margin: 0;
-    padding-left: 1.25rem;
-    list-style: disc;
-  }
-
-  .policy-body strong {
+  .legal-body strong {
     color: var(--ink);
     font-weight: 600;
-  }
-
-  .policy-body a {
-    color: var(--signal);
-    font-weight: 600;
-    text-decoration-color: var(--signal);
-    text-underline-offset: 0.2rem;
-  }
-
-  .policy-home {
-    display: inline-block;
-    margin-top: 3rem;
-    padding: 0.75rem 1.25rem;
-    border: 1px solid var(--rule-strong);
-    color: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 0.875rem;
-    text-decoration: none;
-  }
-
-  .policy-home:hover {
-    border-color: var(--signal);
-    color: var(--signal);
   }
 </style>

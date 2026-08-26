@@ -8,7 +8,7 @@ const CONTENT_SECURITY_POLICY = [
   `connect-src 'self' ${SITE_URL} https://omg-api.latham.cloud https://api.github.com https://cloudflareinsights.com`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  `form-action 'self' ${SITE_URL} https://github.com https://accounts.google.com`,
+  `form-action 'self' ${SITE_URL} https://github.com`,
 ].join('; ');
 
 const SECURITY_HEADERS = {

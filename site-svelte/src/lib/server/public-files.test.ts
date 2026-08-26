@@ -49,7 +49,12 @@ Sitemap: https://omg.latham.cloud/sitemap.xml
   it('adds the shared security policy and keeps shadow stages out of search', () => {
     const response = withSiteHeaders(new Response('ok'), 'shadow');
 
-    expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+    const contentSecurityPolicy = response.headers.get('content-security-policy');
+    expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
+    expect(contentSecurityPolicy).toContain(
+      "form-action 'self' https://omg.latham.cloud https://github.com"
+    );
+    expect(contentSecurityPolicy).not.toContain('accounts.google.com');
     expect(response.headers.get('strict-transport-security')).toBe(
       'max-age=31536000; includeSubDomains; preload'
     );

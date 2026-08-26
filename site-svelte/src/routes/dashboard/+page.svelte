@@ -22,10 +22,10 @@
   <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<main id="main-content" class="dashboard-shell">
-  <section class="dashboard-panel" aria-labelledby="dashboard-title">
-    <p class="dashboard-kicker">Account</p>
-    <h1 id="dashboard-title" class="dashboard-title">Session overview.</h1>
+<main id="main-content" class="account-shell">
+  <section class="account-panel" aria-labelledby="dashboard-title">
+    <p class="page-kicker">Account</p>
+    <h1 id="dashboard-title" class="account-title">Session overview.</h1>
 
     <dl class="dashboard-facts">
       <div class="dashboard-fact">
@@ -51,7 +51,7 @@
       {pending ? 'Signing out…' : 'Sign out'}
     </button>
 
-    <p class="dashboard-note">
+    <p class="account-note">
       Dashboard telemetry is not yet migrated. This shell shows only what the shadow session can
       truthfully report.
     </p>
@@ -59,37 +59,6 @@
 </main>
 
 <style>
-  .dashboard-shell {
-    display: grid;
-    min-height: 100vh;
-    place-items: center;
-    padding: clamp(1.5rem, 7vw, 7rem);
-  }
-
-  .dashboard-panel {
-    width: 100%;
-    max-width: 26rem;
-  }
-
-  .dashboard-kicker {
-    margin: 0 0 1rem;
-    color: var(--signal);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-
-  .dashboard-title {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: clamp(2.5rem, 8vw, 4rem);
-    font-weight: 650;
-    letter-spacing: -0.065em;
-    line-height: 0.9;
-  }
-
   .dashboard-facts {
     display: grid;
     gap: 1.25rem;
@@ -129,15 +98,5 @@
   .dashboard-signout:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-  }
-
-  .dashboard-note {
-    margin: 2rem 0 0;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--rule);
-    color: var(--ink-muted);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    line-height: 1.6;
   }
 </style>
