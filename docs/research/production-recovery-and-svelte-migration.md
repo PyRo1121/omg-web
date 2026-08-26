@@ -491,6 +491,8 @@ Alchemy injects its Cloudflare adapter in memory. The Svelte package therefore h
 
 The coexistence package is `site-svelte/`. It owns only the generated shadow Worker until a complete URL-path slice passes characterization. Existing production Workers and D1 are not bulk-adopted: every future Alchemy adoption requires a resource-specific plan and rollback gate, and `--adopt` must never be applied indiscriminately to the whole production stack.
 
+**Auth compatibility gate:** Better Auth `1.7.1` declares SvelteKit `^2` while Alchemy's Svelte adapter requires SvelteKit `>=3.0.0-next.9`. npm correctly rejects installing both in the shadow package. Do not use `--legacy-peer-deps`, force the install, duplicate the auth implementation, or replace the working production endpoint. Until one side publishes a compatible stable range, `/api/auth/*` remains on the existing site Worker; Svelte auth-page work must use a path-level coexistence design that preserves that endpoint and same-origin cookies, or wait for upstream compatibility.
+
 ### Target SvelteKit structure
 
 ```text

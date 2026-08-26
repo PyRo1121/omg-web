@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/solid';
 import { Cause, Effect, Exit, Option } from 'effect';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
-import * as schema from '../../db/auth-schema';
+import * as schema from '../../../shared/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import { parseAccountDashboard, type DashboardData } from '~/lib/contracts/dashboard';
 import { AccountRowSchema, SessionRowSchema, readD1RowArray } from '~/lib/contracts/d1-rows';

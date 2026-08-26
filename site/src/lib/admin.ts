@@ -1,7 +1,7 @@
 import type { APIEvent } from '@solidjs/start/server';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
-import * as schema from '~/db/auth-schema';
+import * as schema from '../../shared/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import { storedDataErrorResponse } from '~/lib/api-error';
 import { isInvalidD1Row, readOptionalD1Row, UserRoleRowSchema } from '~/lib/contracts/d1-rows';
