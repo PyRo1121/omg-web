@@ -50,7 +50,7 @@ export class LoginView {
     this.pending = true;
     this.error = '';
     try {
-      const result = await signIn.social({ provider: 'github', callbackURL: '/' });
+      const result = await signIn.social({ provider: 'github', callbackURL: '/dashboard/' });
       if (result?.error) {
         this.error = result.error.message ?? 'GitHub sign-in failed';
         this.pending = false;
