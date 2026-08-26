@@ -20,7 +20,7 @@
 
     <nav aria-label="Footer navigation">
       <ul class="footer-links">
-        <li><a href="https://omg.latham.cloud/docs/">Docs</a></li>
+        <li><a href="/docs/">Docs</a></li>
         <li>
           <a href="https://github.com/PyRo1121/omg" target="_blank" rel="noopener noreferrer">
             GitHub

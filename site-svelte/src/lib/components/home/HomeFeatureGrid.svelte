@@ -41,9 +41,7 @@
         OMG uses the package managers you already trust under the hood. You just learn one command
         instead of seven.
       </p>
-      <a class="text-link signal-link" href="https://omg.latham.cloud/docs/">
-        Read the full documentation
-      </a>
+      <a class="text-link signal-link" href="/docs/"> Read the full documentation </a>
     </div>
   </header>
 
@@ -64,9 +62,7 @@
     <div>
       <h3>That is the whole interface.</h3>
       <p>Search, install, pin, update, capture, restore — the same shape every time.</p>
-      <a class="text-link signal-link" href="https://omg.latham.cloud/docs/">
-        Full command reference
-      </a>
+      <a class="text-link signal-link" href="/docs/"> Full command reference </a>
     </div>
     <ul aria-label="OMG command examples">
       {#each commands as command (command)}

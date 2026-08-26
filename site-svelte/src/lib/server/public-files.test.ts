@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { healthResponse, robotsResponse, sitemapResponse, withSiteHeaders } from './public-files';
+import {
+  healthResponse,
+  robotsResponse,
+  sitemapResponse,
+  withDocsRouteCache,
+  withSiteHeaders,
+} from './public-files';
 
 describe('public migration endpoints', () => {
   it('preserves the production robots policy', async () => {
@@ -70,4 +76,26 @@ Sitemap: https://omg.latham.cloud/sitemap.xml
     expect(response.headers.get('vary')).toBe('Origin, Accept-Encoding');
     expect(response.headers.has('x-robots-tag')).toBe(false);
   });
+
+  it.each(['GET', 'HEAD'])('requires revalidation for successful %s /docs/ responses', method => {
+    const securedResponse = withSiteHeaders(new Response('docs'), 'shadow');
+    const response = withDocsRouteCache(securedResponse, method, '/docs/');
+
+    expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
+    expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
+  });
+
+  it.each([
+    { method: 'GET', pathname: '/docs/', status: 404 },
+    { method: 'POST', pathname: '/docs/', status: 200 },
+    { method: 'GET', pathname: '/', status: 200 },
+    { method: 'GET', pathname: '/api/auth/session', status: 200 },
+  ])(
+    'does not cache $method $pathname responses with status $status',
+    ({ method, pathname, status }) => {
+      const response = withDocsRouteCache(new Response(null, { status }), method, pathname);
+
+      expect(response.headers.has('cache-control')).toBe(false);
+    }
+  );
 });

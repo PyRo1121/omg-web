@@ -20,7 +20,7 @@
   </p>
   <nav class="error-links" aria-label="Recovery links">
     <a href="/">Back to shadow home</a>
-    <a href="https://omg.latham.cloud/docs/">Read production docs</a>
+    <a href="/docs/">Read production docs</a>
   </nav>
 </main>
 

@@ -22,6 +22,7 @@ const SECURITY_HEADERS = {
 } as const;
 
 const SHADOW_ROBOTS_POLICY = 'noindex, nofollow';
+const DOCS_CACHE_POLICY = 'public, max-age=0, must-revalidate';
 
 interface PageEntry {
   readonly changeFrequency: 'weekly' | 'yearly';
@@ -73,6 +74,25 @@ export function withSiteHeaders(response: Response, deploymentStage: string | un
     headers.set('X-Robots-Tag', SHADOW_ROBOTS_POLICY);
   }
 
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+}
+
+/**
+ * Apply the production cache policy only to successful, read-only docs responses.
+ */
+export function withDocsRouteCache(response: Response, method: string, pathname: string): Response {
+  const isRead = method === 'GET' || method === 'HEAD';
+  const isSuccessful = response.status >= 200 && response.status < 300;
+  if (!isRead || pathname !== '/docs/' || !isSuccessful) {
+    return response;
+  }
+
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', DOCS_CACHE_POLICY);
   return new Response(response.body, {
     headers,
     status: response.status,

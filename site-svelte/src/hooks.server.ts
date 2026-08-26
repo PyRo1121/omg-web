@@ -1,8 +1,8 @@
-import { building } from '$app/env';
+import { building } from '$app/environment';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import type { Handle } from '@sveltejs/kit';
 import { createShadowAuth, enforceAuthMutationRateLimit } from './lib/server/auth.server';
-import { withSiteHeaders } from './lib/server/public-files';
+import { withDocsRouteCache, withSiteHeaders } from './lib/server/public-files';
 
 const AUTH_PATH_PREFIX = '/api/auth/';
 const AUTH_UNAVAILABLE_HEADERS = { 'Cache-Control': 'no-store' } as const;
@@ -36,5 +36,6 @@ export const handle: Handle = async ({ event, resolve }) => {
     response = await resolve(event);
   }
 
-  return withSiteHeaders(response, platform?.env.DEPLOYMENT_STAGE);
+  const securedResponse = withSiteHeaders(response, platform?.env.DEPLOYMENT_STAGE);
+  return withDocsRouteCache(securedResponse, event.request.method, event.url.pathname);
 };
