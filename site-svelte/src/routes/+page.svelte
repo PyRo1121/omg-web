@@ -16,6 +16,7 @@
   </p>
   <nav class="shadow-links" aria-label="Migration checks">
     <a href="/login">Sign in</a>
+    <a href="/signup">Sign up</a>
     <a href="/health">Health</a>
     <a href="/robots.txt">Robots</a>
     <a href="/sitemap.xml">Sitemap</a>
