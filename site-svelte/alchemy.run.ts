@@ -1,6 +1,12 @@
 import * as Alchemy from 'alchemy';
 import * as Cloudflare from 'alchemy/Cloudflare';
+import * as RemovalPolicy from 'alchemy/RemovalPolicy';
 import * as Effect from 'effect/Effect';
+
+/** Existing production database; Alchemy binds it but does not own migrations. */
+export const PlatformDatabase = Cloudflare.D1.Database('PlatformDatabase', {
+  name: 'omg-platform',
+}).pipe(RemovalPolicy.retain());
 
 export const Website = Cloudflare.Website.SvelteKit(
   'Website',
@@ -14,6 +20,7 @@ export const Website = Cloudflare.Website.SvelteKit(
         runWorkerFirst: true,
       },
       env: {
+        DB: PlatformDatabase,
         DEPLOYMENT_STAGE: stage,
       },
       memo: {

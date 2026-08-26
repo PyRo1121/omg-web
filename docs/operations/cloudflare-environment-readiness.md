@@ -8,13 +8,13 @@ This document records the deployed Cloudflare topology, the free-tier usage ceil
 
 ## Deployed topology (free plan)
 
-| Kind                        | Resource                                                | Repository authority         | Public URL                                                                           |
-| --------------------------- | ------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------ |
-| Worker                      | `omg-saas`                                              | `site/workers/wrangler.toml` | `https://omg-api.latham.cloud`                                                       |
-| Worker + static assets      | `omg-site`                                              | `site/wrangler.toml`         | `https://omg.latham.cloud`                                                           |
-| D1 (single shared database) | `omg-platform` / `fee8ddab-fb4a-4be4-b8d2-8abb7c2db188` | both wrangler configs        | n/a                                                                                  |
-| SvelteKit shadow Worker     | `omgsveltesite-website-shadow-jav5h3wa32bnkqce`         | `site-svelte/alchemy.run.ts` | `https://omgsveltesite-website-shadow-jav5h3wa32bnkqce.latham.workers.dev`           |
-| Alchemy state Worker + DO   | `alchemy-state-store`                                   | Alchemy bootstrap            | `https://alchemy-state-store.latham.workers.dev` (authenticated state protocol only) |
+| Kind                        | Resource                                                | Repository authority                           | Public URL                                                                           |
+| --------------------------- | ------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Worker                      | `omg-saas`                                              | `site/workers/wrangler.toml`                   | `https://omg-api.latham.cloud`                                                       |
+| Worker + static assets      | `omg-site`                                              | `site/wrangler.toml`                           | `https://omg.latham.cloud`                                                           |
+| D1 (single shared database) | `omg-platform` / `fee8ddab-fb4a-4be4-b8d2-8abb7c2db188` | Worker migrations; Wrangler + Alchemy bindings | n/a                                                                                  |
+| SvelteKit shadow Worker     | `omgsveltesite-website-shadow-jav5h3wa32bnkqce`         | `site-svelte/alchemy.run.ts`                   | `https://omgsveltesite-website-shadow-jav5h3wa32bnkqce.latham.workers.dev`           |
+| Alchemy state Worker + DO   | `alchemy-state-store`                                   | Alchemy bootstrap                              | `https://alchemy-state-store.latham.workers.dev` (authenticated state protocol only) |
 
 Both production hostnames are Workers Custom Domains on the `latham.cloud` zone; Cloudflare provisions DNS and certificates automatically. Both production Workers have their `workers.dev` application surface disabled. The SvelteKit shadow deliberately uses only a generated `workers.dev` hostname, has no production route or binding, and adds `X-Robots-Tag: noindex, nofollow` outside an explicit `prod` stage.
 
@@ -114,7 +114,7 @@ Workers rollback reverts **code only, never D1 schema or data** (<https://develo
 
 `site-svelte/` is exact-pinned to Alchemy `2.0.0-beta.74`, Effect `4.0.0-rc.112`, SvelteKit `3.0.0-next.9`, and Vite `8.2.1`. Alchemy's current SvelteKit adapter fails with newer SvelteKit 3 prereleases despite its published peer range, so updates require a successful shadow plan, deploy, browser smoke, and rollback check before lockfile changes are accepted. The generated static-assets layer must keep `runWorkerFirst: true`; otherwise browser HTML navigation is intercepted by the asset fallback and returns a plaintext 404 before SvelteKit runs.
 
-The Alchemy OAuth profile is local and currently limited to account/user read, Secrets Store write, Workers Scripts write, Workers Observability read/write, and Workers Tail read. D1, DNS, zones, routes, Pages, R2, AI, queues, and container permissions were not granted. Add a permission only in the slice that needs it, then remove it when no longer required.
+The Alchemy OAuth profile is local and currently limited to account/user read, D1 write, Secrets Store write, Workers Scripts write, Workers Observability read/write, and Workers Tail read. D1 write was added only to adopt `omg-platform` as the shadow site's `DB` binding. `site-svelte/alchemy.run.ts` deliberately assigns no migrations or import files to that resource and pins `RemovalPolicy.retain()` so destroying the shadow stack cannot delete production data; immediately after adoption, a remote read confirmed that no `__alchemy_migrations` table was created. The canonical migration chain remains exclusively `site/workers/migrations/` under Wrangler. DNS, zones, routes, Pages, R2, AI, queues, and container permissions were not granted. Add a permission only in the slice that needs it, then remove it when no longer required.
 
 Do not run `alchemy deploy --adopt` against existing production resources as a bulk operation. During coexistence, Alchemy is authoritative for the new Svelte deployment while the two current production Workers and shared D1 remain under their existing Wrangler owners. Each eventual adoption requires a resource-specific plan, characterization gate, rollback command, and explicit confirmation that the plan does not replace the physical resource.
 
