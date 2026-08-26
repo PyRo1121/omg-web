@@ -1,6 +1,6 @@
 // CLI telemetry event handlers.
-import { reportError, reportWarning } from '../observability';
-import { type Env, jsonResponse, errorResponse } from '../api';
+import { reportError } from '../observability';
+import { type Env, jsonResponse, errorResponse, enforceRateLimit } from '../api';
 import { Effect, Exit } from 'effect';
 import { decodeJsonBody } from '../body';
 import {
@@ -78,24 +78,12 @@ async function authorizeTelemetry(
   | { readonly _tag: 'optedOut' }
   | { readonly _tag: 'rejected'; readonly response: Response }
 > {
-  if (env.API_RATE_LIMITER) {
-    try {
-      const { success } = await env.API_RATE_LIMITER.limit({ key: `telemetry:${licenseKey}` });
-      if (!success) {
-        const response = errorResponse('Rate limit exceeded', 429);
-        response.headers.set('Retry-After', String(RATE_LIMIT_WINDOW_SECONDS));
-        return { _tag: 'rejected', response };
-      }
-    } catch (error: unknown) {
-      // Fail closed: a broken limiter must not turn into unlimited ingestion.
-      reportError('Rate limit check failed:', error);
-      return {
-        _tag: 'rejected',
-        response: errorResponse('Rate limit check failed', 503),
-      };
+  const limited = await enforceRateLimit(env.API_RATE_LIMITER, `telemetry:${licenseKey}`);
+  if (limited !== null) {
+    if (limited.status === 429) {
+      limited.headers.set('Retry-After', String(RATE_LIMIT_WINDOW_SECONDS));
     }
-  } else {
-    reportWarning('API_RATE_LIMITER binding not available, skipping rate limit');
+    return { _tag: 'rejected', response: limited };
   }
 
   const policyExit = await Effect.runPromiseExit(resolveTelemetryIngestion(env.DB, licenseKey));

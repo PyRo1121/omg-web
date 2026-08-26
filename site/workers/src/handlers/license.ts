@@ -6,6 +6,8 @@ import {
   type Env,
   jsonResponse,
   errorResponse,
+  enforceRateLimit,
+  rateLimitClientIp,
   logAudit,
   respondFromEffect,
   TIER_FEATURES,
@@ -55,7 +57,7 @@ class LicenseHandlerError extends Error {
       | 'LicenseJwtError'
       | 'InstallPingStoreUnavailable',
     message: string,
-    readonly status: 400 | 401 | 500,
+    readonly status: 400 | 401 | 500 | 503,
     override readonly cause?: unknown
   ) {
     super(message);
@@ -379,14 +381,13 @@ function errorStatus(error: { readonly _tag: string }): number {
  */
 export async function handleValidateLicense(request: Request, env: Env): Promise<Response> {
   // License keys are the sole activation credential; throttle per-IP to blunt
-  // key brute-force attempts. Requests without CF-Connecting-IP get a unique
-  // limiter slot so they can never exhaust one shared bucket.
-  const ip = request.headers.get('CF-Connecting-IP') ?? crypto.randomUUID();
-  if (env.API_RATE_LIMITER) {
-    const { success } = await env.API_RATE_LIMITER.limit({ key: `validate_license:${ip}` });
-    if (!success) {
-      return errorResponse('Rate limit exceeded', 429);
-    }
+  // key brute-force attempts. Header-less requests share one fail-safe bucket.
+  const limited = await enforceRateLimit(
+    env.API_RATE_LIMITER,
+    `validate_license:${rateLimitClientIp(request)}`
+  );
+  if (limited !== null) {
+    return limited;
   }
   return respondFromEffect(validateLicense(request, env), error => {
     const status = errorStatus(error);
@@ -689,12 +690,12 @@ function reportMachineUsage(
  * @returns JSON success payload or a mapped error response.
  */
 export async function handleReportUsage(request: Request, env: Env): Promise<Response> {
-  if (env.API_RATE_LIMITER) {
-    const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
-    const { success } = await env.API_RATE_LIMITER.limit({ key: `report_usage:${ip}` });
-    if (!success) {
-      return errorResponse('Rate limit exceeded', 429);
-    }
+  const limited = await enforceRateLimit(
+    env.API_RATE_LIMITER,
+    `report_usage:${rateLimitClientIp(request)}`
+  );
+  if (limited !== null) {
+    return limited;
   }
   return respondFromEffect(reportUsage(request, env), error => {
     const status = errorStatus(error);
@@ -720,12 +721,15 @@ const InstallPingBodySchema = Schema.Struct({
  * @returns JSON success payload or a mapped error response.
  */
 export async function handleInstallPing(request: Request, env: Env): Promise<Response> {
-  if (env.API_RATE_LIMITER) {
-    const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
-    const { success } = await env.API_RATE_LIMITER.limit({ key: `install_ping:${ip}` });
-    if (!success) {
-      return jsonResponse({ success: true as const, message: 'Install recorded' });
-    }
+  const limited = await enforceRateLimit(
+    env.API_RATE_LIMITER,
+    `install_ping:${rateLimitClientIp(request)}`
+  );
+  if (limited?.status === 429) {
+    return jsonResponse({ success: true as const, message: 'Install recorded' });
+  }
+  if (limited !== null) {
+    return limited;
   }
 
   return respondFromEffect(
@@ -858,15 +862,21 @@ function ingestAnalytics(
 > {
   return Effect.gen(function* () {
     const rateLimiter = env.API_RATE_LIMITER;
-    if (rateLimiter) {
-      const ip = request.headers.get('CF-Connecting-IP') ?? crypto.randomUUID();
-      const rl = yield* Effect.tryPromise({
-        try: () => rateLimiter.limit({ key: `analytics:${ip}` }),
-        catch: cause => storeUnavailable('analyticsRateLimit', cause),
-      });
-      if (!rl.success) {
-        return { success: true as const, processed: 0 };
-      }
+    if (rateLimiter === undefined) {
+      return yield* Effect.fail(
+        new LicenseHandlerError(
+          'ValidateLicenseStoreUnavailable',
+          'Analytics rate limiting unavailable',
+          503
+        )
+      );
+    }
+    const rl = yield* Effect.tryPromise({
+      try: () => rateLimiter.limit({ key: `analytics:${rateLimitClientIp(request)}` }),
+      catch: cause => storeUnavailable('analyticsRateLimit', cause),
+    });
+    if (!rl.success) {
+      return { success: true as const, processed: 0 };
     }
 
     // decodeJsonBody enforces the byte cap on the actual stream; no

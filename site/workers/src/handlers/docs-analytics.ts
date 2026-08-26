@@ -1,4 +1,4 @@
-import { reportError, reportInfo, reportWarning } from '../observability';
+import { reportError, reportInfo } from '../observability';
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * DOCS ANALYTICS HANDLER - World-Class Web Telemetry
@@ -7,7 +7,7 @@ import { reportError, reportInfo, reportWarning } from '../observability';
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-import { type Env, jsonResponse, errorResponse } from '../api';
+import { type Env, jsonResponse, errorResponse, enforceRateLimit, rateLimitClientIp } from '../api';
 import { Effect, Exit } from 'effect';
 import { decodeJsonBody } from '../body';
 import { DocsAnalyticsBatchSchema } from '../contracts/http-bodies';
@@ -55,14 +55,12 @@ export async function handleDocsAnalytics(
       return contentLengthError;
     }
 
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    if (env.API_RATE_LIMITER) {
-      const { success } = await env.API_RATE_LIMITER.limit({ key: `docs_analytics:${ip}` });
-      if (!success) {
-        return errorResponse('Rate limit exceeded', 429);
-      }
-    } else {
-      reportWarning('API_RATE_LIMITER binding not available, skipping rate limit');
+    const limited = await enforceRateLimit(
+      env.API_RATE_LIMITER,
+      `docs_analytics:${rateLimitClientIp(request)}`
+    );
+    if (limited !== null) {
+      return limited;
     }
 
     const decodedBody = await Effect.runPromiseExit(

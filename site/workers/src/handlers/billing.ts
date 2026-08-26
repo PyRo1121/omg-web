@@ -1,5 +1,5 @@
 import { reportError, reportInfo, reportWarning } from '../observability';
-import { type Env, jsonResponse, errorResponse, logAudit } from '../api';
+import { type Env, jsonResponse, errorResponse, enforceRateLimit, logAudit } from '../api';
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import { decodeJsonBody } from '../body';
@@ -521,13 +521,9 @@ export async function handleCreateCheckout(
   if (authOrDenied instanceof Response) return authOrDenied;
   const auth = authOrDenied;
 
-  if (env.API_RATE_LIMITER) {
-    const { success } = await env.API_RATE_LIMITER.limit({
-      key: `billing_checkout:${auth.user.id}`,
-    });
-    if (!success) {
-      return errorResponse('Rate limit exceeded', 429);
-    }
+  const limited = await enforceRateLimit(env.API_RATE_LIMITER, `billing_checkout:${auth.user.id}`);
+  if (limited !== null) {
+    return limited;
   }
 
   const decoded = await Effect.runPromiseExit(decodeJsonBody(request, CheckoutRequestSchema));
@@ -654,13 +650,9 @@ export async function handleCheckoutSessionStatus(
   if (!env.STRIPE_SECRET_KEY) {
     return errorResponse('Billing is not configured', 503);
   }
-  if (env.API_RATE_LIMITER) {
-    const { success } = await env.API_RATE_LIMITER.limit({
-      key: `checkout_session:${auth.user.id}`,
-    });
-    if (!success) {
-      return errorResponse('Rate limit exceeded', 429);
-    }
+  const limited = await enforceRateLimit(env.API_RATE_LIMITER, `checkout_session:${auth.user.id}`);
+  if (limited !== null) {
+    return limited;
   }
 
   const sessionId = URL.parse(request.url)?.searchParams.get('id') ?? null;

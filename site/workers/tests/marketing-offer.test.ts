@@ -16,6 +16,9 @@ function offerEnv(rateLimitSuccess = true): Env {
     JWT_SECRET: 'jwt-test-secret',
     JWT_PRIVATE_KEY: 'private-test-key',
     ADMIN_API_SECRET: INTERNAL_SECRET,
+    API_RATE_LIMITER: {
+      limit: async () => ({ success: true }),
+    },
     OFFER_RATE_LIMITER: {
       limit: async () => ({ success: rateLimitSuccess }),
     },

@@ -1,6 +1,6 @@
-import { reportError, reportWarning } from '../observability';
+import { reportError } from '../observability';
 import { Effect, Exit } from 'effect';
-import { type Env, jsonResponse, errorResponse } from '../api';
+import { type Env, jsonResponse, errorResponse, enforceRateLimit, rateLimitClientIp } from '../api';
 import { validateContentLength } from './telemetry';
 import { decodeJsonBody } from '../body';
 import {
@@ -72,14 +72,10 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
       return contentLengthError;
     }
 
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    if (env.API_RATE_LIMITER) {
-      const { success } = await env.API_RATE_LIMITER.limit({ key: `site_analytics:${ip}` });
-      if (!success) {
-        return errorResponse('Rate limit exceeded', 429);
-      }
-    } else {
-      reportWarning('API_RATE_LIMITER binding not available, skipping rate limit');
+    const ip = rateLimitClientIp(request);
+    const limited = await enforceRateLimit(env.API_RATE_LIMITER, `site_analytics:${ip}`);
+    if (limited !== null) {
+      return limited;
     }
 
     const decodedBody = await Effect.runPromiseExit(decodeJsonBody(request, TrackingBatchSchema));

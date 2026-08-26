@@ -5,6 +5,8 @@ import {
   type Env,
   jsonResponse,
   errorResponse,
+  enforceRateLimit,
+  rateLimitClientIp,
   generateToken,
   validateSession,
   logAudit,
@@ -567,9 +569,7 @@ export async function enforceIpRateLimit(
     reportError('AUTH_RATE_LIMITER binding is missing; failing auth request closed');
     return errorResponse('Authentication is temporarily unavailable', 503);
   }
-  const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
-  const { success } = await env.AUTH_RATE_LIMITER.limit({ key: `${scope}:${ip}` });
-  return success ? null : errorResponse('Rate limit exceeded', 429);
+  return enforceRateLimit(env.AUTH_RATE_LIMITER, `${scope}:${rateLimitClientIp(request)}`);
 }
 
 /**

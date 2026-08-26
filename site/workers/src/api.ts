@@ -219,6 +219,28 @@ export function errorResponse(message: string, status = 400): Response {
   return jsonResponse({ error: message }, status);
 }
 
+/** Cloudflare's client address, or one shared fail-safe bucket outside the edge. */
+export function rateLimitClientIp(request: Request): string {
+  return request.headers.get('CF-Connecting-IP') ?? 'unknown';
+}
+
+/** Apply one limiter key; missing or failed bindings reject instead of bypassing limits. */
+export async function enforceRateLimit(
+  limiter: RateLimit | undefined,
+  key: string
+): Promise<Response | null> {
+  if (limiter === undefined) {
+    return errorResponse('Rate limiting unavailable', 503);
+  }
+  try {
+    const result = await limiter.limit({ key });
+    return result.success ? null : errorResponse('Rate limit exceeded', 429);
+  } catch (error: unknown) {
+    Sentry.captureException(error);
+    return errorResponse('Rate limiting unavailable', 503);
+  }
+}
+
 /**
  * Run an Effect-based handler and render its success value as JSON.
  *

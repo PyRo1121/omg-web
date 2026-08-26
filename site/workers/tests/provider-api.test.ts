@@ -1,10 +1,43 @@
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { verifyTurnstile, type ProviderFetch } from '../src/api';
+import { enforceRateLimit, verifyTurnstile, type ProviderFetch } from '../src/api';
 
 function responseFetch(body: string, status = 200): ProviderFetch {
   return () => Promise.resolve(new Response(body, { status }));
 }
+
+describe('rate-limit boundary', () => {
+  it('fails closed when the binding is missing', async () => {
+    const response = await enforceRateLimit(undefined, 'test:missing');
+
+    expect(response?.status).toBe(503);
+  });
+
+  it('fails closed when the binding throws', async () => {
+    const limiter: RateLimit = {
+      limit: async () => {
+        throw new Error('limiter unavailable');
+      },
+    };
+
+    const response = await enforceRateLimit(limiter, 'test:throws');
+    expect(response?.status).toBe(503);
+  });
+
+  it('returns 429 for a rejected key and null for an allowed key', async () => {
+    const rejected = await enforceRateLimit(
+      { limit: async () => ({ success: false }) },
+      'test:rejected'
+    );
+    const allowed = await enforceRateLimit(
+      { limit: async () => ({ success: true }) },
+      'test:allowed'
+    );
+
+    expect(rejected?.status).toBe(429);
+    expect(allowed).toBeNull();
+  });
+});
 
 describe('provider API boundaries', () => {
   it('returns a decoded Turnstile rejection reason', async () => {
