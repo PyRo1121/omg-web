@@ -32,7 +32,7 @@ Deliberately **not provisioned** (free-tier and ownership constraints):
 
 `omg-platform` is one physical D1 database with two owners:
 
-- Better Auth owns exactly `auth_user`, `auth_session`, `auth_account`, and `auth_verification` (`migrations/013_better_auth.sql` plus the `014_better_auth_issuer.sql` column addition, mirrored in `site/src/db/auth-schema.ts`). The SaaS Worker must not write them.
+- Better Auth owns exactly `auth_user`, `auth_session`, `auth_account`, and `auth_verification` (`migrations/013_better_auth.sql` plus the `014_better_auth_issuer.sql` column addition, mirrored in `site/shared/auth-schema.ts`). The SaaS Worker must not write them.
 - The SaaS Worker owns every other table created by migrations `0000`–`012`. The site must not write licensing/telemetry tables directly.
 
 The canonical migration sequence lives only in `site/workers/migrations/`; integrity is enforced by `migrations.sha256`. Migrations were applied remotely on 2026-08-21 via `wrangler d1 migrations apply DB --remote`.
@@ -128,6 +128,8 @@ npm run destroy -- --stage shadow # rollback only the isolated shadow stage
 ```
 
 The shadow's `workers.dev` hostname is the only intentional secondary application origin. It must remain noindex and receive no production route until a complete URL-path slice passes its observation gate.
+
+The shadow mounts Better Auth `1.7.1` through its SvelteKit handler and reads the retained `omg-platform` binding directly. Its Alchemy-generated `ShadowAuthSecret` is stable, redacted state and is intentionally different from production's write-only `BETTER_AUTH_SECRET`; shadow sessions therefore do not authorize production and must never be presented as cutover-compatible sessions. Email/password signup remains disabled, social providers remain unconfigured, and the shadow exists only to characterize the runtime integration. Live checks on 2026-08-26 confirmed anonymous session lookup (`200 null`), invalid-password rejection (`401`), disabled signup (`400` with no user row written), security headers, and a subsequent no-op plan.
 
 ## Authenticated characterization status
 

@@ -3,6 +3,8 @@ import * as Cloudflare from 'alchemy/Cloudflare';
 import * as RemovalPolicy from 'alchemy/RemovalPolicy';
 import * as Effect from 'effect/Effect';
 
+export const ShadowAuthSecret = Alchemy.Random('ShadowAuthSecret');
+
 /** Existing production database; Alchemy binds it but does not own migrations. */
 export const PlatformDatabase = Cloudflare.D1.Database('PlatformDatabase', {
   name: 'omg-platform',
@@ -10,8 +12,11 @@ export const PlatformDatabase = Cloudflare.D1.Database('PlatformDatabase', {
 
 export const Website = Cloudflare.Website.SvelteKit(
   'Website',
-  Alchemy.Stage.pipe(
-    Effect.map(stage => ({
+  Effect.gen(function* () {
+    const stage = yield* Alchemy.Stage;
+    const authSecret = yield* ShadowAuthSecret;
+
+    return {
       adapter: {
         fallback: 'plaintext' as const,
         notFoundHandling: '404-page' as const,
@@ -20,6 +25,7 @@ export const Website = Cloudflare.Website.SvelteKit(
         runWorkerFirst: true,
       },
       env: {
+        BETTER_AUTH_SECRET: authSecret.text,
         DB: PlatformDatabase,
         DEPLOYMENT_STAGE: stage,
       },
@@ -49,8 +55,8 @@ export const Website = Cloudflare.Website.SvelteKit(
         },
       },
       workersDev: true,
-    }))
-  )
+    };
+  })
 );
 
 export type WebsiteEnv = Cloudflare.InferEnv<typeof Website>;
