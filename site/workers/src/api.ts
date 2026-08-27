@@ -10,6 +10,7 @@ import {
   SessionJoinRowSchema,
 } from './contracts/d1-extras';
 import { TurnstileSiteverifySchema } from './contracts/provider-boundaries';
+import { hashSessionToken } from './session-token';
 
 export interface Env extends Pick<Cloudflare.Env, 'DB'> {
   STRIPE_SECRET_KEY: string;
@@ -293,17 +294,22 @@ export async function validateSession(
   db: D1Database,
   token: string
 ): Promise<{ user: User; session: Session } | null> {
+  if (token.length === 0 || token.length > 256) {
+    return null;
+  }
+  const tokenHash = await hashSessionToken(token);
   const row = await db
     .prepare(
       `
-    SELECT s.id, s.token, s.expires_at,
+    SELECT s.id, s.token_hash, s.expires_at,
            c.id as customer_id, c.email, c.company, c.stripe_customer_id, c.created_at as customer_created_at
     FROM sessions s
     JOIN customers c ON s.customer_id = c.id
-    WHERE s.token = ? AND s.expires_at > datetime('now')
+    WHERE (s.token_hash = ? OR (s.token_hash IS NULL AND s.token = ?))
+      AND s.expires_at > datetime('now')
   `
     )
-    .bind(token)
+    .bind(tokenHash, token)
     .first();
 
   const decodedSession = await readOptionalExtraRow(
@@ -319,6 +325,16 @@ export async function validateSession(
   }
   const session = decodedSession.value;
 
+  if (session.token_hash === null) {
+    await db
+      .prepare(
+        `UPDATE sessions SET token = ?, token_hash = ?
+         WHERE id = ? AND token_hash IS NULL AND token = ?`
+      )
+      .bind(tokenHash, tokenHash, session.id, token)
+      .run();
+  }
+
   return {
     user: {
       id: session.customer_id,
@@ -331,7 +347,7 @@ export async function validateSession(
     session: {
       id: session.id,
       user_id: session.customer_id,
-      token: session.token,
+      token,
       expires_at: session.expires_at,
     },
   };

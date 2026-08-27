@@ -276,6 +276,66 @@ describe('POST /api/auth/verify-code', () => {
     const payload = Schema.decodeUnknownSync(VerifyCodeResponseSchema)(await response.json());
     expect(payload.success).toBe(true);
     expect(payload.token.length).toBeGreaterThan(0);
+
+    const stored = Schema.decodeUnknownSync(
+      Schema.Struct({ token: Schema.String, token_hash: Schema.String })
+    )(
+      await env.DB.prepare(
+        `SELECT s.token, s.token_hash FROM sessions s
+         JOIN customers c ON c.id = s.customer_id WHERE c.email = ?`
+      )
+        .bind(TEST_EMAIL)
+        .first()
+    );
+    expect(stored.token).not.toBe(payload.token);
+    expect(stored.token_hash).toMatch(/^sha256:v1:[0-9a-f]{64}$/);
+
+    const verifyContext = createExecutionContext();
+    const verified = await worker.fetch(
+      postJson('/api/auth/verify-session', JSON.stringify({ token: payload.token })),
+      env,
+      verifyContext
+    );
+    await waitOnExecutionContext(verifyContext);
+    expect(verified.status).toBe(200);
+    expect(await verified.json()).toMatchObject({ valid: true });
+  });
+
+  it('upgrades a legacy plaintext session after successful validation', async () => {
+    const customerId = 'legacy-session-customer';
+    const legacyToken = 'legacy-plaintext-session-token';
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, company, tier, admin)
+       VALUES (?, ?, 'Legacy session', 'free', 0)`
+    )
+      .bind(customerId, TEST_EMAIL)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO sessions (id, customer_id, token, expires_at)
+       VALUES ('legacy-session', ?, ?, datetime('now', '+1 hour'))`
+    )
+      .bind(customerId, legacyToken)
+      .run();
+
+    const context = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/auth/verify-session', JSON.stringify({ token: legacyToken })),
+      env,
+      context
+    );
+    await waitOnExecutionContext(context);
+    const stored = Schema.decodeUnknownSync(
+      Schema.Struct({ token: Schema.String, token_hash: Schema.String })
+    )(
+      await env.DB.prepare(
+        `SELECT token, token_hash FROM sessions WHERE id = 'legacy-session'`
+      ).first()
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ valid: true });
+    expect(stored.token).not.toBe(legacyToken);
+    expect(stored.token_hash).toMatch(/^sha256:v1:[0-9a-f]{64}$/);
   });
 
   it('accepts a valid code even when its failed-guess bucket is exhausted', async () => {
@@ -325,12 +385,12 @@ describe('POST /api/auth/verify-code', () => {
     const payload = Schema.decodeUnknownSync(VerifyCodeResponseSchema)(await response.json());
     const sessions = await env.DB.prepare(
       `SELECT COUNT(*) as count,
-              SUM(CASE WHEN token = ? THEN 1 ELSE 0 END) as minted
+              SUM(CASE WHEN token_hash IS NOT NULL AND token <> ? THEN 1 ELSE 0 END) as protected
        FROM sessions WHERE customer_id = ?`
     )
       .bind(payload.token, customerId)
-      .first<{ count: number; minted: number }>();
-    expect(sessions).toEqual({ count: 5, minted: 1 });
+      .first<{ count: number; protected: number }>();
+    expect(sessions).toEqual({ count: 5, protected: 1 });
   });
 
   it('allows only one concurrent verification of the same code', async () => {

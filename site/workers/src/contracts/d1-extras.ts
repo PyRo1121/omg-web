@@ -415,7 +415,7 @@ export const InstallsBadgeRowSchema = Schema.Struct({ total: D1Number });
 /** Session + customer join used by Bearer validation. */
 export const SessionJoinRowSchema = Schema.Struct({
   id: NonEmptyStr,
-  token: NonEmptyStr,
+  token_hash: NullNonEmptyStr,
   expires_at: NonEmptyStr,
   customer_id: NonEmptyStr,
   email: NonEmptyStr,

@@ -3,7 +3,6 @@ import {
   type Env,
   enforceRateLimit,
   errorResponse,
-  generateToken,
   logAudit,
   rateLimitClientIp,
   respondFromEffect,
@@ -12,13 +11,13 @@ import { decodeJsonBody, type InvalidJsonBodyError } from '../body';
 import * as Schema from 'effect/Schema';
 import {
   decodeCustomerRow,
-  decodeSessionRow,
   SessionToken,
   SiteSessionRequestSchema,
   type SiteSessionWorkerResponse,
 } from '../../../shared/site-session';
 import { AdminUnauthorizedError } from '../admin-secret';
 import { casesHandled, timingSafeEqualUtf8 } from '../prelude';
+import { deriveSiteSessionToken, hashSessionToken } from '../session-token';
 
 /** D1 was unavailable or returned an unreadable row during site-session minting. */
 class CustomerStoreUnavailable extends Error {
@@ -29,7 +28,7 @@ class CustomerStoreUnavailable extends Error {
       | 'insertCustomer'
       | 'insertLicense'
       | 'syncRole'
-      | 'findSession'
+      | 'deriveSessionToken'
       | 'insertSession',
     override readonly cause?: unknown
   ) {
@@ -149,33 +148,28 @@ function mintSiteSession(
       customer = { ...customer, admin };
     }
 
-    const sessionRow = yield* storeOperation('findSession', () =>
-      env.DB.prepare(
-        `SELECT token, expires_at FROM sessions
-         WHERE customer_id = ? AND expires_at > datetime('now')
-         ORDER BY created_at DESC LIMIT 1`
-      )
-        .bind(customer.id)
-        .first()
+    const token = Schema.decodeUnknownSync(SessionToken)(
+      yield* Effect.tryPromise({
+        try: () =>
+          deriveSiteSessionToken(env.JWT_SECRET, customer.id, body.betterAuthUserId ?? body.email),
+        catch: cause => new CustomerStoreUnavailable('deriveSessionToken', cause),
+      })
     );
-    if (sessionRow !== null) {
-      const session = yield* decodeSessionRow(sessionRow).pipe(
-        Effect.mapError(cause => new CustomerStoreUnavailable('findSession', cause))
-      );
-      return { token: session.token, expiresAt: session.expires_at, customerId: customer.id };
-    }
-
+    const tokenHash = yield* Effect.tryPromise({
+      try: () => hashSessionToken(token),
+      catch: cause => new CustomerStoreUnavailable('deriveSessionToken', cause),
+    });
     const sessionId = crypto.randomUUID();
-    const token = Schema.decodeUnknownSync(SessionToken)(generateToken());
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     yield* storeOperation('insertSession', () =>
       env.DB.prepare(
-        `INSERT INTO sessions (id, customer_id, token, expires_at) VALUES (?, ?, ?, ?)`
+        `INSERT INTO sessions (id, customer_id, token, token_hash, expires_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT DO UPDATE SET expires_at = excluded.expires_at`
       )
-        .bind(sessionId, customer.id, token, expiresAt)
+        .bind(sessionId, customer.id, tokenHash, tokenHash, expiresAt)
         .run()
     );
-    yield* logAudit(env.DB, customer.id, 'site.session_created', 'session', sessionId, request);
     return { token, expiresAt, customerId: customer.id };
   });
 }

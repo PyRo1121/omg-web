@@ -42,6 +42,7 @@ describe('canonical D1 migrations', () => {
       '020_marketing_offer_leads.sql',
       '021_stripe_event_dead_letter.sql',
       '022_licenses_customer_unique.sql',
+      '023_session_token_hashes.sql',
     ]);
   });
 
@@ -79,6 +80,9 @@ describe('canonical D1 migrations', () => {
     );
     expect(await tableColumns('auth_user')).toEqual(
       expect.arrayContaining(['id', 'email', 'email_verified', 'role'])
+    );
+    expect(await tableColumns('sessions')).toEqual(
+      expect.arrayContaining(['id', 'token', 'token_hash', 'expires_at', 'customer_id'])
     );
     expect(await tableColumns('auth_session')).toEqual(
       expect.arrayContaining(['id', 'token', 'expires_at', 'user_id'])

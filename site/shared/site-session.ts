@@ -65,13 +65,6 @@ const CustomerRowSchema = Schema.Struct({
 });
 type CustomerRow = Schema.Schema.Type<typeof CustomerRowSchema>;
 
-/** An existing session row reused by site-session minting. */
-const SessionRowSchema = Schema.Struct({
-  token: SessionToken,
-  expires_at: Schema.String.pipe(Schema.minLength(1)),
-});
-type SessionRow = Schema.Schema.Type<typeof SessionRowSchema>;
-
 function mapParseError(reason: string) {
   return (cause: unknown): SiteSessionParseError => new SiteSessionParseError(reason, cause);
 }
@@ -100,14 +93,5 @@ export function decodeCustomerRow(
 ): Effect.Effect<CustomerRow, SiteSessionParseError> {
   return Schema.decodeUnknown(CustomerRowSchema)(value).pipe(
     Effect.mapError(mapParseError('Customer row has an invalid shape'))
-  );
-}
-
-/** Decode a D1 session row reused for site-session minting. */
-export function decodeSessionRow(
-  value: Schema.Schema.Encoded<Schema.Schema.Any>
-): Effect.Effect<SessionRow, SiteSessionParseError> {
-  return Schema.decodeUnknown(SessionRowSchema)(value).pipe(
-    Effect.mapError(mapParseError('Session row has an invalid shape'))
   );
 }

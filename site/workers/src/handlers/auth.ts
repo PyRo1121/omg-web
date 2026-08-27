@@ -31,6 +31,7 @@ import {
 import { generateOtpCode, hashOtpCode } from '../otp';
 import { reportError } from '../observability';
 import { casesHandled } from '../prelude';
+import { hashSessionToken } from '../session-token';
 
 /** Too many OTP requests were made for this email. */
 class AuthRateLimitedError extends Error {
@@ -433,6 +434,10 @@ function verifyCode(
     const customer = yield* findOrCreateCustomer(env.DB, body.email, request);
     const sessionId = crypto.randomUUID();
     const sessionToken = brandGeneratedId(SessionToken, generateToken());
+    const sessionTokenHash = yield* Effect.tryPromise({
+      try: () => hashSessionToken(sessionToken),
+      catch: cause => new AuthStoreUnavailable('hashSessionToken', cause),
+    });
     const sessionExpires = new Date(Date.now() + SESSION_TTL_MS).toISOString();
     // Insert and cap sessions in one D1 transaction so concurrent logins cannot
     // observe a successful insert without its corresponding prune.
@@ -440,12 +445,14 @@ function verifyCode(
       try: () =>
         env.DB.batch([
           env.DB.prepare(
-            `INSERT INTO sessions (id, customer_id, token, ip_address, user_agent, expires_at)
-               VALUES (?, ?, ?, ?, ?, ?)`
+            `INSERT INTO sessions
+               (id, customer_id, token, token_hash, ip_address, user_agent, expires_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`
           ).bind(
             sessionId,
             customer.id,
-            sessionToken,
+            sessionTokenHash,
+            sessionTokenHash,
             request.headers.get('CF-Connecting-IP'),
             request.headers.get('User-Agent'),
             sessionExpires
@@ -664,7 +671,9 @@ export async function handleLogout(request: Request, env: Env): Promise<Response
     try {
       const result = await validateSession(env.DB, token);
       if (result !== null) {
-        await env.DB.prepare(`DELETE FROM sessions WHERE token = ?`).bind(token).run();
+        await env.DB.prepare(`DELETE FROM sessions WHERE id = ? AND customer_id = ?`)
+          .bind(result.session.id, result.user.id)
+          .run();
         // logAudit is best-effort and cannot fail; failures are logged internally.
         await Effect.runPromise(
           logAudit(env.DB, result.user.id, 'auth.logout', 'session', null, request)

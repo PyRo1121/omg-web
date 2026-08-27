@@ -43,7 +43,11 @@ describe('GET /api/dashboard', () => {
   });
 
   afterEach(async () => {
-    await env.DB.prepare(`DELETE FROM sessions WHERE token = ?`).bind(TEST_TOKEN).run();
+    await env.DB.prepare(
+      `DELETE FROM sessions WHERE customer_id IN (SELECT id FROM customers WHERE email = ?)`
+    )
+      .bind(TEST_EMAIL)
+      .run();
     await env.DB.prepare(
       `DELETE FROM licenses WHERE customer_id IN (SELECT id FROM customers WHERE email = ?)`
     )

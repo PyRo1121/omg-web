@@ -4,7 +4,6 @@ import {
   decodeSiteSessionRequest,
   decodeSiteSessionWorkerResponse,
   decodeCustomerRow,
-  decodeSessionRow,
 } from '../../shared/site-session';
 
 /** Keep in sync with `site/src/lib/contracts/site-session.test.ts`. */
@@ -64,22 +63,6 @@ describe('decodeCustomerRow', () => {
   it('rejects a missing admin flag', async () => {
     const exit = await Effect.runPromiseExit(
       decodeCustomerRow({ id: 'cust_1', email: 'ada@example.com' })
-    );
-    expect(Exit.isFailure(exit)).toBe(true);
-  });
-});
-
-describe('decodeSessionRow', () => {
-  it('decodes a valid session row', async () => {
-    const exit = await Effect.runPromiseExit(
-      decodeSessionRow({ token: 'tok_abc', expires_at: '2026-01-01T00:00:00.000Z' })
-    );
-    expect(isSuccess(exit)).toBe(true);
-  });
-
-  it('rejects an empty token', async () => {
-    const exit = await Effect.runPromiseExit(
-      decodeSessionRow({ token: '', expires_at: '2026-01-01T00:00:00.000Z' })
     );
     expect(Exit.isFailure(exit)).toBe(true);
   });

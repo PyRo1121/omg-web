@@ -261,7 +261,7 @@ describe('optional extra rows', () => {
     const row = await Effect.runPromise(
       decodeOptionalExtraRow(SessionJoinRowSchema, 'session', {
         id: 's1',
-        token: 'tok',
+        token_hash: null,
         expires_at: '2026-01-01T00:00:00.000Z',
         customer_id: 'c1',
         email: 'a@b.com',

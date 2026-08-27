@@ -38,6 +38,7 @@ describe('POST /api/internal/site-session', () => {
   beforeEach(async () => {
     env.ADMIN_API_SECRET = TEST_SECRET;
     env.SVELTE_BFF_SECRET = '';
+    env.JWT_SECRET = 'test-site-session-signing-secret';
     env.API_RATE_LIMITER = { limit: async () => ({ success: true }) };
     await ensureSchema();
   });
@@ -255,7 +256,21 @@ describe('POST /api/internal/site-session', () => {
     const secondBody = await Effect.runPromise(
       decodeSiteSessionWorkerResponse(await second.json())
     );
+    const persisted = Schema.decodeUnknownSync(
+      Schema.Struct({ count: Schema.Number, plaintext: Schema.Number, hashed: Schema.Number })
+    )(
+      await env.DB.prepare(
+        `SELECT COUNT(*) count,
+                SUM(CASE WHEN token = ? THEN 1 ELSE 0 END) plaintext,
+                SUM(CASE WHEN token_hash IS NOT NULL THEN 1 ELSE 0 END) hashed
+         FROM sessions WHERE customer_id = ?`
+      )
+        .bind(firstBody.token, firstBody.customerId)
+        .first()
+    );
+
     expect(second.status).toBe(200);
     expect(secondBody.token).toBe(firstBody.token);
+    expect(persisted).toEqual({ count: 1, plaintext: 0, hashed: 1 });
   });
 });
