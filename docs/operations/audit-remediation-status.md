@@ -22,7 +22,7 @@ Status meanings:
 | `audit-w4.md`  | Resolved        | Lockfile metadata, lifecycle-script trust, workerd drift, override documentation, Playwright network fallback, source-policy checks, and CI coverage were repaired. Exact-tested prerelease framework versions remain intentional and pinned.                                                                                                                                                                 |
 | `audit-w5.md`  | **Open**        | Dynamic security headers, safe JSON-LD serialization, bounded browser storage, and one shared header policy are complete. Removing CSP `script-src 'unsafe-inline'` still requires nonce rollout plus authenticated hydration/browser regression testing.                                                                                                                                                     |
 | `audit-w6.md`  | Resolved        | Stripe/body bounds, pre-parse limiting, analytics caps, race-safe provisioning, OTP counters, sanitized errors, route metadata, router buffering/cache policy, and releases least privilege are fixed.                                                                                                                                                                                                        |
-| `audit-w7.md`  | **Open**        | Scratch artifacts, broad Gitleaks exemptions, fixture scoping, test-secret configuration, and repository scanning are fixed. `site-svelte/.env` remains mode `600` and ignored, but replacing local plaintext deployment inputs with an external secret source and rotation procedure remains open.                                                                                                           |
+| `audit-w7.md`  | Resolved        | Scratch artifacts, broad Gitleaks exemptions, fixture scoping, and test-secret configuration are fixed. The project-local Svelte `.env` was removed; Alchemy commands now require process-environment injection or desktop Secret Service keyring entries, never place values in argv, and use the installed CLI without network fallback. Rotation is documented.                                            |
 | `audit-w8.md`  | Accepted        | Override rationale, unused dependencies, exact pins, and lifecycle trust were repaired. Alchemy's Prisma toolchain remains an upstream development dependency; workspace version differences are exact-pinned and reviewed rather than force-deduplicated.                                                                                                                                                    |
 | `audit-w9.md`  | **Open**        | Router proxy/forwarding/cache flaws, bounded session rows, admin parameter consistency, licensing failure telemetry, releases metadata validation, login bounds, signup validation, and docs routing are fixed. The remaining item is the shared nonce-CSP work tracked under `audit-w5.md`.                                                                                                                  |
 | `audit-w10.md` | Resolved        | Router credential isolation, `Set-Cookie` stripping, admin/telemetry/internal limiting, API headers, releases least privilege, forwarding-header cleanup, and release-download limiting are complete. The releases Worker remains intentionally undeployed.                                                                                                                                                   |
@@ -36,9 +36,8 @@ Status meanings:
 
 ## Current open order
 
-1. Remove CSP `unsafe-inline` with nonces after explicit authenticated Helium testing is authorized.
-2. Replace local Alchemy deployment secrets with an external secret source and document rotation.
-3. Complete `audit-y6.md` with the Rust remediation stream.
+1. Remove CSP `unsafe-inline` with nonces and complete authenticated Helium regression testing.
+2. Complete `audit-y6.md` with the Rust remediation stream.
 
 ## Recently verified remediations
 
@@ -60,3 +59,5 @@ Status meanings:
   introducing a generic session superset.
 - Historical PoC script copies are replaced by hash manifests and guarded by
   `npm run check:audit-evidence`.
+- Alchemy deployment inputs come from CI environment injection or the desktop
+  Secret Service keyring; the project-local plaintext `.env` was removed.

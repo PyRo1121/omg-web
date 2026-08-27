@@ -14,6 +14,33 @@ This plan assumes the state recorded in [`cloudflare-environment-readiness.md`](
 
 Both runtimes mount Better Auth `1.7.1` against the retained `omg-platform` D1 tables (`auth_user`, `auth_session`, `auth_account`, `auth_verification`), with signup disabled and GitHub as the only social provider.
 
+### Alchemy deployment input injection
+
+`site-svelte/.env` is not used. `npm run plan`, `deploy`, `dev`, and `destroy`
+run through `site-svelte/alchemy.environment.mjs`, which requires
+`CLOUDFLARE_ACCOUNT_ID`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and
+`SVELTE_BFF_SECRET` from either:
+
+1. the invoking process environment (the CI/automation path); or
+2. the desktop Secret Service keyring under service `omg-web-alchemy` (the local
+   operator path).
+
+The wrapper invokes only the already-installed Alchemy CLI and never places
+secret values in argv or project files. To provision or rotate one local entry,
+run the following and enter the value on standard input:
+
+```bash
+secret-tool store \
+  --label='OMG web Alchemy GITHUB_CLIENT_SECRET' \
+  service omg-web-alchemy \
+  key GITHUB_CLIENT_SECRET
+```
+
+Repeat with the relevant key name. Validate injection with
+`cd site-svelte && npm run plan -- --stage shadow`; the plan must not print any
+value. After rotation, deploy and complete the live auth gate before clearing the
+old provider credential. Never recreate `site-svelte/.env`.
+
 **Sessions are not portable between the two runtimes.** Each derives its session tokens, signatures, and encrypted payloads from a different secret: production uses the human-provisioned Wrangler secret; the shadow uses an Alchemy-generated random value that is stable redacted state, deliberately different from production's. A session created by one runtime will not validate in the other. **Shadow sessions must never be presented as cutover-compatible sessions** — the shadow's green live checks prove runtime compatibility only, never session continuity ([readiness doc](./cloudflare-environment-readiness.md), "Alchemy migration authority").
 
 ## 2. Session continuity options at domain cutover
