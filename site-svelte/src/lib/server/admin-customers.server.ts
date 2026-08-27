@@ -155,7 +155,6 @@ const CustomerUpdateSchema = Schema.Struct({
 });
 
 type AdminCustomerError = LicensingSummaryError | AdminOverviewForbidden;
-type AdminCustomerInput = Schema.Top['Encoded'];
 
 function resolveCustomerId(
   email: string,
