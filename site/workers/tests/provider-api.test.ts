@@ -1,6 +1,6 @@
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { enforceRateLimit, verifyTurnstile, type ProviderFetch } from '../src/api';
+import { enforceRateLimit, TIER_FEATURES, verifyTurnstile, type ProviderFetch } from '../src/api';
 
 function responseFetch(body: string, status = 200): ProviderFetch {
   return () => Promise.resolve(new Response(body, { status }));
@@ -36,6 +36,27 @@ describe('rate-limit boundary', () => {
 
     expect(rejected?.status).toBe(429);
     expect(allowed).toBeNull();
+  });
+});
+
+describe('licensing feature contract', () => {
+  it('grants the CLI team feature set to team licenses', () => {
+    expect(TIER_FEATURES.team.features).toEqual(
+      expect.arrayContaining(['fleet', 'team-sync', 'team-config', 'audit-log'])
+    );
+  });
+
+  it('grants the complete CLI enterprise feature set to enterprise licenses', () => {
+    expect(TIER_FEATURES.enterprise.features).toEqual(
+      expect.arrayContaining([
+        'fleet',
+        'enterprise-reports',
+        'audit-export',
+        'license-scan',
+        'compliance',
+        'self-hosted',
+      ])
+    );
   });
 });
 
