@@ -1,4 +1,14 @@
 /** Browser-safe licensing data projected from the private Worker dashboard. */
+export interface LicensingUsageSummary {
+  readonly totalCommands: number;
+  readonly packagesInstalled: number;
+  readonly runtimeSwitches: number;
+  readonly timeSavedMs: number;
+  readonly currentStreak: number;
+  readonly topPackage: string | null;
+  readonly topRuntime: string | null;
+}
+
 export interface LicensingSubscriptionSummary {
   readonly status: string;
   readonly periodEnd: string | null;
@@ -12,6 +22,7 @@ export interface LicensingSummary {
   readonly activeMachines: number;
   readonly expiresAt: string | null;
   readonly subscription: LicensingSubscriptionSummary | null;
+  readonly usage: LicensingUsageSummary;
 }
 
 export type LicensingSummaryState =

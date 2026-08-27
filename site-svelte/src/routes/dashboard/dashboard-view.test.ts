@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatCount,
+  formatDuration,
   formatProductLabel,
   formatTimestamp,
   machineAllowanceLabel,
+  streakLabel,
   providerLabel,
   verificationLabel,
 } from './dashboard-view';
@@ -38,6 +41,29 @@ describe('licensing labels', () => {
 
   it('formats active machines against the allowance', () => {
     expect(machineAllowanceLabel(2, 5)).toBe('2 of 5');
+  });
+});
+
+describe('usage labels', () => {
+  it('formats counts without invented precision', () => {
+    expect(formatCount(12_345)).toBe('12,345');
+  });
+
+  it.each([
+    [0, '0 min'],
+    [30_000, '<1 min'],
+    [3_660_000, '1h 1m'],
+    [7_200_000, '2h'],
+  ])('formats %s milliseconds as %s', (milliseconds, label) => {
+    expect(formatDuration(milliseconds)).toBe(label);
+  });
+
+  it.each([
+    [0, '0 days'],
+    [1, '1 day'],
+    [7, '7 days'],
+  ])('formats a %s-day streak as %s', (days, label) => {
+    expect(streakLabel(days)).toBe(label);
   });
 });
 

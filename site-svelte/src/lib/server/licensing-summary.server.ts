@@ -13,6 +13,7 @@ const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 const NonEmptyString = Schema.String.check(Schema.isMinLength(1));
 const ShortText = NonEmptyString.check(Schema.isMaxLength(64));
+const DimensionText = NonEmptyString.check(Schema.isMaxLength(256));
 const NullableNonEmptyString = Schema.NullOr(NonEmptyString);
 const NormalizedEmail = Schema.String.check(
   Schema.isMinLength(1),
@@ -43,6 +44,17 @@ const DashboardResponseSchema = Schema.Struct({
     expires_at: NullableNonEmptyString,
   }),
   machines: Schema.Array(Schema.Unknown),
+  usage: Schema.Struct({
+    total_commands: Schema.Natural,
+    total_packages_installed: Schema.Natural,
+    total_runtimes_switched: Schema.Natural,
+    total_time_saved_ms: Schema.Natural,
+    current_streak: Schema.Natural,
+  }),
+  global_stats: Schema.Struct({
+    top_package: Schema.NullOr(DimensionText),
+    top_runtime: Schema.NullOr(DimensionText),
+  }),
   subscription: Schema.NullOr(
     Schema.Struct({
       status: ShortText,
@@ -309,6 +321,15 @@ export function loadLicensingSummary(
               periodEnd: dashboard.subscription.current_period_end,
               cancelAtPeriodEnd: dashboard.subscription.cancel_at_period_end === 1,
             },
+      usage: {
+        totalCommands: dashboard.usage.total_commands,
+        packagesInstalled: dashboard.usage.total_packages_installed,
+        runtimeSwitches: dashboard.usage.total_runtimes_switched,
+        timeSavedMs: dashboard.usage.total_time_saved_ms,
+        currentStreak: dashboard.usage.current_streak,
+        topPackage: dashboard.global_stats.top_package,
+        topRuntime: dashboard.global_stats.top_runtime,
+      },
     };
   });
 }

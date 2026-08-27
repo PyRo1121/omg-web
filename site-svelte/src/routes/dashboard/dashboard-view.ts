@@ -1,3 +1,4 @@
+const COUNT_FORMAT = new Intl.NumberFormat('en-US');
 const TIMESTAMP_FORMAT = new Intl.DateTimeFormat('en-US', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -16,6 +17,30 @@ export function providerLabel(provider: string): string {
     return 'Password';
   }
   return provider;
+}
+
+export function formatCount(value: number): string {
+  return COUNT_FORMAT.format(value);
+}
+
+export function formatDuration(milliseconds: number): string {
+  if (milliseconds <= 0) {
+    return '0 min';
+  }
+  const totalMinutes = Math.floor(milliseconds / 60_000);
+  if (totalMinutes === 0) {
+    return '<1 min';
+  }
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) {
+    return `${minutes}m`;
+  }
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
+}
+
+export function streakLabel(days: number): string {
+  return `${days} ${days === 1 ? 'day' : 'days'}`;
 }
 
 export function formatProductLabel(value: string): string {

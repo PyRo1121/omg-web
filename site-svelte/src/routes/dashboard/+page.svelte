@@ -2,10 +2,13 @@
   import { authClient } from '../../lib/auth-client';
   import type { PageData } from './$types';
   import {
+    formatCount,
+    formatDuration,
     formatProductLabel,
     formatTimestamp,
     machineAllowanceLabel,
     providerLabel,
+    streakLabel,
     verificationLabel,
   } from './dashboard-view';
 
@@ -108,6 +111,49 @@
       {/if}
     </section>
 
+    {#if data.licensing.status === 'available'}
+      <section class="dashboard-section" aria-labelledby="usage-title">
+        <h2 id="usage-title" class="dashboard-section-heading">
+          <span>Usage</span>
+          <small>Last 30 days</small>
+        </h2>
+        <dl class="dashboard-facts licensing-facts">
+          <div class="dashboard-fact">
+            <dt>Commands</dt>
+            <dd>{formatCount(data.licensing.summary.usage.totalCommands)}</dd>
+          </div>
+          <div class="dashboard-fact">
+            <dt>Packages installed</dt>
+            <dd>{formatCount(data.licensing.summary.usage.packagesInstalled)}</dd>
+          </div>
+          <div class="dashboard-fact">
+            <dt>Runtime switches</dt>
+            <dd>{formatCount(data.licensing.summary.usage.runtimeSwitches)}</dd>
+          </div>
+          <div class="dashboard-fact">
+            <dt>Time saved</dt>
+            <dd>{formatDuration(data.licensing.summary.usage.timeSavedMs)}</dd>
+          </div>
+          <div class="dashboard-fact">
+            <dt>Current streak</dt>
+            <dd>{streakLabel(data.licensing.summary.usage.currentStreak)}</dd>
+          </div>
+          <div class="dashboard-fact">
+            <dt>Top package</dt>
+            <dd class="dashboard-mono">
+              {data.licensing.summary.usage.topPackage ?? 'Unavailable'}
+            </dd>
+          </div>
+          <div class="dashboard-fact">
+            <dt>Top runtime</dt>
+            <dd class="dashboard-mono">
+              {data.licensing.summary.usage.topRuntime ?? 'Unavailable'}
+            </dd>
+          </div>
+        </dl>
+      </section>
+    {/if}
+
     <section class="dashboard-section" aria-labelledby="identities-title">
       <h2 id="identities-title">Connected identities</h2>
       {#if data.accounts.length === 0}
@@ -208,6 +254,23 @@
     font-family: var(--font-display);
     font-size: 1.5rem;
     letter-spacing: -0.04em;
+  }
+
+  .dashboard-section-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .dashboard-section-heading small {
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   .identity-list,

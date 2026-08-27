@@ -64,6 +64,17 @@ function dashboardPayload() {
       expires_at: '2027-01-01T00:00:00.000Z',
     },
     machines: [{ id: 'machine-1', machine_id: 'private-machine-1', is_active: 1 }],
+    usage: {
+      total_commands: 12_345,
+      total_packages_installed: 321,
+      total_runtimes_switched: 45,
+      total_time_saved_ms: 3_660_000,
+      current_streak: 7,
+    },
+    global_stats: {
+      top_package: 'ripgrep',
+      top_runtime: 'node',
+    },
     subscription: {
       status: 'trialing',
       current_period_end: '2026-10-01T00:00:00.000Z',
@@ -151,6 +162,15 @@ describe('loadLicensingSummary', () => {
         status: 'trialing',
       },
       tier: 'team',
+      usage: {
+        currentStreak: 7,
+        packagesInstalled: 321,
+        runtimeSwitches: 45,
+        timeSavedMs: 3_660_000,
+        topPackage: 'ripgrep',
+        topRuntime: 'node',
+        totalCommands: 12_345,
+      },
     });
     expect(JSON.stringify(summary)).not.toContain('token');
     expect(JSON.stringify(summary)).not.toContain('license_key');
@@ -218,6 +238,17 @@ describe('loadLicensingSummary', () => {
           expires_at: null,
         },
         machines: [{}],
+        usage: {
+          total_commands: 0,
+          total_packages_installed: 0,
+          total_runtimes_switched: 0,
+          total_time_saved_ms: 0,
+          current_streak: 0,
+        },
+        global_stats: {
+          top_package: null,
+          top_runtime: null,
+        },
         subscription: null,
       })
     );
@@ -233,6 +264,15 @@ describe('loadLicensingSummary', () => {
       status: 'active',
       subscription: null,
       tier: 'free',
+      usage: {
+        currentStreak: 0,
+        packagesInstalled: 0,
+        runtimeSwitches: 0,
+        timeSavedMs: 0,
+        topPackage: null,
+        topRuntime: null,
+        totalCommands: 0,
+      },
     });
   });
 
@@ -244,6 +284,17 @@ describe('loadLicensingSummary', () => {
       loadLicensingSummary(identity, environment('user', malformed))
     );
     expect(failureOf(malformedExit)).toBeInstanceOf(LicensingSummaryInvalidPayload);
+
+    const invalidUsage = serviceWith(undefined, () =>
+      Response.json({
+        ...dashboardPayload(),
+        usage: { ...dashboardPayload().usage, total_commands: -1 },
+      })
+    );
+    const invalidUsageExit = await Effect.runPromiseExit(
+      loadLicensingSummary(identity, environment('user', invalidUsage))
+    );
+    expect(failureOf(invalidUsageExit)).toBeInstanceOf(LicensingSummaryInvalidPayload);
 
     const nonJson = serviceWith(() => new Response('not-json'));
     const nonJsonExit = await Effect.runPromiseExit(
