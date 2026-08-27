@@ -8,7 +8,7 @@ interface LicensingRouteDefinition {
   readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   readonly path: `/${string}`;
   readonly authentication:
-    'none' | 'session' | 'admin-session' | 'admin-secret' | 'stripe-signature';
+    'none' | 'license-key' | 'session' | 'admin-session' | 'admin-secret' | 'stripe-signature';
   readonly transport: 'direct' | 'site-bff' | 'internal';
 }
 
@@ -83,6 +83,24 @@ export const LicensingRoutes = {
     method: 'POST',
     path: '/api/cli/batch',
     authentication: 'none',
+    transport: 'direct',
+  },
+  cliTeamMembers: {
+    method: 'GET',
+    path: '/api/license/members',
+    authentication: 'license-key',
+    transport: 'direct',
+  },
+  cliPolicies: {
+    method: 'GET',
+    path: '/api/license/policies',
+    authentication: 'license-key',
+    transport: 'direct',
+  },
+  cliAuditLog: {
+    method: 'GET',
+    path: '/api/license/audit',
+    authentication: 'license-key',
     transport: 'direct',
   },
   privacyStatus: {

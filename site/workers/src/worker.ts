@@ -86,6 +86,7 @@ import {
   handleGetRealtimeAnalytics,
   handleGetAnalyticsOverview,
 } from './handlers/site-analytics';
+import { handleCliAuditLog, handleCliPolicies, handleCliTeamMembers } from './handlers/cli-license';
 import { handleCliEvent, handleCliBatch } from './handlers/telemetry';
 import {
   handleDeleteMyData,
@@ -274,6 +275,12 @@ export default Sentry.withSentry(
             return handleCliEvent(request, env);
           case '/api/cli/batch':
             return handleCliBatch(request, env);
+          case '/api/license/members':
+            return handleCliTeamMembers(request, env);
+          case '/api/license/policies':
+            return handleCliPolicies(request, env);
+          case '/api/license/audit':
+            return handleCliAuditLog(request, env);
           case '/api/privacy/status':
             return handlePrivacyStatus(request, env);
           case '/api/privacy/export':
