@@ -12,6 +12,7 @@ import {
   LicensingSummaryStoreUnavailable,
   loadAdminServiceSession,
   loadPrivateWorkerPayload,
+  parseLicensingInput,
   sendPrivateWorkerPayload,
   type LicensingSummaryEnvironment,
   type LicensingSummaryError,
@@ -156,16 +157,6 @@ const CustomerUpdateSchema = Schema.Struct({
 type AdminCustomerError = LicensingSummaryError | AdminOverviewForbidden;
 type AdminCustomerInput = Schema.Top['Encoded'];
 
-function parseInput<S extends Schema.Top>(
-  schema: S,
-  input: AdminCustomerInput,
-  reason: string
-): Effect.Effect<S['Type'], LicensingSummaryInvalidInput, S['DecodingServices']> {
-  return Schema.decodeUnknownEffect(schema)(input).pipe(
-    Effect.mapError(cause => new LicensingSummaryInvalidInput(reason, cause))
-  );
-}
-
 function resolveCustomerId(
   email: string,
   env: LicensingSummaryEnvironment
@@ -190,12 +181,12 @@ export function loadAdminCustomers(
   search: string
 ): Effect.Effect<AdminCustomerDirectory, AdminCustomerError> {
   return Effect.gen(function* () {
-    const safePage = yield* parseInput(
+    const safePage = yield* parseLicensingInput(
       Schema.Number.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(1)),
       page,
       'Customer page is invalid'
     );
-    const safeSearch = yield* parseInput(
+    const safeSearch = yield* parseLicensingInput(
       Schema.String.check(Schema.isMaxLength(100)),
       search,
       'Customer search is invalid'
@@ -245,7 +236,11 @@ export function loadAdminCustomerDetail(
   email: string
 ): Effect.Effect<AdminCustomerDetail, AdminCustomerError> {
   return Effect.gen(function* () {
-    const safeEmail = yield* parseInput(NormalizedEmail, email, 'Customer email is invalid');
+    const safeEmail = yield* parseLicensingInput(
+      NormalizedEmail,
+      email,
+      'Customer email is invalid'
+    );
     const session = yield* loadAdminServiceSession(identity, env);
     const customerId = yield* resolveCustomerId(safeEmail, env);
     const query = new URLSearchParams({ id: customerId });
@@ -298,7 +293,11 @@ export function updateAdminCustomerLicense(
   input: AdminCustomerLicenseUpdate
 ): Effect.Effect<void, AdminCustomerError> {
   return Effect.gen(function* () {
-    const safeInput = yield* parseInput(CustomerUpdateSchema, input, 'Customer update is invalid');
+    const safeInput = yield* parseLicensingInput(
+      CustomerUpdateSchema,
+      input,
+      'Customer update is invalid'
+    );
     if (safeInput.tier === undefined && safeInput.status === undefined) {
       return yield* Effect.fail(new LicensingSummaryInvalidInput('Customer update is empty'));
     }

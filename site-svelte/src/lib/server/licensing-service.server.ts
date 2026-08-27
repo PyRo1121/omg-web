@@ -231,7 +231,7 @@ export type LicensingSummaryError =
   | LicensingSummaryBodyTooLarge
   | LicensingSummaryInvalidPayload;
 
-function parseInput<S extends Schema.Top>(
+export function parseLicensingInput<S extends Schema.Top>(
   schema: S,
   value: LicensingBoundaryInput,
   reason: string
@@ -330,12 +330,12 @@ function loadServicePrincipal(
   env: LicensingSummaryEnvironment
 ): Effect.Effect<LicensingServicePrincipal, LicensingSummaryError> {
   return Effect.gen(function* () {
-    const parsedIdentity = yield* parseInput(
+    const parsedIdentity = yield* parseLicensingInput(
       IdentitySchema,
       identity,
       'Licensing identity is invalid'
     );
-    const secret = yield* parseInput(
+    const secret = yield* parseLicensingInput(
       NonEmptyString,
       env.SVELTE_BFF_SECRET,
       'Licensing BFF secret is invalid'
