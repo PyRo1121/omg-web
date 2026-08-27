@@ -1,7 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { serializeJsonLd } from '../shared/public-site';
-import { CONTENT_SECURITY_POLICY } from '../shared/security-headers';
+import {
+  contentSecurityPolicyWithNonce,
+  contentSecurityPolicyWithScriptHashes,
+  createCspNonce,
+} from '../shared/security-headers';
 import { applyResponsePolicy } from './middleware';
 
 describe('structured data serialization', () => {
@@ -23,16 +27,37 @@ describe('SolidStart response policy', () => {
       "img-src 'self' data: https://avatars.githubusercontent.com"
     );
     expect(headers.get('Content-Security-Policy')).not.toContain("img-src 'self' data: https:;");
+    expect(headers.get('Content-Security-Policy')).not.toMatch(/script-src[^;]*'unsafe-inline'/u);
     expect(headers.get('Strict-Transport-Security')).toContain('max-age=31536000');
     expect(headers.get('X-Content-Type-Options')).toBe('nosniff');
     expect(headers.get('X-Frame-Options')).toBe('DENY');
     expect(headers.get('Cache-Control')).toBe('private, no-store, no-cache, must-revalidate');
   });
 
-  it('keeps the static Cloudflare CSP aligned with the runtime policy', async () => {
-    const staticHeaders = await readFile(new URL('../public/_headers', import.meta.url), 'utf8');
+  it('preserves a request-local rendering nonce', () => {
+    const nonce = createCspNonce();
+    const renderedPolicy = contentSecurityPolicyWithNonce(nonce);
+    const headers = new Headers({ 'Content-Security-Policy': renderedPolicy });
 
-    expect(staticHeaders).toContain(`Content-Security-Policy: ${CONTENT_SECURITY_POLICY}`);
+    applyResponsePolicy('https://omg.latham.cloud/dashboard/', headers);
+
+    expect(nonce).toMatch(/^[0-9A-Za-z+/]+={0,2}$/);
+    expect(headers.get('Content-Security-Policy')).toBe(renderedPolicy);
+    expect(renderedPolicy).toContain(`'nonce-${nonce}'`);
+    expect(renderedPolicy).not.toMatch(/script-src[^;]*'unsafe-inline'/u);
+  });
+
+  it('rejects malformed rendering nonces', () => {
+    expect(() => contentSecurityPolicyWithNonce("bad' nonce")).toThrow('Invalid CSP nonce');
+  });
+
+  it('leaves prerendered CSP to generated route-specific hash policies', async () => {
+    const staticHeaders = await readFile(new URL('../public/_headers', import.meta.url), 'utf8');
+    const hashedPolicy = contentSecurityPolicyWithScriptHashes(['YWJjZA==']);
+
+    expect(staticHeaders).not.toContain('Content-Security-Policy:');
+    expect(hashedPolicy).toContain("'sha256-YWJjZA=='");
+    expect(hashedPolicy).not.toMatch(/script-src[^;]*'unsafe-inline'/u);
   });
 
   it('does not replace route-specific caching on public pages', () => {

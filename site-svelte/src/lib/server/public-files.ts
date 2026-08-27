@@ -45,7 +45,11 @@ function appendVary(headers: Headers, value: string): void {
 
 export function withSiteHeaders(response: Response, deploymentStage: string | undefined): Response {
   const headers = new Headers(response.headers);
+  const renderedContentSecurityPolicy = headers.get('Content-Security-Policy');
   applySecurityHeaders(headers);
+  if (renderedContentSecurityPolicy !== null) {
+    headers.set('Content-Security-Policy', renderedContentSecurityPolicy);
+  }
   appendVary(headers, 'Accept-Encoding');
   if (deploymentStage !== 'prod') {
     headers.set('X-Robots-Tag', SHADOW_ROBOTS_POLICY);

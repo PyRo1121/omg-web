@@ -61,6 +61,7 @@ Sitemap: https://omg.latham.cloud/sitemap.xml
       "form-action 'self' https://omg.latham.cloud https://github.com"
     );
     expect(contentSecurityPolicy).not.toContain('accounts.google.com');
+    expect(contentSecurityPolicy).not.toMatch(/script-src[^;]*'unsafe-inline'/u);
     expect(response.headers.get('strict-transport-security')).toBe(
       'max-age=31536000; includeSubDomains; preload'
     );
@@ -68,6 +69,17 @@ Sitemap: https://omg.latham.cloud/sitemap.xml
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(response.headers.get('x-frame-options')).toBe('DENY');
     expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
+  });
+
+  it('preserves the nonce policy generated during Svelte rendering', () => {
+    const renderedPolicy = "default-src 'self'; script-src 'self' 'nonce-request-local'";
+    const response = withSiteHeaders(
+      new Response('ok', { headers: { 'Content-Security-Policy': renderedPolicy } }),
+      'shadow'
+    );
+
+    expect(response.headers.get('content-security-policy')).toBe(renderedPolicy);
+    expect(response.headers.get('x-frame-options')).toBe('DENY');
   });
 
   it('does not add a shadow robots policy to the production stage', () => {

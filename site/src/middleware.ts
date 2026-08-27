@@ -3,7 +3,11 @@ import { applySecurityHeaders } from '../shared/security-headers';
 
 /** Apply browser security policy and private caching to dynamic account surfaces. */
 export function applyResponsePolicy(requestUrl: string, headers: Headers): void {
+  const renderedContentSecurityPolicy = headers.get('Content-Security-Policy');
   applySecurityHeaders(headers);
+  if (renderedContentSecurityPolicy !== null) {
+    headers.set('Content-Security-Policy', renderedContentSecurityPolicy);
+  }
   const pathname = new URL(requestUrl).pathname;
   if (
     pathname === '/dashboard' ||
