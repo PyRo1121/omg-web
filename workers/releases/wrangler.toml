@@ -23,9 +23,19 @@ binding = "BUCKET"
 bucket_name = "omg-releases"
 preview_bucket_name = "omg-releases-preview"
 
+[[ratelimits]]
+name = "DOWNLOAD_RATE_LIMITER"
+namespace_id = "3001"
+simple = { limit = 120, period = 60 }
+
 [env.production]
 route = { pattern = "releases.pyro1121.com/*", zone_name = "pyro1121.com" }
 
 [[env.production.r2_buckets]]
 binding = "BUCKET"
 bucket_name = "omg-releases"
+
+[[env.production.ratelimits]]
+name = "DOWNLOAD_RATE_LIMITER"
+namespace_id = "3001"
+simple = { limit = 120, period = 60 }

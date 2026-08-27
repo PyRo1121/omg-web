@@ -1,5 +1,6 @@
 export interface Env {
   BUCKET: R2Bucket;
+  DOWNLOAD_RATE_LIMITER: RateLimit;
 }
 
 const MAX_ATTACHMENT_FILENAME_LENGTH = 128;
@@ -29,6 +30,10 @@ export default {
         headers: { Allow: 'GET, HEAD' },
       });
     }
+    const limited = await enforceDownloadRateLimit(request, env.DOWNLOAD_RATE_LIMITER);
+    if (limited !== null) {
+      return limited;
+    }
     try {
       return await handleRequest(url.pathname, env);
     } catch (error: unknown) {
@@ -45,6 +50,27 @@ export default {
     }
   },
 } satisfies ExportedHandler<Env>;
+
+async function enforceDownloadRateLimit(
+  request: Request,
+  limiter: RateLimit
+): Promise<Response | null> {
+  try {
+    const key = `release:${request.headers.get('CF-Connecting-IP') ?? 'unknown'}`;
+    const result = await limiter.limit({ key });
+    return result.success
+      ? null
+      : new Response('Rate limit exceeded', {
+          status: 429,
+          headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' },
+        });
+  } catch {
+    return new Response('Release rate limiting unavailable', {
+      status: 503,
+      headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' },
+    });
+  }
+}
 
 /** Serve release metadata and artifacts from R2. Throws only on storage failure. */
 async function handleRequest(path: string, env: Env): Promise<Response> {
