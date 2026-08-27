@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "canonicalScripts": [
+    {
+      "removedCopy": "exploit.sh",
+      "canonical": "../poc.sh",
+      "sha256": "d8e49d28e031282cb073f724f740753d13e16274074f42434d64959929e4fc12"
+    },
+    {
+      "removedCopy": "setup.sh",
+      "canonical": "../setup.sh",
+      "sha256": "13753a56e1f06222791ee7318131509b47cb5c3ddd3677c60f78a62b6d774818"
+    }
+  ]
+}

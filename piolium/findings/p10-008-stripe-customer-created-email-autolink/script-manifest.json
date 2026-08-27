@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "canonicalScripts": [
+    {
+      "removedCopy": "poc-adapted.sh",
+      "canonical": "exploit.sh",
+      "sha256": "ae12d7dd7b5ad0c32f37294b5a8a8784774299198659250ab6b04db45cbbc81c"
+    }
+  ]
+}

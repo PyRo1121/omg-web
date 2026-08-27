@@ -31,15 +31,14 @@ Status meanings:
 | `audit-y2.md`  | Resolved        | Email syntax, licensing parse adaptation, session roles, customer tier/status literals, overview breakdown items, and D1 row types now have one appropriate source. The proposed all-fields provider-session superset was rejected because consumers intentionally project different minimum identity fields. Module-specific boundary aliases and timestamp limits remain semantic, not competing contracts. |
 | `audit-y3.md`  | Resolved        | Shared security policy, email syntax, licensing parsing, and Solid class merging are centralized. Bounded Request/Response readers and schema decoders intentionally retain distinct output/error contracts; proposed generic D1, tagged-error, toggle, and formatting wrappers were rejected under the deletion test because they add coupling without removing behavioral duplication.                      |
 | `audit-y4.md`  | Resolved        | The router and releases Worker are independently deployable, security-hardened surfaces. Dead bindings and per-request header allocation were removed. Cross-worker proxy/error abstractions were rejected because they would add a shared deployment dependency for little behavioral value.                                                                                                                 |
-| `audit-y5.md`  | **Open**        | Runtime and production scratch artifacts are removed, but duplicated historical `piolium` PoC/evidence files remain. Cleanup must preserve one canonical, non-production proof per confirmed historical finding and keep exact-path Gitleaks coverage.                                                                                                                                                        |
+| `audit-y5.md`  | Resolved        | Runtime scratch is removed. Thirty byte-identical historical proof-script copies were replaced by 27 SHA-256 manifests that point to one canonical script per finding; captured logs remain unchanged. CI verifies hashes, path containment, removed-copy absence, and unique script content. Broad test-harness abstractions and upstream-owned lint-rule changes were rejected.                             |
 | `audit-y6.md`  | **Coordinated** | Web route support, licensed feature grants, installer synchronization, production origin, JWT issuer/audience, and the published verification key are aligned. A generated cross-language telemetry/licensing contract and remaining machine/usage schema consolidation require coordinated Rust changes and are assigned to the Rust remediation stream.                                                     |
 
 ## Current open order
 
 1. Remove CSP `unsafe-inline` with nonces after explicit authenticated Helium testing is authorized.
 2. Replace local Alchemy deployment secrets with an external secret source and document rotation.
-3. Reduce `piolium` evidence fan-out while preserving one canonical historical proof per finding.
-4. Complete `audit-y6.md` with the Rust remediation stream.
+3. Complete `audit-y6.md` with the Rust remediation stream.
 
 ## Recently verified remediations
 
@@ -59,3 +58,5 @@ Status meanings:
 - Svelte licensing/admin boundaries share email syntax, parse adaptation,
   roles, customer tier/status literals, and schema-derived D1 row types without
   introducing a generic session superset.
+- Historical PoC script copies are replaced by hash manifests and guarded by
+  `npm run check:audit-evidence`.
