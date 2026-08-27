@@ -154,6 +154,47 @@
       </section>
     {/if}
 
+    {#if data.licensing.status === 'available'}
+      <section class="dashboard-section" aria-labelledby="machines-title">
+        <h2 id="machines-title" class="dashboard-section-heading">
+          <span>Machines</span>
+          <small>{formatCount(data.licensing.summary.activeMachines)} active</small>
+        </h2>
+        {#if data.licensing.summary.machines.length === 0}
+          <p class="dashboard-empty">No active machines have reported to this license.</p>
+        {:else}
+          <ul class="machine-list">
+            {#each data.licensing.summary.machines as machine, index (index)}
+              <li>
+                <header>
+                  <strong>{machine.hostname ?? 'Unnamed machine'}</strong>
+                  <span>Last seen {formatTimestamp(machine.lastSeenAt)}</span>
+                </header>
+                <dl>
+                  <div>
+                    <dt>Operating system</dt>
+                    <dd>{machine.operatingSystem ?? 'Unavailable'}</dd>
+                  </div>
+                  <div>
+                    <dt>Architecture</dt>
+                    <dd class="dashboard-mono">{machine.architecture ?? 'Unavailable'}</dd>
+                  </div>
+                  <div>
+                    <dt>OMG version</dt>
+                    <dd class="dashboard-mono">{machine.version ?? 'Unavailable'}</dd>
+                  </div>
+                  <div>
+                    <dt>First seen</dt>
+                    <dd>{formatTimestamp(machine.firstSeenAt)}</dd>
+                  </div>
+                </dl>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    {/if}
+
     <section class="dashboard-section" aria-labelledby="identities-title">
       <h2 id="identities-title">Connected identities</h2>
       {#if data.accounts.length === 0}
@@ -226,6 +267,7 @@
   }
 
   .dashboard-fact dt,
+  .machine-list dt,
   .session-list dt {
     margin-bottom: 0.35rem;
     color: var(--ink-muted);
@@ -233,6 +275,7 @@
   }
 
   .dashboard-fact dd,
+  .machine-list dd,
   .session-list dd {
     margin: 0;
     font-size: 0.9375rem;
@@ -274,6 +317,7 @@
   }
 
   .identity-list,
+  .machine-list,
   .session-list {
     margin: 1.5rem 0 0;
     padding: 0;
@@ -286,16 +330,19 @@
   }
 
   .dashboard-empty,
+  .machine-list header span,
   .session-list header span {
     color: var(--ink-muted);
     font-size: 0.8rem;
   }
 
+  .machine-list > li,
   .session-list > li {
     padding-block: 1.5rem;
     border-top: 1px solid var(--rule);
   }
 
+  .machine-list header,
   .session-list header {
     display: flex;
     flex-wrap: wrap;
@@ -304,6 +351,7 @@
     justify-content: space-between;
   }
 
+  .machine-list dl,
   .session-list dl {
     display: grid;
     gap: 1rem 2rem;
@@ -337,6 +385,7 @@
 
   @media (min-width: 40rem) {
     .dashboard-facts,
+    .machine-list dl,
     .session-list dl {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }

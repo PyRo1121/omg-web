@@ -14,6 +14,10 @@ const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const NonEmptyString = Schema.String.check(Schema.isMinLength(1));
 const ShortText = NonEmptyString.check(Schema.isMaxLength(64));
 const DimensionText = NonEmptyString.check(Schema.isMaxLength(256));
+const MachineText = Schema.String.check(Schema.isMaxLength(256));
+const TimestampText = ShortText.check(
+  Schema.makeFilter(value => Number.isFinite(Date.parse(value)))
+);
 const NullableNonEmptyString = Schema.NullOr(NonEmptyString);
 const NormalizedEmail = Schema.String.check(
   Schema.isMinLength(1),
@@ -43,7 +47,16 @@ const DashboardResponseSchema = Schema.Struct({
     max_machines: Schema.Natural.check(Schema.isGreaterThanOrEqualTo(1)),
     expires_at: NullableNonEmptyString,
   }),
-  machines: Schema.Array(Schema.Unknown),
+  machines: Schema.Array(
+    Schema.Struct({
+      hostname: Schema.NullOr(MachineText),
+      os: Schema.NullOr(MachineText),
+      arch: Schema.NullOr(MachineText),
+      omg_version: Schema.NullOr(MachineText),
+      last_seen_at: TimestampText,
+      first_seen_at: TimestampText,
+    })
+  ),
   usage: Schema.Struct({
     total_commands: Schema.Natural,
     total_packages_installed: Schema.Natural,
@@ -231,6 +244,11 @@ function parseWorkerPayload<S extends Schema.Top>(
   );
 }
 
+function optionalMachineText(value: string | null): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
 export function loadLicensingSummary(
   identity: LicensingSummaryIdentity,
   env: LicensingSummaryEnvironment
@@ -312,6 +330,14 @@ export function loadLicensingSummary(
       status: dashboard.license.status,
       maxMachines: dashboard.license.max_machines,
       activeMachines,
+      machines: dashboard.machines.map(machine => ({
+        hostname: optionalMachineText(machine.hostname),
+        operatingSystem: optionalMachineText(machine.os),
+        architecture: optionalMachineText(machine.arch),
+        version: optionalMachineText(machine.omg_version),
+        lastSeenAt: machine.last_seen_at,
+        firstSeenAt: machine.first_seen_at,
+      })),
       expiresAt: dashboard.license.expires_at,
       subscription:
         dashboard.subscription === null

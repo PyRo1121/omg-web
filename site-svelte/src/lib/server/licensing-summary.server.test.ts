@@ -63,7 +63,19 @@ function dashboardPayload() {
       max_machines: 3,
       expires_at: '2027-01-01T00:00:00.000Z',
     },
-    machines: [{ id: 'machine-1', machine_id: 'private-machine-1', is_active: 1 }],
+    machines: [
+      {
+        id: 'machine-1',
+        machine_id: 'private-machine-1',
+        hostname: 'workstation',
+        os: 'linux',
+        arch: 'x86_64',
+        omg_version: '1.4.0',
+        last_seen_at: '2026-08-27T03:00:00.000Z',
+        first_seen_at: '2026-08-01T00:00:00.000Z',
+        is_active: 1,
+      },
+    ],
     usage: {
       total_commands: 12_345,
       total_packages_installed: 321,
@@ -154,6 +166,16 @@ describe('loadLicensingSummary', () => {
     expect(summary).toEqual({
       activeMachines: 1,
       expiresAt: '2027-01-01T00:00:00.000Z',
+      machines: [
+        {
+          architecture: 'x86_64',
+          firstSeenAt: '2026-08-01T00:00:00.000Z',
+          hostname: 'workstation',
+          lastSeenAt: '2026-08-27T03:00:00.000Z',
+          operatingSystem: 'linux',
+          version: '1.4.0',
+        },
+      ],
       maxMachines: 3,
       status: 'active',
       subscription: {
@@ -237,7 +259,16 @@ describe('loadLicensingSummary', () => {
           max_machines: 1,
           expires_at: null,
         },
-        machines: [{}],
+        machines: [
+          {
+            hostname: '   ',
+            os: null,
+            arch: null,
+            omg_version: null,
+            last_seen_at: '2026-08-27T03:00:00.000Z',
+            first_seen_at: '2026-08-01T00:00:00.000Z',
+          },
+        ],
         usage: {
           total_commands: 0,
           total_packages_installed: 0,
@@ -260,6 +291,16 @@ describe('loadLicensingSummary', () => {
     expect(summary).toEqual({
       activeMachines: 1,
       expiresAt: null,
+      machines: [
+        {
+          architecture: null,
+          firstSeenAt: '2026-08-01T00:00:00.000Z',
+          hostname: null,
+          lastSeenAt: '2026-08-27T03:00:00.000Z',
+          operatingSystem: null,
+          version: null,
+        },
+      ],
       maxMachines: 1,
       status: 'active',
       subscription: null,
@@ -284,6 +325,20 @@ describe('loadLicensingSummary', () => {
       loadLicensingSummary(identity, environment('user', malformed))
     );
     expect(failureOf(malformedExit)).toBeInstanceOf(LicensingSummaryInvalidPayload);
+
+    const invalidMachineTimestamp = serviceWith(undefined, () =>
+      Response.json({
+        ...dashboardPayload(),
+        machines: dashboardPayload().machines.map(machine => ({
+          ...machine,
+          last_seen_at: 'not-a-date',
+        })),
+      })
+    );
+    const invalidMachineExit = await Effect.runPromiseExit(
+      loadLicensingSummary(identity, environment('user', invalidMachineTimestamp))
+    );
+    expect(failureOf(invalidMachineExit)).toBeInstanceOf(LicensingSummaryInvalidPayload);
 
     const invalidUsage = serviceWith(undefined, () =>
       Response.json({
