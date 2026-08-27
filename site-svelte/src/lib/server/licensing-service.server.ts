@@ -5,6 +5,7 @@ import type {
   LicensingSummary,
   LicensingSummaryState,
 } from '../../../../site/shared/licensing-summary';
+import { reportEffectFailure } from './observability.server';
 import { normalizedOptionalText } from './optional-text.server';
 
 const INTERNAL_ORIGIN = 'https://omg-saas.internal';
@@ -622,7 +623,9 @@ export async function loadLicensingSummaryState(
     return { status: 'verification-required' };
   }
   const exit = await Effect.runPromiseExit(loadLicensingSummary(identity, env));
-  return Exit.isSuccess(exit)
-    ? { status: 'available', summary: exit.value }
-    : { status: 'unavailable' };
+  if (Exit.isSuccess(exit)) {
+    return { status: 'available', summary: exit.value };
+  }
+  reportEffectFailure('licensing.summary_unavailable', exit.cause);
+  return { status: 'unavailable' };
 }
