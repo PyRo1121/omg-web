@@ -282,7 +282,7 @@ export default Sentry.withSentry(
           case '/api/internal/site-session':
             // Gating lives in the handler alone: it requires the exact
             // 'service-binding' header value plus the timing-safe checked
-            // ADMIN_API_SECRET. A second presence-only check here would just
+            // caller-specific BFF secret. A second presence-only check here would just
             // be a weaker duplicate of that rule.
             return handleCreateSiteSession(request, env);
           case '/api/internal/marketing-offer':

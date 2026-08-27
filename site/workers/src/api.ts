@@ -29,6 +29,7 @@ export interface Env extends Pick<Cloudflare.Env, 'DB'> {
   TURNSTILE_SECRET_KEY?: string;
   SENTRY_DSN?: string;
   ADMIN_API_SECRET?: string;
+  SVELTE_BFF_SECRET?: string;
 }
 
 // User from database

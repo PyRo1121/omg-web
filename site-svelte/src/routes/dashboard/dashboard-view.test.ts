@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatTimestamp, providerLabel, verificationLabel } from './dashboard-view';
+import {
+  formatProductLabel,
+  formatTimestamp,
+  machineAllowanceLabel,
+  providerLabel,
+  verificationLabel,
+} from './dashboard-view';
 
 describe('verificationLabel', () => {
   it('labels a verified email', () => {
@@ -18,6 +24,20 @@ describe('providerLabel', () => {
     ['custom', 'custom'],
   ])('labels %s as %s', (provider, label) => {
     expect(providerLabel(provider)).toBe(label);
+  });
+});
+
+describe('licensing labels', () => {
+  it.each([
+    ['team', 'Team'],
+    ['past_due', 'Past Due'],
+    ['cancel-at-period-end', 'Cancel At Period End'],
+  ])('formats %s as %s', (value, label) => {
+    expect(formatProductLabel(value)).toBe(label);
+  });
+
+  it('formats active machines against the allowance', () => {
+    expect(machineAllowanceLabel(2, 5)).toBe('2 of 5');
   });
 });
 

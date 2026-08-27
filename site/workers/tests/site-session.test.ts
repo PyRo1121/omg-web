@@ -37,6 +37,7 @@ function createSessionRequest(secret: string | null, serializedBody: string): Re
 describe('POST /api/internal/site-session', () => {
   beforeEach(async () => {
     env.ADMIN_API_SECRET = TEST_SECRET;
+    env.SVELTE_BFF_SECRET = '';
     await ensureSchema();
   });
 
@@ -80,6 +81,21 @@ describe('POST /api/internal/site-session', () => {
     );
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(401);
+  });
+
+  it('accepts the caller-specific Svelte BFF secret', async () => {
+    env.SVELTE_BFF_SECRET = 'test-svelte-bff-secret';
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      createSessionRequest(
+        'test-svelte-bff-secret',
+        JSON.stringify({ email: NON_ADMIN_EMAIL, role: 'user' })
+      ),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(200);
   });
 
   it('returns 400 when the body is invalid', async () => {

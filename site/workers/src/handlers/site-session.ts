@@ -9,8 +9,8 @@ import {
   SiteSessionRequestSchema,
   type SiteSessionWorkerResponse,
 } from '../../../shared/site-session';
-import { type AdminUnauthorizedError, requireAdminSecret } from '../admin-secret';
-import { casesHandled } from '../prelude';
+import { AdminUnauthorizedError } from '../admin-secret';
+import { casesHandled, timingSafeEqualUtf8 } from '../prelude';
 
 /** D1 was unavailable or returned an unreadable row during site-session minting. */
 class CustomerStoreUnavailable extends Error {
@@ -40,11 +40,28 @@ function storeOperation<A>(
   });
 }
 
+function requireSiteBffSecret(
+  provided: string | null,
+  env: Pick<Env, 'ADMIN_API_SECRET' | 'SVELTE_BFF_SECRET'>
+): Effect.Effect<void, AdminUnauthorizedError> {
+  if (provided === null) {
+    return Effect.fail(new AdminUnauthorizedError());
+  }
+  const expectedSecrets = [env.ADMIN_API_SECRET, env.SVELTE_BFF_SECRET];
+  const matches = expectedSecrets
+    .map(
+      expected =>
+        expected !== undefined && expected.length > 0 && timingSafeEqualUtf8(provided, expected)
+    )
+    .some(Boolean);
+  return matches ? Effect.void : Effect.fail(new AdminUnauthorizedError());
+}
+
 /**
  * Mint or reuse a Worker session for a server-authenticated Better Auth user.
  *
  * @param request - Incoming POST with `X-Admin-Secret` and JSON body.
- * @param env - Worker bindings, including D1 and `ADMIN_API_SECRET`.
+ * @param env - Worker bindings, including D1 and caller-specific BFF secrets.
  * @returns The session wire payload, or a tagged site-session error.
  */
 function mintSiteSession(
@@ -55,7 +72,7 @@ function mintSiteSession(
   AdminUnauthorizedError | InvalidJsonBodyError | CustomerStoreUnavailable
 > {
   return Effect.gen(function* () {
-    yield* requireAdminSecret(request.headers.get('X-Admin-Secret'), env.ADMIN_API_SECRET);
+    yield* requireSiteBffSecret(request.headers.get('X-Admin-Secret'), env);
     const body = yield* decodeJsonBody(request, SiteSessionRequestSchema);
     const customerRow = yield* storeOperation('findByEmail', () =>
       env.DB.prepare(`SELECT id, email, admin FROM customers WHERE email = ?`)

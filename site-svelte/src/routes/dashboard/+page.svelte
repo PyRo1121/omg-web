@@ -1,7 +1,13 @@
 <script lang="ts">
   import { authClient } from '../../lib/auth-client';
   import type { PageData } from './$types';
-  import { formatTimestamp, providerLabel, verificationLabel } from './dashboard-view';
+  import {
+    formatProductLabel,
+    formatTimestamp,
+    machineAllowanceLabel,
+    providerLabel,
+    verificationLabel,
+  } from './dashboard-view';
 
   let { data }: { data: PageData } = $props();
   let pending = $state(false);
@@ -48,6 +54,59 @@
         <dd>{formatTimestamp(data.currentSessionExpiresAt)}</dd>
       </div>
     </dl>
+
+    <section class="dashboard-section" aria-labelledby="license-title">
+      <h2 id="license-title">License</h2>
+      {#if data.licensing.status === 'available'}
+        <dl class="dashboard-facts licensing-facts">
+          <div class="dashboard-fact">
+            <dt>Plan</dt>
+            <dd>{formatProductLabel(data.licensing.summary.tier)}</dd>
+          </div>
+          <div class="dashboard-fact">
+            <dt>License status</dt>
+            <dd>{formatProductLabel(data.licensing.summary.status)}</dd>
+          </div>
+          <div class="dashboard-fact">
+            <dt>Active machines</dt>
+            <dd>
+              {machineAllowanceLabel(
+                data.licensing.summary.activeMachines,
+                data.licensing.summary.maxMachines
+              )}
+            </dd>
+          </div>
+          <div class="dashboard-fact">
+            <dt>License expires</dt>
+            <dd>{formatTimestamp(data.licensing.summary.expiresAt)}</dd>
+          </div>
+          {#if data.licensing.summary.subscription !== null}
+            <div class="dashboard-fact">
+              <dt>Subscription</dt>
+              <dd>{formatProductLabel(data.licensing.summary.subscription.status)}</dd>
+            </div>
+            <div class="dashboard-fact">
+              <dt>Current period ends</dt>
+              <dd>{formatTimestamp(data.licensing.summary.subscription.periodEnd)}</dd>
+            </div>
+            <div class="dashboard-fact">
+              <dt>Renewal</dt>
+              <dd>
+                {data.licensing.summary.subscription.cancelAtPeriodEnd
+                  ? 'Ends after current period'
+                  : 'Continues'}
+              </dd>
+            </div>
+          {/if}
+        </dl>
+      {:else if data.licensing.status === 'verification-required'}
+        <p class="dashboard-empty">Verify your email to access licensing data.</p>
+      {:else}
+        <p class="dashboard-empty">
+          Licensing data is temporarily unavailable. Account and session records remain current.
+        </p>
+      {/if}
+    </section>
 
     <section class="dashboard-section" aria-labelledby="identities-title">
       <h2 id="identities-title">Connected identities</h2>
@@ -102,11 +161,6 @@
     >
       {pending ? 'Signing out…' : 'Sign out'}
     </button>
-
-    <p class="account-note">
-      Licensing and telemetry data are not yet migrated. This page reports only authenticated
-      account and session records from the retained platform database.
-    </p>
   </section>
 </main>
 
@@ -119,6 +173,10 @@
     display: grid;
     gap: 1.25rem 2rem;
     margin: 2.5rem 0 0;
+  }
+
+  .licensing-facts {
+    margin-top: 1.5rem;
   }
 
   .dashboard-fact dt,

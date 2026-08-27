@@ -35,6 +35,7 @@ export const Website = Cloudflare.Website.SvelteKit(
         DEPLOYMENT_STAGE: stage,
         GITHUB_CLIENT_ID: Config.string('GITHUB_CLIENT_ID'),
         GITHUB_CLIENT_SECRET: Config.redacted('GITHUB_CLIENT_SECRET'),
+        SVELTE_BFF_SECRET: Config.redacted('SVELTE_BFF_SECRET'),
       },
       memo: {
         include: [
@@ -66,7 +67,13 @@ export const Website = Cloudflare.Website.SvelteKit(
   })
 );
 
-export type WebsiteEnv = Cloudflare.InferEnv<typeof Website>;
+interface LicensingApiBinding {
+  fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+}
+
+export type WebsiteEnv = Cloudflare.InferEnv<typeof Website> & {
+  readonly LICENSING_API: LicensingApiBinding;
+};
 
 export default Alchemy.Stack(
   'OmgSvelteSite',
@@ -76,6 +83,15 @@ export default Alchemy.Stack(
   },
   Effect.gen(function* () {
     const site = yield* Website;
+    yield* site.bind('LICENSING_API', {
+      bindings: [
+        {
+          type: 'service',
+          name: 'LICENSING_API',
+          service: 'omg-saas',
+        },
+      ],
+    });
     return { url: site.url };
   })
 );
