@@ -1,6 +1,10 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
+import {
+  ADMIN_CUSTOMER_STATUSES,
+  ADMIN_CUSTOMER_TIERS,
+} from '../../../../../site/shared/admin-customers';
 import { EMAIL_PATTERN } from '../../../../../site/shared/email';
 import {
   loadAdminCustomerDetail,
@@ -19,8 +23,8 @@ const EmailFieldSchema = Schema.String.check(
 );
 const CustomerUpdateFormSchema = Schema.Struct({
   email: EmailFieldSchema,
-  tier: Schema.Literals(['free', 'pro', 'team', 'enterprise']),
-  status: Schema.Literals(['active', 'cancelled', 'inactive']),
+  tier: Schema.Literals(ADMIN_CUSTOMER_TIERS),
+  status: Schema.Literals(ADMIN_CUSTOMER_STATUSES),
   confirmation: Schema.Literal('confirmed'),
 });
 

@@ -1,5 +1,9 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import {
+  ADMIN_CUSTOMER_STATUSES,
+  ADMIN_CUSTOMER_TIERS,
+} from '../../../../site/shared/admin-customers';
 import { EMAIL_PATTERN } from '../../../../site/shared/email';
 import type {
   AdminCustomerDetail,
@@ -150,8 +154,8 @@ const CustomerIdRowSchema = Schema.Struct({ id: NonEmptyText });
 const CustomerUpdateResponseSchema = Schema.Struct({ success: Schema.Literal(true) });
 const CustomerUpdateSchema = Schema.Struct({
   email: NormalizedEmail,
-  tier: Schema.optional(Schema.Literals(['free', 'pro', 'team', 'enterprise'])),
-  status: Schema.optional(Schema.Literals(['active', 'cancelled', 'inactive'])),
+  tier: Schema.optional(Schema.Literals(ADMIN_CUSTOMER_TIERS)),
+  status: Schema.optional(Schema.Literals(ADMIN_CUSTOMER_STATUSES)),
 });
 
 type AdminCustomerError = LicensingSummaryError | AdminOverviewForbidden;

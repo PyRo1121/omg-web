@@ -46,19 +46,12 @@ const DashboardDataSchema = Schema.Struct({
   accounts: Schema.Array(Schema.Struct({ provider: Schema.String, accountId: Schema.String })),
 });
 
-interface AccountDashboardSessionRow {
-  readonly id: string;
-  readonly token: string;
-  readonly ipAddress: string | null;
-  readonly userAgent: string | null;
+type SessionRow = Schema.Schema.Type<typeof SessionRowSchema>;
+type AccountDashboardSessionRow = Omit<SessionRow, 'createdAt' | 'expiresAt'> & {
   readonly createdAt: Date;
   readonly expiresAt: Date;
-}
-
-interface AccountDashboardAccountRow {
-  readonly providerId: string;
-  readonly accountId: string;
-}
+};
+type AccountDashboardAccountRow = Schema.Schema.Type<typeof AccountRowSchema>;
 
 interface AccountDashboardRequest {
   readonly platform: { readonly env: AuthEnvironment } | undefined;

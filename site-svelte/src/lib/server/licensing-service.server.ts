@@ -1,6 +1,6 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
-import type { AdminOverview } from '../../../../site/shared/admin-overview';
+import type { AdminBreakdownItem, AdminOverview } from '../../../../site/shared/admin-overview';
 import { EMAIL_PATTERN } from '../../../../site/shared/email';
 import type { SiteSessionRole } from '../../../../site/shared/site-session';
 import type {
@@ -481,10 +481,14 @@ export function loadAdminServiceSession(
   });
 }
 
+type NullableAdminBreakdownItem = Omit<AdminBreakdownItem, 'label'> & {
+  readonly label: string | null;
+};
+
 function compactBreakdown(
-  rows: ReadonlyArray<{ readonly label: string | null; readonly count: number }>
-): Array<{ readonly label: string; readonly count: number }> {
-  const result: Array<{ readonly label: string; readonly count: number }> = [];
+  rows: ReadonlyArray<NullableAdminBreakdownItem>
+): Array<AdminBreakdownItem> {
+  const result: Array<AdminBreakdownItem> = [];
   for (const row of rows) {
     const label = normalizedOptionalText(row.label);
     if (label !== null) {

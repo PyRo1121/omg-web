@@ -1,3 +1,18 @@
+export const ADMIN_CUSTOMER_TIERS: readonly ['free', 'pro', 'team', 'enterprise'] = [
+  'free',
+  'pro',
+  'team',
+  'enterprise',
+];
+export const ADMIN_CUSTOMER_STATUSES: readonly ['active', 'cancelled', 'inactive'] = [
+  'active',
+  'cancelled',
+  'inactive',
+];
+
+export type AdminCustomerTier = (typeof ADMIN_CUSTOMER_TIERS)[number];
+export type AdminCustomerStatus = (typeof ADMIN_CUSTOMER_STATUSES)[number];
+
 /** Browser-safe customer row for the private admin directory. */
 export interface AdminCustomerSummary {
   readonly email: string;
@@ -69,6 +84,6 @@ export interface AdminCustomerDetail {
 /** Existing audited customer mutations supported by the retained Worker. */
 export interface AdminCustomerLicenseUpdate {
   readonly email: string;
-  readonly tier?: 'free' | 'pro' | 'team' | 'enterprise';
-  readonly status?: 'active' | 'cancelled' | 'inactive';
+  readonly tier?: AdminCustomerTier;
+  readonly status?: AdminCustomerStatus;
 }
