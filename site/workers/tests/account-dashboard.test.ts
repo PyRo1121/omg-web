@@ -40,6 +40,7 @@ function getDashboard(token: string | null): Request {
 describe('GET /api/dashboard', () => {
   beforeEach(async () => {
     await ensureSchema();
+    env.API_RATE_LIMITER = { limit: async () => ({ success: true }) };
   });
 
   afterEach(async () => {
@@ -54,6 +55,33 @@ describe('GET /api/dashboard', () => {
       .bind(TEST_EMAIL)
       .run();
     await env.DB.prepare(`DELETE FROM customers WHERE email = ?`).bind(TEST_EMAIL).run();
+  });
+
+  it('rate limits session routes before reading D1', async () => {
+    env.API_RATE_LIMITER = { limit: async () => ({ success: false }) };
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(getDashboard('untrusted-session-token'), env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(429);
+  });
+
+  it('uses a one-way token digest as the limiter key', async () => {
+    const limiterKeys: string[] = [];
+    env.API_RATE_LIMITER = {
+      limit: async ({ key }) => {
+        limiterKeys.push(key);
+        return { success: true };
+      },
+    };
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(getDashboard('untrusted-session-token'), env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(401);
+    expect(limiterKeys).toHaveLength(1);
+    expect(limiterKeys[0]).toMatch(/^session_token:sha256:v1:[0-9a-f]{64}$/);
+    expect(limiterKeys[0]).not.toContain('untrusted-session-token');
   });
 
   it('returns 401 when the Authorization header is missing', async () => {

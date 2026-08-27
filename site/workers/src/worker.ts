@@ -6,9 +6,11 @@ import {
   jsonResponse,
   errorResponse,
   enforceRateLimit,
+  getAuthToken,
   rateLimitClientIp,
 } from './api';
 import { InstallsBadgeRowSchema, readOptionalExtraRow } from './contracts/d1-extras';
+import { hashSessionToken } from './session-token';
 import {
   handleSendCode,
   handleVerifyCode,
@@ -202,6 +204,23 @@ function handleAdminCustomerTagsRoute(
  * search terms) so repeated probing of admin surfaces is detectable in Worker
  * logs even when Sentry is unconfigured.
  */
+async function enforceSessionRouteRateLimit(request: Request, env: Env): Promise<Response | null> {
+  const clientIp = request.headers.get('CF-Connecting-IP');
+  if (clientIp !== null) {
+    const ipLimited = await enforceRateLimit(env.API_RATE_LIMITER, `session_ip:${clientIp}`);
+    if (ipLimited !== null) {
+      return ipLimited;
+    }
+  }
+
+  const token = getAuthToken(request);
+  const tokenKey =
+    token === null || token.length === 0 || token.length > 256
+      ? 'invalid'
+      : await hashSessionToken(token);
+  return enforceRateLimit(env.API_RATE_LIMITER, `session_token:${tokenKey}`);
+}
+
 async function adminGated(
   request: Request,
   env: Env,
@@ -245,6 +264,12 @@ export default Sentry.withSentry(
             env.ADMIN_RATE_LIMITER,
             `admin:${rateLimitClientIp(request)}`
           );
+          if (limited !== null) {
+            return limited;
+          }
+        }
+        if (route.authentication === 'session') {
+          const limited = await enforceSessionRouteRateLimit(request, env);
           if (limited !== null) {
             return limited;
           }
