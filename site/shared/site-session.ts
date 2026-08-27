@@ -38,6 +38,7 @@ export type CustomerId = Schema.Schema.Type<typeof CustomerId>;
 
 /** Better Auth role projected into the licensing Worker session. */
 const SiteSessionRoleSchema = Schema.Literal('admin', 'user');
+export type SiteSessionRole = Schema.Schema.Type<typeof SiteSessionRoleSchema>;
 
 /** Body posted by the trusted site BFF to mint a Worker session. */
 export const SiteSessionRequestSchema = Schema.Struct({

@@ -2,6 +2,7 @@ import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import type { AdminOverview } from '../../../../site/shared/admin-overview';
 import { EMAIL_PATTERN } from '../../../../site/shared/email';
+import type { SiteSessionRole } from '../../../../site/shared/site-session';
 import type {
   LicensingSummary,
   LicensingSummaryState,
@@ -315,12 +316,12 @@ interface LicensingServicePrincipal {
   readonly email: string;
   readonly id: string;
   readonly name: string;
-  readonly role: 'user' | 'admin';
+  readonly role: SiteSessionRole;
   readonly secret: string;
 }
 
 export interface LicensingServiceSession {
-  readonly role: 'user' | 'admin';
+  readonly role: SiteSessionRole;
   readonly token: string;
 }
 
