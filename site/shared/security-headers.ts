@@ -6,7 +6,7 @@ export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https:",
+  "img-src 'self' data: https://avatars.githubusercontent.com",
   "font-src 'self' data:",
   `connect-src 'self' ${SITE_ORIGIN} https://omg-api.latham.cloud https://api.github.com https://cloudflareinsights.com`,
   "frame-ancestors 'none'",

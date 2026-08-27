@@ -19,6 +19,10 @@ describe('SolidStart response policy', () => {
     applyResponsePolicy('https://omg.latham.cloud/admin', headers);
 
     expect(headers.get('Content-Security-Policy')).toContain("frame-ancestors 'none'");
+    expect(headers.get('Content-Security-Policy')).toContain(
+      "img-src 'self' data: https://avatars.githubusercontent.com"
+    );
+    expect(headers.get('Content-Security-Policy')).not.toContain("img-src 'self' data: https:;");
     expect(headers.get('Strict-Transport-Security')).toContain('max-age=31536000');
     expect(headers.get('X-Content-Type-Options')).toBe('nosniff');
     expect(headers.get('X-Frame-Options')).toBe('DENY');
