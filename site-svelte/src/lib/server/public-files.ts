@@ -1,7 +1,5 @@
 import { applySecurityHeaders, SITE_ORIGIN } from '../../../../site/shared/security-headers';
 
-const SITE_URL = SITE_ORIGIN;
-
 const SHADOW_ROBOTS_POLICY = 'noindex, nofollow';
 const DOCS_CACHE_POLICY = 'public, max-age=0, must-revalidate';
 
@@ -30,7 +28,7 @@ function escapeXml(value: string): string {
 
 function sitemapEntry(page: PageEntry): string {
   return `  <url>
-    <loc>${escapeXml(`${SITE_URL}${page.path}`)}</loc>
+    <loc>${escapeXml(`${SITE_ORIGIN}${page.path}`)}</loc>
     <lastmod>${page.lastModified}</lastmod>
     <changefreq>${page.changeFrequency}</changefreq>
     <priority>${page.priority.toFixed(1)}</priority>
@@ -90,7 +88,7 @@ Disallow: /admin
 Disallow: /_server/
 Allow: /_build/
 
-Sitemap: ${SITE_URL}/sitemap.xml
+Sitemap: ${SITE_ORIGIN}/sitemap.xml
 `;
 
   return new Response(body, {
