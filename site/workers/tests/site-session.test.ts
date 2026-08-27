@@ -38,6 +38,7 @@ describe('POST /api/internal/site-session', () => {
   beforeEach(async () => {
     env.ADMIN_API_SECRET = TEST_SECRET;
     env.SVELTE_BFF_SECRET = '';
+    env.API_RATE_LIMITER = { limit: async () => ({ success: true }) };
     await ensureSchema();
   });
 
@@ -59,6 +60,19 @@ describe('POST /api/internal/site-session', () => {
     await env.DB.prepare(`DELETE FROM customers WHERE email IN (?, ?)`)
       .bind(TEST_EMAIL, NON_ADMIN_EMAIL)
       .run();
+  });
+
+  it('rate limits the public route before comparing shared secrets', async () => {
+    env.API_RATE_LIMITER = { limit: async () => ({ success: false }) };
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      createSessionRequest('wrong-secret', JSON.stringify({ email: TEST_EMAIL })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(429);
   });
 
   it('returns 401 when the secret is missing', async () => {
@@ -169,6 +183,32 @@ describe('POST /api/internal/site-session', () => {
 
     expect(response.status).toBe(200);
     expect(customer.admin).toBe(0);
+  });
+
+  it('keeps concurrent new-customer provisioning idempotent', async () => {
+    const firstContext = createExecutionContext();
+    const secondContext = createExecutionContext();
+    const body = JSON.stringify({ email: NON_ADMIN_EMAIL, name: 'Lin', role: 'user' });
+
+    const [first, second] = await Promise.all([
+      worker.fetch(createSessionRequest(TEST_SECRET, body), env, firstContext),
+      worker.fetch(createSessionRequest(TEST_SECRET, body), env, secondContext),
+    ]);
+    await Promise.all([
+      waitOnExecutionContext(firstContext),
+      waitOnExecutionContext(secondContext),
+    ]);
+    const licenseCount = Schema.decodeUnknownSync(Schema.Struct({ count: Schema.Number }))(
+      await env.DB.prepare(
+        `SELECT COUNT(*) count FROM licenses
+         WHERE customer_id = (SELECT id FROM customers WHERE email = ?)`
+      )
+        .bind(NON_ADMIN_EMAIL)
+        .first()
+    );
+
+    expect([first.status, second.status]).toEqual([200, 200]);
+    expect(licenseCount.count).toBe(1);
   });
 
   it('creates a session for a new admin customer', async () => {

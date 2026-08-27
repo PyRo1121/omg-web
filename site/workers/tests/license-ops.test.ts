@@ -274,21 +274,13 @@ describe('GET /api/get-license', () => {
     expect(response.status).toBe(401);
   });
 
-  it('counts machines only on the deterministically selected active license', async () => {
+  it('counts active machines on the customer license', async () => {
     await insertActiveLicense();
     await env.DB.batch([
-      env.DB.prepare(
-        `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_machines, max_seats)
-           VALUES ('secondary-license', ?, 'secondary-key', 'team', 'cancelled', 10, 10)`
-      ).bind(TEST_CUSTOMER),
       env.DB.prepare(
         `INSERT INTO machines (id, license_id, machine_id, is_active)
          VALUES ('primary-machine', ?, 'primary-machine', 1)`
       ).bind(TEST_LICENSE),
-      env.DB.prepare(
-        `INSERT INTO machines (id, license_id, machine_id, is_active)
-         VALUES ('secondary-machine', 'secondary-license', 'secondary-machine', 1)`
-      ),
       env.DB.prepare(
         `INSERT INTO sessions (id, customer_id, token, expires_at)
            VALUES ('get-license-owner-session', ?, ?, datetime('now', '+1 hour'))`
@@ -393,6 +385,34 @@ describe('POST /api/analytics', () => {
     // SAFETY: response is a known JSON shape from our own handler
     const payload = (await response.json()) as { success: boolean; processed: number };
     expect(payload.processed).toBe(0);
+  });
+
+  it('rejects oversized analytics property strings', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      postJson(
+        '/api/analytics',
+        JSON.stringify({
+          events: [
+            {
+              event_type: 'error',
+              event_name: 'command_failed',
+              properties: { message: 'x'.repeat(501) },
+              timestamp: new Date().toISOString(),
+              session_id: 'bounded-properties-session',
+              machine_id: 'bounded-properties-machine',
+              version: '1.0.0',
+              platform: 'linux',
+            },
+          ],
+        })
+      ),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(400);
   });
 
   it('returns 400 for a malformed event', async () => {

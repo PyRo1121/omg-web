@@ -3,6 +3,7 @@ import { Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import type { DashboardData } from '../../../../site/shared/account-dashboard';
 import { createShadowAuth, type AuthEnvironment } from './auth.server';
+import { normalizedOptionalText } from './optional-text.server';
 
 const SESSION_QUERY =
   'SELECT id, token, ip_address AS ipAddress, user_agent AS userAgent, created_at AS createdAt, expires_at AS expiresAt FROM auth_session WHERE user_id = ?';
@@ -10,10 +11,10 @@ const ACCOUNT_QUERY =
   'SELECT provider_id AS providerId, account_id AS accountId FROM auth_account WHERE user_id = ?';
 
 const SessionRowSchema = Schema.Struct({
-  id: Schema.String,
-  token: Schema.String,
-  ipAddress: Schema.NullOr(Schema.String),
-  userAgent: Schema.NullOr(Schema.String),
+  id: Schema.String.check(Schema.isMaxLength(256)),
+  token: Schema.String.check(Schema.isMaxLength(256)),
+  ipAddress: Schema.NullOr(Schema.String.check(Schema.isMaxLength(64))),
+  userAgent: Schema.NullOr(Schema.String.check(Schema.isMaxLength(512))),
   createdAt: Schema.Union([Schema.Number, Schema.String]),
   expiresAt: Schema.Union([Schema.Number, Schema.String]),
 });
@@ -127,11 +128,6 @@ function decodeAccountRows(
   return decoded.value;
 }
 
-function optionalText(value: string | null): string | null {
-  const normalized = value?.trim();
-  return normalized ? normalized : null;
-}
-
 function decodeDashboardData(value: DashboardBoundaryInput): DashboardData {
   const decoded = Schema.decodeUnknownExit(DashboardDataSchema)(value);
   if (Exit.isFailure(decoded)) {
@@ -140,30 +136,59 @@ function decodeDashboardData(value: DashboardBoundaryInput): DashboardData {
   return decoded.value;
 }
 
-export async function loadAccountDashboard(
+export interface AccountDashboardIdentity {
+  readonly sessionToken: string;
+  readonly user: DashboardData['user'];
+}
+
+/** Load the current verified Better Auth identity without querying account detail tables. */
+export async function loadAccountIdentity(
   event: AccountDashboardRequest,
   lookup: DashboardSessionLookup = lookupDashboardSession
-): Promise<DashboardData | null> {
+): Promise<AccountDashboardIdentity | null> {
   if (event.platform === undefined) {
     error(503, 'Authentication service unavailable');
   }
-
-  const env = event.platform.env;
   const providerSession = await lookup({
-    env,
+    env: event.platform.env,
     headers: event.request.headers,
     requestUrl: event.url,
   });
   if (providerSession === null) {
     return null;
   }
+  return {
+    sessionToken: providerSession.session.token,
+    user: {
+      id: providerSession.user.id,
+      name: providerSession.user.name,
+      email: providerSession.user.email,
+      emailVerified: providerSession.user.emailVerified,
+      image: providerSession.user.image ?? null,
+      createdAt: dashboardDate(providerSession.user.createdAt).toISOString(),
+    },
+  };
+}
+
+export async function loadAccountDashboard(
+  event: AccountDashboardRequest,
+  lookup: DashboardSessionLookup = lookupDashboardSession
+): Promise<DashboardData | null> {
+  const identity = await loadAccountIdentity(event, lookup);
+  if (identity === null) {
+    return null;
+  }
+  if (event.platform === undefined) {
+    error(503, 'Authentication service unavailable');
+  }
+  const env = event.platform.env;
 
   let sessionRows: DashboardBoundaryInput;
   let accountRows: DashboardBoundaryInput;
   try {
     const [sessions, accounts] = await Promise.all([
-      env.DB.prepare(SESSION_QUERY).bind(providerSession.user.id).all(),
-      env.DB.prepare(ACCOUNT_QUERY).bind(providerSession.user.id).all(),
+      env.DB.prepare(SESSION_QUERY).bind(identity.user.id).all(),
+      env.DB.prepare(ACCOUNT_QUERY).bind(identity.user.id).all(),
     ]);
     sessionRows = sessions.results;
     accountRows = accounts.results;
@@ -174,21 +199,14 @@ export async function loadAccountDashboard(
   const sessions = decodeSessionRows(sessionRows);
   const accounts = decodeAccountRows(accountRows);
   return decodeDashboardData({
-    user: {
-      id: providerSession.user.id,
-      name: providerSession.user.name,
-      email: providerSession.user.email,
-      emailVerified: providerSession.user.emailVerified,
-      image: providerSession.user.image ?? null,
-      createdAt: dashboardDate(providerSession.user.createdAt).toISOString(),
-    },
+    user: identity.user,
     sessions: sessions.map(session => ({
       id: session.id,
-      ipAddress: optionalText(session.ipAddress),
-      userAgent: optionalText(session.userAgent),
+      ipAddress: normalizedOptionalText(session.ipAddress),
+      userAgent: normalizedOptionalText(session.userAgent),
       createdAt: session.createdAt.toISOString(),
       expiresAt: session.expiresAt.toISOString(),
-      isCurrent: session.token === providerSession.session.token,
+      isCurrent: session.token === identity.sessionToken,
     })),
     accounts: accounts.map(account => ({
       provider: account.providerId,

@@ -18,6 +18,9 @@ const BatchPayloadSchema = Schema.Struct({
   success: Schema.optional(Schema.Boolean),
   processed: Schema.Number,
 });
+const ALLOW_ALL_RATE_LIMITER: NonNullable<(typeof env)['API_RATE_LIMITER']> = {
+  limit: async () => ({ success: true }),
+};
 
 async function decodeResponse<S extends Schema.Schema.AnyNoContext>(
   response: Response,
@@ -34,6 +37,7 @@ describe('Telemetry API', () => {
   const TEST_MACHINE_ID = 'test-machine-abc123';
 
   beforeEach(async () => {
+    env.API_RATE_LIMITER = ALLOW_ALL_RATE_LIMITER;
     // Set up test database with a customer and license
     await env.DB.prepare(
       `
@@ -71,6 +75,49 @@ describe('Telemetry API', () => {
   });
 
   describe('POST /api/cli/event - Single Event', () => {
+    it('applies the IP limiter before parsing an untrusted body', async () => {
+      env.API_RATE_LIMITER = { limit: async () => ({ success: false }) };
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(
+        new Request('http://localhost/api/cli/event', {
+          method: 'POST',
+          headers: {
+            'CF-Connecting-IP': '192.0.2.10',
+            'Content-Type': 'application/json',
+          },
+          body: '{invalid',
+        }),
+        env,
+        ctx
+      );
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(429);
+    });
+
+    it('rejects negative telemetry counters at the boundary', async () => {
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(
+        new Request('http://localhost/api/cli/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: { type: 'command', command: 'search', duration_ms: -1, success: true },
+            timestamp: new Date().toISOString(),
+            machine_id: TEST_MACHINE_ID,
+            version: '0.1.0',
+            platform: 'linux',
+            license_key: TEST_LICENSE_KEY,
+          }),
+        }),
+        env,
+        ctx
+      );
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(400);
+    });
+
     it('should accept and store a valid command event', async () => {
       const request = new Request('http://localhost/api/cli/event', {
         method: 'POST',
@@ -289,14 +336,8 @@ describe('Telemetry API', () => {
     });
 
     it('should return 401 when license is inactive', async () => {
-      // Create an inactive license
-      await env.DB.prepare(
-        `
-        INSERT INTO licenses (id, customer_id, license_key, tier, status, max_machines, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-      `
-      )
-        .bind('inactive-license-id', TEST_CUSTOMER_ID, 'inactive-key', 'pro', 'suspended', 3)
+      await env.DB.prepare(`UPDATE licenses SET status = 'suspended' WHERE id = ?`)
+        .bind(TEST_LICENSE_ID)
         .run();
 
       const request = new Request('http://localhost/api/cli/event', {
@@ -312,7 +353,7 @@ describe('Telemetry API', () => {
           machine_id: TEST_MACHINE_ID,
           version: '0.1.0',
           platform: 'linux',
-          license_key: 'inactive-key',
+          license_key: TEST_LICENSE_KEY,
         }),
       });
 
@@ -321,9 +362,6 @@ describe('Telemetry API', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(401);
-
-      // Cleanup
-      await env.DB.prepare('DELETE FROM licenses WHERE id = ?').bind('inactive-license-id').run();
     });
 
     it('should return 400 for malformed event (invalid type)', async () => {

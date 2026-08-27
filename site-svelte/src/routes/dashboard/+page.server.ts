@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import { loadAccountDashboard } from '../../lib/server/account-dashboard.server';
-import { loadLicensingSummaryState } from '../../lib/server/licensing-summary.server';
+import { loadLicensingSummaryState } from '../../lib/server/licensing-service.server';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async event => {

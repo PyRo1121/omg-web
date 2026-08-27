@@ -1,25 +1,6 @@
-const SITE_URL = 'https://omg.latham.cloud';
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https:",
-  "font-src 'self' data:",
-  `connect-src 'self' ${SITE_URL} https://omg-api.latham.cloud https://api.github.com https://cloudflareinsights.com`,
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  `form-action 'self' ${SITE_URL} https://github.com`,
-].join('; ');
+import { applySecurityHeaders, SITE_ORIGIN } from '../../../../site/shared/security-headers';
 
-const SECURITY_HEADERS = {
-  'Content-Security-Policy': CONTENT_SECURITY_POLICY,
-  'Cross-Origin-Opener-Policy': 'same-origin',
-  'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-} as const;
+const SITE_URL = SITE_ORIGIN;
 
 const SHADOW_ROBOTS_POLICY = 'noindex, nofollow';
 const DOCS_CACHE_POLICY = 'public, max-age=0, must-revalidate';
@@ -66,9 +47,7 @@ function appendVary(headers: Headers, value: string): void {
 
 export function withSiteHeaders(response: Response, deploymentStage: string | undefined): Response {
   const headers = new Headers(response.headers);
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
-    headers.set(name, value);
-  }
+  applySecurityHeaders(headers);
   appendVary(headers, 'Accept-Encoding');
   if (deploymentStage !== 'prod') {
     headers.set('X-Robots-Tag', SHADOW_ROBOTS_POLICY);

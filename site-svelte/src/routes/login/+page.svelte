@@ -37,6 +37,7 @@
           type="email"
           bind:value={view.email}
           autocomplete="email"
+          maxlength="254"
           required
           class="login-input"
         />
@@ -48,6 +49,7 @@
           type="password"
           bind:value={view.password}
           autocomplete="current-password"
+          maxlength="1024"
           required
           class="login-input"
         />

@@ -205,6 +205,11 @@ export function jsonResponse<TResponse>(data: TResponse, status = 200): Response
     'Content-Type': 'application/json',
     ...corsHeaders,
     'CDN-Cache-Control': 'no-store',
+    'Cross-Origin-Resource-Policy': 'same-site',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
     // Every handler routed through here returns authenticated or
     // personalized data. Without an explicit Cache-Control, a 200 would be
     // heuristically cacheable by downstream shared caches (CDN-Cache-Control

@@ -292,6 +292,19 @@ describe('Stripe webhook inbox', () => {
     await env.DB.prepare(`DROP TABLE IF EXISTS stripe_events`).run();
   });
 
+  it('rejects an oversized body before signature verification', async () => {
+    const response = await handleStripeWebhook(
+      new Request('http://localhost/api/webhooks/stripe', {
+        method: 'POST',
+        headers: { 'stripe-signature': 't=0,v1=invalid' },
+        body: 'x'.repeat(512 * 1024 + 1),
+      }),
+      env
+    );
+
+    expect(response.status).toBe(413);
+  });
+
   it('processes a Stripe event exactly once', async () => {
     const first = await handleStripeWebhook(await webhookRequest('evt_inbox_once'), env);
     const duplicate = await handleStripeWebhook(await webhookRequest('evt_inbox_once'), env);

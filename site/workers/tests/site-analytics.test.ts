@@ -150,6 +150,14 @@ describe('POST /api/docs/analytics', () => {
 });
 
 describe('POST /api/site/analytics/track', () => {
+  it('rejects an oversized properties object before persistence', async () => {
+    const response = await track({
+      events: [event({ properties: { path: '/pricing', detail: 'x'.repeat(4097) } })],
+    });
+
+    expect(response.status).toBe(400);
+  });
+
   it('persists a valid pageview with enriched properties', async () => {
     const response = await track({ events: [event()] });
     expect(response.status).toBe(200);

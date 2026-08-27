@@ -13,9 +13,12 @@ const AdminTabSchema = Schema.Literal(
   'audit'
 );
 
+const SavedViewId = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64));
+const SavedViewName = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64));
+
 const CurrentSavedViewSchema = Schema.Struct({
-  id: Schema.String,
-  name: Schema.String,
+  id: SavedViewId,
+  name: SavedViewName,
   tab: AdminTabSchema,
   dateRange: CurrentDateRangeSchema,
 });
@@ -25,7 +28,9 @@ const PersistedDashboardStateV2Schema = Schema.Struct({
   state: Schema.Struct({
     navigation: Schema.Struct({ activeTab: AdminTabSchema }),
     filters: Schema.Struct({ dateRange: CurrentDateRangeSchema }),
-    views: Schema.Struct({ saved: Schema.Array(CurrentSavedViewSchema) }),
+    views: Schema.Struct({
+      saved: Schema.Array(CurrentSavedViewSchema).pipe(Schema.maxItems(50)),
+    }),
   }),
 });
 
@@ -35,20 +40,20 @@ const PersistedDashboardStateV1Schema = Schema.Struct({
     navigation: Schema.Struct({ activeTab: AdminTabSchema }),
     filters: Schema.Struct({
       dateRange: LegacyDateRangeSchema,
-      segment: Schema.String,
+      segment: Schema.String.pipe(Schema.maxLength(64)),
       compareEnabled: Schema.Boolean,
     }),
     views: Schema.Struct({
       saved: Schema.Array(
         Schema.Struct({
-          id: Schema.String,
-          name: Schema.String,
+          id: SavedViewId,
+          name: SavedViewName,
           tab: AdminTabSchema,
           dateRange: LegacyDateRangeSchema,
-          segment: Schema.String,
+          segment: Schema.String.pipe(Schema.maxLength(64)),
           compareEnabled: Schema.Boolean,
         })
-      ),
+      ).pipe(Schema.maxItems(50)),
     }),
     crm: Schema.Struct({ viewMode: Schema.Literal('cards', 'table') }),
   }),

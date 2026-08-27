@@ -12,6 +12,15 @@ describe('validateCredentials', () => {
     );
   });
 
+  it('rejects credentials above the client boundary limits', () => {
+    expect(
+      validateCredentials({ email: `${'a'.repeat(250)}@example.com`, password: 'secret' })
+    ).toBe('Email addresses cannot exceed 254 characters.');
+    expect(validateCredentials({ email: 'user@example.com', password: 'x'.repeat(1025) })).toBe(
+      'Passwords cannot exceed 1024 characters.'
+    );
+  });
+
   it('rejects an empty password', () => {
     expect(validateCredentials({ email: 'user@example.com', password: '' })).toBe(
       'Enter your password.'

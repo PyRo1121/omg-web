@@ -51,8 +51,9 @@
     "valibot": "1.4.2"
   },
   "allowScripts": {
-    "esbuild": true,
     "msgpackr-extract@3.0.4": false,
-    "workerd@1.20260704.1": true
+    "esbuild@0.28.2": true,
+    "workerd@1.20260704.1": true,
+    "fsevents@2.3.3": false
   }
 }

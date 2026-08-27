@@ -35,12 +35,19 @@ function ensureJsonContentType(request: Request): Effect.Effect<void, InvalidJso
  *
  * The declared Content-Length is checked first for cheap rejection, then the
  * stream itself is counted so chunked or lying clients cannot exceed the cap.
+ *
+ * @param request - Incoming request whose stream is consumed once.
+ * @param maxBytes - Maximum buffered byte count for this protocol boundary.
+ * @returns The decoded UTF-8 body or an explicit bounded-read failure.
  */
-function readBoundedBodyText(request: Request): Effect.Effect<string, InvalidJsonBodyError> {
+export function readBoundedBodyText(
+  request: Request,
+  maxBytes = MAX_JSON_BODY_BYTES
+): Effect.Effect<string, InvalidJsonBodyError> {
   return tryPromise({
     try: async () => {
       const declaredLength = Number(request.headers.get('Content-Length') ?? '0');
-      if (Number.isFinite(declaredLength) && declaredLength > MAX_JSON_BODY_BYTES) {
+      if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
         throw new InvalidJsonBodyError('Request body exceeds the maximum allowed size');
       }
 
@@ -57,7 +64,7 @@ function readBoundedBodyText(request: Request): Effect.Effect<string, InvalidJso
           break;
         }
         total += next.value.byteLength;
-        if (total > MAX_JSON_BODY_BYTES) {
+        if (total > maxBytes) {
           await reader.cancel().catch(() => undefined);
           throw new InvalidJsonBodyError('Request body exceeds the maximum allowed size');
         }

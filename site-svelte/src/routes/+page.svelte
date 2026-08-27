@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { serializeJsonLd } from '../../../site/shared/public-site';
   import HomeBenchmarks from '../lib/components/home/HomeBenchmarks.svelte';
   import HomeFeatureGrid from '../lib/components/home/HomeFeatureGrid.svelte';
   import HomeHero from '../lib/components/home/HomeHero.svelte';
   import HomeInstallation from '../lib/components/home/HomeInstallation.svelte';
   import HomePricing from '../lib/components/home/HomePricing.svelte';
 
-  const structuredData = JSON.stringify({
+  const structuredData = serializeJsonLd({
     '@context': 'https://schema.org',
     '@graph': [
       {

@@ -40,7 +40,7 @@ export const LicensingRoutes = {
   authLogout: {
     method: 'POST',
     path: '/api/auth/logout',
-    authentication: 'session',
+    authentication: 'none',
     transport: 'direct',
   },
   validateLicensePost: {
@@ -52,7 +52,7 @@ export const LicensingRoutes = {
   getLicense: {
     method: 'GET',
     path: '/api/get-license',
-    authentication: 'none',
+    authentication: 'session',
     transport: 'direct',
   },
   reportUsage: {

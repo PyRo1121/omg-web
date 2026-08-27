@@ -41,7 +41,33 @@ describe('canonical D1 migrations', () => {
       '019_license_usage_dimensions.sql',
       '020_marketing_offer_leads.sql',
       '021_stripe_event_dead_letter.sql',
+      '022_licenses_customer_unique.sql',
     ]);
+  });
+
+  it('enforces one license per customer', async () => {
+    const customerId = `migration-license-customer-${crypto.randomUUID()}`;
+    await env.DB.prepare(`INSERT INTO customers (id, email, tier) VALUES (?, ?, 'free')`)
+      .bind(customerId, `${customerId}@example.com`)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO licenses (id, customer_id, license_key, tier, status)
+       VALUES (?, ?, ?, 'free', 'active')`
+    )
+      .bind(crypto.randomUUID(), customerId, crypto.randomUUID())
+      .run();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO licenses (id, customer_id, license_key, tier, status)
+         VALUES (?, ?, ?, 'free', 'active')`
+      )
+        .bind(crypto.randomUUID(), customerId, crypto.randomUUID())
+        .run()
+    ).rejects.toThrow();
+
+    await env.DB.prepare(`DELETE FROM licenses WHERE customer_id = ?`).bind(customerId).run();
+    await env.DB.prepare(`DELETE FROM customers WHERE id = ?`).bind(customerId).run();
   });
 
   it('creates the current authentication and Stripe inbox columns', async () => {

@@ -62,7 +62,7 @@ export const Website = Cloudflare.Website.SvelteKit(
           persist: true,
         },
       },
-      workersDev: true,
+      workersDev: stage !== 'prod',
     };
   })
 );

@@ -6,7 +6,7 @@ import { handleMarketingOffer } from '../src/handlers/marketing-offer';
 
 const INTERNAL_SECRET = 'test-internal-secret';
 
-function offerEnv(rateLimitSuccess = true): Env {
+function offerEnv(rateLimitSuccess = true, ipLimitSuccess = true): Env {
   return {
     DB: env.DB,
     EMAIL: env.EMAIL,
@@ -17,7 +17,7 @@ function offerEnv(rateLimitSuccess = true): Env {
     JWT_PRIVATE_KEY: 'private-test-key',
     ADMIN_API_SECRET: INTERNAL_SECRET,
     API_RATE_LIMITER: {
-      limit: async () => ({ success: true }),
+      limit: async () => ({ success: ipLimitSuccess }),
     },
     OFFER_RATE_LIMITER: {
       limit: async () => ({ success: rateLimitSuccess }),
@@ -43,6 +43,15 @@ beforeEach(async () => {
 });
 
 describe('marketing introductory offer', () => {
+  it('rate limits the public route before comparing its shared secret', async () => {
+    const response = await handleMarketingOffer(
+      offerRequest('developer@example.com', 'wrong-secret'),
+      offerEnv(true, false)
+    );
+
+    expect(response.status).toBe(429);
+  });
+
   it('creates one single-redemption Stripe promotion and reuses it for the email', async () => {
     const stripeFetch = vi.fn<typeof fetch>(async (_input, init) => {
       const body = new URLSearchParams(String(init?.body));

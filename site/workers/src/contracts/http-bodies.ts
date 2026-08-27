@@ -3,7 +3,12 @@
 import * as Schema from 'effect/Schema';
 
 const OptionalBoolean = Schema.optional(Schema.Boolean);
-const OptionalNumber = Schema.optional(Schema.Number);
+const OptionalEpochMs = Schema.optional(
+  Schema.Number.pipe(Schema.int(), Schema.between(0, 9_999_999_999_999))
+);
+const OptionalDurationMs = Schema.optional(
+  Schema.Number.pipe(Schema.int(), Schema.between(0, 31 * 24 * 60 * 60 * 1000))
+);
 
 /** Non-empty caller-supplied identifier, capped against oversized D1 keys. */
 const BoundedId = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(128));
@@ -20,17 +25,32 @@ const LicenseTier = Schema.Literal('free', 'pro', 'team', 'enterprise');
 /** License statuses an admin may set (privacy deletion writes `deleted_by_user` directly). */
 const AdminLicenseStatus = Schema.Literal('active', 'inactive');
 
+const MAX_ANALYTICS_PROPERTIES_BYTES = 4096;
+const MAX_ANALYTICS_PROPERTY_ENTRIES = 32;
 const JsonValueSchema: Schema.Schema.AnyNoContext = Schema.suspend(() =>
   Schema.Union(
-    Schema.String,
+    Schema.String.pipe(Schema.maxLength(512)),
     Schema.Number,
     Schema.Boolean,
     Schema.Null,
-    Schema.Array(JsonValueSchema),
-    Schema.Record({ key: Schema.String, value: JsonValueSchema })
+    Schema.Array(JsonValueSchema).pipe(Schema.maxItems(MAX_ANALYTICS_PROPERTY_ENTRIES)),
+    JsonObject
   )
 );
-const JsonObject = Schema.Record({ key: Schema.String, value: JsonValueSchema });
+const JsonObject: Schema.Schema.AnyNoContext = Schema.Record({
+  key: Schema.String.pipe(Schema.maxLength(64)),
+  value: JsonValueSchema,
+}).pipe(
+  Schema.filter(properties => Object.keys(properties).length <= MAX_ANALYTICS_PROPERTY_ENTRIES, {
+    message: () => 'Analytics properties support at most 32 entries',
+  }),
+  Schema.filter(
+    properties =>
+      new TextEncoder().encode(JSON.stringify(properties)).byteLength <=
+      MAX_ANALYTICS_PROPERTIES_BYTES,
+    { message: () => 'Analytics properties exceed the maximum encoded size' }
+  )
+);
 
 /** Dashboard company profile update. */
 export const UpdateProfileBodySchema = Schema.Struct({
@@ -98,9 +118,9 @@ const TrackingEventSchema = Schema.Struct({
   event_type: TrackingEventTypeSchema,
   event_name: Schema.String.pipe(Schema.maxLength(128)),
   properties: Schema.optional(JsonObject),
-  timestamp: OptionalNumber,
+  timestamp: OptionalEpochMs,
   session_id: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
-  duration_ms: OptionalNumber,
+  duration_ms: OptionalDurationMs,
 });
 
 /** Marketing-site analytics batch. */
@@ -115,7 +135,7 @@ const DocsAnalyticsEventSchema = Schema.Struct({
   properties: JsonObject,
   timestamp: Schema.String.pipe(Schema.maxLength(40)),
   session_id: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
-  duration_ms: OptionalNumber,
+  duration_ms: OptionalDurationMs,
 });
 
 /** Docs-site analytics batch. */

@@ -2,7 +2,7 @@ import { reportError, reportInfo, reportWarning } from '../observability';
 import { type Env, jsonResponse, errorResponse, enforceRateLimit, logAudit } from '../api';
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
-import { decodeJsonBody } from '../body';
+import { decodeJsonBody, readBoundedBodyText } from '../body';
 import { EmailAddress } from '../../../shared/site-session';
 import {
   authenticateSession,
@@ -57,6 +57,7 @@ const MarketingPromotionRowSchema = Schema.Struct({
 
 /** Checkout Session ids are high-entropy Stripe capabilities; bound the shape. */
 const CheckoutSessionIdPattern = /^cs_[A-Za-z0-9]{10,200}$/;
+const MAX_STRIPE_WEBHOOK_BODY_BYTES = 512 * 1024;
 
 /**
  * Fetch a Stripe API resource and decode its JSON payload.
@@ -828,7 +829,14 @@ export async function handleStripeWebhook(
     return new Response('Missing signature or secret', { status: 400 });
   }
 
-  const body = await request.text();
+  const bodyExit = await Effect.runPromiseExit(
+    readBoundedBodyText(request, MAX_STRIPE_WEBHOOK_BODY_BYTES)
+  );
+  if (Exit.isFailure(bodyExit)) {
+    reportWarning('Stripe webhook rejected: body exceeds the accepted boundary');
+    return new Response('Payload too large', { status: 413 });
+  }
+  const body = bodyExit.value;
 
   // Verify Stripe signature
   const isValid = await verifyStripeSignature(body, signature, env.STRIPE_WEBHOOK_SECRET);

@@ -1,6 +1,13 @@
 import * as Sentry from '@sentry/cloudflare';
 import { forbiddenUnlessAdminSession } from './admin-auth';
-import { type Env, corsHeaders, jsonResponse, errorResponse } from './api';
+import {
+  type Env,
+  corsHeaders,
+  jsonResponse,
+  errorResponse,
+  enforceRateLimit,
+  rateLimitClientIp,
+} from './api';
 import { InstallsBadgeRowSchema, readOptionalExtraRow } from './contracts/d1-extras';
 import {
   handleSendCode,
@@ -85,6 +92,7 @@ import {
   handleExportMyData,
   handleOptOut,
   handlePrivacyStatus,
+  cleanupExpiredAuditLogs,
 } from './handlers/privacy';
 import { normalizeLicensingPath, resolveLicensingRoute } from '../../shared/licensing-routes';
 
@@ -230,6 +238,15 @@ export default Sentry.withSentry(
         const route = resolveLicensingRoute(request.method, path);
         if (route === undefined) {
           return errorResponse('Not found', 404);
+        }
+        if (route.path.startsWith('/api/admin/')) {
+          const limited = await enforceRateLimit(
+            env.ADMIN_RATE_LIMITER,
+            `admin:${rateLimitClientIp(request)}`
+          );
+          if (limited !== null) {
+            return limited;
+          }
         }
 
         switch (route.path) {
@@ -394,6 +411,12 @@ export default Sentry.withSentry(
       ctx.waitUntil(
         cleanupMarketingOfferLeads(env.DB).catch(error => {
           reportError('marketing_offer.cleanup_failed', error);
+          Sentry.captureException(error);
+        })
+      );
+      ctx.waitUntil(
+        cleanupExpiredAuditLogs(env.DB).catch(error => {
+          reportError('audit_log.cleanup_failed', error);
           Sentry.captureException(error);
         })
       );

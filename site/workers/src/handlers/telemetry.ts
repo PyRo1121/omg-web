@@ -1,6 +1,6 @@
 // CLI telemetry event handlers.
 import { reportError } from '../observability';
-import { type Env, jsonResponse, errorResponse, enforceRateLimit } from '../api';
+import { type Env, jsonResponse, errorResponse, enforceRateLimit, rateLimitClientIp } from '../api';
 import { Effect, Exit } from 'effect';
 import { decodeJsonBody } from '../body';
 import {
@@ -69,7 +69,19 @@ function sanitizeEvent(event: TelemetryEvent): TelemetryEvent {
   };
 }
 
-/** Apply rate limiting and resolve the license's persisted ingestion policy. */
+/** Reject abusive callers before buffering or decoding their telemetry body. */
+async function enforceTelemetryIpRateLimit(request: Request, env: Env): Promise<Response | null> {
+  const limited = await enforceRateLimit(
+    env.API_RATE_LIMITER,
+    `telemetry_ip:${rateLimitClientIp(request)}`
+  );
+  if (limited?.status === 429) {
+    limited.headers.set('Retry-After', String(RATE_LIMIT_WINDOW_SECONDS));
+  }
+  return limited;
+}
+
+/** Apply per-license rate limiting and resolve the persisted ingestion policy. */
 async function authorizeTelemetry(
   env: Env,
   licenseKey: string
@@ -208,6 +220,11 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
       return contentLengthError;
     }
 
+    const ipLimited = await enforceTelemetryIpRateLimit(request, env);
+    if (ipLimited !== null) {
+      return ipLimited;
+    }
+
     const decoded = await Effect.runPromiseExit(
       decodeJsonBody(request, SingleTelemetryRequestSchema)
     );
@@ -251,6 +268,11 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
     const contentLengthError = validateContentLength(request, MAX_BATCH_PAYLOAD_BYTES);
     if (contentLengthError) {
       return contentLengthError;
+    }
+
+    const ipLimited = await enforceTelemetryIpRateLimit(request, env);
+    if (ipLimited !== null) {
+      return ipLimited;
     }
 
     const decoded = await Effect.runPromiseExit(

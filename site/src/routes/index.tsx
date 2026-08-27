@@ -1,4 +1,5 @@
 import { Link, Meta, Title } from '@solidjs/meta';
+import { serializeJsonLd } from '../../shared/public-site';
 import Benchmarks from '../components/Benchmarks';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
@@ -8,7 +9,7 @@ import { LicenseSuccessModal } from '../components/landing/LicenseSuccessModal';
 import FeatureGrid from '../components/landing/FeatureGrid';
 import Pricing from '../components/Pricing';
 
-const structuredData = JSON.stringify({
+const structuredData = serializeJsonLd({
   '@context': 'https://schema.org',
   '@graph': [
     {

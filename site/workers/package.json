@@ -36,7 +36,8 @@
     "effect": "3.22.1"
   },
   "allowScripts": {
-    "esbuild": true,
-    "workerd@1.20260820.1": true
+    "esbuild@0.28.1": true,
+    "workerd@1.20260820.1": true,
+    "fsevents@2.3.3": false
   }
 }

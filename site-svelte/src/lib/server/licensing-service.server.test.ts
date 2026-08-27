@@ -4,12 +4,14 @@ import {
   LicensingSummaryBodyTooLarge,
   LicensingSummaryInvalidInput,
   LicensingSummaryInvalidPayload,
+  AdminOverviewForbidden,
   LicensingSummaryServiceUnavailable,
+  loadAdminOverview,
   loadLicensingSummary,
   loadLicensingSummaryState,
   type LicensingSummaryEnvironment,
   type LicensingSummaryError,
-} from './licensing-summary.server';
+} from './licensing-service.server';
 
 const VALID_ROLES: ReadonlyArray<'user' | 'admin'> = ['user', 'admin'];
 
@@ -137,6 +139,141 @@ function failureOf(exit: Exit.Exit<unknown, LicensingSummaryError>): LicensingSu
   return Exit.isSuccess(exit) ? null : Option.getOrNull(Cause.findErrorOption(exit.cause));
 }
 
+describe('loadAdminOverview', () => {
+  it('projects high-signal metrics and recent activity without internal identifiers', async () => {
+    const service = serviceWith();
+    service.fetch = async request => {
+      service.requests.push({
+        authorization: request.headers.get('Authorization'),
+        cookie: request.headers.get('Cookie'),
+        internalCall: request.headers.get('X-Internal-Call'),
+        method: request.method,
+        secret: request.headers.get('X-Admin-Secret'),
+        url: request.url,
+      });
+      const pathname = new URL(request.url).pathname;
+      if (pathname === '/api/internal/site-session') {
+        return Response.json({
+          token: 'server-only-token',
+          expiresAt: '2026-09-01T00:00:00.000Z',
+          customerId: 'customer-1',
+        });
+      }
+      if (pathname === '/api/admin/activity') {
+        return Response.json({
+          request_id: 'request-activity',
+          activity: [
+            {
+              id: 'audit-1',
+              customer_id: 'private-customer-id',
+              action: 'machine.registered',
+              resource_type: 'machine',
+              resource_id: 'private-machine-id',
+              ip_address: '192.0.2.10',
+              created_at: '2026-08-27T03:00:00.000Z',
+            },
+          ],
+        });
+      }
+      return Response.json({
+        request_id: 'request-overview',
+        overview: {
+          total_users: 12,
+          active_licenses: 8,
+          active_machines: 9,
+          total_installs: 17,
+          mrr: 999,
+          global_value_usd: 123_456,
+          command_health: { success: 103, failure: 2 },
+        },
+        fleet: { versions: [{ omg_version: '1.4.0', count: 6 }] },
+        tiers: [
+          { tier: 'free', count: 11 },
+          { tier: 'enterprise', count: 1 },
+        ],
+        usage: {
+          total_commands: 820,
+          total_packages_installed: 140,
+          total_searches: 44,
+          total_time_saved_ms: 7_200_000,
+        },
+        daily_active_users: [
+          { date: '2026-08-26', active_users: 3, commands: 90 },
+          { date: '2026-08-27', active_users: 4, commands: 120 },
+        ],
+        recent_signups: [{ date: '2026-08-27', count: 2 }],
+        installs_by_platform: [{ platform: 'linux', count: 15 }],
+        installs_by_version: [{ version: '1.4.0', count: 12 }],
+        subscriptions: [
+          { status: 'active', count: 2 },
+          { status: 'past_due', count: 1 },
+        ],
+        geo_distribution: [{ dimension: 'US', count: 5 }],
+      });
+    };
+
+    const overview = await Effect.runPromise(
+      loadAdminOverview(identity, environment('admin', service))
+    );
+
+    expect(overview).toEqual({
+      activeLicenses: 8,
+      activeMachines: 9,
+      activity: [
+        {
+          action: 'machine.registered',
+          createdAt: '2026-08-27T03:00:00.000Z',
+          resourceType: 'machine',
+        },
+      ],
+      commandFailure24h: 2,
+      commandSuccess24h: 103,
+      commands30d: 820,
+      dailyActivity: [
+        { activeUsers: 3, commands: 90, date: '2026-08-26' },
+        { activeUsers: 4, commands: 120, date: '2026-08-27' },
+      ],
+      fleetVersions: [{ count: 6, label: '1.4.0' }],
+      installsByPlatform: [{ count: 15, label: 'linux' }],
+      packagesInstalled30d: 140,
+      recentSignups: [{ count: 2, date: '2026-08-27' }],
+      searches30d: 44,
+      subscriptions: [
+        { count: 2, label: 'active' },
+        { count: 1, label: 'past_due' },
+      ],
+      tiers: [
+        { count: 11, label: 'free' },
+        { count: 1, label: 'enterprise' },
+      ],
+      timeSavedMs30d: 7_200_000,
+      totalInstalls: 17,
+      totalUsers: 12,
+    });
+    const serialized = JSON.stringify(overview);
+    expect(serialized).not.toContain('request-');
+    expect(serialized).not.toContain('private-');
+    expect(serialized).not.toContain('192.0.2.10');
+    expect(serialized).not.toContain('globalValue');
+    expect(serialized).not.toContain('mrr');
+  });
+
+  it('rejects non-admin roles before minting a Worker session', async () => {
+    const service = serviceWith();
+    const exit = await Effect.runPromiseExit(
+      loadAdminOverview(identity, environment('user', service))
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isFailure(exit)) {
+      expect(Option.getOrNull(Cause.findErrorOption(exit.cause))).toBeInstanceOf(
+        AdminOverviewForbidden
+      );
+    }
+    expect(service.requests).toHaveLength(0);
+  });
+});
+
 describe('loadLicensingSummary', () => {
   it('maps the role, sends only private service credentials, and projects a safe summary', async () => {
     const service = serviceWith();
@@ -176,6 +313,7 @@ describe('loadLicensingSummary', () => {
           version: '1.4.0',
         },
       ],
+      isAdmin: true,
       maxMachines: 3,
       status: 'active',
       subscription: {
@@ -281,6 +419,7 @@ describe('loadLicensingSummary', () => {
           top_runtime: null,
         },
         subscription: null,
+        is_admin: false,
       })
     );
 
@@ -301,6 +440,7 @@ describe('loadLicensingSummary', () => {
           version: null,
         },
       ],
+      isAdmin: false,
       maxMachines: 1,
       status: 'active',
       subscription: null,

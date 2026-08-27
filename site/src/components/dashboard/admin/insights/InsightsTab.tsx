@@ -40,7 +40,9 @@ function loadBookmarkedInsights(): string[] {
     }
 
     const parsed: unknown = JSON.parse(stored);
-    const decoded = Schema.decodeUnknownEither(Schema.Array(Schema.String))(parsed);
+    const decoded = Schema.decodeUnknownEither(
+      Schema.Array(Schema.String.pipe(Schema.maxLength(64))).pipe(Schema.maxItems(50))
+    )(parsed);
     return decoded._tag === 'Right' ? [...decoded.right] : [];
   } catch {
     return [];

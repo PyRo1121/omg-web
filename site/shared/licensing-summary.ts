@@ -29,6 +29,7 @@ export interface LicensingSummary {
   readonly status: string;
   readonly maxMachines: number;
   readonly activeMachines: number;
+  readonly isAdmin: boolean;
   readonly machines: ReadonlyArray<LicensingMachineSummary>;
   readonly expiresAt: string | null;
   readonly subscription: LicensingSubscriptionSummary | null;

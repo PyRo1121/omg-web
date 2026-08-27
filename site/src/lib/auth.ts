@@ -49,6 +49,13 @@ export function createAuth(env: CloudflareEnv) {
     secret: env.BETTER_AUTH_SECRET,
     baseURL: baseUrl,
     trustedOrigins: [baseUrl],
+    advanced: {
+      defaultCookieAttributes: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: true,
+      },
+    },
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,

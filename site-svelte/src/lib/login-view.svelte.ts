@@ -8,11 +8,17 @@ export interface Credentials {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function validateCredentials(credentials: Credentials): string | null {
+  if (credentials.email.length > 254) {
+    return 'Email addresses cannot exceed 254 characters.';
+  }
   if (!EMAIL_PATTERN.test(credentials.email)) {
     return 'Enter a valid email address.';
   }
   if (credentials.password.length === 0) {
     return 'Enter your password.';
+  }
+  if (credentials.password.length > 1024) {
+    return 'Passwords cannot exceed 1024 characters.';
   }
   return null;
 }

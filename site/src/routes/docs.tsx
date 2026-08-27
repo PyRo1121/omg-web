@@ -1,8 +1,9 @@
 import { Link, Meta, Title } from '@solidjs/meta';
+import { serializeJsonLd } from '../../shared/public-site';
 import Footer from '~/components/Footer';
 import Header from '~/components/Header';
 
-const breadcrumbData = JSON.stringify({
+const breadcrumbData = serializeJsonLd({
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
   itemListElement: [

@@ -5,6 +5,8 @@ export interface Env {
 const MAX_ATTACHMENT_FILENAME_LENGTH = 128;
 const RELEASE_OBJECT_PREFIX = 'releases/';
 const RELEASE_FILENAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+const MAX_RELEASE_VERSION_BYTES = 64;
 
 /** R2 lookup or stream failed at the storage layer (distinct from a code defect). */
 class ReleaseStoreUnavailableError extends Error {
@@ -62,9 +64,22 @@ async function handleRequest(path: string, env: Env): Promise<Response> {
         }
       );
     }
-    return new Response(object.body, {
+    if (object.size > MAX_RELEASE_VERSION_BYTES) {
+      return new Response('Version info unavailable', { status: 503 });
+    }
+    let version: string;
+    try {
+      version = (await object.text()).trim();
+    } catch (cause: unknown) {
+      throw new ReleaseStoreUnavailableError(cause);
+    }
+    if (!RELEASE_VERSION_PATTERN.test(version)) {
+      return new Response('Version info unavailable', { status: 503 });
+    }
+    return new Response(version, {
       headers: {
         'Content-Type': 'text/plain',
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
         'X-Content-Type-Options': 'nosniff',
         'Cache-Control': 'public, max-age=60',
       },
@@ -78,7 +93,7 @@ async function handleRequest(path: string, env: Env): Promise<Response> {
     // Reject path separators and dot-segments rather than exposing arbitrary
     // bucket keys to anyone who can guess them.
     const filename = path.slice('/download/'.length);
-    if (!RELEASE_FILENAME_PATTERN.test(filename) || filename === '.' || filename === '..') {
+    if (!RELEASE_FILENAME_PATTERN.test(filename)) {
       return new Response('Not Found', { status: 404 });
     }
     const object = await readReleaseObject(env, `${RELEASE_OBJECT_PREFIX}${filename}`);
@@ -95,6 +110,7 @@ async function handleRequest(path: string, env: Env): Promise<Response> {
     // inert rather than stored XSS adjacent to the update infrastructure.
     headers.set('Content-Type', 'application/octet-stream');
     headers.set('Content-Disposition', `attachment; filename="${attachmentFilename(filename)}"`);
+    headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     headers.set('X-Content-Type-Options', 'nosniff');
 
     return new Response(object.body, {

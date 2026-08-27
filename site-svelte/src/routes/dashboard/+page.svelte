@@ -58,6 +58,13 @@
       </div>
     </dl>
 
+    {#if data.licensing.status === 'available' && data.licensing.summary.isAdmin}
+      <a class="dashboard-admin-link" href="/admin/">
+        <span>Admin overview</span>
+        <small>Users, activity, fleet, and billing state</small>
+      </a>
+    {/if}
+
     <section class="dashboard-section" aria-labelledby="license-title">
       <h2 id="license-title">License</h2>
       {#if data.licensing.status === 'available'}
@@ -284,6 +291,31 @@
 
   .dashboard-mono {
     font-family: var(--font-mono);
+  }
+
+  .dashboard-admin-link {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 2.5rem;
+    padding: 1rem 0;
+    border-block: 1px solid var(--rule-strong);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    text-decoration: none;
+  }
+
+  .dashboard-admin-link small {
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+  }
+
+  .dashboard-admin-link:hover,
+  .dashboard-admin-link:hover small {
+    color: var(--signal);
   }
 
   .dashboard-section {

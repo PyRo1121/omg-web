@@ -119,7 +119,6 @@ type VerifyCodeError =
 
 type SessionTokenError = InvalidJsonBodyError | AuthStoreUnavailable;
 
-const MAX_OTP_ATTEMPTS = 5;
 const OTP_TTL_MS = 10 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_SESSIONS_PER_CUSTOMER = 5;
@@ -336,25 +335,22 @@ function findOrCreateCustomer(
             )
       )
     );
-    // Provision the free license only when the customer has none yet: the
-    // race loser adopts the winner's customer, which already owns one.
-    const licenseRow = yield* Effect.tryPromise({
+    // The unique customer index arbitrates concurrent auth and BFF provisioning.
+    // Only the winning insert records user.created; losers adopt the same license.
+    const insertedLicense = yield* Effect.tryPromise({
       try: () =>
-        db.prepare(`SELECT id FROM licenses WHERE customer_id = ?`).bind(adoptedRow.id).first(),
-      catch: cause => new AuthStoreUnavailable('findLicenseByCustomer', cause),
+        db
+          .prepare(
+            `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
+             VALUES (?, ?, ?, 'free', 'active', 1)
+             ON CONFLICT (customer_id) DO NOTHING
+             RETURNING id`
+          )
+          .bind(crypto.randomUUID(), adoptedRow.id, crypto.randomUUID())
+          .first(),
+      catch: cause => new AuthStoreUnavailable('insertLicense', cause),
     });
-    if (licenseRow === null) {
-      yield* Effect.tryPromise({
-        try: () =>
-          db
-            .prepare(
-              `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
-               VALUES (?, ?, ?, 'free', 'active', 1)`
-            )
-            .bind(crypto.randomUUID(), adoptedRow.id, crypto.randomUUID())
-            .run(),
-        catch: cause => new AuthStoreUnavailable('insertLicense', cause),
-      });
+    if (insertedLicense !== null) {
       yield* logAudit(db, adoptedRow.id, 'user.created', 'customer', adoptedRow.id, request);
     }
     return adoptedRow;
@@ -383,12 +379,12 @@ function verifyCode(
            WHERE id = (
              SELECT id FROM auth_codes
              WHERE email = ? AND code = ? AND used = 0
-               AND attempt_count < ? AND expires_at > datetime('now')
+               AND expires_at > datetime('now')
              ORDER BY created_at DESC LIMIT 1
            ) AND used = 0
            RETURNING id`
         )
-          .bind(body.email, digest, MAX_OTP_ATTEMPTS)
+          .bind(body.email, digest)
           .first(),
       catch: cause => new AuthStoreUnavailable('claimCode', cause),
     }).pipe(
@@ -553,7 +549,8 @@ function responseFromExit<A, E extends Error>(
       if (Option.isNone(failure)) {
         return errorResponse(defectMessage, 500);
       }
-      return errorResponse(failure.value.message, httpStatus(failure.value));
+      const status = httpStatus(failure.value);
+      return errorResponse(status >= 500 ? defectMessage : failure.value.message, status);
     },
   });
 }

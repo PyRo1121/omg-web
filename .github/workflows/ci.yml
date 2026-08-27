@@ -61,7 +61,7 @@ jobs:
         working-directory: site
       - run: corepack enable npm && npm --version
         working-directory: site
-      - run: npx playwright install --with-deps chromium
+      - run: npx --no-install playwright install --with-deps chromium
         working-directory: site
       - run: npm run test:e2e:anonymous
         working-directory: site

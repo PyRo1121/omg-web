@@ -1,6 +1,6 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
-import { type Env, errorResponse, jsonResponse } from '../api';
+import { type Env, enforceRateLimit, errorResponse, jsonResponse, rateLimitClientIp } from '../api';
 import { AdminUnauthorizedError, requireAdminSecret } from '../admin-secret';
 import { decodeJsonBody, type InvalidJsonBodyError } from '../body';
 import { reportError, reportInfo } from '../observability';
@@ -338,6 +338,16 @@ export async function handleMarketingOffer(
   env: Env,
   stripeFetch: typeof fetch = fetch
 ): Promise<Response> {
+  if (request.headers.get('X-Internal-Call') !== 'service-binding') {
+    return errorResponse('Not found', 404);
+  }
+  const limited = await enforceRateLimit(
+    env.API_RATE_LIMITER,
+    `internal_marketing_offer:${rateLimitClientIp(request)}`
+  );
+  if (limited !== null) {
+    return limited;
+  }
   const exit = await Effect.runPromiseExit(claimOffer(request, env, stripeFetch));
   return Exit.match(exit, {
     onSuccess: jsonResponse,

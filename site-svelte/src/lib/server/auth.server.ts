@@ -140,6 +140,13 @@ export function createShadowAuth(env: AuthEnvironment, requestUrl: URL) {
     secret: env.BETTER_AUTH_SECRET,
     baseURL: requestUrl.origin,
     trustedOrigins: [requestUrl.origin],
+    advanced: {
+      defaultCookieAttributes: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: true,
+      },
+    },
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,

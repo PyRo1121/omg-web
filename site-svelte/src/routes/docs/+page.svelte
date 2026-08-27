@@ -1,5 +1,7 @@
 <script lang="ts">
-  const breadcrumbData = JSON.stringify({
+  import { serializeJsonLd } from '../../../../site/shared/public-site';
+
+  const breadcrumbData = serializeJsonLd({
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [

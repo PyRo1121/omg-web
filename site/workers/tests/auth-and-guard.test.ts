@@ -130,6 +130,17 @@ async function applySql(sql: string): Promise<void> {
   }
 }
 
+describe('Worker response baseline', () => {
+  it('applies security headers to JSON responses', async () => {
+    const response = await dispatch('/health');
+
+    expect(response.headers.get('Strict-Transport-Security')).toContain('max-age=31536000');
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+    expect(response.headers.get('Cross-Origin-Resource-Policy')).toBe('same-site');
+  });
+});
+
 describe('secure OTP migration', () => {
   it('invalidates legacy plaintext codes and adds an attempt counter', async () => {
     await env.DB.prepare(`DROP TABLE IF EXISTS auth_codes`).run();
@@ -339,32 +350,6 @@ describe('POST /api/auth/verify-code', () => {
 
     expect([firstResponse.status, secondResponse.status].toSorted()).toEqual([200, 401]);
   });
-
-  it.skip('locks a code after five failed verification attempts (removed: attempt-burnout DoS fixed)', async () => {
-    const deliveredCode = await sendCodeWithTestMailer();
-
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const ctx = createExecutionContext();
-      const response = await worker.fetch(
-        postJson('/api/auth/verify-code', JSON.stringify({ email: TEST_EMAIL, code: '000000' })),
-        env,
-        ctx
-      );
-      await waitOnExecutionContext(ctx);
-      expect(response.status).toBe(401);
-    }
-
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
-      postJson('/api/auth/verify-code', JSON.stringify({ email: TEST_EMAIL, code: deliveredCode })),
-      env,
-      ctx
-    );
-    await waitOnExecutionContext(ctx);
-
-    expect(response.status).toBe(401);
-    expect(await readLatestStoredCode()).toMatchObject({ attempt_count: 5, used: 1 });
-  });
 });
 
 describe('admin analytics endpoints require an admin session', () => {
@@ -391,6 +376,7 @@ describe('admin handler authorization', () => {
 
   beforeEach(async () => {
     await ensureSchema();
+    env.ADMIN_RATE_LIMITER = { limit: async () => ({ success: true }) };
     await env.DB.batch([
       env.DB.prepare(
         `INSERT INTO customers (id, email, company, tier, admin)
@@ -445,6 +431,15 @@ describe('admin handler authorization', () => {
 
     expect(userResponse.status).toBe(403);
     expect(adminResponse.status).toBe(200);
+  });
+
+  it('rate limits admin routes before running their handlers', async () => {
+    env.ADMIN_RATE_LIMITER = { limit: async () => ({ success: false }) };
+    const context = createExecutionContext();
+    const response = await worker.fetch(getPath('/api/admin/health', adminToken), env, context);
+    await waitOnExecutionContext(context);
+
+    expect(response.status).toBe(429);
   });
 
   it('updates a customer license through one returning mutation', async () => {

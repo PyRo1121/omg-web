@@ -64,7 +64,7 @@ export const ReportUsageRequestSchema = Schema.Struct({
 export type ReportUsageRequest = Schema.Schema.Type<typeof ReportUsageRequestSchema>;
 
 const AnalyticsPropertyValue = Schema.Union(
-  Schema.String,
+  Schema.String.pipe(Schema.maxLength(500)),
   Schema.Number,
   Schema.Boolean,
   Schema.Null

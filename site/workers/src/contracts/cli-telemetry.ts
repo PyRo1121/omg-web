@@ -3,7 +3,16 @@
 import * as Schema from 'effect/Schema';
 
 const OptionalBoolean = Schema.optional(Schema.Boolean);
-const OptionalNumber = Schema.optional(Schema.Number);
+const OptionalCount = Schema.optional(
+  Schema.Number.pipe(Schema.int(), Schema.between(0, 1_000_000_000))
+);
+const OptionalDurationMs = Schema.optional(
+  Schema.Number.pipe(Schema.int(), Schema.between(0, 31 * 24 * 60 * 60 * 1000))
+);
+const OptionalDurationSecs = Schema.optional(
+  Schema.Number.pipe(Schema.int(), Schema.between(0, 31 * 24 * 60 * 60))
+);
+const OptionalRetries = Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(0, 100)));
 const OptionalString = Schema.optional(Schema.Union(Schema.Null, Schema.String));
 const JsonAtom = Schema.Union(Schema.String, Schema.Number, Schema.Boolean, Schema.Null);
 
@@ -13,17 +22,17 @@ const TelemetryEventSchema = Schema.Struct({
   command: OptionalString,
   subcommand: OptionalString,
   packages: Schema.optional(Schema.Array(Schema.String)),
-  duration_ms: OptionalNumber,
+  duration_ms: OptionalDurationMs,
   success: OptionalBoolean,
   error: OptionalString,
-  result_count: OptionalNumber,
-  updated_count: OptionalNumber,
+  result_count: OptionalCount,
+  updated_count: OptionalCount,
   session_id: OptionalString,
   event_type: OptionalString,
   start_time: OptionalString,
   end_time: OptionalString,
-  commands_run: OptionalNumber,
-  duration_secs: OptionalNumber,
+  commands_run: OptionalCount,
+  duration_secs: OptionalDurationSecs,
   metric_type: OptionalString,
   context: OptionalString,
   feature: OptionalString,
@@ -40,7 +49,7 @@ const TelemetryEnvelopeSchema = Schema.Struct({
   version: Schema.String,
   platform: Schema.String,
   license_key: Schema.optional(Schema.String),
-  retries: OptionalNumber,
+  retries: OptionalRetries,
 });
 
 /** Envelope for a single CLI event. */

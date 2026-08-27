@@ -1,13 +1,16 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import type { AdminOverview } from '../../../../site/shared/admin-overview';
 import type {
   LicensingSummary,
   LicensingSummaryState,
 } from '../../../../site/shared/licensing-summary';
+import { normalizedOptionalText } from './optional-text.server';
 
 const INTERNAL_ORIGIN = 'https://omg-saas.internal';
 const SESSION_BODY_LIMIT = 16 * 1024;
 const DASHBOARD_BODY_LIMIT = 1024 * 1024;
+const ADMIN_ACTIVITY_BODY_LIMIT = 128 * 1024;
 const ROLE_QUERY = 'SELECT role FROM auth_user WHERE id = ?';
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -19,6 +22,10 @@ const TimestampText = ShortText.check(
   Schema.makeFilter(value => Number.isFinite(Date.parse(value)))
 );
 const NullableNonEmptyString = Schema.NullOr(NonEmptyString);
+const DayText = ShortText.check(
+  Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/u),
+  Schema.makeFilter(value => Number.isFinite(Date.parse(`${value}T00:00:00Z`)))
+);
 const NormalizedEmail = Schema.String.check(
   Schema.isMinLength(1),
   Schema.isTrimmed(),
@@ -39,6 +46,49 @@ const SessionResponseSchema = Schema.Struct({
   customerId: NonEmptyString,
 });
 type LicensingBoundaryInput = Schema.Top['Encoded'];
+
+const AdminOverviewResponseSchema = Schema.Struct({
+  overview: Schema.Struct({
+    total_users: Schema.Natural,
+    active_licenses: Schema.Natural,
+    active_machines: Schema.Natural,
+    total_installs: Schema.Natural,
+    command_health: Schema.Struct({
+      success: Schema.Natural,
+      failure: Schema.Natural,
+    }),
+  }),
+  fleet: Schema.Struct({
+    versions: Schema.Array(
+      Schema.Struct({ omg_version: Schema.NullOr(MachineText), count: Schema.Natural })
+    ),
+  }),
+  tiers: Schema.Array(Schema.Struct({ tier: MachineText, count: Schema.Natural })),
+  usage: Schema.Struct({
+    total_commands: Schema.Natural,
+    total_packages_installed: Schema.Natural,
+    total_searches: Schema.Natural,
+    total_time_saved_ms: Schema.Natural,
+  }),
+  daily_active_users: Schema.Array(
+    Schema.Struct({ date: DayText, active_users: Schema.Natural, commands: Schema.Natural })
+  ),
+  recent_signups: Schema.Array(Schema.Struct({ date: DayText, count: Schema.Natural })),
+  installs_by_platform: Schema.Array(
+    Schema.Struct({ platform: Schema.NullOr(MachineText), count: Schema.Natural })
+  ),
+  subscriptions: Schema.Array(Schema.Struct({ status: MachineText, count: Schema.Natural })),
+});
+
+const AdminActivityResponseSchema = Schema.Struct({
+  activity: Schema.Array(
+    Schema.Struct({
+      action: MachineText,
+      resource_type: Schema.NullOr(MachineText),
+      created_at: TimestampText,
+    })
+  ),
+});
 
 const DashboardResponseSchema = Schema.Struct({
   license: Schema.Struct({
@@ -68,6 +118,7 @@ const DashboardResponseSchema = Schema.Struct({
     top_package: Schema.NullOr(DimensionText),
     top_runtime: Schema.NullOr(DimensionText),
   }),
+  is_admin: Schema.Boolean,
   subscription: Schema.NullOr(
     Schema.Struct({
       status: ShortText,
@@ -128,10 +179,19 @@ export class LicensingSummaryServiceUnavailable extends Error {
   }
 }
 
+export type LicensingServiceOperation =
+  | 'session'
+  | 'dashboard'
+  | 'admin-overview'
+  | 'admin-activity'
+  | 'admin-customers'
+  | 'admin-customer-detail'
+  | 'admin-customer-update';
+
 export class LicensingSummaryWorkerRejected extends Error {
   readonly _tag = 'LicensingSummaryWorkerRejected';
   constructor(
-    readonly operation: 'session' | 'dashboard',
+    readonly operation: LicensingServiceOperation,
     readonly status: number
   ) {
     super(`Licensing Worker rejected ${operation}`);
@@ -140,7 +200,7 @@ export class LicensingSummaryWorkerRejected extends Error {
 
 export class LicensingSummaryBodyTooLarge extends Error {
   readonly _tag = 'LicensingSummaryBodyTooLarge';
-  constructor(readonly operation: 'session' | 'dashboard') {
+  constructor(readonly operation: LicensingServiceOperation) {
     super(`Licensing ${operation} response is too large`);
   }
 }
@@ -148,10 +208,17 @@ export class LicensingSummaryBodyTooLarge extends Error {
 export class LicensingSummaryInvalidPayload extends Error {
   readonly _tag = 'LicensingSummaryInvalidPayload';
   constructor(
-    readonly operation: 'session' | 'dashboard',
+    readonly operation: LicensingServiceOperation,
     override readonly cause?: unknown
   ) {
     super(`Licensing ${operation} response is invalid`);
+  }
+}
+
+export class AdminOverviewForbidden extends Error {
+  readonly _tag = 'AdminOverviewForbidden';
+  constructor() {
+    super('Admin access required');
   }
 }
 
@@ -185,7 +252,7 @@ function serviceFetch(
 
 function readBoundedJson(
   response: Response,
-  operation: 'session' | 'dashboard',
+  operation: LicensingServiceOperation,
   limit: number
 ): Effect.Effect<
   LicensingBoundaryInput,
@@ -237,22 +304,30 @@ function readBoundedJson(
 function parseWorkerPayload<S extends Schema.Top>(
   schema: S,
   value: LicensingBoundaryInput,
-  operation: 'session' | 'dashboard'
+  operation: LicensingServiceOperation
 ): Effect.Effect<S['Type'], LicensingSummaryInvalidPayload, S['DecodingServices']> {
   return Schema.decodeUnknownEffect(schema)(value).pipe(
     Effect.mapError(cause => new LicensingSummaryInvalidPayload(operation, cause))
   );
 }
 
-function optionalMachineText(value: string | null): string | null {
-  const normalized = value?.trim();
-  return normalized ? normalized : null;
+interface LicensingServicePrincipal {
+  readonly email: string;
+  readonly id: string;
+  readonly name: string;
+  readonly role: 'user' | 'admin';
+  readonly secret: string;
 }
 
-export function loadLicensingSummary(
+export interface LicensingServiceSession {
+  readonly role: 'user' | 'admin';
+  readonly token: string;
+}
+
+function loadServicePrincipal(
   identity: LicensingSummaryIdentity,
   env: LicensingSummaryEnvironment
-): Effect.Effect<LicensingSummary, LicensingSummaryError> {
+): Effect.Effect<LicensingServicePrincipal, LicensingSummaryError> {
   return Effect.gen(function* () {
     const parsedIdentity = yield* parseInput(
       IdentitySchema,
@@ -271,21 +346,35 @@ export function loadLicensingSummary(
     const role = yield* parseWorkerPayload(RoleRowSchema, roleValue, 'session').pipe(
       Effect.mapError(cause => new LicensingSummaryInvalidInput('Licensing role is invalid', cause))
     );
+    return {
+      email: parsedIdentity.email,
+      id: parsedIdentity.id,
+      name: parsedIdentity.name,
+      role: role.role,
+      secret,
+    };
+  });
+}
 
+function mintServiceSession(
+  principal: LicensingServicePrincipal,
+  env: LicensingSummaryEnvironment
+): Effect.Effect<LicensingServiceSession, LicensingSummaryError> {
+  return Effect.gen(function* () {
     const sessionResponse = yield* serviceFetch(
       env.LICENSING_API,
       new Request(`${INTERNAL_ORIGIN}/api/internal/site-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Secret': secret,
+          'X-Admin-Secret': principal.secret,
           'X-Internal-Call': 'service-binding',
         },
         body: JSON.stringify({
-          email: parsedIdentity.email,
-          name: parsedIdentity.name,
-          betterAuthUserId: parsedIdentity.id,
-          role: role.role,
+          email: principal.email,
+          name: principal.name,
+          betterAuthUserId: principal.id,
+          role: principal.role,
         }),
       })
     );
@@ -296,28 +385,191 @@ export function loadLicensingSummary(
     }
     const sessionJson = yield* readBoundedJson(sessionResponse, 'session', SESSION_BODY_LIMIT);
     const session = yield* parseWorkerPayload(SessionResponseSchema, sessionJson, 'session');
+    return { role: principal.role, token: session.token };
+  });
+}
 
-    const dashboardResponse = yield* serviceFetch(
+function loadServiceSession(
+  identity: LicensingSummaryIdentity,
+  env: LicensingSummaryEnvironment
+): Effect.Effect<LicensingServiceSession, LicensingSummaryError> {
+  return loadServicePrincipal(identity, env).pipe(
+    Effect.flatMap(principal => mintServiceSession(principal, env))
+  );
+}
+
+export function loadPrivateWorkerPayload<S extends Schema.Top>(
+  env: LicensingSummaryEnvironment,
+  session: LicensingServiceSession,
+  path: `/${string}`,
+  operation: LicensingServiceOperation,
+  limit: number,
+  schema: S
+): Effect.Effect<
+  S['Type'],
+  | LicensingSummaryServiceUnavailable
+  | LicensingSummaryWorkerRejected
+  | LicensingSummaryBodyTooLarge
+  | LicensingSummaryInvalidPayload,
+  S['DecodingServices']
+> {
+  return Effect.gen(function* () {
+    const response = yield* serviceFetch(
       env.LICENSING_API,
-      new Request(`${INTERNAL_ORIGIN}/api/dashboard`, {
+      new Request(`${INTERNAL_ORIGIN}${path}`, {
         method: 'GET',
         headers: { Authorization: `Bearer ${session.token}` },
       })
     );
-    if (!dashboardResponse.ok) {
-      return yield* Effect.fail(
-        new LicensingSummaryWorkerRejected('dashboard', dashboardResponse.status)
-      );
+    if (!response.ok) {
+      return yield* Effect.fail(new LicensingSummaryWorkerRejected(operation, response.status));
     }
-    const dashboardJson = yield* readBoundedJson(
-      dashboardResponse,
-      'dashboard',
-      DASHBOARD_BODY_LIMIT
+    const json = yield* readBoundedJson(response, operation, limit);
+    return yield* parseWorkerPayload(schema, json, operation);
+  });
+}
+
+/** Mint a private Worker session only after verifying the website admin role. */
+/** Send a bounded JSON request through an authenticated private Worker session. */
+export function sendPrivateWorkerPayload<S extends Schema.Top>(
+  env: LicensingSummaryEnvironment,
+  session: LicensingServiceSession,
+  path: `/${string}`,
+  operation: LicensingServiceOperation,
+  limit: number,
+  schema: S,
+  body: LicensingBoundaryInput
+): Effect.Effect<
+  S['Type'],
+  | LicensingSummaryServiceUnavailable
+  | LicensingSummaryWorkerRejected
+  | LicensingSummaryBodyTooLarge
+  | LicensingSummaryInvalidPayload,
+  S['DecodingServices']
+> {
+  return Effect.gen(function* () {
+    const response = yield* serviceFetch(
+      env.LICENSING_API,
+      new Request(`${INTERNAL_ORIGIN}${path}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      })
     );
-    const dashboard = yield* parseWorkerPayload(
-      DashboardResponseSchema,
-      dashboardJson,
-      'dashboard'
+    if (!response.ok) {
+      return yield* Effect.fail(new LicensingSummaryWorkerRejected(operation, response.status));
+    }
+    const json = yield* readBoundedJson(response, operation, limit);
+    return yield* parseWorkerPayload(schema, json, operation);
+  });
+}
+
+export function loadAdminServiceSession(
+  identity: LicensingSummaryIdentity,
+  env: LicensingSummaryEnvironment
+): Effect.Effect<LicensingServiceSession, LicensingSummaryError | AdminOverviewForbidden> {
+  return Effect.gen(function* () {
+    const principal = yield* loadServicePrincipal(identity, env);
+    if (principal.role !== 'admin') {
+      return yield* Effect.fail(new AdminOverviewForbidden());
+    }
+    return yield* mintServiceSession(principal, env);
+  });
+}
+
+function compactBreakdown(
+  rows: ReadonlyArray<{ readonly label: string | null; readonly count: number }>
+): Array<{ readonly label: string; readonly count: number }> {
+  const result: Array<{ readonly label: string; readonly count: number }> = [];
+  for (const row of rows) {
+    const label = normalizedOptionalText(row.label);
+    if (label !== null) {
+      result.push({ label, count: row.count });
+    }
+  }
+  return result;
+}
+
+/** Load the private, browser-safe operator overview for one verified admin. */
+export function loadAdminOverview(
+  identity: LicensingSummaryIdentity,
+  env: LicensingSummaryEnvironment
+): Effect.Effect<AdminOverview, LicensingSummaryError | AdminOverviewForbidden> {
+  return Effect.gen(function* () {
+    const session = yield* loadAdminServiceSession(identity, env);
+    const [overview, activity] = yield* Effect.all([
+      loadPrivateWorkerPayload(
+        env,
+        session,
+        '/api/admin/dashboard',
+        'admin-overview',
+        DASHBOARD_BODY_LIMIT,
+        AdminOverviewResponseSchema
+      ),
+      loadPrivateWorkerPayload(
+        env,
+        session,
+        '/api/admin/activity?page=1&limit=10',
+        'admin-activity',
+        ADMIN_ACTIVITY_BODY_LIMIT,
+        AdminActivityResponseSchema
+      ),
+    ]);
+
+    return {
+      totalUsers: overview.overview.total_users,
+      activeLicenses: overview.overview.active_licenses,
+      activeMachines: overview.overview.active_machines,
+      totalInstalls: overview.overview.total_installs,
+      commands30d: overview.usage.total_commands,
+      packagesInstalled30d: overview.usage.total_packages_installed,
+      searches30d: overview.usage.total_searches,
+      timeSavedMs30d: overview.usage.total_time_saved_ms,
+      commandSuccess24h: overview.overview.command_health.success,
+      commandFailure24h: overview.overview.command_health.failure,
+      dailyActivity: overview.daily_active_users.map(day => ({
+        date: day.date,
+        activeUsers: day.active_users,
+        commands: day.commands,
+      })),
+      recentSignups: overview.recent_signups,
+      fleetVersions: compactBreakdown(
+        overview.fleet.versions.map(item => ({ label: item.omg_version, count: item.count }))
+      ),
+      installsByPlatform: compactBreakdown(
+        overview.installs_by_platform.map(item => ({ label: item.platform, count: item.count }))
+      ),
+      tiers: compactBreakdown(
+        overview.tiers.map(item => ({ label: item.tier, count: item.count }))
+      ),
+      subscriptions: compactBreakdown(
+        overview.subscriptions.map(item => ({ label: item.status, count: item.count }))
+      ),
+      activity: activity.activity.map(item => ({
+        action: item.action,
+        resourceType: normalizedOptionalText(item.resource_type),
+        createdAt: item.created_at,
+      })),
+    };
+  });
+}
+
+export function loadLicensingSummary(
+  identity: LicensingSummaryIdentity,
+  env: LicensingSummaryEnvironment
+): Effect.Effect<LicensingSummary, LicensingSummaryError> {
+  return Effect.gen(function* () {
+    const session = yield* loadServiceSession(identity, env);
+    const dashboard = yield* loadPrivateWorkerPayload(
+      env,
+      session,
+      '/api/dashboard',
+      'dashboard',
+      DASHBOARD_BODY_LIMIT,
+      DashboardResponseSchema
     );
     const activeMachines = yield* parseWorkerPayload(
       Schema.Natural,
@@ -330,11 +582,12 @@ export function loadLicensingSummary(
       status: dashboard.license.status,
       maxMachines: dashboard.license.max_machines,
       activeMachines,
+      isAdmin: dashboard.is_admin,
       machines: dashboard.machines.map(machine => ({
-        hostname: optionalMachineText(machine.hostname),
-        operatingSystem: optionalMachineText(machine.os),
-        architecture: optionalMachineText(machine.arch),
-        version: optionalMachineText(machine.omg_version),
+        hostname: normalizedOptionalText(machine.hostname),
+        operatingSystem: normalizedOptionalText(machine.os),
+        architecture: normalizedOptionalText(machine.arch),
+        version: normalizedOptionalText(machine.omg_version),
         lastSeenAt: machine.last_seen_at,
         firstSeenAt: machine.first_seen_at,
       })),

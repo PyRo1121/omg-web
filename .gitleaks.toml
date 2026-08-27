@@ -1,5 +1,19 @@
 [allowlist]
-description = "Verified non-secret test fixture and ignored generated build output"
-commits = ["f0d14d71ad349545da565d47e611101d997e71a1"]
-paths = ['''^site/\.vinxi/''', '''^site/dist/_worker\.js/''']
-regexes = ['''privacy-test-key-123''']
+description = "Exact committed test and historical PoC evidence files containing verified non-production fixtures"
+paths = [
+  '''^site/workers/tests/validate-license\.test\.ts$''',
+  '''^site/workers/tests/stripe-webhook-inbox\.test\.ts$''',
+  '''^site/workers/tests/privacy\.test\.ts$''',
+  '''^piolium/findings/p10-002-auth-surface-no-ip-rate-limiting/setup\.sh$''',
+  '''^piolium/findings/p10-006-internal-site-session-public-shared-secret-admin-minting/setup\.sh$''',
+  '''^piolium/findings/p10-008-stripe-customer-created-email-autolink/setup\.sh$''',
+  '''^piolium/findings/p10-008-stripe-customer-created-email-autolink/poc\.py$''',
+  '''^piolium/findings/p10-009-get-license-anonymous-email-enumeration/setup\.sh$''',
+  '''^piolium/findings/p10-009-get-license-anonymous-email-enumeration/evidence/setup\.sh$''',
+  '''^piolium/findings/p10-010-license-seat-limit-toctou-race/poc\.test\.ts$''',
+  '''^piolium/findings/p10-012-revoked-machine-resurrection/poc\.test\.ts$''',
+  '''^piolium/findings/p10-014-analytics-ingest-missing-caps-d1-write-flood/setup\.sh$''',
+  '''^piolium/findings/p10-014-analytics-ingest-missing-caps-d1-write-flood/evidence/setup\.sh$''',
+  '''^piolium/findings/p10-015-install-ping-unthrottled-row-inflation/evidence/env-info\.txt$''',
+  '''^piolium/findings/p10-015-install-ping-unthrottled-row-inflation/evidence/setup\.sh$''',
+]

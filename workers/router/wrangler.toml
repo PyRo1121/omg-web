@@ -2,6 +2,7 @@ name = "omg-router"
 main = "src/index.ts"
 compatibility_date = "2026-08-21"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = false
 
 # Routes - attach to pyro1121.com
 routes = [
@@ -24,6 +25,5 @@ head_sampling_rate = 0.05
 persist = true
 
 [vars]
-MAIN_SITE = "https://omg-site-4gd.pages.dev"
 # The Pages docs origin is retired; /docs/ is served by the omg-site Worker.
 DOCS_SITE = "https://omg.latham.cloud"

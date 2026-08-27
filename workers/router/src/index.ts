@@ -13,33 +13,13 @@ export default {
     }
     const path = url.pathname;
 
-    // Route /docs requests to the docs site with production-ready proxy
-    if (path === '/docs' || path.startsWith('/docs/')) {
-      return handleDocsProxy(request, env, ctx);
+    if (path !== '/docs' && !path.startsWith('/docs/')) {
+      return new Response('Not found', { status: 404 });
     }
-
-    // All other requests go to main site
-    const mainUrl = URL.parse(path + url.search, env.MAIN_SITE);
-    if (mainUrl === null) {
-      return new Response('Main site origin is invalid', { status: 502 });
+    if (url.search.length > 512) {
+      return new Response('Query string too long', { status: 400 });
     }
-    const mainRequestInit: RequestInit = {
-      method: request.method,
-      headers: prepareOriginHeaders(request.headers, env.MAIN_SITE),
-      redirect: 'follow',
-    };
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-      mainRequestInit.body = request.body;
-    }
-    try {
-      return await fetch(new Request(mainUrl, mainRequestInit));
-    } catch {
-      // Origin fetch failures must not surface as an opaque Worker exception (1101).
-      return new Response('Main site temporarily unavailable', {
-        status: 502,
-        headers: { 'Content-Type': 'text/plain', 'Retry-After': '30' },
-      });
-    }
+    return handleDocsProxy(request, env, ctx);
   },
 } satisfies ExportedHandler<Env>;
 
@@ -158,6 +138,32 @@ async function readStaleDocsResponse(
   return fallback;
 }
 
+const MAX_REWRITE_BODY_BYTES = 4 * 1024 * 1024;
+
+async function readBoundedResponseText(response: Response): Promise<string | null> {
+  const reader = response.clone().body?.getReader();
+  if (reader === undefined) return '';
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const next = await reader.read();
+    if (next.done) break;
+    total += next.value.byteLength;
+    if (total > MAX_REWRITE_BODY_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(next.value);
+  }
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(body);
+}
+
 async function rewriteDocsResponse(
   response: Response,
   contentType: string,
@@ -170,14 +176,10 @@ async function rewriteDocsResponse(
   if ((!isHtml && !isCss && !isJavaScript) || response.body === null) {
     return response;
   }
-  const rewritten = rewriteContent(await response.text(), isCss, hostname, docsOrigin);
-  const body = new ReadableStream({
-    start(controller) {
-      controller.enqueue(new TextEncoder().encode(rewritten));
-      controller.close();
-    },
-  });
-  return new Response(body, response);
+  const content = await readBoundedResponseText(response);
+  return content === null
+    ? response
+    : new Response(rewriteContent(content, isCss, hostname, docsOrigin), response);
 }
 
 function finalizeDocsResponse(
@@ -199,6 +201,7 @@ function finalizeDocsResponse(
     response.status >= 200 &&
     response.status < 300 &&
     request.method === 'GET' &&
+    !response.headers.has('Set-Cookie') &&
     shouldCache(pathname, contentType);
   if (isCacheableSuccess) {
     const cacheKey = new Request(targetUrl, request);
@@ -215,16 +218,25 @@ function docsResponseHeaders(
   docsOrigin: string
 ): Headers {
   const headers = new Headers(response.headers);
+  headers.delete('Set-Cookie');
   headers.set('X-Cache', 'MISS');
   headers.set('X-Proxy', 'Cloudflare-Worker-Router');
   headers.set('X-Docs-Origin', docsOrigin);
+  headers.set(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+  );
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   headers.set('X-Content-Type-Options', 'nosniff');
-  headers.set('X-Frame-Options', 'SAMEORIGIN');
+  headers.set('X-Frame-Options', 'DENY');
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   const isSuccess = response.status >= 200 && response.status < 300;
   if (isSuccess && method === 'GET' && shouldCache(pathname, contentType)) {
     const cacheTtl = getCacheTtl(pathname, contentType);
-    headers.set('Cache-Control', `public, max-age=${cacheTtl}, s-maxage=${cacheTtl}, immutable`);
+    const immutable = cacheTtl >= 31_536_000 ? ', immutable' : '';
+    headers.set('Cache-Control', `public, max-age=${cacheTtl}, s-maxage=${cacheTtl}${immutable}`);
   } else if (!isSuccess) {
     headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   }
@@ -236,6 +248,11 @@ function docsUnavailableResponse(): Response {
     status: 503,
     headers: {
       'Content-Type': 'text/plain',
+      'Cache-Control': 'no-store',
+      'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
       'X-Proxy-Error': 'true',
       'Retry-After': '60',
     },
@@ -246,24 +263,32 @@ function docsUnavailableResponse(): Response {
  * Prepare headers for origin request
  * Strips hop-by-hop headers and adds proper Host header
  */
+const BLOCKED_ORIGIN_HEADERS = new Set([
+  'authorization',
+  'cf-connecting-ip',
+  'connection',
+  'cookie',
+  'forwarded',
+  'host',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailers',
+  'transfer-encoding',
+  'upgrade',
+  'via',
+  'x-forwarded-for',
+  'x-forwarded-host',
+  'x-forwarded-proto',
+  'x-real-ip',
+]);
+
 function prepareOriginHeaders(headers: Headers, origin: string): Headers {
   const newHeaders = new Headers();
 
-  // Copy all headers except hop-by-hop headers
-  const hopByHopHeaders = [
-    'connection',
-    'keep-alive',
-    'proxy-authenticate',
-    'proxy-authorization',
-    'te',
-    'trailers',
-    'transfer-encoding',
-    'upgrade',
-    'host', // Will set this manually
-  ];
-
   for (const [key, value] of headers.entries()) {
-    if (!hopByHopHeaders.includes(key.toLowerCase())) {
+    if (!BLOCKED_ORIGIN_HEADERS.has(key.toLowerCase())) {
       newHeaders.set(key, value);
     }
   }
@@ -274,7 +299,10 @@ function prepareOriginHeaders(headers: Headers, origin: string): Headers {
     newHeaders.set('Host', originUrl.hostname);
   }
 
-  // Set X-Forwarded headers
+  const clientIp = headers.get('CF-Connecting-IP');
+  if (clientIp !== null) {
+    newHeaders.set('X-Forwarded-For', clientIp);
+  }
   newHeaders.set('X-Forwarded-Proto', 'https');
 
   // Add user agent if missing
@@ -343,11 +371,6 @@ function shouldCache(pathname: string, contentType: string): boolean {
     return true;
   }
 
-  // Cache JSON API responses
-  if (contentType.includes('application/json')) {
-    return true;
-  }
-
   return false;
 }
 
@@ -373,11 +396,6 @@ function getCacheTtl(pathname: string, contentType: string): number {
   // HTML - cache for 5 minutes (allows quick updates)
   if (contentType.includes('text/html')) {
     return 300; // 5 minutes
-  }
-
-  // JSON - cache for 1 minute
-  if (contentType.includes('application/json')) {
-    return 60; // 1 minute
   }
 
   // Default - cache for 1 hour

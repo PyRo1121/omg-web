@@ -1,5 +1,13 @@
 import { Effect } from 'effect';
-import { type Env, errorResponse, generateToken, logAudit, respondFromEffect } from '../api';
+import {
+  type Env,
+  enforceRateLimit,
+  errorResponse,
+  generateToken,
+  logAudit,
+  rateLimitClientIp,
+  respondFromEffect,
+} from '../api';
 import { decodeJsonBody, type InvalidJsonBodyError } from '../body';
 import * as Schema from 'effect/Schema';
 import {
@@ -21,7 +29,6 @@ class CustomerStoreUnavailable extends Error {
       | 'insertCustomer'
       | 'insertLicense'
       | 'syncRole'
-      | 'findLicenseByCustomer'
       | 'findSession'
       | 'insertSession',
     override readonly cause?: unknown
@@ -111,19 +118,18 @@ function mintSiteSession(
         Effect.mapError(cause => new CustomerStoreUnavailable('findByEmail', cause))
       );
       customer = adopted;
-      // Provision the free license only when the customer has none yet.
-      const licenseRow = yield* storeOperation('findLicenseByCustomer', () =>
-        env.DB.prepare(`SELECT id FROM licenses WHERE customer_id = ?`).bind(adopted.id).first()
+      // The unique customer index arbitrates concurrent auth and BFF provisioning.
+      const insertedLicense = yield* storeOperation('insertLicense', () =>
+        env.DB.prepare(
+          `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
+           VALUES (?, ?, ?, 'free', 'active', 1)
+           ON CONFLICT (customer_id) DO NOTHING
+           RETURNING id`
+        )
+          .bind(crypto.randomUUID(), adopted.id, crypto.randomUUID())
+          .first()
       );
-      if (licenseRow === null) {
-        yield* storeOperation('insertLicense', () =>
-          env.DB.prepare(
-            `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
-             VALUES (?, ?, ?, 'free', 'active', 1)`
-          )
-            .bind(crypto.randomUUID(), adopted.id, crypto.randomUUID())
-            .run()
-        );
+      if (insertedLicense !== null) {
         yield* logAudit(
           env.DB,
           adopted.id,
@@ -187,6 +193,13 @@ export async function handleCreateSiteSession(request: Request, env: Env): Promi
   if (request.headers.get('X-Internal-Call') !== 'service-binding') {
     return errorResponse('Not found', 404);
   }
+  const limited = await enforceRateLimit(
+    env.API_RATE_LIMITER,
+    `internal_site_session:${rateLimitClientIp(request)}`
+  );
+  if (limited !== null) {
+    return limited;
+  }
   return respondFromEffect(mintSiteSession(request, env), error => {
     switch (error._tag) {
       case 'AdminUnauthorizedError':
@@ -194,7 +207,7 @@ export async function handleCreateSiteSession(request: Request, env: Env): Promi
       case 'InvalidJsonBodyError':
         return errorResponse(error.message, 400);
       case 'CustomerStoreUnavailable':
-        return errorResponse(error.message, 500);
+        return errorResponse('Site session unavailable', 500);
       default:
         return casesHandled(error);
     }
