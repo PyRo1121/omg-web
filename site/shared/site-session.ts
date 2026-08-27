@@ -4,6 +4,7 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import { EMAIL_PATTERN } from './email';
 
 /** A failure decoding a site-session wire payload or D1 row. */
 class SiteSessionParseError extends Error {
@@ -15,8 +16,6 @@ class SiteSessionParseError extends Error {
     super(reason);
   }
 }
-
-const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 /** A normalized email address used as the site-session lookup key. */
 export const EmailAddress = Schema.String.pipe(

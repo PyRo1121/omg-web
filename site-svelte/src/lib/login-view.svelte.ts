@@ -1,11 +1,10 @@
+import { EMAIL_PATTERN } from '../../../site/shared/email';
 import { signIn } from './auth-client';
 
 export interface Credentials {
   readonly email: string;
   readonly password: string;
 }
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function validateCredentials(credentials: Credentials): string | null {
   if (credentials.email.length > 254) {

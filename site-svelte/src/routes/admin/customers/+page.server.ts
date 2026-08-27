@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
+import { EMAIL_PATTERN } from '../../../../../site/shared/email';
 import {
   loadAdminCustomerDetail,
   loadAdminCustomers,
@@ -14,7 +15,7 @@ import type { Actions, PageServerLoad } from './$types';
 const EmailFieldSchema = Schema.String.check(
   Schema.isTrimmed(),
   Schema.isLowercased(),
-  Schema.isPattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/u)
+  Schema.isPattern(EMAIL_PATTERN)
 );
 const CustomerUpdateFormSchema = Schema.Struct({
   email: EmailFieldSchema,

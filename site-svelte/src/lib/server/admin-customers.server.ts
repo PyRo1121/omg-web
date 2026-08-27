@@ -1,5 +1,6 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import { EMAIL_PATTERN } from '../../../../site/shared/email';
 import type {
   AdminCustomerDetail,
   AdminCustomerDirectory,
@@ -25,7 +26,6 @@ const CUSTOMER_DIRECTORY_BODY_LIMIT = 512 * 1024;
 const CUSTOMER_DETAIL_BODY_LIMIT = 512 * 1024;
 const CUSTOMER_UPDATE_BODY_LIMIT = 16 * 1024;
 const CUSTOMER_ID_BY_EMAIL_QUERY = 'SELECT id FROM customers WHERE email = ?';
-const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const DirectoryQuerySchema = Schema.Struct({
   page: Schema.String.check(
     Schema.isPattern(/^\d+$/u),

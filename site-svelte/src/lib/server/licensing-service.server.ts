@@ -1,6 +1,7 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import type { AdminOverview } from '../../../../site/shared/admin-overview';
+import { EMAIL_PATTERN } from '../../../../site/shared/email';
 import type {
   LicensingSummary,
   LicensingSummaryState,
@@ -13,8 +14,6 @@ const SESSION_BODY_LIMIT = 16 * 1024;
 const DASHBOARD_BODY_LIMIT = 1024 * 1024;
 const ADMIN_ACTIVITY_BODY_LIMIT = 128 * 1024;
 const ROLE_QUERY = 'SELECT role FROM auth_user WHERE id = ?';
-const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
 const NonEmptyString = Schema.String.check(Schema.isMinLength(1));
 const ShortText = NonEmptyString.check(Schema.isMaxLength(64));
 const DimensionText = NonEmptyString.check(Schema.isMaxLength(256));
