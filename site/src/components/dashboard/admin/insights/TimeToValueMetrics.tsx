@@ -1,12 +1,7 @@
 import type { Component } from 'solid-js';
 import { createSignal, createMemo, onCleanup, onMount, Show } from 'solid-js';
 import { Rocket, Clock, Award, TrendingUp, Target, Zap, CircleCheckBig } from 'lucide-solid';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '~/lib/prelude';
 
 interface TimeToValueData {
   avg_days_to_activation: number;

@@ -1,11 +1,6 @@
 import { type Component, For, createMemo, createSignal, Show, onCleanup, onMount } from 'solid-js';
 import { Activity, Maximize2, Minimize2, Flame, Clock, Calendar } from 'lucide-solid';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '~/lib/prelude';
 
 interface HeatmapData {
   hour: string;
