@@ -132,8 +132,8 @@ After the agreed observation window:
 - [x] Target Worker independently accepts `SVELTE_BFF_SECRET` for private marketing-offer calls while retaining `ADMIN_API_SECRET` for existing callers.
 - [x] Svelte offer form/action bounds the request stream, schema-decodes inputs and responses, classifies failures, and projects only the public promotion code.
 - [x] Shadow deployment, no-op plan, live offer creation, and private-identifier projection checks.
-- [ ] Authenticated Checkout creation and trusted redirect.
-- [ ] Bounded post-checkout fulfillment status with no license key or provider identifier in page data/DOM.
+- [x] Authenticated Checkout creation with exact offer parsing and an allowlisted Stripe redirect.
+- [x] Bounded post-checkout fulfillment status with no session id, email, license key, or provider identifier in page data/DOM.
 - [ ] User-controlled authenticated checkout characterization.
 
 Do not attach production routes during M1. Do not enable Stripe Tax until registrations and liability jurisdictions are established. The slice is complete only after automated verification and user-controlled authenticated checkout characterization when credentials are available.

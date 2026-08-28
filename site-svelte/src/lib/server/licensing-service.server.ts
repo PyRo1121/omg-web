@@ -195,7 +195,9 @@ export type LicensingServiceOperation =
   | 'admin-customers'
   | 'admin-customer-detail'
   | 'admin-customer-update'
-  | 'marketing-offer';
+  | 'marketing-offer'
+  | 'billing-checkout'
+  | 'billing-fulfillment';
 
 export class LicensingSummaryWorkerRejected extends Error {
   readonly _tag = 'LicensingSummaryWorkerRejected';
@@ -443,7 +445,7 @@ function mintServiceSession(
   });
 }
 
-function loadServiceSession(
+export function loadUserServiceSession(
   identity: LicensingSummaryIdentity,
   env: LicensingSummaryEnvironment
 ): Effect.Effect<LicensingServiceSession, LicensingSummaryError> {
@@ -620,7 +622,7 @@ export function loadLicensingSummary(
   env: LicensingSummaryEnvironment
 ): Effect.Effect<LicensingSummary, LicensingSummaryError> {
   return Effect.gen(function* () {
-    const session = yield* loadServiceSession(identity, env);
+    const session = yield* loadUserServiceSession(identity, env);
     const dashboard = yield* loadPrivateWorkerPayload(
       env,
       session,

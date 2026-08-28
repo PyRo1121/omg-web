@@ -5,9 +5,13 @@
   let {
     offer = null,
     offerError = null,
+    checkoutError = null,
+    promotionCode = null,
   }: {
     offer?: MarketingOffer | null;
     offerError?: string | null;
+    checkoutError?: string | null;
+    promotionCode?: string | null;
   } = $props();
 
   const plans = [
@@ -28,7 +32,7 @@
       cadence: 'per month',
       description: 'Add SBOMs, vulnerability scanning, and secret detection.',
       href: '/signup/',
-      action: 'Create account',
+      action: 'Choose Pro',
       primary: true,
     },
     {
@@ -38,7 +42,7 @@
       cadence: 'per month',
       description: 'Environment sync, audit history, and controls for up to 10 people.',
       href: '/signup/',
-      action: 'Create account',
+      action: 'Choose Team',
       primary: false,
     },
   ] as const;
@@ -59,10 +63,7 @@
       <div>
         <p class="offer-kicker">Introductory offer</p>
         <h3>Take 20% off your first three months.</h3>
-        <p>
-          Claim one email-bound code now. Paid checkout remains on the production path until the
-          coordinated auth and billing cutover.
-        </p>
+        <p>Claim one email-bound code, then continue to Stripe with the same signed-in account.</p>
       </div>
       <form method="POST" action="?/claimOffer" class="offer-form">
         <label for="offer-email">Account email</label>
@@ -89,6 +90,14 @@
         <p class="offer-error" role="alert">{offerError}</p>
       {/if}
     </div>
+    {#if checkoutError !== null}
+      <p class="checkout-error" role="alert">
+        {checkoutError}
+        {#if checkoutError.startsWith('Sign in')}
+          <a href="/login/">Sign in</a>
+        {/if}
+      </p>
+    {/if}
     <ol class="plan-list">
       {#each plans as plan (plan.id)}
         <li>
@@ -98,9 +107,22 @@
           </header>
           <p class="plan-price">{plan.price}</p>
           <p>{plan.description}</p>
-          <a class={plan.primary ? 'plan-link plan-link-primary' : 'plan-link'} href={plan.href}>
-            {plan.action}
-          </a>
+          {#if plan.id === 'free'}
+            <a class="plan-link" href={plan.href}>{plan.action}</a>
+          {:else}
+            <form method="POST" action="?/startCheckout" class="checkout-form">
+              <input type="hidden" name="offer" value={plan.id} />
+              {#if promotionCode !== null}
+                <input type="hidden" name="promotionCode" value={promotionCode} />
+              {/if}
+              <button
+                type="submit"
+                class={plan.primary ? 'plan-link plan-link-primary' : 'plan-link'}
+              >
+                {plan.action}
+              </button>
+            </form>
+          {/if}
         </li>
       {/each}
     </ol>
@@ -215,9 +237,20 @@
     font-size: 1.2rem;
   }
 
-  .offer-error {
+  .offer-error,
+  .checkout-error {
     color: var(--danger);
     font-size: 0.85rem;
+  }
+
+  .checkout-error {
+    margin-top: 1rem;
+  }
+
+  .checkout-error a {
+    margin-left: 0.5rem;
+    color: var(--ink);
+    text-underline-offset: 0.25rem;
   }
 
   .plan-list {
@@ -261,6 +294,10 @@
     line-height: 1;
   }
 
+  .checkout-form {
+    justify-self: start;
+  }
+
   .plan-link {
     display: inline-flex;
     min-height: 3rem;
@@ -269,10 +306,14 @@
     justify-self: start;
     padding-inline: 1.25rem;
     border: 1px solid var(--rule-strong);
+    background: transparent;
+    color: var(--ink);
+    font-family: inherit;
     font-size: 0.82rem;
     font-weight: 650;
     text-decoration: none;
     white-space: nowrap;
+    cursor: pointer;
   }
 
   .plan-link:hover {

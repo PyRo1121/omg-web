@@ -2,6 +2,11 @@ import { fail, type ActionFailure } from '@sveltejs/kit';
 import { Cause, Effect, Exit, Option } from 'effect';
 import type { MarketingOffer } from '../contracts/marketing-offer';
 import {
+  BoundedFormRejected,
+  BoundedFormUnavailable,
+  readBoundedUrlEncodedForm,
+} from './bounded-form.server';
+import {
   LicensingSummaryInvalidInput,
   LicensingSummaryWorkerRejected,
   claimMarketingOffer,
@@ -11,16 +16,6 @@ import {
 
 const MAX_OFFER_FORM_BYTES = 4096;
 
-class MarketingOfferFormRejected extends Error {
-  readonly _tag = 'MarketingOfferFormRejected';
-  constructor(
-    readonly status: 400 | 413,
-    readonly publicMessage: string
-  ) {
-    super(publicMessage);
-  }
-}
-
 class MarketingOfferActionUnavailable extends Error {
   readonly _tag = 'MarketingOfferActionUnavailable';
   constructor(override readonly cause?: unknown) {
@@ -29,7 +24,10 @@ class MarketingOfferActionUnavailable extends Error {
 }
 
 type MarketingOfferActionError =
-  MarketingOfferFormRejected | MarketingOfferActionUnavailable | LicensingSummaryError;
+  | BoundedFormRejected
+  | BoundedFormUnavailable
+  | MarketingOfferActionUnavailable
+  | LicensingSummaryError;
 
 interface MarketingOfferActionEvent {
   readonly getClientAddress: () => string;
@@ -52,51 +50,15 @@ type MarketingOfferActionResult =
 
 function readOfferEmail(
   request: Request
-): Effect.Effect<string, MarketingOfferFormRejected | MarketingOfferActionUnavailable> {
-  const declaredLength = Number(request.headers.get('Content-Length') ?? '0');
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_OFFER_FORM_BYTES) {
-    return Effect.fail(new MarketingOfferFormRejected(413, 'Offer request is too large.'));
-  }
-  if (!request.headers.get('Content-Type')?.startsWith('application/x-www-form-urlencoded')) {
-    return Effect.fail(new MarketingOfferFormRejected(400, 'Offer form is invalid.'));
-  }
-  return Effect.tryPromise({
-    try: async () => {
-      const reader = request.body?.getReader();
-      if (reader === undefined) {
-        throw new MarketingOfferFormRejected(400, 'Enter a valid email address.');
-      }
-      const chunks: Array<Uint8Array> = [];
-      let total = 0;
-      for (;;) {
-        const next = await reader.read();
-        if (next.done) {
-          break;
-        }
-        total += next.value.byteLength;
-        if (total > MAX_OFFER_FORM_BYTES) {
-          await reader.cancel().catch(() => undefined);
-          throw new MarketingOfferFormRejected(413, 'Offer request is too large.');
-        }
-        chunks.push(next.value);
-      }
-      const bytes = new Uint8Array(total);
-      let offset = 0;
-      for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
-      const email = new URLSearchParams(new TextDecoder().decode(bytes)).get('email');
-      if (email === null) {
-        throw new MarketingOfferFormRejected(400, 'Enter a valid email address.');
-      }
-      return email;
-    },
-    catch: cause =>
-      cause instanceof MarketingOfferFormRejected
-        ? cause
-        : new MarketingOfferActionUnavailable(cause),
-  });
+): Effect.Effect<string, BoundedFormRejected | BoundedFormUnavailable> {
+  return readBoundedUrlEncodedForm(request, MAX_OFFER_FORM_BYTES).pipe(
+    Effect.flatMap(params => {
+      const email = params.get('email');
+      return email === null
+        ? Effect.fail(new BoundedFormRejected(400, 'invalid'))
+        : Effect.succeed(email);
+    })
+  );
 }
 
 function offerActionEffect(
@@ -124,8 +86,14 @@ export async function claimMarketingOfferAction(
     return { kind: 'offer', offer: exit.value };
   }
   const failure = Option.getOrNull(Cause.findErrorOption(exit.cause));
-  if (failure instanceof MarketingOfferFormRejected) {
-    return fail(failure.status, { kind: 'offer-error', message: failure.publicMessage });
+  if (failure instanceof BoundedFormRejected) {
+    return fail(failure.status, {
+      kind: 'offer-error',
+      message:
+        failure.reason === 'too-large'
+          ? 'Offer request is too large.'
+          : 'Enter a valid email address.',
+    });
   }
   if (failure instanceof LicensingSummaryInvalidInput) {
     return fail(400, { kind: 'offer-error', message: 'Enter a valid email address.' });

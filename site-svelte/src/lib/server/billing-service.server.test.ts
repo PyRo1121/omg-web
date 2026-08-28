@@ -1,0 +1,134 @@
+import { Effect, Exit } from 'effect';
+import { describe, expect, it } from 'vitest';
+import { createBillingCheckout, loadBillingFulfillment } from './billing-service.server';
+import type { LicensingSummaryEnvironment } from './licensing-service.server';
+
+const identity = {
+  id: 'better-auth-user-1',
+  email: 'ada@example.com',
+  name: 'Ada',
+  emailVerified: true,
+};
+
+class BillingServiceStub {
+  readonly requests: Array<Request> = [];
+
+  constructor(private readonly response: (request: Request) => Response) {}
+
+  async fetch(request: Request): Promise<Response> {
+    this.requests.push(request.clone());
+    if (new URL(request.url).pathname === '/api/internal/site-session') {
+      return Response.json({
+        token: 'server-only-token',
+        expiresAt: '2026-09-01T00:00:00.000Z',
+        customerId: 'customer-1',
+      });
+    }
+    return this.response(request);
+  }
+}
+
+function environment(service: BillingServiceStub): LicensingSummaryEnvironment {
+  return {
+    DB: {
+      prepare: () => ({
+        bind: () => ({ first: async () => ({ role: 'user' }) }),
+      }),
+    },
+    LICENSING_API: service,
+    SVELTE_BFF_SECRET: 'private-bff-secret',
+  };
+}
+
+describe('Svelte billing service', () => {
+  it('creates checkout through an authenticated private session', async () => {
+    const service = new BillingServiceStub(() =>
+      Response.json({
+        sessionId: 'cs_1234567890ABCDE',
+        url: 'https://checkout.stripe.com/c/pay/cs_test_safe',
+      })
+    );
+
+    const result = await Effect.runPromise(
+      createBillingCheckout(identity, environment(service), {
+        offer: 'team',
+        promotionCode: 'OMG20-ABCD2345',
+      })
+    );
+
+    expect(result).toEqual({ url: 'https://checkout.stripe.com/c/pay/cs_test_safe' });
+    expect(service.requests).toHaveLength(2);
+    const checkoutRequest = service.requests[1];
+    expect(checkoutRequest?.method).toBe('POST');
+    expect(checkoutRequest?.headers.get('Authorization')).toBe('Bearer server-only-token');
+    expect(await checkoutRequest?.json()).toEqual({
+      offer: 'team',
+      promotionCode: 'OMG20-ABCD2345',
+    });
+  });
+
+  it('rejects untrusted Stripe redirects at the private response boundary', async () => {
+    const service = new BillingServiceStub(() =>
+      Response.json({
+        sessionId: 'cs_1234567890ABCDE',
+        url: 'https://attacker.example/checkout',
+      })
+    );
+
+    const exit = await Effect.runPromiseExit(
+      createBillingCheckout(identity, environment(service), { offer: 'pro' })
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
+
+  it('projects paid fulfillment without exposing the license key or email', async () => {
+    const service = new BillingServiceStub(() =>
+      Response.json({
+        status: 'paid',
+        email: 'ada@example.com',
+        license: { license_key: 'OMG-LICENSE-PRIVATE', tier: 'pro' },
+      })
+    );
+
+    const result = await Effect.runPromise(
+      loadBillingFulfillment(identity, environment(service), 'cs_1234567890ABCDE')
+    );
+
+    expect(result).toEqual({ kind: 'ready', tier: 'pro' });
+    expect(JSON.stringify(result)).not.toContain('LICENSE');
+    expect(JSON.stringify(result)).not.toContain('ada@example.com');
+    expect(service.requests[1]?.url).toBe(
+      'https://omg-saas.internal/api/billing/checkout-session?id=cs_1234567890ABCDE'
+    );
+  });
+
+  it('classifies eventual and unverified fulfillment without leaking provider data', async () => {
+    const processing = new BillingServiceStub(() =>
+      Response.json({ status: 'paid', license: null })
+    );
+    const unverified = new BillingServiceStub(() => Response.json({ status: 'unpaid' }));
+
+    await expect(
+      Effect.runPromise(
+        loadBillingFulfillment(identity, environment(processing), 'cs_1234567890ABCDE')
+      )
+    ).resolves.toEqual({ kind: 'processing' });
+    await expect(
+      Effect.runPromise(
+        loadBillingFulfillment(identity, environment(unverified), 'cs_1234567890ABCDE')
+      )
+    ).resolves.toEqual({ kind: 'unverified' });
+  });
+
+  it('rejects malformed session ids before service access', async () => {
+    const service = new BillingServiceStub(() => Response.json({ status: 'paid' }));
+
+    const exit = await Effect.runPromiseExit(
+      loadBillingFulfillment(identity, environment(service), 'not-a-session')
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    expect(service.requests).toHaveLength(0);
+  });
+});

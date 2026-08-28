@@ -10,8 +10,12 @@ export const MarketingOfferRequestSchema = Schema.Struct({
   ),
 });
 
+export const MarketingPromotionCodeSchema = Schema.String.check(
+  Schema.isPattern(/^OMG20-[A-Z0-9]{8}$/u)
+);
+
 export const MarketingOfferResponseSchema = Schema.Struct({
-  code: Schema.String.check(Schema.isPattern(/^OMG20-[A-Z0-9]{8}$/u)),
+  code: MarketingPromotionCodeSchema,
   percentOff: Schema.Literal(20),
   durationMonths: Schema.Literal(3),
   expiresAt: Schema.String.check(

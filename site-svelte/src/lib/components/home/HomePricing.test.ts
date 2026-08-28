@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest';
 import HomePricing from './HomePricing.svelte';
 
 describe('home pricing offer', () => {
-  it('renders a functional bounded offer form without claiming checkout parity', () => {
+  it('renders functional offer and paid checkout forms', () => {
     const result = render(HomePricing, { props: {} });
 
     expect(result.body).toContain('action="?/claimOffer"');
     expect(result.body).toContain('maxlength="254"');
-    expect(result.body).toContain('Paid checkout remains on the production path');
+    expect(result.body.match(/action="\?\/startCheckout"/gu)).toHaveLength(2);
+    expect(result.body).toContain('name="offer" value="pro"');
+    expect(result.body).toContain('name="offer" value="team"');
     expect(result.body).not.toContain('OMG20-');
   });
 
@@ -32,5 +34,19 @@ describe('home pricing offer', () => {
     expect(offer.body).not.toContain('promo_');
     expect(failure.body).toContain('role="alert"');
     expect(failure.body).toContain('Offer service unavailable.');
+  });
+
+  it('carries a public offer code into checkout and renders classified auth failures', () => {
+    const result = render(HomePricing, {
+      props: {
+        promotionCode: 'OMG20-ABCD2345',
+        checkoutError: 'Sign in before starting checkout.',
+      },
+    });
+
+    expect(result.body.match(/name="promotionCode" value="OMG20-ABCD2345"/gu)).toHaveLength(2);
+    expect(result.body).toContain('role="alert"');
+    expect(result.body).toContain('href="/login/"');
+    expect(result.body).not.toContain('license_key');
   });
 });
