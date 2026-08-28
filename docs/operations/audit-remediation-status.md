@@ -243,3 +243,6 @@ Evidence keys:
 - Solid browser-storage JSON is length-bounded before parsing and schema-decoded
   afterward; focused tests cover oversized, malformed, invalid, and unavailable
   storage, and source-policy CI rejects direct localStorage JSON parsing.
+- Solid and Svelte login forms share one credential boundary, reject oversized
+  email/password values before network authentication, and expose matching HTML
+  limits.

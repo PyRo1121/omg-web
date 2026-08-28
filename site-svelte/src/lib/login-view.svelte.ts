@@ -1,26 +1,5 @@
-import { EMAIL_PATTERN } from '../../../site/shared/email';
+import { validateLoginCredentials } from '../../../site/shared/login-credentials';
 import { signIn } from './auth-client';
-
-export interface Credentials {
-  readonly email: string;
-  readonly password: string;
-}
-
-export function validateCredentials(credentials: Credentials): string | null {
-  if (credentials.email.length > 254) {
-    return 'Email addresses cannot exceed 254 characters.';
-  }
-  if (!EMAIL_PATTERN.test(credentials.email)) {
-    return 'Enter a valid email address.';
-  }
-  if (credentials.password.length === 0) {
-    return 'Enter your password.';
-  }
-  if (credentials.password.length > 1024) {
-    return 'Passwords cannot exceed 1024 characters.';
-  }
-  return null;
-}
 
 export class LoginView {
   email = $state('');
@@ -30,7 +9,7 @@ export class LoginView {
 
   async submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const problem = validateCredentials({ email: this.email, password: this.password });
+    const problem = validateLoginCredentials({ email: this.email, password: this.password });
     if (problem !== null) {
       this.error = problem;
       return;

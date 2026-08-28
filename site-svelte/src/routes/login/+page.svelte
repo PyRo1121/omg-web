@@ -1,4 +1,8 @@
 <script lang="ts">
+  import {
+    MAX_LOGIN_EMAIL_CHARACTERS,
+    MAX_LOGIN_PASSWORD_CHARACTERS,
+  } from '../../../../site/shared/login-credentials';
   import GitHubMark from '../../lib/components/GitHubMark.svelte';
   import { LoginView } from '../../lib/login-view.svelte';
   const view = new LoginView();
@@ -37,7 +41,7 @@
           type="email"
           bind:value={view.email}
           autocomplete="email"
-          maxlength="254"
+          maxlength={MAX_LOGIN_EMAIL_CHARACTERS}
           required
           class="login-input"
         />
@@ -49,7 +53,7 @@
           type="password"
           bind:value={view.password}
           autocomplete="current-password"
-          maxlength="1024"
+          maxlength={MAX_LOGIN_PASSWORD_CHARACTERS}
           required
           class="login-input"
         />

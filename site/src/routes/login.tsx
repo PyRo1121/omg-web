@@ -4,6 +4,11 @@ import { CircleAlert, LoaderCircle, Mail } from 'lucide-solid';
 import { createEffect, createSignal, Show } from 'solid-js';
 import { GitHubIcon } from '~/components/ui/BrandIcons';
 import { signIn, useSession } from '~/lib/auth-client';
+import {
+  MAX_LOGIN_EMAIL_CHARACTERS,
+  MAX_LOGIN_PASSWORD_CHARACTERS,
+  validateLoginCredentials,
+} from '../../shared/login-credentials';
 import { getErrorMessage } from '~/lib/error-message';
 
 export default function LoginPage() {
@@ -20,6 +25,11 @@ export default function LoginPage() {
 
   const handleEmailLogin = async (event: Event): Promise<void> => {
     event.preventDefault();
+    const problem = validateLoginCredentials({ email: email(), password: password() });
+    if (problem !== null) {
+      setError(problem);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -117,6 +127,7 @@ export default function LoginPage() {
                   value={email()}
                   onInput={event => setEmail(event.currentTarget.value)}
                   autocomplete="email"
+                  maxLength={MAX_LOGIN_EMAIL_CHARACTERS}
                   required
                   class={`${inputClass} pl-10`}
                 />
@@ -130,6 +141,7 @@ export default function LoginPage() {
                 value={password()}
                 onInput={event => setPassword(event.currentTarget.value)}
                 autocomplete="current-password"
+                maxLength={MAX_LOGIN_PASSWORD_CHARACTERS}
                 required
                 class={inputClass}
               />
