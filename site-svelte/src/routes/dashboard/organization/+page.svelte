@@ -112,6 +112,10 @@
           </p>
         {/if}
 
+        <a class="text-link workspace-members-link" href="/dashboard/organization/members/">
+          Review people and invitations
+        </a>
+
         <dl class="organization-facts">
           <div>
             <dt>Seats in use</dt>
@@ -284,6 +288,11 @@
   .status-mark.restricted {
     border-color: var(--signal);
     color: var(--signal);
+  }
+
+  .workspace-members-link {
+    display: inline-block;
+    margin-top: 2rem;
   }
 
   .organization-facts {

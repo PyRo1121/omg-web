@@ -7,6 +7,8 @@ import {
   OrganizationMembershipLimitUnavailable,
   bootstrapOrganization,
   loadOrganizationMembershipLimit,
+  loadOrganizationMembersState,
+  resolveOrganizationMembersState,
   loadOrganizationWorkspaceState,
   readOrganizationBootstrapForm,
   resolveOrganizationWorkspaceState,
@@ -172,13 +174,161 @@ describe('resolveOrganizationWorkspaceState', () => {
   });
 });
 
+describe('resolveOrganizationMembersState', () => {
+  const organization = {
+    maxSeats: 12,
+    name: 'Acme Engineering',
+    role: 'owner' as const,
+    slug: 'acme-engineering',
+    tier: 'team' as const,
+    usedSeats: 2,
+  };
+
+  it('projects members and invitations without storage identifiers', () => {
+    const state = resolveOrganizationMembersState(
+      {
+        membership: {
+          billingCustomerId: 'private-customer-id',
+          maxSeats: 12,
+          name: 'Acme Engineering',
+          role: 'owner',
+          slug: 'acme-engineering',
+          status: 'active',
+          tier: 'team',
+          usedSeats: 2,
+        },
+        memberRows: [
+          {
+            email: 'owner@example.com',
+            id: 'private-member-id',
+            joinedAt: '2026-08-28T00:00:00.000Z',
+            name: 'Owner',
+            role: 'owner',
+            userId: 'private-user-id',
+          },
+          {
+            email: 'member@example.com',
+            id: 'private-member-id-2',
+            joinedAt: '2026-08-29T00:00:00.000Z',
+            name: 'Member',
+            role: 'member',
+            userId: 'private-user-id-2',
+          },
+        ],
+        invitationRows: [
+          {
+            email: 'invitee@example.com',
+            expiresAt: '2026-09-01T00:00:00.000Z',
+            id: 'private-invitation-id',
+            role: 'member',
+          },
+        ],
+      },
+      new Date('2026-08-30T00:00:00.000Z')
+    );
+
+    expect(state).toEqual({
+      status: 'active',
+      organization,
+      members: [
+        {
+          email: 'owner@example.com',
+          joinedAt: '2026-08-28T00:00:00.000Z',
+          name: 'Owner',
+          role: 'owner',
+        },
+        {
+          email: 'member@example.com',
+          joinedAt: '2026-08-29T00:00:00.000Z',
+          name: 'Member',
+          role: 'member',
+        },
+      ],
+      invitations: [
+        {
+          email: 'invitee@example.com',
+          expiresAt: '2026-09-01T00:00:00.000Z',
+          role: 'member',
+          status: 'pending',
+        },
+      ],
+      hasMoreMembers: false,
+      hasMoreInvitations: false,
+    });
+    expect(JSON.stringify(state)).not.toContain('private-');
+  });
+
+  it('marks expired invitations and keeps restricted organizations readable', () => {
+    const state = resolveOrganizationMembersState(
+      {
+        membership: {
+          billingCustomerId: 'private-customer-id',
+          maxSeats: 12,
+          name: 'Acme Engineering',
+          role: 'admin',
+          slug: 'acme-engineering',
+          status: 'past_due',
+          tier: 'team',
+          usedSeats: 12,
+        },
+        memberRows: [],
+        invitationRows: [
+          {
+            email: 'invitee@example.com',
+            expiresAt: '2026-08-01T00:00:00.000Z',
+            id: 'private-invitation-id',
+            role: 'admin',
+          },
+        ],
+      },
+      new Date('2026-08-30T00:00:00.000Z')
+    );
+
+    expect(state.status).toBe('restricted');
+    if (state.status !== 'restricted') throw new Error('Expected a restricted workspace');
+    expect(state.invitations).toEqual([
+      {
+        email: 'invitee@example.com',
+        expiresAt: '2026-08-01T00:00:00.000Z',
+        role: 'admin',
+        status: 'expired',
+      },
+    ]);
+  });
+
+  it('fails closed when any member or invitation boundary row is malformed', () => {
+    const boundary = {
+      membership: {
+        billingCustomerId: 'private-customer-id',
+        maxSeats: 12,
+        name: 'Acme Engineering',
+        role: 'owner',
+        slug: 'acme-engineering',
+        status: 'active',
+        tier: 'team',
+        usedSeats: 2,
+      },
+      memberRows: [{ email: 'not-an-email', name: 'Member', role: 'member' }],
+      invitationRows: [],
+    };
+
+    expect(resolveOrganizationMembersState(boundary, new Date())).toEqual({
+      status: 'unavailable',
+    });
+  });
+});
+
 describe('organization D1 boundary', () => {
   function database(options: {
+    readonly activeOrganizationRow?: object | null;
     readonly entitlementRows: ReadonlyArray<object>;
     readonly fail?: boolean;
+    readonly invitationRows?: ReadonlyArray<object>;
+    readonly memberRows?: ReadonlyArray<object>;
     readonly membershipLimitRow?: object | null;
     readonly membershipRow?: object | null;
     readonly slugRow?: object | null;
+    readonly summaryRow?: object | null;
   }) {
     let batchSize = 0;
     const bindings: Array<{ readonly sql: string; readonly values: ReadonlyArray<unknown> }> = [];
@@ -197,15 +347,28 @@ describe('organization D1 boundary', () => {
           return {
             all: async () => {
               if (options.fail === true) throw new Error('database unavailable');
-              return {
-                results: sql.includes('FROM customers') ? options.entitlementRows : [],
-              };
+              if (sql.includes('FROM customers')) {
+                return { results: options.entitlementRows };
+              }
+              if (sql.includes('FROM auth_user')) {
+                return { results: options.memberRows ?? [] };
+              }
+              if (sql.includes('FROM auth_invitation')) {
+                return { results: options.invitationRows ?? [] };
+              }
+              return { results: [] };
             },
             bind: () => {
               throw new Error('bind may only be called once');
             },
             first: async () => {
               if (options.fail === true) throw new Error('database unavailable');
+              if (sql.includes('COALESCE(')) {
+                return options.activeOrganizationRow ?? { organizationId: null };
+              }
+              if (sql.includes('FROM auth_member') && sql.includes('organization.id')) {
+                return options.summaryRow ?? null;
+              }
               if (sql.includes('FROM auth_member')) {
                 return options.membershipRow ?? null;
               }
@@ -319,6 +482,71 @@ describe('organization D1 boundary', () => {
     expect(fixture.bindings.some(binding => binding.values.includes('owner@example.com'))).toBe(
       true
     );
+  });
+
+  it('loads the active organization roster through hidden server references', async () => {
+    const fixture = database({
+      activeOrganizationRow: { organizationId: 'private-organization-id' },
+      entitlementRows: [],
+      invitationRows: [
+        {
+          email: 'invitee@example.com',
+          expiresAt: '2026-09-01T00:00:00.000Z',
+          id: 'private-invitation-id',
+          role: 'member',
+        },
+      ],
+      memberRows: [
+        {
+          email: 'owner@example.com',
+          id: 'private-member-id',
+          joinedAt: '2026-08-28T00:00:00.000Z',
+          name: 'Owner',
+          role: 'owner',
+          userId: 'private-user-id',
+        },
+      ],
+      summaryRow: {
+        billingCustomerId: 'private-customer-id',
+        maxSeats: 8,
+        name: 'Acme Engineering',
+        role: 'owner',
+        slug: 'acme-engineering',
+        status: 'active',
+        tier: 'team',
+        usedSeats: 1,
+      },
+    });
+
+    const state = await loadOrganizationMembersState(
+      VERIFIED_IDENTITY,
+      fixture.db,
+      new Date('2026-08-30T00:00:00.000Z')
+    );
+
+    expect(state.status).toBe('active');
+    expect(JSON.stringify(state)).not.toContain('private-');
+    expect(fixture.bindings[0]?.values).toEqual([
+      'private-user-id',
+      'private-session-token',
+      'private-user-id',
+    ]);
+  });
+
+  it('returns no-organization without querying roster tables', async () => {
+    const fixture = database({
+      activeOrganizationRow: { organizationId: null },
+      entitlementRows: [],
+    });
+
+    await expect(
+      loadOrganizationMembersState(
+        VERIFIED_IDENTITY,
+        fixture.db,
+        new Date('2026-08-30T00:00:00.000Z')
+      )
+    ).resolves.toEqual({ status: 'no-organization' });
+    expect(fixture.bindings).toHaveLength(1);
   });
 
   it('reports membership-limit lookup failures explicitly', async () => {

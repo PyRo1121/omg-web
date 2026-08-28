@@ -41,7 +41,7 @@
 
 ## 4. Member operations
 
-- [ ] Add `/dashboard/organization/members/` with accepted members and pending invitations.
+- [x] Add read-only `/dashboard/organization/members/` with bounded accepted-member and pending-invitation projections.
 - [ ] Add Admin/Member role changes with the fixed permission matrix.
 - [ ] Add member removal and immediate organization authorization revocation.
 - [ ] Add recent-auth, exact-target, double-confirmed ownership transfer.

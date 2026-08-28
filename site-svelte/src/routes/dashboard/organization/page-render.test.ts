@@ -61,7 +61,9 @@ describe('organization workspace page', () => {
     expect(active.body).toContain('Acme Engineering');
     expect(active.body).toContain('7 / 20');
     expect(active.body).toContain('acme-engineering');
+    expect(active.body).toContain('/dashboard/organization/members/');
     expect(restricted.body).toContain('Membership growth is paused.');
+    expect(restricted.body).toContain('/dashboard/organization/members/');
     for (const body of [active.body, restricted.body]) {
       expect(body).not.toContain('private-customer-id');
       expect(body).not.toContain('private-user-id');

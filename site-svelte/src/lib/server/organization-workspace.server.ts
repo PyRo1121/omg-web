@@ -28,6 +28,45 @@ JOIN licenses AS license ON license.customer_id = customer.id
 WHERE lower(customer.email) = ?
 LIMIT 2`;
 const USER_MEMBERSHIP_QUERY = 'SELECT id FROM auth_member WHERE user_id = ? LIMIT 1';
+const ACTIVE_ORGANIZATION_QUERY = `SELECT COALESCE(
+  (SELECT active_organization_id FROM auth_session WHERE user_id = ? AND token = ? LIMIT 1),
+  (SELECT organization_id FROM auth_member WHERE user_id = ? ORDER BY created_at, id LIMIT 1)
+) AS organizationId`;
+const ORGANIZATION_SUMMARY_QUERY = `SELECT
+  organization.billing_customer_id AS billingCustomerId,
+  organization.name,
+  organization.slug,
+  member.role,
+  license.tier,
+  license.status,
+  license.max_seats AS maxSeats,
+  (SELECT COUNT(*) FROM auth_member AS seat WHERE seat.organization_id = organization.id) AS usedSeats
+FROM auth_member AS member
+JOIN auth_organization AS organization ON organization.id = member.organization_id
+LEFT JOIN licenses AS license ON license.customer_id = organization.billing_customer_id
+WHERE organization.id = ? AND member.user_id = ?
+LIMIT 1`;
+const ORGANIZATION_MEMBER_ROWS_QUERY = `SELECT
+  member.id,
+  member.user_id AS userId,
+  auth_user.name,
+  auth_user.email,
+  member.role,
+  member.created_at AS joinedAt
+FROM auth_member AS member
+JOIN auth_user ON auth_user.id = member.user_id
+WHERE member.organization_id = ?
+ORDER BY member.created_at, member.id
+LIMIT 101`;
+const ORGANIZATION_INVITATION_ROWS_QUERY = `SELECT
+  invitation.id,
+  invitation.email,
+  invitation.role,
+  invitation.expires_at AS expiresAt
+FROM auth_invitation AS invitation
+WHERE invitation.organization_id = ? AND invitation.status = 'pending'
+ORDER BY invitation.created_at, invitation.id
+LIMIT 101`;
 const ORGANIZATION_SLUG_QUERY = 'SELECT id FROM auth_organization WHERE slug = ? LIMIT 1';
 const INSERT_ORGANIZATION_QUERY = `INSERT INTO auth_organization
   (id, name, slug, created_at, billing_customer_id)
@@ -70,6 +109,32 @@ export type OrganizationBootstrapInput = Schema.Schema.Type<typeof OrganizationB
 const OrganizationReferenceRowSchema = Schema.Struct({
   id: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256)),
 });
+const OrganizationIdRowSchema = Schema.Struct({
+  organizationId: Schema.NullOr(
+    Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256))
+  ),
+});
+const NormalizedEmail = Schema.String.check(
+  Schema.isMinLength(3),
+  Schema.isMaxLength(320),
+  Schema.isTrimmed(),
+  Schema.isLowercased(),
+  Schema.isPattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/u)
+);
+const OrganizationMemberRowSchema = Schema.Struct({
+  id: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256)),
+  userId: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256)),
+  name: Schema.String.check(Schema.isMaxLength(120)),
+  email: NormalizedEmail,
+  role: Role,
+  joinedAt: Schema.Union([Schema.Number, Schema.String]),
+});
+const OrganizationInvitationRowSchema = Schema.Struct({
+  id: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256)),
+  email: NormalizedEmail,
+  role: Schema.Literals(['admin', 'member']),
+  expiresAt: Schema.Union([Schema.Number, Schema.String]),
+});
 const EntitlementRowSchema = Schema.Struct({
   customerId: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256)),
   maxSeats: Schema.NullOr(PositiveSeatCount),
@@ -111,6 +176,37 @@ export interface OrganizationSummary {
   readonly slug: string;
   readonly tier: TierName | null;
   readonly usedSeats: number;
+}
+
+export interface OrganizationMemberSummary {
+  readonly email: string;
+  readonly joinedAt: string;
+  readonly name: string;
+  readonly role: OrganizationRole;
+}
+
+export interface OrganizationInvitationSummary {
+  readonly email: string;
+  readonly expiresAt: string;
+  readonly role: 'admin' | 'member';
+  readonly status: 'expired' | 'pending';
+}
+
+export type OrganizationMembersState =
+  | { readonly status: 'verification-required' | 'no-organization' | 'unavailable' }
+  | {
+      readonly status: 'active' | 'restricted';
+      readonly organization: OrganizationSummary;
+      readonly members: ReadonlyArray<OrganizationMemberSummary>;
+      readonly invitations: ReadonlyArray<OrganizationInvitationSummary>;
+      readonly hasMoreMembers: boolean;
+      readonly hasMoreInvitations: boolean;
+    };
+
+export interface OrganizationMembersBoundary {
+  readonly membership: OrganizationBoundaryInput;
+  readonly memberRows: OrganizationBoundaryInput;
+  readonly invitationRows: OrganizationBoundaryInput;
 }
 
 export type OrganizationWorkspaceState =
@@ -191,6 +287,8 @@ function decodeMembershipRow(
   return decoded.value[0] ?? null;
 }
 
+const MAX_ORGANIZATION_LIST_ROWS = 100;
+
 function publicOrganization(
   row: Schema.Schema.Type<typeof MembershipRowSchema>
 ): OrganizationSummary {
@@ -201,6 +299,101 @@ function publicOrganization(
     slug: row.slug,
     tier: row.tier,
     usedSeats: row.usedSeats,
+  };
+}
+
+function organizationAccessStatus(
+  row: Schema.Schema.Type<typeof MembershipRowSchema>,
+  organization: OrganizationSummary
+): 'active' | 'restricted' {
+  const isPaidTier = row.tier === 'team' || row.tier === 'enterprise';
+  const isWithinSeatLimit =
+    organization.maxSeats !== null && row.usedSeats <= organization.maxSeats;
+  return row.status === 'active' && isPaidTier && isWithinSeatLimit ? 'active' : 'restricted';
+}
+
+function organizationTimestamp(value: number | string): string | null {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function decodeOrganizationMemberRows(rows: OrganizationBoundaryInput): {
+  readonly members: ReadonlyArray<OrganizationMemberSummary>;
+  readonly hasMore: boolean;
+} | null {
+  const decoded = Schema.decodeUnknownExit(Schema.Array(OrganizationMemberRowSchema))(rows);
+  if (Exit.isFailure(decoded)) {
+    return null;
+  }
+  const members: Array<OrganizationMemberSummary> = [];
+  for (const row of decoded.value.slice(0, MAX_ORGANIZATION_LIST_ROWS)) {
+    const joinedAt = organizationTimestamp(row.joinedAt);
+    if (joinedAt === null) {
+      return null;
+    }
+    members.push({
+      email: row.email,
+      joinedAt,
+      name: row.name.trim() || row.email,
+      role: row.role,
+    });
+  }
+  return { members, hasMore: decoded.value.length > MAX_ORGANIZATION_LIST_ROWS };
+}
+
+function decodeOrganizationInvitationRows(
+  rows: OrganizationBoundaryInput,
+  now: Date
+): {
+  readonly invitations: ReadonlyArray<OrganizationInvitationSummary>;
+  readonly hasMore: boolean;
+} | null {
+  const decoded = Schema.decodeUnknownExit(Schema.Array(OrganizationInvitationRowSchema))(rows);
+  if (Exit.isFailure(decoded)) {
+    return null;
+  }
+  const invitations: Array<OrganizationInvitationSummary> = [];
+  for (const row of decoded.value.slice(0, MAX_ORGANIZATION_LIST_ROWS)) {
+    const expiresAt = organizationTimestamp(row.expiresAt);
+    if (expiresAt === null) {
+      return null;
+    }
+    invitations.push({
+      email: row.email,
+      expiresAt,
+      role: row.role,
+      status: new Date(expiresAt) <= now ? 'expired' : 'pending',
+    });
+  }
+  return { invitations, hasMore: decoded.value.length > MAX_ORGANIZATION_LIST_ROWS };
+}
+
+export function resolveOrganizationMembersState(
+  boundary: OrganizationMembersBoundary,
+  now: Date
+): OrganizationMembersState {
+  const membership = Schema.decodeUnknownExit(Schema.NullOr(MembershipRowSchema))(
+    boundary.membership
+  );
+  if (Exit.isFailure(membership)) {
+    return { status: 'unavailable' };
+  }
+  if (membership.value === null) {
+    return { status: 'no-organization' };
+  }
+  const organization = publicOrganization(membership.value);
+  const members = decodeOrganizationMemberRows(boundary.memberRows);
+  const invitations = decodeOrganizationInvitationRows(boundary.invitationRows, now);
+  if (members === null || invitations === null || Number.isNaN(now.getTime())) {
+    return { status: 'unavailable' };
+  }
+  return {
+    status: organizationAccessStatus(membership.value, organization),
+    organization,
+    members: members.members,
+    invitations: invitations.invitations,
+    hasMoreMembers: members.hasMore,
+    hasMoreInvitations: invitations.hasMore,
   };
 }
 
@@ -218,12 +411,8 @@ export function resolveOrganizationWorkspaceState(
   }
   if (membership !== null) {
     const organization = publicOrganization(membership);
-    const isPaidTier = membership.tier === 'team' || membership.tier === 'enterprise';
-    const isWithinSeatLimit =
-      organization.maxSeats !== null && membership.usedSeats <= organization.maxSeats;
     return {
-      status:
-        membership.status === 'active' && isPaidTier && isWithinSeatLimit ? 'active' : 'restricted',
+      status: organizationAccessStatus(membership, organization),
       organization,
     };
   }
@@ -260,6 +449,57 @@ export async function loadOrganizationWorkspaceState(
       membershipRows: memberships.results,
       entitlementRows: entitlements.results,
     });
+  } catch {
+    return { status: 'unavailable' };
+  }
+}
+
+export async function loadOrganizationMembersState(
+  identity: OrganizationWorkspaceIdentity,
+  database: AuthEnvironment['DB'],
+  now: Date = new Date()
+): Promise<OrganizationMembersState> {
+  if (!identity.emailVerified) {
+    return { status: 'verification-required' };
+  }
+  if (Number.isNaN(now.getTime())) {
+    return { status: 'unavailable' };
+  }
+
+  let organizationIdRow: OrganizationBoundaryInput;
+  try {
+    organizationIdRow = await database
+      .prepare(ACTIVE_ORGANIZATION_QUERY)
+      .bind(identity.id, identity.sessionToken, identity.id)
+      .first();
+  } catch {
+    return { status: 'unavailable' };
+  }
+  const organizationId = Schema.decodeUnknownExit(Schema.NullOr(OrganizationIdRowSchema))(
+    organizationIdRow
+  );
+  if (Exit.isFailure(organizationId)) {
+    return { status: 'unavailable' };
+  }
+  if (organizationId.value === null || organizationId.value.organizationId === null) {
+    return { status: 'no-organization' };
+  }
+  const activeOrganizationId = organizationId.value.organizationId;
+
+  try {
+    const [summary, members, invitations] = await Promise.all([
+      database.prepare(ORGANIZATION_SUMMARY_QUERY).bind(activeOrganizationId, identity.id).first(),
+      database.prepare(ORGANIZATION_MEMBER_ROWS_QUERY).bind(activeOrganizationId).all(),
+      database.prepare(ORGANIZATION_INVITATION_ROWS_QUERY).bind(activeOrganizationId).all(),
+    ]);
+    return resolveOrganizationMembersState(
+      {
+        membership: summary,
+        memberRows: members.results,
+        invitationRows: invitations.results,
+      },
+      now
+    );
   } catch {
     return { status: 'unavailable' };
   }
