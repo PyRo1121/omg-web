@@ -37,7 +37,7 @@
 
     <nav class="workspace-nav" aria-label="Account workspace">
       <a href="/dashboard/" aria-current="page">Overview</a>
-      <a href="/dashboard/analytics/">Analytics</a>
+      <a href="/dashboard/analytics">Analytics</a>
     </nav>
 
     <dl class="dashboard-facts">

@@ -14,7 +14,7 @@
   <section class="account-panel analytics-panel" aria-labelledby="analytics-title">
     <nav class="workspace-nav" aria-label="Account workspace">
       <a href="/dashboard/">Overview</a>
-      <a href="/dashboard/analytics/" aria-current="page">Analytics</a>
+      <a href="/dashboard/analytics" aria-current="page">Analytics</a>
     </nav>
 
     <p class="page-kicker">Account / Analytics</p>
@@ -26,8 +26,8 @@
       <p class="analytics-state" role="status">Analytics are temporarily unavailable.</p>
     {:else}
       <div class="export-links" aria-label="Usage exports">
-        <a href="/dashboard/analytics/export/csv/">Download CSV</a>
-        <a href="/dashboard/analytics/export/json/">Download JSON</a>
+        <a href="/dashboard/analytics/export/csv">Download CSV</a>
+        <a href="/dashboard/analytics/export/json">Download JSON</a>
       </div>
 
       <dl class="metric-grid">

@@ -25,8 +25,8 @@ describe('account analytics page', () => {
     });
 
     expect(result.body).toContain('Account analytics');
-    expect(result.body).toContain('href="/dashboard/analytics/export/csv/"');
-    expect(result.body).toContain('href="/dashboard/analytics/export/json/"');
+    expect(result.body).toContain('href="/dashboard/analytics/export/csv"');
+    expect(result.body).toContain('href="/dashboard/analytics/export/json"');
     expect(result.body).toContain('ripgrep');
     expect(result.body).toContain('Percentile 88');
     expect(result.body).not.toContain('license_key');
