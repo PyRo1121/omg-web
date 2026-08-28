@@ -14,7 +14,7 @@
   <section class="account-panel analytics-panel" aria-labelledby="analytics-title">
     <nav class="workspace-nav" aria-label="Account workspace">
       <a href="/dashboard/">Overview</a>
-      <a href="/dashboard/analytics" aria-current="page">Analytics</a>
+      <a href="/dashboard/analytics/" aria-current="page">Analytics</a>
     </nav>
 
     <p class="page-kicker">Account / Analytics</p>
