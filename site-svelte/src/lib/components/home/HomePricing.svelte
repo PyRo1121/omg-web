@@ -1,4 +1,15 @@
 <script lang="ts">
+  import { MAX_LOGIN_EMAIL_CHARACTERS } from '../../../../../site/shared/login-credentials';
+  import type { MarketingOffer } from '../../contracts/marketing-offer';
+
+  let {
+    offer = null,
+    offerError = null,
+  }: {
+    offer?: MarketingOffer | null;
+    offerError?: string | null;
+  } = $props();
+
   const plans = [
     {
       id: 'free',
@@ -44,9 +55,40 @@
   </header>
 
   <div class="pricing-content">
-    <p class="billing-note">
-      Paid checkout is not connected to this migration preview. Account creation remains available.
-    </p>
+    <div class="offer-panel">
+      <div>
+        <p class="offer-kicker">Introductory offer</p>
+        <h3>Take 20% off your first three months.</h3>
+        <p>
+          Claim one email-bound code now. Paid checkout remains on the production path until the
+          coordinated auth and billing cutover.
+        </p>
+      </div>
+      <form method="POST" action="?/claimOffer" class="offer-form">
+        <label for="offer-email">Account email</label>
+        <div>
+          <input
+            id="offer-email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            maxlength={MAX_LOGIN_EMAIL_CHARACTERS}
+            required
+            placeholder="developer@example.com"
+          />
+          <button type="submit">Create offer</button>
+        </div>
+      </form>
+      {#if offer !== null}
+        <p class="offer-result" aria-live="polite">
+          <span>Your code</span>
+          <code>{offer.code}</code>
+          <small>{offer.percentOff}% off for {offer.durationMonths} months</small>
+        </p>
+      {:else if offerError !== null}
+        <p class="offer-error" role="alert">{offerError}</p>
+      {/if}
+    </div>
     <ol class="plan-list">
       {#each plans as plan (plan.id)}
         <li>
@@ -74,14 +116,108 @@
     min-width: 0;
   }
 
-  .billing-note {
-    max-width: 42rem;
-    padding: 1.25rem 1.5rem;
-    border-left: 2px solid var(--signal);
+  .offer-panel {
+    display: grid;
+    gap: 1.5rem;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    border: 1px solid var(--rule-strong);
     background: var(--paper-raised);
+  }
+
+  .offer-kicker,
+  .offer-form label,
+  .offer-result span,
+  .offer-result small {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+  }
+
+  .offer-kicker {
+    color: var(--signal);
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+  }
+
+  .offer-panel h3 {
+    margin-top: 0.6rem;
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    letter-spacing: -0.045em;
+  }
+
+  .offer-panel > div > p:last-child {
+    max-width: 42rem;
+    margin-top: 0.75rem;
     color: var(--ink-muted);
     font-size: 0.9rem;
     line-height: 1.65;
+  }
+
+  .offer-form {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .offer-form label {
+    color: var(--ink-muted);
+    font-size: 0.65rem;
+  }
+
+  .offer-form > div {
+    display: grid;
+  }
+
+  .offer-form input,
+  .offer-form button {
+    min-height: 3rem;
+    border: 1px solid var(--rule-strong);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .offer-form input {
+    min-width: 0;
+    padding-inline: 0.9rem;
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .offer-form input:focus {
+    border-color: var(--signal);
+    outline: none;
+  }
+
+  .offer-form button {
+    padding-inline: 1rem;
+    background: var(--ink);
+    color: var(--paper);
+    cursor: pointer;
+  }
+
+  .offer-form button:hover {
+    background: var(--signal);
+    color: var(--signal-ink);
+  }
+
+  .offer-result {
+    display: grid;
+    gap: 0.35rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--signal);
+  }
+
+  .offer-result span,
+  .offer-result small {
+    color: var(--ink-muted);
+    font-size: 0.62rem;
+  }
+
+  .offer-result code {
+    font-size: 1.2rem;
+  }
+
+  .offer-error {
+    color: var(--danger);
+    font-size: 0.85rem;
   }
 
   .plan-list {
@@ -165,6 +301,10 @@
   }
 
   @media (min-width: 48rem) {
+    .offer-form > div {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
     .plan-list > li {
       grid-template-columns: 0.5fr 0.45fr 1.35fr auto;
       gap: clamp(1.5rem, 3vw, 3rem);

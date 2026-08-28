@@ -3,6 +3,11 @@ import * as Schema from 'effect/Schema';
 import type { AdminBreakdownItem, AdminOverview } from '../../../../site/shared/admin-overview';
 import { EMAIL_PATTERN } from '../../../../site/shared/email';
 import type { SiteSessionRole } from '../../../../site/shared/site-session';
+import {
+  MarketingOfferRequestSchema,
+  MarketingOfferResponseSchema,
+  type MarketingOffer,
+} from '../contracts/marketing-offer';
 import type {
   LicensingSummary,
   LicensingSummaryState,
@@ -14,6 +19,7 @@ const INTERNAL_ORIGIN = 'https://omg-saas.internal';
 const SESSION_BODY_LIMIT = 16 * 1024;
 const DASHBOARD_BODY_LIMIT = 1024 * 1024;
 const ADMIN_ACTIVITY_BODY_LIMIT = 128 * 1024;
+const MARKETING_OFFER_BODY_LIMIT = 4 * 1024;
 const ROLE_QUERY = 'SELECT role FROM auth_user WHERE id = ?';
 const NonEmptyString = Schema.String.check(Schema.isMinLength(1));
 const ShortText = NonEmptyString.check(Schema.isMaxLength(64));
@@ -27,6 +33,7 @@ const DayText = ShortText.check(
   Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/u),
   Schema.makeFilter(value => Number.isFinite(Date.parse(`${value}T00:00:00Z`)))
 );
+const ClientAddress = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(64));
 const NormalizedEmail = Schema.String.check(
   Schema.isMinLength(1),
   Schema.isTrimmed(),
@@ -187,7 +194,8 @@ export type LicensingServiceOperation =
   | 'admin-activity'
   | 'admin-customers'
   | 'admin-customer-detail'
-  | 'admin-customer-update';
+  | 'admin-customer-update'
+  | 'marketing-offer';
 
 export class LicensingSummaryWorkerRejected extends Error {
   readonly _tag = 'LicensingSummaryWorkerRejected';
@@ -323,6 +331,51 @@ interface LicensingServicePrincipal {
 export interface LicensingServiceSession {
   readonly role: SiteSessionRole;
   readonly token: string;
+}
+
+/** Claim one bounded introductory offer through the private Worker binding. */
+export function claimMarketingOffer(
+  email: string,
+  visitorIp: string,
+  env: LicensingSummaryEnvironment
+): Effect.Effect<MarketingOffer, LicensingSummaryError> {
+  return Effect.gen(function* () {
+    const request = yield* parseLicensingInput(
+      MarketingOfferRequestSchema,
+      { email: email.trim().toLowerCase() },
+      'Marketing offer email is invalid'
+    );
+    const safeVisitorIp = yield* parseLicensingInput(
+      ClientAddress,
+      visitorIp,
+      'Marketing offer client address is invalid'
+    );
+    const secret = yield* parseLicensingInput(
+      NonEmptyString,
+      env.SVELTE_BFF_SECRET,
+      'Licensing BFF secret is invalid'
+    );
+    const response = yield* serviceFetch(
+      env.LICENSING_API,
+      new Request(`${INTERNAL_ORIGIN}/api/internal/marketing-offer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Secret': secret,
+          'X-Internal-Call': 'service-binding',
+          'X-Offer-Visitor-IP': safeVisitorIp,
+        },
+        body: JSON.stringify(request),
+      })
+    );
+    if (!response.ok) {
+      return yield* Effect.fail(
+        new LicensingSummaryWorkerRejected('marketing-offer', response.status)
+      );
+    }
+    const json = yield* readBoundedJson(response, 'marketing-offer', MARKETING_OFFER_BODY_LIMIT);
+    return yield* parseWorkerPayload(MarketingOfferResponseSchema, json, 'marketing-offer');
+  });
 }
 
 function loadServicePrincipal(

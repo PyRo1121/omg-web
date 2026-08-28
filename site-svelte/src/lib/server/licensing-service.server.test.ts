@@ -6,6 +6,7 @@ import {
   LicensingSummaryInvalidPayload,
   AdminOverviewForbidden,
   LicensingSummaryServiceUnavailable,
+  claimMarketingOffer,
   loadAdminOverview,
   loadLicensingSummary,
   loadLicensingSummaryState,
@@ -32,7 +33,9 @@ interface RecordedRequest {
 }
 
 class LicensingServiceStub {
+  readonly requestBodies: Array<string> = [];
   readonly requests: Array<RecordedRequest> = [];
+  readonly visitorIps: Array<string | null> = [];
 
   constructor(
     private readonly sessionResponse: () => Response,
@@ -40,6 +43,8 @@ class LicensingServiceStub {
   ) {}
 
   async fetch(request: Request): Promise<Response> {
+    this.requestBodies.push(await request.clone().text());
+    this.visitorIps.push(request.headers.get('X-Offer-Visitor-IP'));
     this.requests.push({
       authorization: request.headers.get('Authorization'),
       cookie: request.headers.get('Cookie'),
@@ -138,6 +143,52 @@ function serviceWith(
 function failureOf(exit: Exit.Exit<unknown, LicensingSummaryError>): LicensingSummaryError | null {
   return Exit.isSuccess(exit) ? null : Option.getOrNull(Cause.findErrorOption(exit.cause));
 }
+
+describe('claimMarketingOffer', () => {
+  it('uses only the caller-specific secret over the private binding', async () => {
+    const service = serviceWith(undefined, () =>
+      Response.json({
+        code: 'OMG20-ABCD2345',
+        percentOff: 20,
+        durationMonths: 3,
+        expiresAt: '2026-09-27T00:00:00.000Z',
+      })
+    );
+
+    const offer = await Effect.runPromise(
+      claimMarketingOffer('Developer@Example.com', '192.0.2.10', environment('user', service))
+    );
+
+    expect(offer).toEqual({
+      code: 'OMG20-ABCD2345',
+      percentOff: 20,
+      durationMonths: 3,
+      expiresAt: '2026-09-27T00:00:00.000Z',
+    });
+    expect(service.requests).toEqual([
+      {
+        authorization: null,
+        cookie: null,
+        internalCall: 'service-binding',
+        method: 'POST',
+        secret: 'private-bff-secret',
+        url: 'https://omg-saas.internal/api/internal/marketing-offer',
+      },
+    ]);
+    expect(service.requestBodies).toEqual(['{"email":"developer@example.com"}']);
+    expect(service.visitorIps).toEqual(['192.0.2.10']);
+  });
+
+  it('rejects malformed inputs before invoking the Worker', async () => {
+    const service = serviceWith();
+    const exit = await Effect.runPromiseExit(
+      claimMarketingOffer('not-an-email', '', environment('user', service))
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    expect(service.requests).toHaveLength(0);
+  });
+});
 
 describe('loadAdminOverview', () => {
   it('projects high-signal metrics and recent activity without internal identifiers', async () => {

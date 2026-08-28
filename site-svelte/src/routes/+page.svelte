@@ -1,10 +1,15 @@
 <script lang="ts">
   import { serializeJsonLd } from '../../../site/shared/public-site';
+  import type { PageProps } from './$types';
   import HomeBenchmarks from '../lib/components/home/HomeBenchmarks.svelte';
   import HomeFeatureGrid from '../lib/components/home/HomeFeatureGrid.svelte';
   import HomeHero from '../lib/components/home/HomeHero.svelte';
   import HomeInstallation from '../lib/components/home/HomeInstallation.svelte';
   import HomePricing from '../lib/components/home/HomePricing.svelte';
+
+  let { form }: { form: PageProps['form'] } = $props();
+  const claimedOffer = $derived(form?.kind === 'offer' ? form.offer : null);
+  const offerError = $derived(form?.kind === 'offer-error' ? form.message : null);
 
   const structuredData = serializeJsonLd({
     '@context': 'https://schema.org',
@@ -84,7 +89,7 @@
   <HomeHero />
   <HomeFeatureGrid />
   <HomeBenchmarks />
-  <HomePricing />
+  <HomePricing offer={claimedOffer} {offerError} />
   <HomeInstallation />
 </main>
 
