@@ -23,11 +23,20 @@ export function requireAdminSecret(
   provided: string | null,
   expected: string | undefined
 ): Effect.Effect<void, AdminUnauthorizedError> {
-  if (expected === undefined || expected.length === 0) {
+  return requireInternalSecret(provided, [expected]);
+}
+
+/** Accept one caller-specific internal secret without weakening missing-secret failure. */
+export function requireInternalSecret(
+  provided: string | null,
+  expectedSecrets: ReadonlyArray<string | undefined>
+): Effect.Effect<void, AdminUnauthorizedError> {
+  if (provided === null) {
     return Effect.fail(new AdminUnauthorizedError());
   }
-  if (provided === null || !timingSafeEqualUtf8(provided, expected)) {
-    return Effect.fail(new AdminUnauthorizedError());
-  }
-  return Effect.void;
+  const matches = expectedSecrets.some(
+    expected =>
+      expected !== undefined && expected.length > 0 && timingSafeEqualUtf8(provided, expected)
+  );
+  return matches ? Effect.void : Effect.fail(new AdminUnauthorizedError());
 }

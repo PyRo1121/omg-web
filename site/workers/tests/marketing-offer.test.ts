@@ -5,6 +5,7 @@ import { handleCreateCheckout } from '../src/handlers/billing';
 import { handleMarketingOffer } from '../src/handlers/marketing-offer';
 
 const INTERNAL_SECRET = 'test-internal-secret';
+const SVELTE_BFF_SECRET = 'test-svelte-bff-secret';
 
 function offerEnv(rateLimitSuccess = true, ipLimitSuccess = true): Env {
   return {
@@ -16,6 +17,7 @@ function offerEnv(rateLimitSuccess = true, ipLimitSuccess = true): Env {
     JWT_SECRET: 'jwt-test-secret',
     JWT_PRIVATE_KEY: 'private-test-key',
     ADMIN_API_SECRET: INTERNAL_SECRET,
+    SVELTE_BFF_SECRET,
     API_RATE_LIMITER: {
       limit: async () => ({ success: ipLimitSuccess }),
     },
@@ -50,6 +52,19 @@ describe('marketing introductory offer', () => {
     );
 
     expect(response.status).toBe(429);
+  });
+
+  it('accepts the independent Svelte BFF secret over a private binding', async () => {
+    const response = await handleMarketingOffer(
+      offerRequest('developer@example.com', SVELTE_BFF_SECRET),
+      offerEnv(),
+      async (_input, init) => {
+        const body = new URLSearchParams(String(init?.body));
+        return Response.json({ id: 'promo_svelte', code: body.get('code'), active: true });
+      }
+    );
+
+    expect(response.status).toBe(200);
   });
 
   it('creates one single-redemption Stripe promotion and reuses it for the email', async () => {

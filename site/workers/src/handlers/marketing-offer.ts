@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
 import { type Env, enforceRateLimit, errorResponse, jsonResponse, rateLimitClientIp } from '../api';
-import { AdminUnauthorizedError, requireAdminSecret } from '../admin-secret';
+import { AdminUnauthorizedError, requireInternalSecret } from '../admin-secret';
 import { decodeJsonBody, type InvalidJsonBodyError } from '../body';
 import { reportError, reportInfo } from '../observability';
 import {
@@ -179,7 +179,10 @@ function claimOffer(
   stripeFetch: typeof fetch
 ): Effect.Effect<MarketingOfferResponse, MarketingOfferError> {
   return Effect.gen(function* () {
-    yield* requireAdminSecret(request.headers.get('X-Admin-Secret'), env.ADMIN_API_SECRET);
+    yield* requireInternalSecret(request.headers.get('X-Admin-Secret'), [
+      env.ADMIN_API_SECRET,
+      env.SVELTE_BFF_SECRET,
+    ]);
     if (request.headers.get('X-Internal-Call') !== 'service-binding') {
       return yield* Effect.fail(new AdminUnauthorizedError());
     }
