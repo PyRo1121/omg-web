@@ -5,7 +5,10 @@
   } from '../../../../site/shared/login-credentials';
   import GitHubMark from '../../lib/components/GitHubMark.svelte';
   import { LoginView } from '../../lib/login-view.svelte';
-  const view = new LoginView();
+  import type { PageProps } from './$types';
+
+  let { data }: PageProps = $props();
+  const view = new LoginView(() => data.next);
 </script>
 
 <svelte:head>

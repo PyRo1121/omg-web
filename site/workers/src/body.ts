@@ -96,15 +96,17 @@ export function readBoundedBodyText(
  *
  * @param request - The incoming request whose body is read once.
  * @param schema - The contract schema the body must satisfy.
+ * @param maxBytes - The maximum number of request bytes to buffer.
  * @returns The decoded body, or `InvalidJsonBodyError`.
  */
 export function decodeJsonBody<S extends Schema.Schema.AnyNoContext>(
   request: Request,
-  schema: S
+  schema: S,
+  maxBytes = MAX_JSON_BODY_BYTES
 ): Effect.Effect<Schema.Schema.Type<S>, InvalidJsonBodyError> {
   return gen(function* () {
     yield* ensureJsonContentType(request);
-    const text = yield* readBoundedBodyText(request);
+    const text = yield* readBoundedBodyText(request, maxBytes);
     const parsed = Schema.decodeUnknownEither(Schema.parseJson())(text);
     if (parsed._tag === 'Left') {
       return yield* fail(new InvalidJsonBodyError('Body is not valid JSON', parsed.left));

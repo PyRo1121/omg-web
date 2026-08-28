@@ -49,6 +49,9 @@ describe('organization members page', () => {
     expect(result.body).toContain('owner@example.com');
     expect(result.body).toContain('invitee@example.com');
     expect(result.body).toContain('Organization');
+    expect(result.body).toContain('Send invitation');
+    expect(result.body).toContain('Resend');
+    expect(result.body).toContain('Revoke');
     expect(result.body).not.toContain('private-member-id');
     expect(result.body).not.toContain('private-invitation-id');
   });
@@ -61,7 +64,14 @@ describe('organization members page', () => {
             status: 'restricted',
             organization: { ...organization, maxSeats: null, tier: null },
             members: [],
-            invitations: [],
+            invitations: [
+              {
+                email: 'invitee@example.com',
+                expiresAt: '2026-09-01T00:00:00.000Z',
+                role: 'member',
+                status: 'pending',
+              },
+            ],
             hasMoreMembers: false,
             hasMoreInvitations: false,
           },
@@ -79,6 +89,9 @@ describe('organization members page', () => {
     });
 
     expect(restricted.body).toContain('Membership changes are paused');
+    expect(restricted.body).not.toContain('Send invitation');
+    expect(restricted.body).not.toContain('Resend');
+    expect(restricted.body).toContain('Revoke');
     expect(restricted.body).toContain('Unavailable');
     expect(individual.body).toContain('Create an eligible Team or Enterprise workspace');
     expect(individual.body).not.toContain('Pending invitations');

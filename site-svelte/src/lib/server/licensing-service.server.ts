@@ -205,7 +205,8 @@ export type LicensingServiceOperation =
   | 'marketing-offer'
   | 'billing-checkout'
   | 'billing-fulfillment'
-  | 'billing-portal';
+  | 'billing-portal'
+  | 'organization-invitation-email';
 
 export class LicensingSummaryWorkerRejected extends Error {
   readonly _tag = 'LicensingSummaryWorkerRejected';
@@ -519,6 +520,49 @@ export function sendPrivateWorkerPayload<S extends Schema.Top>(
         headers: {
           Authorization: `Bearer ${session.token}`,
           'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      })
+    );
+    if (!response.ok) {
+      return yield* Effect.fail(new LicensingSummaryWorkerRejected(operation, response.status));
+    }
+    const json = yield* readBoundedJson(response, operation, limit);
+    return yield* parseWorkerPayload(schema, json, operation);
+  });
+}
+
+/** Send one bounded private payload through the Svelte-to-Worker service binding. */
+export function sendInternalWorkerPayload<S extends Schema.Top>(
+  env: LicensingSummaryEnvironment,
+  path: `/${string}`,
+  operation: LicensingServiceOperation,
+  limit: number,
+  schema: S,
+  body: LicensingBoundaryInput
+): Effect.Effect<
+  S['Type'],
+  | LicensingSummaryInvalidInput
+  | LicensingSummaryServiceUnavailable
+  | LicensingSummaryWorkerRejected
+  | LicensingSummaryBodyTooLarge
+  | LicensingSummaryInvalidPayload,
+  S['DecodingServices']
+> {
+  return Effect.gen(function* () {
+    const secret = yield* parseLicensingInput(
+      NonEmptyString,
+      env.SVELTE_BFF_SECRET,
+      'Licensing BFF secret is invalid'
+    );
+    const response = yield* serviceFetch(
+      env.LICENSING_API,
+      new Request(`${INTERNAL_ORIGIN}${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Secret': secret,
+          'X-Internal-Call': 'service-binding',
         },
         body: JSON.stringify(body),
       })

@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createShadowAuth, enforceAuthMutationRateLimit, getRequestSession } from './auth.server';
+import {
+  authEntryDestination,
+  createShadowAuth,
+  enforceAuthMutationRateLimit,
+  getRequestSession,
+  loadAuthEntry,
+} from './auth.server';
 
 type AuthEnvironment = Parameters<typeof createShadowAuth>[0];
 
@@ -21,6 +27,8 @@ const AUTH_ENVIRONMENT: AuthEnvironment = {
   },
   GITHUB_CLIENT_ID: 'test-github-client',
   GITHUB_CLIENT_SECRET: 'test-github-secret',
+  LICENSING_API: { fetch: async () => Response.json({}) },
+  SVELTE_BFF_SECRET: 'test-svelte-bff-secret',
 };
 
 function sessionRequest(platform: { readonly env: AuthEnvironment } | undefined) {
@@ -91,6 +99,34 @@ describe('getRequestSession', () => {
       session: { expiresAt: '2027-01-02T03:04:05.000Z' },
       user: { email: 'member@example.com', emailVerified: true },
     });
+  });
+});
+
+describe('auth entry navigation', () => {
+  it('keeps the invitation return path same-origin and dashboard-scoped', () => {
+    expect(
+      authEntryDestination(
+        new URL(
+          'https://shadow.example/login/?next=%2Fdashboard%2Forganization%2Finvitations%2Faccept%2F'
+        )
+      )
+    ).toBe('/dashboard/organization/invitations/accept/');
+    expect(
+      authEntryDestination(new URL('https://shadow.example/login/?next=https%3A%2F%2Fevil.example'))
+    ).toBe('/dashboard/');
+    expect(
+      authEntryDestination(new URL('https://shadow.example/login/?next=%2F%2Fevil.example'))
+    ).toBe('/dashboard/');
+  });
+
+  it('returns the validated destination for an anonymous auth entry', async () => {
+    await expect(
+      loadAuthEntry({
+        platform: { env: AUTH_ENVIRONMENT },
+        request: new Request(PAGE_URL),
+        url: new URL('https://shadow.example/login/?next=%2Fdashboard%2Forganization%2F'),
+      })
+    ).resolves.toEqual({ next: '/dashboard/organization/' });
   });
 });
 

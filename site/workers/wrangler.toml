@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"] # Required for Sentry SDK
 workers_dev = false
 
 # Cloudflare Email Sending - native binding, no API key needed.
-send_email = [{ name = "EMAIL" }]
+send_email = [{ name = "EMAIL", allowed_sender_addresses = ["noreply@latham.cloud"] }]
 
 # Custom domain (DNS record is created automatically by Workers Custom Domains).
 routes = [{ pattern = "omg-api.latham.cloud", custom_domain = true }]

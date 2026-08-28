@@ -50,6 +50,8 @@ function dashboardRequest(db: AuthEnvironment['DB']) {
         DB: db,
         GITHUB_CLIENT_ID: 'test-github-client',
         GITHUB_CLIENT_SECRET: 'test-github-secret',
+        LICENSING_API: { fetch: async () => Response.json({}) },
+        SVELTE_BFF_SECRET: 'test-svelte-bff-secret',
       },
     },
     request: new Request(PAGE_URL),

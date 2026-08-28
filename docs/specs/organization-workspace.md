@@ -120,6 +120,7 @@ Role checks occur server-side for every load and action. Hiding a control is nev
 - Only verified Owner/Admin sessions may invite.
 - Inputs are normalized and bounded before identity, database, or email work.
 - Invitations use Better Auth's opaque random IDs and expire after 48 hours.
+- Email links wrap the Better Auth ID in a stage-secret AES-GCM reference; the accept route moves that reference into an HttpOnly cookie and redirects to a clean URL before any page render.
 - Invitation acceptance requires a verified session email matching the normalized invited email.
 - Public responses do not reveal whether an unrelated email already has an OMG account.
 - Re-inviting cancels the previous pending invitation before issuing a new one.
@@ -165,7 +166,7 @@ Browser-safe organization projections may contain display names, normalized memb
 - Ownership transfer requires recent authentication, exact target email confirmation, and a second explicit confirmation value.
 - Removing a member revokes organization authorization immediately; account-wide session revocation is reserved for compromised-account workflows.
 - Better Auth organization endpoints retain the same CSP, origin, cookie, rate-limit, and no-store protections as existing auth endpoints.
-- Audit metadata is bounded and excludes secrets, tokens, raw IDs, request bodies, and invitation URLs.
+- Audit metadata is bounded and excludes secrets, tokens, raw IDs, request bodies, and invitation URLs. The browser-facing acceptance reference is never included in page data or DOM.
 
 ## 12. Smallest delivery sequence
 

@@ -5,7 +5,12 @@ import { createShadowAuth, enforceAuthMutationRateLimit } from './lib/server/aut
 import { withDocsRouteCache, withSiteHeaders } from './lib/server/public-files';
 
 const AUTH_PATH_PREFIX = '/api/auth/';
+const ORGANIZATION_PLUGIN_PATH_PREFIX = '/api/auth/organization/';
 const AUTH_UNAVAILABLE_HEADERS = { 'Cache-Control': 'no-store' } as const;
+const PRIVATE_ORGANIZATION_ROUTE_HEADERS = {
+  'Cache-Control': 'no-store',
+  'X-Content-Type-Options': 'nosniff',
+} as const;
 
 export const handle: Handle = async ({ event, resolve }) => {
   const platform = event.platform;
@@ -21,6 +26,14 @@ export const handle: Handle = async ({ event, resolve }) => {
           { headers: AUTH_UNAVAILABLE_HEADERS, status: 503 }
         )
       : await resolve(event);
+  } else if (event.url.pathname.startsWith(ORGANIZATION_PLUGIN_PATH_PREFIX)) {
+    response = Response.json(
+      { error: 'Not found' },
+      {
+        headers: PRIVATE_ORGANIZATION_ROUTE_HEADERS,
+        status: 404,
+      }
+    );
   } else if (isAuthPath) {
     const rateLimitResponse = await enforceAuthMutationRateLimit(
       event.request,

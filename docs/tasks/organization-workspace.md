@@ -6,7 +6,7 @@
 ## 1. Schema and authorization foundation
 
 - [x] Configure the exact-pinned Better Auth organization plugin with explicit snake-case models and fields.
-- [x] Keep nested teams, dynamic roles, public organization creation, deletion, and invitation mutations disabled during bootstrap delivery.
+- [x] Keep nested teams, dynamic roles, public organization creation, deletion, and direct browser plugin mutation endpoints disabled; server actions own invitation mutations.
 - [x] Add an immutable Wrangler migration for organization, member, invitation, and active-organization session state.
 - [x] Add unique membership and billing-link constraints.
 - [x] Add the atomic D1 active-Team/Enterprise seat-limit trigger.
@@ -29,13 +29,13 @@
 
 ## 3. Invitations
 
-- [ ] Add a bounded Owner/Admin invite action with Member/Admin role selection.
-- [ ] Require verified actor and invited email ownership.
-- [ ] Add private `LICENSING_API` invitation-email delivery through Cloudflare Email Service.
-- [ ] Implement 48-hour expiry, re-invite cancellation, resend, revoke, accept, and reject flows.
-- [ ] Map duplicate, mismatch, full-seat, ineligible-tier, forbidden, expired, rate-limited, delivery, and unavailable failures.
-- [ ] Record bounded audit events without IDs, bodies, invitation URLs, or tokens.
-- [ ] Add concurrent final-seat acceptance and email-enumeration tests.
+- [x] Add a bounded Owner/Admin invite action with Member/Admin role selection.
+- [x] Require a verified actor and Better Auth email ownership at acceptance/rejection.
+- [x] Add private `LICENSING_API` invitation-email delivery through Cloudflare Email Service.
+- [x] Implement 48-hour expiry, re-invite cancellation, resend, revoke, accept, and reject flows.
+- [x] Map duplicate, mismatch, full-seat, ineligible-tier, forbidden, expired, rate-limited, delivery, and unavailable failures.
+- [x] Record bounded audit events without IDs, bodies, invitation URLs, or tokens.
+- [ ] Add Better Auth integration coverage for concurrent final-seat acceptance and email-enumeration denial.
 
 **Blocked by:** 2.
 

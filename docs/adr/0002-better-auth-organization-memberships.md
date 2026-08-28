@@ -40,7 +40,8 @@ Use Better Auth 1.7.1 organizations with the fixed roles Owner, Admin, and Membe
 
 - New immutable D1 schema and triggers are required.
 - Better Auth hooks must call a private Worker email capability because Svelte does not own the Cloudflare Email binding.
-- Better Auth plugin endpoints require explicit authorization, rate-limit, and projection testing.
+- Better Auth plugin endpoints require explicit authorization, rate-limit, and projection testing. Browser requests to the plugin organization path are blocked; server actions call parsed Better Auth APIs.
+- Invitation email links use an encrypted stage-secret reference rather than exposing the Better Auth invitation ID; the accept route stores it in an HttpOnly cookie and strips it from the URL.
 - Downgrade and ownership-transfer states need product-specific rules beyond the plugin defaults.
 
 ## Rejected alternative

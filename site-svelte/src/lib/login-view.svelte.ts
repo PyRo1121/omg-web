@@ -2,6 +2,8 @@ import { validateLoginCredentials } from '../../../site/shared/login-credentials
 import { signIn } from './auth-client';
 
 export class LoginView {
+  constructor(private readonly destination: () => string = () => '/dashboard/') {}
+
   email = $state('');
   password = $state('');
   error = $state('');
@@ -22,7 +24,7 @@ export class LoginView {
         this.error = result.error.message ?? 'Login failed';
         return;
       }
-      window.location.assign('/');
+      window.location.assign(this.destination());
     } catch {
       this.error = 'An unexpected error occurred';
     } finally {
@@ -34,7 +36,10 @@ export class LoginView {
     this.pending = true;
     this.error = '';
     try {
-      const result = await signIn.social({ provider: 'github', callbackURL: '/dashboard/' });
+      const result = await signIn.social({
+        provider: 'github',
+        callbackURL: this.destination(),
+      });
       if (result?.error) {
         this.error = result.error.message ?? 'GitHub sign-in failed';
         this.pending = false;

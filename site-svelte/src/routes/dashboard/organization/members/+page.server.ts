@@ -1,7 +1,12 @@
 import { error, redirect } from '@sveltejs/kit';
 import { loadAccountIdentity } from '../../../../lib/server/account-dashboard.server';
+import {
+  inviteOrganizationMemberAction,
+  resendOrganizationInvitationAction,
+  revokeOrganizationInvitationAction,
+} from '../../../../lib/server/organization-route-actions.server';
 import { loadOrganizationMembersState } from '../../../../lib/server/organization-workspace.server';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async event => {
   if (event.platform === undefined) {
@@ -19,3 +24,9 @@ export const load: PageServerLoad = async event => {
     ),
   };
 };
+
+export const actions = {
+  invite: inviteOrganizationMemberAction,
+  resend: resendOrganizationInvitationAction,
+  revoke: revokeOrganizationInvitationAction,
+} satisfies Actions;

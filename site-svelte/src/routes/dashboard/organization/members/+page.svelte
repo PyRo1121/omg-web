@@ -3,9 +3,19 @@
   import { formatProductLabel, formatTimestamp } from '../../dashboard-view';
   import type { PageProps } from './$types';
 
-  let { data }: PageProps = $props();
+  let { data, form }: PageProps = $props();
   let showOrganization = $derived(
     data.organization.status === 'active' || data.organization.status === 'restricted'
+  );
+  let canManageMembers = $derived(
+    data.organization.status === 'active' &&
+      (data.organization.organization.role === 'owner' ||
+        data.organization.organization.role === 'admin')
+  );
+  let canRevokeInvitations = $derived(
+    (data.organization.status === 'active' || data.organization.status === 'restricted') &&
+      (data.organization.organization.role === 'owner' ||
+        data.organization.organization.role === 'admin')
   );
 </script>
 
@@ -53,6 +63,40 @@
             Membership changes are paused while the subscription is resolved. Existing roster and
             invitation details remain available.
           </p>
+        {/if}
+
+        {#if form?.kind === 'organization-invitation-error'}
+          <p class="form-error" role="alert">{form.message}</p>
+        {/if}
+
+        {#if canManageMembers}
+          <section class="members-section invite-section" aria-labelledby="invite-title">
+            <div class="section-heading">
+              <h3 id="invite-title">Invite an employee</h3>
+              <span>Verified identities only</span>
+            </div>
+            <form class="invite-form" method="POST" action="?/invite">
+              <label>
+                <span>Email address</span>
+                <input
+                  name="email"
+                  type="email"
+                  autocomplete="email"
+                  maxlength="320"
+                  required
+                  placeholder="employee@company.com"
+                />
+              </label>
+              <label>
+                <span>Access level</span>
+                <select name="role" required>
+                  <option value="member">Member</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <button class="primary-action" type="submit">Send invitation</button>
+            </form>
+          </section>
         {/if}
 
         <section class="members-section" aria-labelledby="people-title">
@@ -103,6 +147,22 @@
                       {invitation.status}
                     </span>
                     <span>Expires {formatTimestamp(invitation.expiresAt)}</span>
+                    {#if canRevokeInvitations}
+                      <div class="invitation-actions">
+                        {#if canManageMembers}
+                          <form method="POST" action="?/resend">
+                            <input type="hidden" name="email" value={invitation.email} />
+                            <button type="submit">Resend</button>
+                          </form>
+                        {/if}
+                        {#if canRevokeInvitations}
+                          <form method="POST" action="?/revoke">
+                            <input type="hidden" name="email" value={invitation.email} />
+                            <button type="submit">Revoke</button>
+                          </form>
+                        {/if}
+                      </div>
+                    {/if}
                   </div>
                 </li>
               {/each}
@@ -201,6 +261,69 @@
     border-top: 1px solid var(--rule);
   }
 
+  .invite-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 10rem auto;
+    gap: 1rem;
+    align-items: end;
+    margin-top: 1.25rem;
+  }
+
+  .invite-form label {
+    display: grid;
+    gap: 0.45rem;
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .invite-form input,
+  .invite-form select {
+    min-width: 0;
+    padding: 0.75rem 0.8rem;
+    border: 1px solid var(--rule-strong);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.78rem;
+    text-transform: none;
+  }
+
+  .invite-form input:focus,
+  .invite-form select:focus {
+    border-color: var(--signal);
+    outline: 2px solid color-mix(in srgb, var(--signal) 25%, transparent);
+    outline-offset: 1px;
+  }
+
+  .primary-action {
+    padding: 0.78rem 1rem;
+    border: 1px solid var(--signal);
+    background: var(--signal);
+    color: var(--signal-ink);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .primary-action:hover,
+  .primary-action:focus-visible {
+    background: transparent;
+    color: var(--signal);
+  }
+
+  .form-error {
+    margin: 1.5rem 0 0;
+    padding: 0.9rem 1rem;
+    border-left: 2px solid var(--signal);
+    color: var(--ink);
+    background: color-mix(in srgb, var(--signal) 8%, transparent);
+  }
+
   .members-section h3 {
     margin: 0;
     font-family: var(--font-display);
@@ -265,15 +388,51 @@
     color: var(--signal);
   }
 
+  .invitation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+  }
+
+  .invitation-actions button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-muted);
+    font: inherit;
+    font-size: 0.68rem;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+  }
+
+  .invitation-actions button:hover,
+  .invitation-actions button:focus-visible {
+    color: var(--signal);
+  }
+
   .empty-state,
   .bounded-note {
     margin: 1.25rem 0 0;
+  }
+
+  @media (max-width: 47.99rem) {
+    .invite-form {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
   }
 
   @media (max-width: 39.99rem) {
     .member-meta {
       width: 100%;
       text-align: left;
+    }
+
+    .invitation-actions {
+      justify-content: flex-start;
     }
   }
 </style>

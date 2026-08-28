@@ -3,11 +3,17 @@ import { betterAuth } from 'better-auth';
 import { createAccessControl } from 'better-auth/plugins/access';
 import { organization } from 'better-auth/plugins/organization';
 import type { WebsiteEnv } from '../../../alchemy.run';
+import { sendOrganizationInvitationEmail } from './organization-invitation-email.server';
 import { loadOrganizationMembershipLimit } from './organization-workspace.server';
 
 export type AuthEnvironment = Pick<
   WebsiteEnv,
-  'BETTER_AUTH_SECRET' | 'DB' | 'GITHUB_CLIENT_ID' | 'GITHUB_CLIENT_SECRET'
+  | 'BETTER_AUTH_SECRET'
+  | 'DB'
+  | 'GITHUB_CLIENT_ID'
+  | 'GITHUB_CLIENT_SECRET'
+  | 'LICENSING_API'
+  | 'SVELTE_BFF_SECRET'
 >;
 
 interface AuthRateLimiter {
@@ -50,6 +56,7 @@ type AuthSessionLookup = (input: AuthSessionLookupInput) => Promise<AuthProvider
 
 const RATE_LIMIT_FAILURE_HEADERS = { 'Cache-Control': 'no-store' } as const;
 const RATE_LIMITED_HEADERS = { ...RATE_LIMIT_FAILURE_HEADERS, 'Retry-After': '60' } as const;
+const DEFAULT_AUTH_DESTINATION = '/dashboard/';
 const organizationAccess = createAccessControl({
   organization: ['update', 'delete'],
   member: ['create', 'update', 'delete'],
@@ -59,6 +66,11 @@ const bootstrapOnlyOrganizationRole = organizationAccess.newRole({
   organization: [],
   member: [],
   invitation: [],
+});
+const invitationOrganizationRole = organizationAccess.newRole({
+  organization: [],
+  member: [],
+  invitation: ['create', 'cancel'],
 });
 
 async function lookupAuthSession({
@@ -106,13 +118,35 @@ export async function getRequestSession(
   };
 }
 
-export async function loadAuthEntry(event: AuthSessionRequest): Promise<Record<string, never>> {
+/**
+ * Keep post-auth navigation on the same-origin protected dashboard.
+ *
+ * @param url - The current auth-entry URL, including an optional `next` query.
+ * @returns A safe dashboard-relative destination.
+ */
+export function authEntryDestination(url: URL): string {
+  const next = url.searchParams.get('next');
+  if (
+    next === null ||
+    next.length === 0 ||
+    next.length > 256 ||
+    !next.startsWith('/dashboard/') ||
+    next.startsWith('//') ||
+    next.includes('\\')
+  ) {
+    return DEFAULT_AUTH_DESTINATION;
+  }
+  return next;
+}
+
+export async function loadAuthEntry(event: AuthSessionRequest): Promise<{ readonly next: string }> {
+  const next = authEntryDestination(event.url);
   const session = await getRequestSession(event);
   if (session !== null) {
-    redirect(302, '/dashboard/');
+    redirect(302, next);
   }
 
-  return {};
+  return { next };
 }
 
 export async function enforceAuthMutationRateLimit(
@@ -223,13 +257,26 @@ export function createShadowAuth(env: AuthEnvironment, requestUrl: URL) {
           loadOrganizationMembershipLimit(env.DB, currentOrganization.id),
         ac: organizationAccess,
         roles: {
-          owner: bootstrapOnlyOrganizationRole,
-          admin: bootstrapOnlyOrganizationRole,
+          owner: invitationOrganizationRole,
+          admin: invitationOrganizationRole,
           member: bootstrapOnlyOrganizationRole,
         },
         invitationExpiresIn: 60 * 60 * 48,
-        invitationLimit: 0,
+        invitationLimit: 100,
         cancelPendingInvitationsOnReInvite: true,
+        sendInvitationEmail: async data => {
+          await sendOrganizationInvitationEmail(
+            {
+              email: data.email,
+              expiresAt: data.invitation.expiresAt,
+              invitationId: data.id,
+              organizationName: data.organization.name,
+              role: data.role,
+            },
+            env,
+            requestUrl
+          );
+        },
         requireEmailVerificationOnInvitation: true,
         disableOrganizationDeletion: true,
         teams: { enabled: false },

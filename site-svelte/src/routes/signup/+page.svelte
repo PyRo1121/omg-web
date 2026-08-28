@@ -1,7 +1,10 @@
 <script lang="ts">
   import GitHubMark from '../../lib/components/GitHubMark.svelte';
   import { SignupView } from '../../lib/signup-view.svelte';
-  const view = new SignupView();
+  import type { PageProps } from './$types';
+
+  let { data }: PageProps = $props();
+  const view = new SignupView(() => data.next);
 </script>
 
 <svelte:head>
