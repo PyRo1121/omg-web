@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import { loadAccountDashboard } from '../../lib/server/account-dashboard.server';
+import { loadAccountDashboardContext } from '../../lib/server/account-dashboard.server';
 import { openBillingPortalAction } from '../../lib/server/billing-action.server';
 import { loadLicensingSummaryState } from '../../lib/server/licensing-service.server';
 import type { Actions, PageServerLoad } from './$types';
@@ -10,15 +10,15 @@ export const load: PageServerLoad = async event => {
   }
   event.setHeaders({ 'Cache-Control': 'private, no-store' });
 
-  const dashboard = await loadAccountDashboard(event);
-  if (dashboard === null) {
+  const context = await loadAccountDashboardContext(event);
+  if (context === null) {
     redirect(302, '/login/');
   }
 
-  const licensing = await loadLicensingSummaryState(dashboard.user, event.platform.env);
-  const currentSession = dashboard.sessions.find(session => session.isCurrent);
+  const licensing = await loadLicensingSummaryState(context.identity.user, event.platform.env);
+  const currentSession = context.dashboard.sessions.find(session => session.isCurrent);
   return {
-    ...dashboard,
+    ...context.dashboard,
     currentSessionExpiresAt: currentSession?.expiresAt ?? null,
     licensing,
   };

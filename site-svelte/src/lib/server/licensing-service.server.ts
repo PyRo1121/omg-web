@@ -195,6 +195,7 @@ export type LicensingServiceOperation =
   | 'admin-customers'
   | 'admin-customer-detail'
   | 'admin-customer-update'
+  | 'account-analytics'
   | 'marketing-offer'
   | 'billing-checkout'
   | 'billing-fulfillment'

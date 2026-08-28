@@ -1,7 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { Exit } from 'effect';
 import * as Schema from 'effect/Schema';
-import type { DashboardData } from '../../../../site/shared/account-dashboard';
 import { createShadowAuth, type AuthEnvironment } from './auth.server';
 import { normalizedOptionalText } from './optional-text.server';
 
@@ -26,16 +25,13 @@ type DashboardBoundaryInput = Schema.Top['Encoded'];
 
 const DashboardDataSchema = Schema.Struct({
   user: Schema.Struct({
-    id: Schema.String,
     name: Schema.String,
     email: Schema.String,
     emailVerified: Schema.Boolean,
-    image: Schema.NullOr(Schema.String),
     createdAt: Schema.String,
   }),
   sessions: Schema.Array(
     Schema.Struct({
-      id: Schema.String,
       ipAddress: Schema.NullOr(Schema.String),
       userAgent: Schema.NullOr(Schema.String),
       createdAt: Schema.String,
@@ -43,8 +39,9 @@ const DashboardDataSchema = Schema.Struct({
       isCurrent: Schema.Boolean,
     })
   ),
-  accounts: Schema.Array(Schema.Struct({ provider: Schema.String, accountId: Schema.String })),
+  accounts: Schema.Array(Schema.Struct({ provider: Schema.String })),
 });
+type AccountDashboardData = Schema.Schema.Type<typeof DashboardDataSchema>;
 
 type SessionRow = Schema.Schema.Type<typeof SessionRowSchema>;
 type AccountDashboardSessionRow = Omit<SessionRow, 'createdAt' | 'expiresAt'> & {
@@ -121,7 +118,7 @@ function decodeAccountRows(
   return decoded.value;
 }
 
-function decodeDashboardData(value: DashboardBoundaryInput): DashboardData {
+function decodeDashboardData(value: DashboardBoundaryInput): AccountDashboardData {
   const decoded = Schema.decodeUnknownExit(DashboardDataSchema)(value);
   if (Exit.isFailure(decoded)) {
     error(500, 'Dashboard data unavailable');
@@ -131,7 +128,19 @@ function decodeDashboardData(value: DashboardBoundaryInput): DashboardData {
 
 export interface AccountDashboardIdentity {
   readonly sessionToken: string;
-  readonly user: DashboardData['user'];
+  readonly user: {
+    readonly id: string;
+    readonly name: string;
+    readonly email: string;
+    readonly emailVerified: boolean;
+    readonly image: string | null;
+    readonly createdAt: string;
+  };
+}
+
+export interface AccountDashboardContext {
+  readonly identity: AccountDashboardIdentity;
+  readonly dashboard: AccountDashboardData;
 }
 
 /** Load the current verified Better Auth identity without querying account detail tables. */
@@ -163,10 +172,10 @@ export async function loadAccountIdentity(
   };
 }
 
-export async function loadAccountDashboard(
+export async function loadAccountDashboardContext(
   event: AccountDashboardRequest,
   lookup: DashboardSessionLookup = lookupDashboardSession
-): Promise<DashboardData | null> {
+): Promise<AccountDashboardContext | null> {
   const identity = await loadAccountIdentity(event, lookup);
   if (identity === null) {
     return null;
@@ -191,19 +200,23 @@ export async function loadAccountDashboard(
 
   const sessions = decodeSessionRows(sessionRows);
   const accounts = decodeAccountRows(accountRows);
-  return decodeDashboardData({
-    user: identity.user,
-    sessions: sessions.map(session => ({
-      id: session.id,
-      ipAddress: normalizedOptionalText(session.ipAddress),
-      userAgent: normalizedOptionalText(session.userAgent),
-      createdAt: session.createdAt.toISOString(),
-      expiresAt: session.expiresAt.toISOString(),
-      isCurrent: session.token === identity.sessionToken,
-    })),
-    accounts: accounts.map(account => ({
-      provider: account.providerId,
-      accountId: account.accountId,
-    })),
-  });
+  return {
+    identity,
+    dashboard: decodeDashboardData({
+      user: {
+        name: identity.user.name,
+        email: identity.user.email,
+        emailVerified: identity.user.emailVerified,
+        createdAt: identity.user.createdAt,
+      },
+      sessions: sessions.map(session => ({
+        ipAddress: normalizedOptionalText(session.ipAddress),
+        userAgent: normalizedOptionalText(session.userAgent),
+        createdAt: session.createdAt.toISOString(),
+        expiresAt: session.expiresAt.toISOString(),
+        isCurrent: session.token === identity.sessionToken,
+      })),
+      accounts: accounts.map(account => ({ provider: account.providerId })),
+    }),
+  };
 }

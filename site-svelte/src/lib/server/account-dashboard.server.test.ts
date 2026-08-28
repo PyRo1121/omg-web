@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AuthEnvironment } from './auth.server';
-import { loadAccountDashboard } from './account-dashboard.server';
+import { loadAccountDashboardContext } from './account-dashboard.server';
 
 const PAGE_URL = new URL('https://shadow.example/dashboard/');
 
@@ -72,7 +72,7 @@ const providerSession = {
   },
 };
 
-describe('loadAccountDashboard', () => {
+describe('loadAccountDashboardContext', () => {
   it('uses one auth lookup and parameterized least-privilege D1 reads', async () => {
     const { db, queries } = createD1Stub({
       auth_session: [
@@ -97,7 +97,7 @@ describe('loadAccountDashboard', () => {
     });
     let lookups = 0;
 
-    const result = await loadAccountDashboard(dashboardRequest(db), async () => {
+    const result = await loadAccountDashboardContext(dashboardRequest(db), async () => {
       lookups += 1;
       return providerSession;
     });
@@ -109,13 +109,12 @@ describe('loadAccountDashboard', () => {
       'SELECT id, token, ip_address AS ipAddress, user_agent AS userAgent, created_at AS createdAt, expires_at AS expiresAt FROM auth_session WHERE user_id = ?',
       'SELECT provider_id AS providerId, account_id AS accountId FROM auth_account WHERE user_id = ?',
     ]);
-    expect(result).toEqual({
-      accounts: [{ accountId: 'github-ada', provider: 'github' }],
+    expect(result?.dashboard).toEqual({
+      accounts: [{ provider: 'github' }],
       sessions: [
         {
           createdAt: '2026-01-01T00:00:00.000Z',
           expiresAt: '2026-02-01T00:00:00.000Z',
-          id: 'session-current',
           ipAddress: null,
           isCurrent: true,
           userAgent: 'Test Browser',
@@ -123,7 +122,6 @@ describe('loadAccountDashboard', () => {
         {
           createdAt: '2026-01-01T00:00:00.000Z',
           expiresAt: '2026-02-01T00:00:00.000Z',
-          id: 'session-legacy',
           ipAddress: '127.0.0.1',
           isCurrent: false,
           userAgent: null,
@@ -133,17 +131,18 @@ describe('loadAccountDashboard', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         email: 'ada@example.com',
         emailVerified: true,
-        id: 'user-1',
-        image: null,
         name: 'Ada',
       },
     });
-    expect(JSON.stringify(result)).not.toContain('current-token');
+    expect(JSON.stringify(result?.dashboard)).not.toContain('current-token');
+    expect(JSON.stringify(result?.dashboard)).not.toContain('user-1');
+    expect(JSON.stringify(result?.dashboard)).not.toContain('session-current');
+    expect(JSON.stringify(result?.dashboard)).not.toContain('github-ada');
   });
 
   it('fails with 503 before auth lookup when the platform is missing', async () => {
     let lookupCalled = false;
-    const result = loadAccountDashboard(
+    const result = loadAccountDashboardContext(
       { platform: undefined, request: new Request(PAGE_URL), url: PAGE_URL },
       async () => {
         lookupCalled = true;
@@ -158,7 +157,7 @@ describe('loadAccountDashboard', () => {
   it('returns null without querying D1 for an anonymous request', async () => {
     const { db, queries } = createD1Stub({ auth_account: [], auth_session: [] });
 
-    const result = await loadAccountDashboard(dashboardRequest(db), async () => null);
+    const result = await loadAccountDashboardContext(dashboardRequest(db), async () => null);
 
     expect(result).toBeNull();
     expect(queries).toHaveLength(0);
@@ -180,7 +179,7 @@ describe('loadAccountDashboard', () => {
     });
 
     await expect(
-      loadAccountDashboard(dashboardRequest(db), async () => providerSession)
+      loadAccountDashboardContext(dashboardRequest(db), async () => providerSession)
     ).rejects.toMatchObject({ status: 500 });
   });
 });

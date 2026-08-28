@@ -12,7 +12,9 @@
 - [x] Map anonymous, missing account, forbidden, rate-limited, malformed, and unavailable outcomes without leaking internals.
 - [x] Add focused service, action, and render tests.
 - [x] Deploy shadow, verify anonymous fail-closed behavior and a no-op follow-up plan.
-- [ ] Complete user-controlled authenticated Portal characterization.
+- [x] Complete user-controlled authenticated Portal characterization.
+
+Authenticated shadow characterization confirmed the expected classified `404` state for an account without a linked Stripe customer. No subscription was created solely for testing; successful external redirect behavior remains covered by the focused service and action tests until a naturally linked account exists.
 
 **Blocked by:** none.
 
@@ -27,6 +29,8 @@ cd site-svelte && npm run plan -- --stage shadow
 ```
 
 ## 2. Account workspace parity
+
+Progress: the URL-addressable analytics capability and bounded CSV/JSON downloads are implemented. Achievements, machines, and settings remain.
 
 - [ ] Add URL-addressable analytics, achievements, machines, and settings capability routes.
 - [ ] Preserve existing account/session/entitlement behavior through browser-safe projections.

@@ -35,6 +35,11 @@
     <p class="page-kicker">Account</p>
     <h1 id="dashboard-title" class="account-title">Account overview.</h1>
 
+    <nav class="workspace-nav" aria-label="Account workspace">
+      <a href="/dashboard/" aria-current="page">Overview</a>
+      <a href="/dashboard/analytics/">Analytics</a>
+    </nav>
+
     <dl class="dashboard-facts">
       <div class="dashboard-fact">
         <dt>Name</dt>
@@ -219,7 +224,7 @@
         <p class="dashboard-empty">No connected identity is available.</p>
       {:else}
         <ul class="identity-list">
-          {#each data.accounts as account (`${account.provider}:${account.accountId}`)}
+          {#each data.accounts as account (account)}
             <li>{providerLabel(account.provider)}</li>
           {/each}
         </ul>
@@ -232,7 +237,7 @@
         <p class="dashboard-empty">No session rows are available.</p>
       {:else}
         <ul class="session-list">
-          {#each data.sessions as session (session.id)}
+          {#each data.sessions as session (session)}
             <li>
               <header>
                 <strong>{session.isCurrent ? 'Current session' : 'Other session'}</strong>
@@ -272,6 +277,24 @@
 <style>
   .dashboard-panel {
     max-width: 52rem;
+  }
+
+  .workspace-nav {
+    display: flex;
+    gap: 1.25rem;
+    margin-top: 2rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  .workspace-nav a {
+    color: var(--ink-muted);
+    text-decoration: none;
+  }
+
+  .workspace-nav a:hover,
+  .workspace-nav a[aria-current='page'] {
+    color: var(--signal);
   }
 
   .dashboard-facts {
