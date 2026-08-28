@@ -23,6 +23,7 @@ describe('account machines page', () => {
       props: { data: { machines: { status: 'available', machines } }, form: null, params: {} },
     });
 
+    expect(result.body).toContain('href="/dashboard/settings/"');
     expect(result.body).toContain('1 of 5 active');
     expect(result.body).toContain('workstation');
     expect(result.body).toContain('x86_64');

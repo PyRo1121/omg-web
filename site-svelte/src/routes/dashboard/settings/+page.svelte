@@ -1,5 +1,6 @@
 <script lang="ts">
   import { authClient } from '../../../lib/auth-client';
+  import AccountWorkspaceNav from '../../../lib/components/AccountWorkspaceNav.svelte';
   import type { PageProps } from './$types';
   import { formatTimestamp, providerLabel, verificationLabel } from '../dashboard-view';
 
@@ -23,13 +24,7 @@
 
 <main id="main-content" class="account-shell">
   <section class="account-panel settings-panel" aria-labelledby="settings-title">
-    <nav class="workspace-nav" aria-label="Account workspace">
-      <a href="/dashboard/">Overview</a>
-      <a href="/dashboard/analytics/">Analytics</a>
-      <a href="/dashboard/achievements/">Achievements</a>
-      <a href="/dashboard/machines/">Machines</a>
-      <a href="/dashboard/settings/" aria-current="page">Settings</a>
-    </nav>
+    <AccountWorkspaceNav active="settings" />
 
     <p class="page-kicker">Account / Settings</p>
     <h1 id="settings-title" class="account-title">Account settings.</h1>
@@ -129,22 +124,6 @@
 <style>
   .settings-panel {
     max-width: 58rem;
-  }
-  .workspace-nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.25rem;
-    margin-bottom: 2.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-  }
-  .workspace-nav a {
-    color: var(--ink-muted);
-    text-decoration: none;
-  }
-  .workspace-nav a:hover,
-  .workspace-nav a[aria-current='page'] {
-    color: var(--signal);
   }
   .settings-facts {
     display: grid;

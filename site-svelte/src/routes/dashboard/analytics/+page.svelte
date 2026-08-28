@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AccountWorkspaceNav from '../../../lib/components/AccountWorkspaceNav.svelte';
   import type { PageProps } from './$types';
   import { formatCount, formatDuration, streakLabel } from '../dashboard-view';
 
@@ -12,13 +13,7 @@
 
 <main id="main-content" class="account-shell">
   <section class="account-panel analytics-panel" aria-labelledby="analytics-title">
-    <nav class="workspace-nav" aria-label="Account workspace">
-      <a href="/dashboard/">Overview</a>
-      <a href="/dashboard/analytics/" aria-current="page">Analytics</a>
-      <a href="/dashboard/achievements/">Achievements</a>
-      <a href="/dashboard/machines/">Machines</a>
-      <a href="/dashboard/settings/">Settings</a>
-    </nav>
+    <AccountWorkspaceNav active="analytics" />
 
     <p class="page-kicker">Account / Analytics</p>
     <h1 id="analytics-title" class="account-title">Account analytics.</h1>
@@ -154,21 +149,6 @@
 <style>
   .analytics-panel {
     max-width: 64rem;
-  }
-  .workspace-nav {
-    display: flex;
-    gap: 1.25rem;
-    margin-bottom: 2.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-  }
-  .workspace-nav a {
-    color: var(--ink-muted);
-    text-decoration: none;
-  }
-  .workspace-nav a:hover,
-  .workspace-nav a[aria-current='page'] {
-    color: var(--signal);
   }
   .export-links {
     display: flex;

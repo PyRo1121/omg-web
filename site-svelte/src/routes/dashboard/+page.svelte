@@ -1,5 +1,6 @@
 <script lang="ts">
   import { authClient } from '../../lib/auth-client';
+  import AccountWorkspaceNav from '../../lib/components/AccountWorkspaceNav.svelte';
   import type { PageProps } from './$types';
   import {
     formatCount,
@@ -34,13 +35,7 @@
     <p class="page-kicker">Account</p>
     <h1 id="dashboard-title" class="account-title">Account overview.</h1>
 
-    <nav class="workspace-nav" aria-label="Account workspace">
-      <a href="/dashboard/" aria-current="page">Overview</a>
-      <a href="/dashboard/analytics/">Analytics</a>
-      <a href="/dashboard/achievements/">Achievements</a>
-      <a href="/dashboard/machines/">Machines</a>
-      <a href="/dashboard/settings/">Settings</a>
-    </nav>
+    <AccountWorkspaceNav active="overview" />
 
     <dl class="dashboard-facts">
       <div class="dashboard-fact">
@@ -178,24 +173,6 @@
 <style>
   .dashboard-panel {
     max-width: 52rem;
-  }
-
-  .workspace-nav {
-    display: flex;
-    gap: 1.25rem;
-    margin-top: 2rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-  }
-
-  .workspace-nav a {
-    color: var(--ink-muted);
-    text-decoration: none;
-  }
-
-  .workspace-nav a:hover,
-  .workspace-nav a[aria-current='page'] {
-    color: var(--signal);
   }
 
   .dashboard-facts {

@@ -30,7 +30,10 @@ describe('account settings page', () => {
     expect(result.body).toContain('Account settings');
     expect(result.body).toContain('GitHub');
     expect(result.body).toContain('Current session');
+    expect(result.body).toContain('method="POST"');
     expect(result.body).toContain('action="?/openBillingPortal"');
+    expect(result.body).toContain('type="submit"');
+    expect(result.body).toContain('type="button"');
     expect(result.body).toContain('Sign out');
     expect(result.body).not.toContain('session-current');
     expect(result.body).not.toContain('github-ada');

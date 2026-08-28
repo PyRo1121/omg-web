@@ -30,14 +30,29 @@ cd site-svelte && npm run plan -- --stage shadow
 
 ## 2. Account workspace parity
 
-Progress: analytics, bounded CSV/JSON downloads, and achievements are authenticated-shadow verified. Machines and settings are implemented and await authenticated shadow characterization.
+Progress: analytics, bounded CSV/JSON downloads, achievements, machines, and settings are authenticated-shadow verified at desktop and compact widths.
 
 - [x] Add URL-addressable analytics, achievements, machines, and settings capability routes.
 - [x] Preserve existing account/session/entitlement behavior through browser-safe projections.
 - [x] Add bounded personal CSV and JSON exports without embedding export bodies in page data.
 - [x] Preserve explicit empty, unavailable, and partial states.
-- [ ] Add pure derivation, service, route, render, keyboard, and compact-viewport coverage.
-- [ ] Record exact superseded Solid account paths and helpers.
+- [x] Add pure derivation, service, route, render, keyboard, and compact-viewport coverage.
+- [x] Record exact superseded Solid account paths and helpers.
+
+Superseded after the production observation gate, subject to a final caller check:
+
+- `site/src/routes/dashboard.tsx`
+- `site/src/pages/DashboardPage.tsx`
+- `site/src/lib/state/dashboard-view.ts`
+- `site/src/lib/dashboard-page.ts`
+- `site/src/lib/contracts/account-dashboard.ts`
+- `site/src/lib/contracts/telemetry-dashboard.ts`
+- `site/src/routes/api/dashboard.ts`
+- Account-dashboard coverage embedded in `site/src/lib/contracts/licensing-dashboard.test.ts`
+- `site/src/lib/contracts/telemetry-dashboard.test.ts`
+- Account-dashboard scenarios in `site/e2e/staging-auth.spec.ts`
+
+The shared licensing BFF and Worker `/api/dashboard` route are not on this list: Svelte still consumes the Worker route privately, and the BFF cannot be removed until every remaining Solid caller is gone.
 
 **Blocked by:** 1.
 

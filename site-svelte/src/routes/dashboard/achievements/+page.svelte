@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AccountWorkspaceNav from '../../../lib/components/AccountWorkspaceNav.svelte';
   import type { PageProps } from './$types';
   import { formatTimestamp } from '../dashboard-view';
 
@@ -12,13 +13,7 @@
 
 <main id="main-content" class="account-shell">
   <section class="account-panel achievements-panel" aria-labelledby="achievements-title">
-    <nav class="workspace-nav" aria-label="Account workspace">
-      <a href="/dashboard/">Overview</a>
-      <a href="/dashboard/analytics/">Analytics</a>
-      <a href="/dashboard/achievements/" aria-current="page">Achievements</a>
-      <a href="/dashboard/machines/">Machines</a>
-      <a href="/dashboard/settings/">Settings</a>
-    </nav>
+    <AccountWorkspaceNav active="achievements" />
 
     <p class="page-kicker">Account / Achievements</p>
     <h1 id="achievements-title" class="account-title">Achievements.</h1>
@@ -54,22 +49,6 @@
 <style>
   .achievements-panel {
     max-width: 58rem;
-  }
-  .workspace-nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.25rem;
-    margin-bottom: 2.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-  }
-  .workspace-nav a {
-    color: var(--ink-muted);
-    text-decoration: none;
-  }
-  .workspace-nav a:hover,
-  .workspace-nav a[aria-current='page'] {
-    color: var(--signal);
   }
   .achievement-state,
   .achievement-count {
