@@ -60,8 +60,8 @@ The shared licensing BFF and Worker `/api/dashboard` route are not on this list:
 
 ## 3. Customer support operations
 
-- [ ] Replace unbounded admin `request.formData()` calls with the bounded form reader.
-- [ ] Decode forms once at the route boundary and pass trusted domain values internally.
+- [x] Replace unbounded admin `request.formData()` calls with the bounded form reader.
+- [x] Decode forms once at the route boundary and pass trusted domain values internally.
 - [ ] Add customer health history, notes, tags, audited mutations, and admin Billing Portal access.
 - [ ] Preserve confirmation, forbidden-role, rate-limit, degraded-service, and post-mutation reload behavior.
 - [ ] Keep customer, Stripe, database, license, and machine identifiers out of page data/DOM.
