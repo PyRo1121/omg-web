@@ -16,7 +16,8 @@ Two designs were considered:
 
 Use Better Auth 1.7.1 organizations with the fixed roles Owner, Admin, and Member.
 
-- Better Auth owns organization, membership, invitation, and session-context tables.
+- Better Auth owns organization, membership, invitation, and session-context schemas and lifecycle behavior.
+- SvelteKit performs the initial organization, Owner, and active-session inserts in one D1 batch. Better Auth 1.7.1's create endpoint writes those rows separately, so its public organization-creation endpoint stays disabled.
 - Wrangler owns the immutable D1 migrations for those tables.
 - Better Auth nested teams, dynamic roles, and custom permission builders remain disabled.
 - `omg-saas` remains authoritative for active Team/Enterprise entitlement and seat limits.

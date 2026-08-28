@@ -63,6 +63,13 @@
       </a>
     {/if}
 
+    {#if data.licensing.status === 'available' && (data.licensing.summary.tier === 'team' || data.licensing.summary.tier === 'enterprise')}
+      <a class="dashboard-admin-link" href="/dashboard/organization/">
+        <span>Organization workspace</span>
+        <small>Seats, employee membership, and shared usage</small>
+      </a>
+    {/if}
+
     <section class="dashboard-section" aria-labelledby="license-title">
       <h2 id="license-title">License</h2>
       {#if data.licensing.status === 'available'}

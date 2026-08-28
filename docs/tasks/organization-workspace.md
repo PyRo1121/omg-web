@@ -5,8 +5,8 @@
 
 ## 1. Schema and authorization foundation
 
-- [ ] Configure the exact-pinned Better Auth organization plugin with explicit snake-case models and fields.
-- [ ] Keep nested teams, dynamic roles, and custom organization creation disabled unless authorized by the paid-entitlement guard.
+- [x] Configure the exact-pinned Better Auth organization plugin with explicit snake-case models and fields.
+- [x] Keep nested teams, dynamic roles, public organization creation, deletion, and invitation mutations disabled during bootstrap delivery.
 - [x] Add an immutable Wrangler migration for organization, member, invitation, and active-organization session state.
 - [x] Add unique membership and billing-link constraints.
 - [x] Add the atomic D1 active-Team/Enterprise seat-limit trigger.
@@ -18,12 +18,12 @@
 
 ## 2. Organization bootstrap
 
-- [ ] Add `/dashboard/organization/` with eligible, ineligible, restricted, empty, and active states.
-- [ ] Allow one verified Team/Enterprise owner to bootstrap one organization.
-- [ ] Link the organization to the server-side billing customer without returning that key.
-- [ ] Add Organization navigation only for eligible/restricted accounts.
-- [ ] Preserve complete Free and Pro individual workspaces and render an honest upgrade boundary.
-- [ ] Add action, render, compact-viewport, and projection tests.
+- [x] Add `/dashboard/organization/` with eligible, individual, restricted, unavailable, verification-required, and active states.
+- [x] Allow one verified Team/Enterprise owner to bootstrap one organization through one atomic D1 batch.
+- [x] Link the organization to the server-side billing customer without returning that key.
+- [x] Add the Organization entry point only to eligible Team/Enterprise account overviews.
+- [x] Preserve complete Free and Pro individual workspaces and render an honest upgrade boundary on direct access.
+- [ ] Complete authenticated desktop and compact-viewport characterization; action, render, and projection tests pass.
 
 **Blocked by:** 1.
 

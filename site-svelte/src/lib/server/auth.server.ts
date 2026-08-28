@@ -1,6 +1,9 @@
 import { error, redirect } from '@sveltejs/kit';
 import { betterAuth } from 'better-auth';
+import { createAccessControl } from 'better-auth/plugins/access';
+import { organization } from 'better-auth/plugins/organization';
 import type { WebsiteEnv } from '../../../alchemy.run';
+import { loadOrganizationMembershipLimit } from './organization-workspace.server';
 
 export type AuthEnvironment = Pick<
   WebsiteEnv,
@@ -47,6 +50,16 @@ type AuthSessionLookup = (input: AuthSessionLookupInput) => Promise<AuthProvider
 
 const RATE_LIMIT_FAILURE_HEADERS = { 'Cache-Control': 'no-store' } as const;
 const RATE_LIMITED_HEADERS = { ...RATE_LIMIT_FAILURE_HEADERS, 'Retry-After': '60' } as const;
+const organizationAccess = createAccessControl({
+  organization: ['update', 'delete'],
+  member: ['create', 'update', 'delete'],
+  invitation: ['create', 'cancel'],
+});
+const bootstrapOnlyOrganizationRole = organizationAccess.newRole({
+  organization: [],
+  member: [],
+  invitation: [],
+});
 
 async function lookupAuthSession({
   env,
@@ -201,6 +214,66 @@ export function createShadowAuth(env: AuthEnvironment, requestUrl: URL) {
         updatedAt: 'updated_at',
       },
     },
+    plugins: [
+      organization({
+        allowUserToCreateOrganization: false,
+        organizationLimit: 1,
+        creatorRole: 'owner',
+        membershipLimit: (_user, currentOrganization) =>
+          loadOrganizationMembershipLimit(env.DB, currentOrganization.id),
+        ac: organizationAccess,
+        roles: {
+          owner: bootstrapOnlyOrganizationRole,
+          admin: bootstrapOnlyOrganizationRole,
+          member: bootstrapOnlyOrganizationRole,
+        },
+        invitationExpiresIn: 60 * 60 * 48,
+        invitationLimit: 0,
+        cancelPendingInvitationsOnReInvite: true,
+        requireEmailVerificationOnInvitation: true,
+        disableOrganizationDeletion: true,
+        teams: { enabled: false },
+        schema: {
+          session: {
+            fields: {
+              activeOrganizationId: 'active_organization_id',
+            },
+          },
+          organization: {
+            modelName: 'auth_organization',
+            fields: {
+              createdAt: 'created_at',
+            },
+            additionalFields: {
+              billingCustomerId: {
+                type: 'string',
+                required: true,
+                input: false,
+                returned: false,
+                fieldName: 'billing_customer_id',
+              },
+            },
+          },
+          member: {
+            modelName: 'auth_member',
+            fields: {
+              organizationId: 'organization_id',
+              userId: 'user_id',
+              createdAt: 'created_at',
+            },
+          },
+          invitation: {
+            modelName: 'auth_invitation',
+            fields: {
+              organizationId: 'organization_id',
+              expiresAt: 'expires_at',
+              createdAt: 'created_at',
+              inviterId: 'inviter_id',
+            },
+          },
+        },
+      }),
+    ],
   });
 }
 

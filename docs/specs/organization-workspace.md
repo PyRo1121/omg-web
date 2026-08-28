@@ -43,7 +43,7 @@ An OMG operator can inspect organization, membership, invitation, seat, entitlem
 
 Better Auth 1.7.1 owns organization identity, membership, roles, invitations, active organization session context, and invitation acceptance. `omg-saas` remains authoritative for tier, status, seat entitlement, machines, usage, billing, and audit events.
 
-SvelteKit exposes URL-addressable, server-first organization routes. Named actions bound and decode forms, call Better Auth server APIs, and use the private `LICENSING_API` binding for licensing, audit, and invitation-email capabilities.
+SvelteKit exposes URL-addressable, server-first organization routes. Named actions bound and decode forms. Membership and invitation lifecycle actions call Better Auth server APIs. Organization bootstrap uses one D1 batch to create the organization, its Owner membership, and active session context atomically because Better Auth 1.7.1 creates those rows in separate statements. The private `LICENSING_API` binding remains the path for licensing, audit, and invitation-email capabilities.
 
 Wrangler remains the only D1 migration authority. Alchemy continues to deploy Svelte resources and does not manage D1 schema.
 
@@ -170,7 +170,7 @@ Browser-safe organization projections may contain display names, normalized memb
 ## 12. Smallest delivery sequence
 
 1. **Schema and entitlement guard:** immutable migration, organization plugin configuration, exact role permissions, D1 seat trigger, migration/authorization tests.
-2. **Organization bootstrap:** one eligible owner creates or adopts one organization; ineligible and restricted states are complete.
+2. **Organization bootstrap:** one eligible owner creates one organization through an atomic D1 batch; ineligible and restricted states are complete. Better Auth's public organization-creation endpoint remains disabled.
 3. **Invitation vertical slice:** bounded invite action, private email delivery, verified acceptance, seat-race enforcement, resend/revoke, tests.
 4. **Member operations:** roster, role changes, removal, ownership transfer, session authorization tests.
 5. **Organization intelligence:** seat utilization, attributed/unattributed usage, fleet health, and organization audit route.

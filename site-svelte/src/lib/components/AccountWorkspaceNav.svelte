@@ -1,7 +1,14 @@
 <script lang="ts">
-  type AccountWorkspaceRoute = 'overview' | 'analytics' | 'achievements' | 'machines' | 'settings';
+  type AccountWorkspaceRoute =
+    'overview' | 'analytics' | 'achievements' | 'machines' | 'organization' | 'settings';
 
-  let { active }: { active: AccountWorkspaceRoute } = $props();
+  let {
+    active,
+    showOrganization = false,
+  }: {
+    active: AccountWorkspaceRoute;
+    showOrganization?: boolean;
+  } = $props();
 
   const links: ReadonlyArray<{
     readonly id: AccountWorkspaceRoute;
@@ -14,12 +21,28 @@
     { id: 'machines', href: '/dashboard/machines/', label: 'Machines' },
     { id: 'settings', href: '/dashboard/settings/', label: 'Settings' },
   ];
+
+  const organizationLink = {
+    id: 'organization',
+    href: '/dashboard/organization/',
+    label: 'Organization',
+  } satisfies {
+    readonly id: AccountWorkspaceRoute;
+    readonly href: string;
+    readonly label: string;
+  };
 </script>
 
 <nav class="workspace-nav" aria-label="Account workspace">
   {#each links as link (link.id)}
     <a href={link.href} aria-current={active === link.id ? 'page' : undefined}>{link.label}</a>
   {/each}
+  {#if showOrganization}
+    <a
+      href={organizationLink.href}
+      aria-current={active === organizationLink.id ? 'page' : undefined}>{organizationLink.label}</a
+    >
+  {/if}
 </nav>
 
 <style>
