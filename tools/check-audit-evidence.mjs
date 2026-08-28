@@ -4,6 +4,24 @@ import { access, readFile, readdir } from 'node:fs/promises';
 import { basename, dirname, extname, relative, resolve, sep } from 'node:path';
 
 const findingsRoot = resolve('piolium/findings');
+const closureLedgerPath = resolve('docs/operations/audit-remediation-status.md');
+const EXPECTED_FINDING_COUNTS = new Map([
+  ['W2', 11],
+  ['W4', 8],
+  ['W5', 5],
+  ['W6', 10],
+  ['W7', 5],
+  ['W8', 5],
+  ['W9', 11],
+  ['W10', 9],
+  ['W12', 13],
+  ['Y1', 8],
+  ['Y2', 8],
+  ['Y3', 12],
+  ['Y4', 8],
+  ['Y5', 7],
+  ['Y6', 9],
+]);
 const scriptHashes = new Map();
 let manifestCount = 0;
 
@@ -92,8 +110,43 @@ for (const path of await filesUnder(findingsRoot)) {
   }
 }
 
+const closureLedger = await readFile(closureLedgerPath, 'utf8');
+const findingRows = [
+  ...closureLedger.matchAll(
+    /^\|\s*(?<id>[WY]\d+-[^ |]+)\s*\|[^|]+\|\s*(?<disposition>Fixed|Accepted|Dismissed|Coordinated)\s*\|/gmu
+  ),
+];
+const findingIds = new Set();
+const actualFindingCounts = new Map();
+for (const row of findingRows) {
+  const id = row.groups?.id;
+  const disposition = row.groups?.disposition;
+  if (id === undefined || disposition === undefined) {
+    fail('closure ledger contains an unparseable finding row');
+    continue;
+  }
+  if (findingIds.has(id)) {
+    fail(`duplicate closure row: ${id}`);
+  }
+  findingIds.add(id);
+  const report = id.split('-')[0];
+  actualFindingCounts.set(report, (actualFindingCounts.get(report) ?? 0) + 1);
+  if (disposition === 'Coordinated' && report !== 'Y6') {
+    fail(`unexpected coordinated disposition outside Y6: ${id}`);
+  }
+}
+for (const [report, expectedCount] of EXPECTED_FINDING_COUNTS) {
+  const actualCount = actualFindingCounts.get(report) ?? 0;
+  if (actualCount !== expectedCount) {
+    fail(`closure count for ${report}: expected ${expectedCount}, received ${actualCount}`);
+  }
+}
+if (/^\|[^\n]+\|\s*\*\*Open\*\*\s*\|/mu.test(closureLedger)) {
+  fail('report ledger still contains an open web finding');
+}
+
 if (process.exitCode === undefined) {
   process.stdout.write(
-    `[audit-evidence] verified ${manifestCount} manifests and ${scriptHashes.size} unique scripts\n`
+    `[audit-evidence] verified ${manifestCount} manifests, ${scriptHashes.size} unique scripts, and ${findingIds.size} closure rows\n`
   );
 }
