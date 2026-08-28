@@ -45,6 +45,15 @@ async function sourceFiles(relativeDirectory) {
 }
 
 let violations = 0;
+const antiSlopSyncPath = 'tools/oxlint/sync-anti-slop.mjs';
+const antiSlopSync = await readFile(new URL(antiSlopSyncPath, workspaceRoot), 'utf8');
+if (antiSlopSync.includes('tmpdir')) {
+  process.stderr.write(
+    `[source-policy] ${antiSlopSyncPath}: network clones belong under ~/.cache/build-targets, not RAM-backed temporary storage\n`
+  );
+  violations += 1;
+}
+
 for (const root of sourceRoots) {
   for (const path of await sourceFiles(root)) {
     const contents = await readFile(new URL(path, workspaceRoot), 'utf8');

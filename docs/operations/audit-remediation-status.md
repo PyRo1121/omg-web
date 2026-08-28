@@ -238,3 +238,5 @@ Evidence keys:
 - Script `unsafe-inline` is removed. Production prerenders use exact SHA-256
   sources, dynamic Solid uses request nonces, and SvelteKit uses auto nonce/hash
   CSP; public live script coverage checks pass.
+- The anti-slop upstream sync uses a unique `~/.cache/build-targets` checkout and
+  removes it on success or failure; source-policy CI rejects `tmpdir` regression.

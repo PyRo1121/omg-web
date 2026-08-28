@@ -24,7 +24,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,6 +36,7 @@ const MANAGED_DIRECTORIES = ['rules', 'shared', 'effect/rules'];
 const here = dirname(fileURLToPath(import.meta.url));
 const vendoredRoot = join(here, 'anti-slop');
 const manifestPath = join(here, 'anti-slop.sha256');
+const buildTargetsRoot = join(homedir(), '.cache', 'build-targets');
 const checkOnly = process.argv.includes('--check');
 
 function output(message) {
@@ -78,7 +79,10 @@ function sha256(file) {
 }
 
 function checkoutUpstream() {
-  const directory = mkdtempSync(join(tmpdir(), 'anti-slop-upstream-'));
+  mkdirSync(buildTargetsRoot, { recursive: true });
+  const scratchDirectory = mkdtempSync(join(buildTargetsRoot, 'omg-web-anti-slop-'));
+  const directory = join(scratchDirectory, 'upstream');
+  mkdirSync(directory);
   try {
     execFileSync('git', ['init', '--quiet', directory], { stdio: 'ignore' });
     execFileSync(
@@ -95,9 +99,9 @@ function checkoutUpstream() {
     if (revision !== UPSTREAM_COMMIT) {
       throw new Error(`expected ${UPSTREAM_COMMIT}, received ${revision}`);
     }
-    return directory;
+    return { directory, scratchDirectory };
   } catch (error) {
-    rmSync(directory, { recursive: true, force: true });
+    rmSync(scratchDirectory, { recursive: true, force: true });
     throw new Error(`failed to fetch anti-slop ${UPSTREAM_COMMIT}: ${errorMessage(error)}`, {
       cause: error,
     });
@@ -186,9 +190,9 @@ function runSync() {
     throw new Error(`vendored root missing: ${vendoredRoot}`);
   }
 
-  const upstreamDirectory = checkoutUpstream();
+  const upstreamCheckout = checkoutUpstream();
   try {
-    const upstreamRoot = join(upstreamDirectory, UPSTREAM_SRC);
+    const upstreamRoot = join(upstreamCheckout.directory, UPSTREAM_SRC);
     const managed = managedPaths(upstreamRoot);
     let changed = 0;
 
@@ -218,7 +222,7 @@ function runSync() {
         : `[anti-slop] synced ${changed} file(s), removed ${unexpectedFiles.length} file(s); manifest refreshed.`
     );
   } finally {
-    rmSync(upstreamDirectory, { recursive: true, force: true });
+    rmSync(upstreamCheckout.scratchDirectory, { recursive: true, force: true });
   }
 }
 
