@@ -1,8 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
-import { loadAccountDashboardContext } from '../../lib/server/account-dashboard.server';
-import { openBillingPortalAction } from '../../lib/server/billing-action.server';
+import { loadAccountIdentity } from '../../lib/server/account-dashboard.server';
 import { loadLicensingSummaryState } from '../../lib/server/licensing-service.server';
-import type { Actions, PageServerLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async event => {
   if (event.platform === undefined) {
@@ -10,20 +9,18 @@ export const load: PageServerLoad = async event => {
   }
   event.setHeaders({ 'Cache-Control': 'private, no-store' });
 
-  const context = await loadAccountDashboardContext(event);
-  if (context === null) {
+  const identity = await loadAccountIdentity(event);
+  if (identity === null) {
     redirect(302, '/login/');
   }
 
-  const licensing = await loadLicensingSummaryState(context.identity.user, event.platform.env);
-  const currentSession = context.dashboard.sessions.find(session => session.isCurrent);
   return {
-    ...context.dashboard,
-    currentSessionExpiresAt: currentSession?.expiresAt ?? null,
-    licensing,
+    user: {
+      name: identity.user.name,
+      email: identity.user.email,
+      emailVerified: identity.user.emailVerified,
+      createdAt: identity.user.createdAt,
+    },
+    licensing: await loadLicensingSummaryState(identity.user, event.platform.env),
   };
 };
-
-export const actions = {
-  openBillingPortal: openBillingPortalAction,
-} satisfies Actions;

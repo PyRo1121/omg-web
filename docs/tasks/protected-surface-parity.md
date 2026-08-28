@@ -30,12 +30,12 @@ cd site-svelte && npm run plan -- --stage shadow
 
 ## 2. Account workspace parity
 
-Progress: the URL-addressable analytics capability and bounded CSV/JSON downloads are implemented and authenticated-shadow verified. The achievements capability is also authenticated-shadow verified; machines and settings remain.
+Progress: analytics, bounded CSV/JSON downloads, and achievements are authenticated-shadow verified. Machines and settings are implemented and await authenticated shadow characterization.
 
-- [ ] Add URL-addressable analytics, achievements, machines, and settings capability routes.
-- [ ] Preserve existing account/session/entitlement behavior through browser-safe projections.
-- [ ] Add bounded personal CSV and JSON exports without embedding export bodies in page data.
-- [ ] Preserve explicit empty, unavailable, and partial states.
+- [x] Add URL-addressable analytics, achievements, machines, and settings capability routes.
+- [x] Preserve existing account/session/entitlement behavior through browser-safe projections.
+- [x] Add bounded personal CSV and JSON exports without embedding export bodies in page data.
+- [x] Preserve explicit empty, unavailable, and partial states.
 - [ ] Add pure derivation, service, route, render, keyboard, and compact-viewport coverage.
 - [ ] Record exact superseded Solid account paths and helpers.
 

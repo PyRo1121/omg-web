@@ -16,6 +16,8 @@
       <a href="/dashboard/">Overview</a>
       <a href="/dashboard/analytics/">Analytics</a>
       <a href="/dashboard/achievements/" aria-current="page">Achievements</a>
+      <a href="/dashboard/machines/">Machines</a>
+      <a href="/dashboard/settings/">Settings</a>
     </nav>
 
     <p class="page-kicker">Account / Achievements</p>
