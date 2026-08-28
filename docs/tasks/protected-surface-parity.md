@@ -11,7 +11,7 @@
 - [x] Add a named dashboard action and progressively enhanced account control.
 - [x] Map anonymous, missing account, forbidden, rate-limited, malformed, and unavailable outcomes without leaking internals.
 - [x] Add focused service, action, and render tests.
-- [ ] Deploy shadow, verify anonymous fail-closed behavior and a no-op follow-up plan.
+- [x] Deploy shadow, verify anonymous fail-closed behavior and a no-op follow-up plan.
 - [ ] Complete user-controlled authenticated Portal characterization.
 
 **Blocked by:** none.
