@@ -15,6 +15,7 @@
     <nav class="workspace-nav" aria-label="Account workspace">
       <a href="/dashboard/">Overview</a>
       <a href="/dashboard/analytics/" aria-current="page">Analytics</a>
+      <a href="/dashboard/achievements/">Achievements</a>
     </nav>
 
     <p class="page-kicker">Account / Analytics</p>
