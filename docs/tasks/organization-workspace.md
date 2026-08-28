@@ -7,11 +7,11 @@
 
 - [ ] Configure the exact-pinned Better Auth organization plugin with explicit snake-case models and fields.
 - [ ] Keep nested teams, dynamic roles, and custom organization creation disabled unless authorized by the paid-entitlement guard.
-- [ ] Add an immutable Wrangler migration for organization, member, invitation, and active-organization session state.
-- [ ] Add unique membership and billing-link constraints.
-- [ ] Add the atomic D1 active-Team/Enterprise seat-limit trigger.
+- [x] Add an immutable Wrangler migration for organization, member, invitation, and active-organization session state.
+- [x] Add unique membership and billing-link constraints.
+- [x] Add the atomic D1 active-Team/Enterprise seat-limit trigger.
 - [ ] Add last-owner integrity protection and a separate ownership-transfer operation.
-- [ ] Update migration checksums, production schema mirrors, and fresh-schema tests.
+- [x] Update migration checksums and fresh-schema tests; no competing root schema mirror exists.
 - [ ] Add role, tier, seat-race, malformed-row, and cross-tenant tests.
 
 **Blocked by:** none.

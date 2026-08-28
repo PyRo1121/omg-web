@@ -32,16 +32,17 @@ Deliberately **not provisioned** (free-tier and ownership constraints):
 
 `omg-platform` is one physical D1 database with two owners:
 
-- Better Auth owns exactly `auth_user`, `auth_session`, `auth_account`, and `auth_verification` (`migrations/013_better_auth.sql` plus the `014_better_auth_issuer.sql` column addition, mirrored in `site/shared/auth-schema.ts`). The SaaS Worker must not write them.
-- The SaaS Worker owns every other table created by migrations `0000`–`012`. The site must not write licensing/telemetry tables directly.
+- Better Auth owns `auth_user`, `auth_session`, `auth_account`, `auth_verification`, `auth_organization`, `auth_member`, and `auth_invitation` (`migrations/013_better_auth.sql`, `014_better_auth_issuer.sql`, and `024_better_auth_organizations.sql`). The hidden organization billing link is server-only; the SaaS Worker may read it for entitlement and audit projection but must not mutate Better Auth rows.
+- The SaaS Worker owns every other canonical table. The site must not write licensing or telemetry tables directly.
 
-The canonical migration sequence lives only in `site/workers/migrations/`; integrity is enforced by `migrations.sha256`. Migrations were applied remotely on 2026-08-21 via `wrangler d1 migrations apply DB --remote`.
+The canonical migration sequence lives only in `site/workers/migrations/`; integrity is enforced by `migrations.sha256`. The current sequence through `024_better_auth_organizations.sql` is applied remotely.
 
 #### Remote migration inventory (keep current)
 
 After **every** `npm run db:migrate:remote --prefix site/workers`, record here which migrations `d1_migrations` contains (query: `SELECT name FROM d1_migrations ORDER BY id`) and the date. At 3am the on-call answer to "is prod past the merge?" must be readable from this file, not from a live query.
 
-- 2026-08-21 — all migrations through the sequence as of that date were applied via `wrangler d1 migrations apply DB --remote`; per-file list not captured at apply time. Backfill this list on the next remote apply.
+- 2026-08-21 — all migrations through `023_session_token_hashes.sql` were applied remotely.
+- 2026-08-28 — `024_better_auth_organizations.sql` applied successfully; a follow-up `wrangler d1 migrations list DB --remote` reported no pending migrations, and a read-only `sqlite_master` query confirmed the three organization tables and atomic seat trigger.
 
 Gate every remote apply on a green `npm run check:migrations` against the commit being deployed from; the hash manifest provides tamper-evidence, not authorization, so never apply from a tree that fails CI.
 
