@@ -1,4 +1,6 @@
 import { readFile, readdir } from 'node:fs/promises';
+import { isDeepStrictEqual } from 'node:util';
+import { CLI_SERVICE_API_CONTRACT } from '../site/shared/licensing-routes.ts';
 
 const workspaceRoot = new URL('../', import.meta.url);
 const sourceRoots = [
@@ -52,6 +54,17 @@ async function sourceFiles(relativeDirectory) {
 }
 
 let violations = 0;
+const serviceContractPath = 'contracts/service-api-v1.json';
+const serviceContract = JSON.parse(
+  await readFile(new URL(serviceContractPath, workspaceRoot), 'utf8')
+);
+if (!isDeepStrictEqual(serviceContract, CLI_SERVICE_API_CONTRACT)) {
+  process.stderr.write(
+    `[source-policy] ${serviceContractPath}: generated CLI service contract differs from the Worker route registry\n`
+  );
+  violations += 1;
+}
+
 const antiSlopSyncPath = 'tools/oxlint/sync-anti-slop.mjs';
 const antiSlopSync = await readFile(new URL(antiSlopSyncPath, workspaceRoot), 'utf8');
 if (antiSlopSync.includes('tmpdir')) {

@@ -32,7 +32,7 @@ Status meanings:
 | `audit-y3.md`  | Resolved        | Shared security policy, email syntax, licensing parsing, and Solid class merging are centralized. Bounded Request/Response readers and schema decoders intentionally retain distinct output/error contracts; proposed generic D1, tagged-error, toggle, and formatting wrappers were rejected under the deletion test because they add coupling without removing behavioral duplication.                      |
 | `audit-y4.md`  | Resolved        | The router and releases Worker are independently deployable, security-hardened surfaces. Dead bindings and per-request header allocation were removed. Cross-worker proxy/error abstractions were rejected because they would add a shared deployment dependency for little behavioral value.                                                                                                                 |
 | `audit-y5.md`  | Resolved        | Runtime scratch is removed. Thirty byte-identical historical proof-script copies were replaced by 27 SHA-256 manifests that point to one canonical script per finding; captured logs remain unchanged. CI verifies hashes, path containment, removed-copy absence, and unique script content. Broad test-harness abstractions and upstream-owned lint-rule changes were rejected.                             |
-| `audit-y6.md`  | **Coordinated** | Web route support, licensed feature grants, installer synchronization, production origin, JWT issuer/audience, and the published verification key are aligned. A generated cross-language telemetry/licensing contract and remaining machine/usage schema consolidation require coordinated Rust changes and are assigned to the Rust remediation stream.                                                     |
+| `audit-y6.md`  | **Coordinated** | Web route support, feature grants, installer, origin, JWT claims, and verification key are aligned. The versioned CLI service-route artifact is generated from the Worker registry and byte-identical to the Rust stream contract. Remaining telemetry, machine, usage, and response-schema consolidation still requires the coordinated Rust stream.                                                         |
 
 ## Finding closure matrix
 
@@ -188,7 +188,7 @@ Evidence keys:
 | Y5-P3-1 | Tool-script preamble overlap                     | Dismissed   | Different policy inputs/outputs; report itself marked this dismissed.                                                                                                        |
 | Y5-P3-2 | Minor Oxlint walker duplication                  | Dismissed   | Upstream-owned vendored plugin; local fork prohibited.                                                                                                                       |
 | Y5-P3-3 | Repetitive historical report prose               | Dismissed   | Evidence records remain immutable; shipping bundle unaffected.                                                                                                               |
-| Y6-P0-1 | Seven dead CLI/API routes                        | Coordinated | Web routes and supported endpoints aligned; Rust stream owns final CLI contract proof.                                                                                       |
+| Y6-P0-1 | Seven dead CLI/API routes                        | Coordinated | Web routes project into `contracts/service-api-v1.json`; its SHA-256 is byte-identical to the Rust stream artifact, pending Rust integration/push.                           |
 | Y6-P0-2 | Feature/tier catalog divergence                  | Coordinated | Web grants aligned; Rust stream verifies the matching catalog.                                                                                                               |
 | Y6-P1-1 | Diverged installer copies                        | Coordinated | Canonical installer rebuilt/deployed/hash-verified; Rust stream owns release-source synchronization.                                                                         |
 | Y6-P1-2 | Lossy telemetry contract duplication             | Coordinated | Web boundary is strict/backward-compatible; generated cross-language contract remains Rust-stream work.                                                                      |
@@ -246,3 +246,6 @@ Evidence keys:
 - Solid and Svelte login forms share one credential boundary, reject oversized
   email/password values before network authentication, and expose matching HTML
   limits.
+- `contracts/service-api-v1.json` is generated from the Worker route registry and
+  byte-identical to the Rust stream's versioned CLI route artifact; CI rejects
+  registry/artifact drift.

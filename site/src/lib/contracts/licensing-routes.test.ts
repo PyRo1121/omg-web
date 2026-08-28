@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CLI_SERVICE_API_CONTRACT,
   LICENSING_HTTP_API_VERSION,
   LicensingRoutes,
   isSiteBffRoute,
@@ -14,6 +15,50 @@ describe('licensing HTTP route registry', () => {
 
     expect(LICENSING_HTTP_API_VERSION).toBe(1);
     expect(new Set(routeKeys).size).toBe(routeKeys.length);
+  });
+
+  it('publishes the exact versioned CLI route subset', () => {
+    expect(CLI_SERVICE_API_CONTRACT).toEqual({
+      schemaVersion: 1,
+      origin: 'https://omg-api.latham.cloud',
+      cliEndpoints: {
+        validateLicense: {
+          method: 'POST',
+          path: '/api/validate-license',
+          authentication: 'none',
+        },
+        reportUsage: {
+          method: 'POST',
+          path: '/api/report-usage',
+          authentication: 'none',
+        },
+        installPing: {
+          method: 'POST',
+          path: '/api/install-ping',
+          authentication: 'none',
+        },
+        cliBatch: {
+          method: 'POST',
+          path: '/api/cli/batch',
+          authentication: 'none',
+        },
+        teamMembers: {
+          method: 'GET',
+          path: '/api/license/members',
+          authentication: 'license-key',
+        },
+        teamPolicies: {
+          method: 'GET',
+          path: '/api/license/policies',
+          authentication: 'license-key',
+        },
+        teamAuditLog: {
+          method: 'GET',
+          path: '/api/license/audit',
+          authentication: 'license-key',
+        },
+      },
+    });
   });
 
   it('resolves canonical routes and normalizes a trailing slash', () => {
