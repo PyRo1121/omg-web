@@ -1,7 +1,8 @@
 # Svelte production cutover and Solid removal
 
-**Status:** approved implementation plan; M1 in progress  
-**End state:** SvelteKit owns `omg.latham.cloud`; `omg-site` and the Solid/Vinxi tree are deleted after the observation window  
+**Status:** approved implementation plan; M1 in progress
+
+**End state:** SvelteKit owns `omg.latham.cloud`; `omg-site` and the Solid/Vinxi tree are deleted after the observation window
 **Selected decisions:** preserve offer/Stripe checkout; use a coordinated logout instead of cross-runtime session continuity
 
 This plan complements [`svelte-auth-cutover.md`](./svelte-auth-cutover.md). That document owns Better Auth rotation mechanics; this document owns the complete runtime migration and removal sequence.
