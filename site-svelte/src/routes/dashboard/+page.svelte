@@ -1,6 +1,6 @@
 <script lang="ts">
   import { authClient } from '../../lib/auth-client';
-  import type { PageData } from './$types';
+  import type { PageProps } from './$types';
   import {
     formatCount,
     formatDuration,
@@ -12,7 +12,7 @@
     verificationLabel,
   } from './dashboard-view';
 
-  let { data }: { data: PageData } = $props();
+  let { data, form }: PageProps = $props();
   let pending = $state(false);
 
   async function signOut(): Promise<void> {
@@ -116,6 +116,17 @@
           Licensing data is temporarily unavailable. Account and session records remain current.
         </p>
       {/if}
+    </section>
+
+    <section class="dashboard-section billing-section" aria-labelledby="billing-title">
+      <h2 id="billing-title">Billing</h2>
+      <p>Manage payment methods, invoices, and subscription changes securely with Stripe.</p>
+      {#if form?.kind === 'portal-error'}
+        <p class="billing-error" role="alert">{form.message}</p>
+      {/if}
+      <form method="POST" action="?/openBillingPortal" class="billing-form">
+        <button type="submit">Open billing settings</button>
+      </form>
     </section>
 
     {#if data.licensing.status === 'available'}
@@ -392,6 +403,38 @@
 
   .dashboard-empty {
     margin: 1.5rem 0 0;
+  }
+
+  .billing-section > p {
+    max-width: 42rem;
+    margin: 0.75rem 0 0;
+    color: var(--ink-muted);
+    line-height: 1.6;
+  }
+
+  .billing-section .billing-error {
+    color: var(--danger);
+  }
+
+  .billing-form {
+    margin-top: 1.25rem;
+  }
+
+  .billing-form button {
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+    border: 1px solid var(--rule-strong);
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .billing-form button:hover {
+    border-color: var(--signal);
+    color: var(--signal);
   }
 
   .dashboard-signout {

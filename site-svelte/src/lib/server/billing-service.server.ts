@@ -4,9 +4,11 @@ import {
   BillingCheckoutInputSchema,
   BillingCheckoutResponseSchema,
   BillingCheckoutStatusResponseSchema,
+  BillingPortalResponseSchema,
   billingCheckoutSessionPath,
   type BillingCheckoutRedirect,
   type BillingFulfillment,
+  type BillingPortalRedirect,
 } from '../contracts/billing';
 import {
   LicensingSummaryInvalidInput,
@@ -22,6 +24,7 @@ import {
 const CHECKOUT_RESPONSE_LIMIT = 8 * 1024;
 type BillingBoundaryInput = Schema.Top['Encoded'];
 const FULFILLMENT_RESPONSE_LIMIT = 8 * 1024;
+const PORTAL_RESPONSE_LIMIT = 8 * 1024;
 
 /** Create an authenticated Stripe Checkout Session through the private Worker boundary. */
 export function createBillingCheckout(
@@ -46,6 +49,26 @@ export function createBillingCheckout(
       parsed
     );
     return { url: checkout.url };
+  });
+}
+
+/** Open Stripe Billing Portal for the verified account through the private Worker boundary. */
+export function createBillingPortal(
+  identity: LicensingSummaryIdentity,
+  env: LicensingSummaryEnvironment
+): Effect.Effect<BillingPortalRedirect, LicensingSummaryError> {
+  return Effect.gen(function* () {
+    const session = yield* loadUserServiceSession(identity, env);
+    const portal = yield* sendPrivateWorkerPayload(
+      env,
+      session,
+      '/api/billing/portal',
+      'billing-portal',
+      PORTAL_RESPONSE_LIMIT,
+      BillingPortalResponseSchema,
+      {}
+    );
+    return { url: portal.url };
   });
 }
 

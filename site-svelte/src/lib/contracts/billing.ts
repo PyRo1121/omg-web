@@ -15,25 +15,38 @@ const StripeCheckoutSessionIdSchema = Schema.String.check(
   Schema.isPattern(/^cs_[A-Za-z0-9]{10,200}$/u)
 );
 
-const TrustedStripeCheckoutUrlSchema = Schema.String.check(
-  Schema.isMaxLength(2048),
-  Schema.makeFilter(value => {
-    const parsed = URL.parse(value);
-    return (
-      parsed !== null &&
-      parsed.protocol === 'https:' &&
-      parsed.hostname === 'checkout.stripe.com' &&
-      parsed.username === '' &&
-      parsed.password === ''
-    );
-  })
-);
+function trustedStripeUrlSchema(hostname: string) {
+  return Schema.String.check(
+    Schema.isMaxLength(2048),
+    Schema.makeFilter(value => {
+      const parsed = URL.parse(value);
+      return (
+        parsed !== null &&
+        parsed.protocol === 'https:' &&
+        parsed.hostname === hostname &&
+        parsed.username === '' &&
+        parsed.password === ''
+      );
+    })
+  );
+}
+
+const TrustedStripeCheckoutUrlSchema = trustedStripeUrlSchema('checkout.stripe.com');
+const TrustedStripeBillingUrlSchema = trustedStripeUrlSchema('billing.stripe.com');
 
 export const BillingCheckoutResponseSchema = Schema.Struct({
   sessionId: StripeCheckoutSessionIdSchema,
   url: TrustedStripeCheckoutUrlSchema,
 });
 export interface BillingCheckoutRedirect {
+  readonly url: string;
+}
+
+export const BillingPortalResponseSchema = Schema.Struct({
+  success: Schema.Literal(true),
+  url: TrustedStripeBillingUrlSchema,
+});
+export interface BillingPortalRedirect {
   readonly url: string;
 }
 

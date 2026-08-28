@@ -197,7 +197,8 @@ export type LicensingServiceOperation =
   | 'admin-customer-update'
   | 'marketing-offer'
   | 'billing-checkout'
-  | 'billing-fulfillment';
+  | 'billing-fulfillment'
+  | 'billing-portal';
 
 export class LicensingSummaryWorkerRejected extends Error {
   readonly _tag = 'LicensingSummaryWorkerRejected';

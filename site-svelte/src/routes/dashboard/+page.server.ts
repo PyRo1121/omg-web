@@ -1,7 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import { loadAccountDashboard } from '../../lib/server/account-dashboard.server';
+import { openBillingPortalAction } from '../../lib/server/billing-action.server';
 import { loadLicensingSummaryState } from '../../lib/server/licensing-service.server';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async event => {
   if (event.platform === undefined) {
@@ -22,3 +23,7 @@ export const load: PageServerLoad = async event => {
     licensing,
   };
 };
+
+export const actions = {
+  openBillingPortal: openBillingPortalAction,
+} satisfies Actions;

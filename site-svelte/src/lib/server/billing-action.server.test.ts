@@ -1,7 +1,10 @@
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { startBillingCheckoutAction } from './billing-action.server';
-import { LicensingSummaryWorkerRejected } from './licensing-service.server';
+import { openBillingPortalAction, startBillingCheckoutAction } from './billing-action.server';
+import {
+  LicensingSummaryInvalidPayload,
+  LicensingSummaryWorkerRejected,
+} from './licensing-service.server';
 
 const identity = {
   sessionToken: 'browser-session-token',
@@ -37,6 +40,72 @@ function request(body: string, headers: HeadersInit = {}): Request {
 function event(input: Request) {
   return { platform: { env }, request: input, url: new URL(input.url) };
 }
+
+describe('billing portal action', () => {
+  it('redirects an authenticated account only to the validated Stripe Billing origin', async () => {
+    await expect(
+      openBillingPortalAction(event(request('')), {
+        loadIdentity: async () => identity,
+        createPortal: (user, actionEnv) => {
+          expect(user).toEqual(identity.user);
+          expect(actionEnv).toBe(env);
+          return Effect.succeed({ url: 'https://billing.stripe.com/p/session/safe' });
+        },
+      })
+    ).rejects.toMatchObject({
+      status: 303,
+      location: 'https://billing.stripe.com/p/session/safe',
+    });
+  });
+
+  it('fails closed for anonymous and missing billing accounts', async () => {
+    const anonymous = await openBillingPortalAction(event(request('')), {
+      loadIdentity: async () => null,
+      createPortal: () => Effect.succeed({ url: 'https://billing.stripe.com/p/session/safe' }),
+    });
+    const missing = await openBillingPortalAction(event(request('')), {
+      loadIdentity: async () => identity,
+      createPortal: () => Effect.fail(new LicensingSummaryWorkerRejected('billing-portal', 404)),
+    });
+
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.data.message).toBe('Sign in before opening billing settings.');
+    expect(missing.status).toBe(404);
+    expect(missing.data.message).toBe('No billing account is linked to this account.');
+  });
+
+  it('classifies rate limits and malformed private responses', async () => {
+    const limited = await openBillingPortalAction(event(request('')), {
+      loadIdentity: async () => identity,
+      createPortal: () => Effect.fail(new LicensingSummaryWorkerRejected('billing-portal', 429)),
+    });
+    const malformed = await openBillingPortalAction(event(request('')), {
+      loadIdentity: async () => identity,
+      createPortal: () => Effect.fail(new LicensingSummaryInvalidPayload('billing-portal')),
+    });
+
+    expect(limited.status).toBe(429);
+    expect(limited.data.message).toBe('Too many billing requests. Try again later.');
+    expect(malformed.status).toBe(503);
+    expect(JSON.stringify(malformed.data)).not.toContain('LicensingSummary');
+  });
+
+  it('bounds the portal form before identity or billing work', async () => {
+    let identityCalled = false;
+    const oversized = request(`padding=${'x'.repeat(5000)}`);
+
+    const result = await openBillingPortalAction(event(oversized), {
+      loadIdentity: async () => {
+        identityCalled = true;
+        return identity;
+      },
+      createPortal: () => Effect.succeed({ url: 'https://billing.stripe.com/p/session/safe' }),
+    });
+
+    expect(result.status).toBe(413);
+    expect(identityCalled).toBe(false);
+  });
+});
 
 describe('billing checkout action', () => {
   it('passes the authenticated identity and selected offer to billing', async () => {

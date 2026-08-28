@@ -1,6 +1,10 @@
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { createBillingCheckout, loadBillingFulfillment } from './billing-service.server';
+import {
+  createBillingCheckout,
+  createBillingPortal,
+  loadBillingFulfillment,
+} from './billing-service.server';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
 
 const identity = {
@@ -41,6 +45,31 @@ function environment(service: BillingServiceStub): LicensingSummaryEnvironment {
 }
 
 describe('Svelte billing service', () => {
+  it('opens the signed-in customer portal through an authenticated private session', async () => {
+    const service = new BillingServiceStub(() =>
+      Response.json({ success: true, url: 'https://billing.stripe.com/p/session/safe' })
+    );
+
+    const result = await Effect.runPromise(createBillingPortal(identity, environment(service)));
+
+    expect(result).toEqual({ url: 'https://billing.stripe.com/p/session/safe' });
+    expect(service.requests).toHaveLength(2);
+    const portalRequest = service.requests[1];
+    expect(portalRequest?.method).toBe('POST');
+    expect(portalRequest?.headers.get('Authorization')).toBe('Bearer server-only-token');
+    expect(await portalRequest?.json()).toEqual({});
+  });
+
+  it('rejects untrusted billing portal redirects at the private response boundary', async () => {
+    const service = new BillingServiceStub(() =>
+      Response.json({ success: true, url: 'https://attacker.example/portal' })
+    );
+
+    const exit = await Effect.runPromiseExit(createBillingPortal(identity, environment(service)));
+
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
+
   it('creates checkout through an authenticated private session', async () => {
     const service = new BillingServiceStub(() =>
       Response.json({
