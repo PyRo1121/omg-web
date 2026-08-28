@@ -9,6 +9,7 @@
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let selectedCustomer = $derived(form?.detail);
+  let selectedSupport = $derived(form?.support);
 </script>
 
 <svelte:head>
@@ -168,6 +169,101 @@
           </div>
         </dl>
       </header>
+
+      {#if selectedSupport}
+        <div class="support-intelligence">
+          <section aria-labelledby="health-title">
+            <header class="subpanel-header">
+              <h3 id="health-title">Customer health</h3>
+              <span>Computed signals</span>
+            </header>
+            {#if selectedSupport.health.kind === 'available'}
+              <div class="health-summary">
+                <div class="health-primary">
+                  <span>Overall</span>
+                  <strong>{formatCount(selectedSupport.health.value.overallScore)}</strong>
+                  <small>{formatProductLabel(selectedSupport.health.value.lifecycleStage)}</small>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Engagement</dt>
+                    <dd>{formatCount(selectedSupport.health.value.engagementScore)}</dd>
+                  </div>
+                  <div>
+                    <dt>Activation</dt>
+                    <dd>{formatCount(selectedSupport.health.value.activationScore)}</dd>
+                  </div>
+                  <div>
+                    <dt>Growth</dt>
+                    <dd>{formatCount(selectedSupport.health.value.growthScore)}</dd>
+                  </div>
+                  <div>
+                    <dt>Risk</dt>
+                    <dd>{formatCount(selectedSupport.health.value.riskScore)}</dd>
+                  </div>
+                </dl>
+              </div>
+            {:else if selectedSupport.health.kind === 'empty'}
+              <div class="empty-state"><strong>No health snapshot has been computed.</strong></div>
+            {:else}
+              <div class="empty-state">
+                <strong>Health signals are temporarily unavailable.</strong>
+              </div>
+            {/if}
+          </section>
+
+          <section aria-labelledby="tags-title">
+            <header class="subpanel-header">
+              <h3 id="tags-title">Account tags</h3>
+              <span>Support context</span>
+            </header>
+            {#if selectedSupport.assignedTags.kind === 'unavailable'}
+              <div class="empty-state"><strong>Tags are temporarily unavailable.</strong></div>
+            {:else if selectedSupport.assignedTags.values.length === 0}
+              <div class="empty-state"><strong>No tags assigned.</strong></div>
+            {:else}
+              <ul class="tag-list">
+                {#each selectedSupport.assignedTags.values as tag (tag.name)}
+                  <li>
+                    <span style={`--tag-color: ${tag.color}`}></span>
+                    <div>
+                      <strong>{tag.name}</strong>
+                      <small>{tag.description ?? 'No description'}</small>
+                    </div>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </section>
+
+          <section aria-labelledby="notes-title">
+            <header class="subpanel-header">
+              <h3 id="notes-title">Support notes</h3>
+              <span>Audited history</span>
+            </header>
+            {#if selectedSupport.notes.kind === 'unavailable'}
+              <div class="empty-state"><strong>Notes are temporarily unavailable.</strong></div>
+            {:else if selectedSupport.notes.values.length === 0}
+              <div class="empty-state"><strong>No support notes recorded.</strong></div>
+            {:else}
+              <ol class="note-list">
+                {#each selectedSupport.notes.values as note, index (`${note.createdAt}:${index}`)}
+                  <li class={note.pinned ? 'pinned-note' : undefined}>
+                    <div>
+                      <span>{formatProductLabel(note.noteType)}</span>
+                      {#if note.pinned}<strong>Pinned</strong>{/if}
+                    </div>
+                    <p>{note.content}</p>
+                    <small>
+                      {note.authorEmail ?? 'Unknown operator'} / {formatTimestamp(note.createdAt)}
+                    </small>
+                  </li>
+                {/each}
+              </ol>
+            {/if}
+          </section>
+        </div>
+      {/if}
 
       <div class="support-grid">
         <section aria-labelledby="license-controls-title">
@@ -508,6 +604,124 @@
   .support-header dt {
     color: var(--ink-muted);
   }
+  .support-intelligence {
+    display: grid;
+    border-top: 1px solid var(--rule-strong);
+  }
+  .support-intelligence > section {
+    min-width: 0;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .health-summary {
+    display: grid;
+    grid-template-columns: minmax(8rem, 0.7fr) minmax(0, 1.3fr);
+  }
+  .health-primary {
+    display: grid;
+    align-content: center;
+    padding: 1.25rem;
+    border-right: 1px solid var(--rule);
+  }
+  .health-primary span,
+  .health-primary small,
+  .health-summary dt {
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+  }
+  .health-primary strong {
+    margin-block: 0.2rem;
+    font-family: var(--font-mono);
+    font-size: 2.5rem;
+    letter-spacing: -0.06em;
+  }
+  .health-summary dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+  }
+  .health-summary dl div {
+    padding: 0.9rem 1rem;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .health-summary dl div:nth-child(2n) {
+    border-right: 0;
+  }
+  .health-summary dl div:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+  .health-summary dt,
+  .health-summary dd {
+    margin: 0;
+  }
+  .health-summary dd {
+    margin-top: 0.2rem;
+    font-family: var(--font-mono);
+  }
+  .tag-list,
+  .note-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .tag-list li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .tag-list li:last-child,
+  .note-list li:last-child {
+    border-bottom: 0;
+  }
+  .tag-list li > span {
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-top: 0.2rem;
+    background: var(--tag-color);
+  }
+  .tag-list strong,
+  .tag-list small {
+    display: block;
+  }
+  .tag-list small {
+    margin-top: 0.2rem;
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+  }
+  .note-list li {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .note-list li.pinned-note {
+    box-shadow: inset 0.2rem 0 var(--signal);
+  }
+  .note-list li > div {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  .note-list li > div span,
+  .note-list li > div strong,
+  .note-list li > small {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+  }
+  .note-list li > div span,
+  .note-list li > small {
+    color: var(--ink-muted);
+  }
+  .note-list li > div strong {
+    color: var(--signal);
+    text-transform: uppercase;
+  }
+  .note-list p {
+    margin: 0.55rem 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
   .support-grid {
     display: grid;
   }
@@ -630,6 +844,15 @@
     }
   }
   @media (min-width: 78rem) {
+    .support-intelligence {
+      grid-template-columns: minmax(22rem, 1fr) minmax(15rem, 0.7fr) minmax(22rem, 1.3fr);
+    }
+    .support-intelligence > section {
+      border-right: 1px solid var(--rule-strong);
+    }
+    .support-intelligence > section:last-child {
+      border-right: 0;
+    }
     .support-grid {
       grid-template-columns: minmax(24rem, 0.7fr) minmax(0, 1.3fr);
     }

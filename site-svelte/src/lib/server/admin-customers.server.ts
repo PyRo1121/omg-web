@@ -21,6 +21,7 @@ import {
   sendPrivateWorkerPayload,
   type LicensingSummaryEnvironment,
   type LicensingSummaryError,
+  type LicensingServiceSession,
   type LicensingSummaryIdentity,
 } from './licensing-service.server';
 import { normalizedOptionalText } from './optional-text.server';
@@ -160,7 +161,7 @@ const CustomerUpdateSchema = Schema.Struct({
 
 type AdminCustomerError = LicensingSummaryError | AdminOverviewForbidden;
 
-function resolveCustomerId(
+export function resolveAdminCustomerId(
   email: string,
   env: LicensingSummaryEnvironment
 ): Effect.Effect<string, LicensingSummaryStoreUnavailable | LicensingSummaryInvalidPayload> {
@@ -232,20 +233,13 @@ export function loadAdminCustomers(
   });
 }
 
-/** Load one browser-safe support view after resolving the customer server-side. */
-export function loadAdminCustomerDetail(
-  identity: LicensingSummaryIdentity,
+/** Decode and project one customer detail using an already-authorized private session. */
+export function loadAdminCustomerDetailById(
   env: LicensingSummaryEnvironment,
-  email: string
-): Effect.Effect<AdminCustomerDetail, AdminCustomerError> {
+  session: LicensingServiceSession,
+  customerId: string
+): Effect.Effect<AdminCustomerDetail, LicensingSummaryError> {
   return Effect.gen(function* () {
-    const safeEmail = yield* parseLicensingInput(
-      NormalizedEmail,
-      email,
-      'Customer email is invalid'
-    );
-    const session = yield* loadAdminServiceSession(identity, env);
-    const customerId = yield* resolveCustomerId(safeEmail, env);
     const query = new URLSearchParams({ id: customerId });
     const payload = yield* loadPrivateWorkerPayload(
       env,
@@ -289,6 +283,24 @@ export function loadAdminCustomerDetail(
   });
 }
 
+/** Load one browser-safe support view after resolving the customer server-side. */
+export function loadAdminCustomerDetail(
+  identity: LicensingSummaryIdentity,
+  env: LicensingSummaryEnvironment,
+  email: string
+): Effect.Effect<AdminCustomerDetail, AdminCustomerError> {
+  return Effect.gen(function* () {
+    const safeEmail = yield* parseLicensingInput(
+      NormalizedEmail,
+      email,
+      'Customer email is invalid'
+    );
+    const session = yield* loadAdminServiceSession(identity, env);
+    const customerId = yield* resolveAdminCustomerId(safeEmail, env);
+    return yield* loadAdminCustomerDetailById(env, session, customerId);
+  });
+}
+
 /** Apply an existing audited tier or status mutation without exposing customer IDs. */
 export function updateAdminCustomerLicense(
   identity: LicensingSummaryIdentity,
@@ -305,7 +317,7 @@ export function updateAdminCustomerLicense(
       return yield* Effect.fail(new LicensingSummaryInvalidInput('Customer update is empty'));
     }
     const session = yield* loadAdminServiceSession(identity, env);
-    const customerId = yield* resolveCustomerId(safeInput.email, env);
+    const customerId = yield* resolveAdminCustomerId(safeInput.email, env);
     yield* sendPrivateWorkerPayload(
       env,
       session,

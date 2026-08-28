@@ -81,6 +81,62 @@ export interface AdminCustomerDetail {
   readonly usage: ReadonlyArray<AdminCustomerUsageDay>;
 }
 
+/** One computed CRM health snapshot without its customer database key. */
+export interface AdminCustomerHealth {
+  readonly overallScore: number;
+  readonly engagementScore: number;
+  readonly activationScore: number;
+  readonly growthScore: number;
+  readonly riskScore: number;
+  readonly lifecycleStage: string;
+  readonly updatedAt: string | null;
+}
+
+/** One browser-safe CRM note without note, customer, or author database keys. */
+export interface AdminCustomerNote {
+  readonly content: string;
+  readonly noteType: string;
+  readonly pinned: boolean;
+  readonly authorEmail: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string | null;
+}
+
+/** One browser-safe assigned CRM tag. Names are unique in the retained catalog. */
+export interface AdminCustomerTag {
+  readonly name: string;
+  readonly color: string;
+  readonly description: string | null;
+}
+
+/** One browser-safe tag catalog entry with a grounded assignment count. */
+export interface AdminCustomerCatalogTag extends AdminCustomerTag {
+  readonly usageCount: number;
+}
+
+export type AdminCustomerHealthState =
+  | { readonly kind: 'available'; readonly value: AdminCustomerHealth }
+  | { readonly kind: 'empty' }
+  | { readonly kind: 'unavailable' };
+
+export type AdminCustomerCollectionState<T> =
+  | { readonly kind: 'available'; readonly values: ReadonlyArray<T> }
+  | { readonly kind: 'unavailable' };
+
+/** Localized support capability states for one selected customer. */
+export interface AdminCustomerSupport {
+  readonly health: AdminCustomerHealthState;
+  readonly notes: AdminCustomerCollectionState<AdminCustomerNote>;
+  readonly assignedTags: AdminCustomerCollectionState<AdminCustomerTag>;
+  readonly tagCatalog: AdminCustomerCollectionState<AdminCustomerCatalogTag>;
+}
+
+/** One selected customer's complete browser-safe operator workspace. */
+export interface AdminCustomerWorkspace {
+  readonly detail: AdminCustomerDetail;
+  readonly support: AdminCustomerSupport;
+}
+
 /** Existing audited customer mutations supported by the retained Worker. */
 export interface AdminCustomerLicenseUpdate {
   readonly email: string;

@@ -58,4 +58,74 @@ describe('customer directory SSR', () => {
     expect(result.body).toContain('customer@example.com');
     expect(result.body).toContain('Inspect');
   });
+
+  it('renders localized support intelligence without private identifiers', () => {
+    const result = render(Page, {
+      props: {
+        data,
+        form: {
+          kind: 'detail',
+          detail: {
+            company: 'Example Company',
+            createdAt: '2026-08-21T19:09:19.000Z',
+            email: 'customer@example.com',
+            expiresAt: null,
+            machines: [],
+            maxMachines: 8,
+            maxSeats: 5,
+            status: 'active',
+            telemetryOptOut: false,
+            tier: 'team',
+            updatedAt: '2026-08-28T12:00:00.000Z',
+            usage: [],
+          },
+          support: {
+            health: {
+              kind: 'available',
+              value: {
+                activationScore: 91,
+                engagementScore: 88,
+                growthScore: 74,
+                lifecycleStage: 'power_user',
+                overallScore: 82,
+                riskScore: 18,
+                updatedAt: '2026-08-28T12:00:00.000Z',
+              },
+            },
+            notes: {
+              kind: 'available',
+              values: [
+                {
+                  authorEmail: 'operator@example.com',
+                  content: 'Expansion review scheduled.',
+                  createdAt: '2026-08-27T12:00:00.000Z',
+                  noteType: 'success',
+                  pinned: true,
+                  updatedAt: '2026-08-28T12:00:00.000Z',
+                },
+              ],
+            },
+            assignedTags: {
+              kind: 'available',
+              values: [
+                {
+                  color: '#22c55e',
+                  description: 'Ready for account growth',
+                  name: 'Expansion',
+                },
+              ],
+            },
+            tagCatalog: { kind: 'available', values: [] },
+          },
+        },
+      },
+    });
+
+    expect(result.body).toContain('Customer health');
+    expect(result.body).toContain('Expansion review scheduled.');
+    expect(result.body).toContain('Ready for account growth');
+    expect(result.body).not.toContain('private-customer-id');
+    expect(result.body).not.toContain('private-note-id');
+    expect(result.body).not.toContain('private-tag-id');
+  });
 });

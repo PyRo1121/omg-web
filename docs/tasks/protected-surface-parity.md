@@ -60,6 +60,8 @@ The shared licensing BFF and Worker `/api/dashboard` route are not on this list:
 
 ## 3. Customer support operations
 
+Progress: selected customer workspaces now load browser-safe health, notes, assigned tags, and the tag catalog through one private admin session with localized empty/unavailable states. Mutations and admin Billing Portal access remain.
+
 - [x] Replace unbounded admin `request.formData()` calls with the bounded form reader.
 - [x] Decode forms once at the route boundary and pass trusted domain values internally.
 - [ ] Add customer health history, notes, tags, audited mutations, and admin Billing Portal access.

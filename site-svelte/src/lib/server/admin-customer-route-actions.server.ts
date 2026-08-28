@@ -4,7 +4,8 @@ import {
   readAdminCustomerLicenseUpdate,
   readAdminCustomerSelection,
 } from './admin-customer-form.server';
-import { loadAdminCustomerDetail, updateAdminCustomerLicense } from './admin-customers.server';
+import { loadAdminCustomerWorkspace } from './admin-customer-support.server';
+import { updateAdminCustomerLicense } from './admin-customers.server';
 import { loadAccountIdentity } from './account-dashboard.server';
 import { BoundedFormRejected } from './bounded-form.server';
 import { AdminOverviewForbidden } from './licensing-service.server';
@@ -36,7 +37,9 @@ export async function inspectAdminCustomer(event: AdminCustomerRequestEvent) {
     });
   }
   const { env, identity } = await requireAdminCustomerIdentity(event);
-  const exit = await Effect.runPromiseExit(loadAdminCustomerDetail(identity, env, emailExit.value));
+  const exit = await Effect.runPromiseExit(
+    loadAdminCustomerWorkspace(identity, env, emailExit.value)
+  );
   if (Exit.isFailure(exit)) {
     const failure = Option.getOrNull(Cause.findErrorOption(exit.cause));
     if (failure instanceof AdminOverviewForbidden) {
@@ -44,7 +47,11 @@ export async function inspectAdminCustomer(event: AdminCustomerRequestEvent) {
     }
     return fail(503, { kind: 'error' as const, message: 'Customer detail unavailable.' });
   }
-  return { kind: 'detail' as const, detail: exit.value };
+  return {
+    kind: 'detail' as const,
+    detail: exit.value.detail,
+    support: exit.value.support,
+  };
 }
 
 export async function updateAdminCustomerLicenseAction(event: AdminCustomerRequestEvent) {
@@ -67,10 +74,10 @@ export async function updateAdminCustomerLicenseAction(event: AdminCustomerReque
     }
     return fail(503, { kind: 'error' as const, message: 'License update failed.' });
   }
-  const detailExit = await Effect.runPromiseExit(
-    loadAdminCustomerDetail(identity, env, inputExit.value.email)
+  const workspaceExit = await Effect.runPromiseExit(
+    loadAdminCustomerWorkspace(identity, env, inputExit.value.email)
   );
-  if (Exit.isFailure(detailExit)) {
+  if (Exit.isFailure(workspaceExit)) {
     return {
       kind: 'updated' as const,
       message: 'License updated. Refresh the customer detail to view current state.',
@@ -79,6 +86,7 @@ export async function updateAdminCustomerLicenseAction(event: AdminCustomerReque
   return {
     kind: 'updated' as const,
     message: 'License access updated and recorded in the audit log.',
-    detail: detailExit.value,
+    detail: workspaceExit.value.detail,
+    support: workspaceExit.value.support,
   };
 }
