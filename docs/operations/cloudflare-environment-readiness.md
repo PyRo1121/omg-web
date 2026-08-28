@@ -43,6 +43,7 @@ After **every** `npm run db:migrate:remote --prefix site/workers`, record here w
 
 - 2026-08-21 — all migrations through `023_session_token_hashes.sql` were applied remotely.
 - 2026-08-28 — `024_better_auth_organizations.sql` applied successfully; a follow-up `wrangler d1 migrations list DB --remote` reported no pending migrations, and a read-only `sqlite_master` query confirmed the three organization tables and atomic seat trigger.
+- 2026-08-28 — The private organization invitation-email capability was deployed in `omg-saas` version `9ffc8b8e-09e4-45a2-a99b-f33ffaca8658`; the Svelte shadow was updated and its follow-up Alchemy plan was `3 noop`. Anonymous route checks returned `302` for protected roster access, `404` for direct Better Auth organization plugin paths and the public email capability, and `200` for the neutral malformed-invitation state. `wrangler email sending list` reported Email Sending enabled for `latham.cloud` and `codeloud.xyz`; no live recipient smoke email was sent.
 
 Gate every remote apply on a green `npm run check:migrations` against the commit being deployed from; the hash manifest provides tamper-evidence, not authorization, so never apply from a tree that fails CI.
 
