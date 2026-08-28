@@ -12,6 +12,13 @@ const sourceRoots = [
   'workers/releases/src',
 ];
 const sourceExtensions = new Set(['.js', '.jsx', '.mjs', '.svelte', '.ts', '.tsx']);
+const productionWranglerConfigs = [
+  'site/wrangler.toml',
+  'site/workers/wrangler.toml',
+  'workers/router/wrangler.toml',
+  'workers/releases/wrangler.toml',
+];
+const secretVariableName = /(?:API_KEY|PASSWORD|PRIVATE_KEY|SECRET|TOKEN)$/u;
 const forbiddenPolicies = [
   { marker: '@effect/schema', reason: 'use Schema from the main effect package' },
   { marker: 'Effect.promise(', reason: 'use a typed Effect.tryPromise boundary' },
@@ -54,6 +61,28 @@ if (antiSlopSync.includes('tmpdir')) {
   violations += 1;
 }
 
+for (const configPath of productionWranglerConfigs) {
+  const config = await readFile(new URL(configPath, workspaceRoot), 'utf8');
+  let inPlaintextVariables = false;
+  for (const line of config.split('\n')) {
+    const section = /^\s*\[([A-Za-z0-9_.-]+)\]\s*$/u.exec(line);
+    if (section !== null) {
+      inPlaintextVariables = section[1] === 'vars' || section[1]?.endsWith('.vars') === true;
+      continue;
+    }
+    if (!inPlaintextVariables) {
+      continue;
+    }
+    const assignment = /^\s*([A-Z][A-Z0-9_]*)\s*=/u.exec(line);
+    if (assignment?.[1] !== undefined && secretVariableName.test(assignment[1])) {
+      process.stderr.write(
+        `[source-policy] ${configPath}: ${assignment[1]} must use a secret binding, not plaintext [vars]\n`
+      );
+      violations += 1;
+    }
+  }
+}
+
 for (const root of sourceRoots) {
   for (const path of await sourceFiles(root)) {
     const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
@@ -76,6 +105,6 @@ if (violations > 0) {
   process.exitCode = 1;
 } else {
   process.stdout.write(
-    `[source-policy] verified ${sourceRoots.length} source roots without suppressions or legacy Effect APIs\n`
+    `[source-policy] verified ${sourceRoots.length} source roots and ${productionWranglerConfigs.length} production configs\n`
   );
 }
