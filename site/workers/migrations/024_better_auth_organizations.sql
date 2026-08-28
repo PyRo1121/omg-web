@@ -67,7 +67,8 @@ CREATE TRIGGER IF NOT EXISTS auth_member_paid_seat_guard
 BEFORE INSERT ON auth_member
 FOR EACH ROW
 BEGIN
-  SELECT CASE WHEN NOT EXISTS (
+  SELECT RAISE(ABORT, 'organization seat unavailable')
+  WHERE NOT EXISTS (
     SELECT 1
     FROM auth_organization AS organization
     JOIN licenses AS license
@@ -81,5 +82,5 @@ BEGIN
         FROM auth_member AS existing_member
         WHERE existing_member.organization_id = NEW.organization_id
       )
-  ) THEN RAISE(ABORT, 'organization seat unavailable') END;
+  );
 END;
