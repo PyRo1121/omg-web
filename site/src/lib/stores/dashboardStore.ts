@@ -2,6 +2,7 @@ import { createStore } from 'solid-js/store';
 import { createEffect } from 'solid-js';
 import { debounce } from '@solid-primitives/scheduled';
 import type { AdminTab, SavedView, DateRange } from '~/types';
+import { readBoundedStoredValue } from '~/lib/browser-storage';
 import {
   decodePersistedDashboardState,
   type PersistedDashboardState,
@@ -32,6 +33,7 @@ export interface DashboardState {
 
 const STORAGE_KEY = 'omg-dashboard-state';
 const STORAGE_VERSION = 2;
+const MAX_STORED_DASHBOARD_CHARACTERS = 32_768;
 
 function browserWindow(): Window | undefined {
   return 'window' in globalThis ? globalThis.window : undefined;
@@ -55,22 +57,15 @@ function getInitialState(): DashboardState {
     return createDefaultState();
   }
 
-  try {
-    const stored = win.localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      return createDefaultState();
-    }
-
-    const parsed: unknown = JSON.parse(stored);
-    const persisted = decodePersistedDashboardState(parsed);
-    if (!persisted) {
-      return createDefaultState();
-    }
-
-    return mergePersisted(createDefaultState(), persisted.state);
-  } catch {
-    return createDefaultState();
-  }
+  const persisted = readBoundedStoredValue(
+    win.localStorage,
+    STORAGE_KEY,
+    MAX_STORED_DASHBOARD_CHARACTERS,
+    decodePersistedDashboardState
+  );
+  return persisted === null
+    ? createDefaultState()
+    : mergePersisted(createDefaultState(), persisted.state);
 }
 
 function createDefaultState(): DashboardState {

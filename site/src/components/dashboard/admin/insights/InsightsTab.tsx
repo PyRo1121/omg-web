@@ -6,6 +6,7 @@ import {
   useAdminCohorts,
   useAdminDashboard,
 } from '../../../../lib/api-hooks';
+import { readBoundedStoredValue } from '../../../../lib/browser-storage';
 import { CardSkeleton } from '../../../ui/Skeleton';
 import { EngagementMetrics } from './EngagementMetrics';
 import { TimeToValueMetrics } from './TimeToValueMetrics';
@@ -25,6 +26,10 @@ const INSIGHT_CATEGORIES: { id: InsightCategory; label: string }[] = [
 ];
 
 const BOOKMARKS_STORAGE_KEY = 'omg-insights-bookmarks';
+const MAX_STORED_BOOKMARK_CHARACTERS = 8_192;
+const BookmarkedInsightsSchema = Schema.Array(Schema.String.pipe(Schema.maxLength(64))).pipe(
+  Schema.maxItems(50)
+);
 
 /** Load bookmarked insight ids from localStorage, parsing the untrusted stored value. */
 function loadBookmarkedInsights(): string[] {
@@ -33,20 +38,17 @@ function loadBookmarkedInsights(): string[] {
     return [];
   }
 
-  try {
-    const stored = browserWindow.localStorage.getItem(BOOKMARKS_STORAGE_KEY);
-    if (!stored) {
-      return [];
-    }
-
-    const parsed: unknown = JSON.parse(stored);
-    const decoded = Schema.decodeUnknownEither(
-      Schema.Array(Schema.String.pipe(Schema.maxLength(64))).pipe(Schema.maxItems(50))
-    )(parsed);
-    return decoded._tag === 'Right' ? [...decoded.right] : [];
-  } catch {
-    return [];
-  }
+  return (
+    readBoundedStoredValue(
+      browserWindow.localStorage,
+      BOOKMARKS_STORAGE_KEY,
+      MAX_STORED_BOOKMARK_CHARACTERS,
+      value => {
+        const decoded = Schema.decodeUnknownEither(BookmarkedInsightsSchema)(value);
+        return decoded._tag === 'Right' ? [...decoded.right] : null;
+      }
+    ) ?? []
+  );
 }
 
 /** Persist bookmarked insight ids; best-effort when browser storage is unavailable. */

@@ -57,6 +57,12 @@ if (antiSlopSync.includes('tmpdir')) {
 for (const root of sourceRoots) {
   for (const path of await sourceFiles(root)) {
     const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
+    if (contents.includes('localStorage.getItem') && contents.includes('JSON.parse(')) {
+      process.stderr.write(
+        `[source-policy] ${path}: localStorage values must be length-bounded before parsing through the shared browser-storage boundary\n`
+      );
+      violations += 1;
+    }
     for (const policy of forbiddenPolicies) {
       if (contents.includes(policy.marker)) {
         process.stderr.write(`[source-policy] ${path}: ${policy.reason} (${policy.marker})\n`);

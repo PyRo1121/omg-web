@@ -240,3 +240,6 @@ Evidence keys:
   CSP; public live script coverage checks pass.
 - The anti-slop upstream sync uses a unique `~/.cache/build-targets` checkout and
   removes it on success or failure; source-policy CI rejects `tmpdir` regression.
+- Solid browser-storage JSON is length-bounded before parsing and schema-decoded
+  afterward; focused tests cover oversized, malformed, invalid, and unavailable
+  storage, and source-policy CI rejects direct localStorage JSON parsing.
