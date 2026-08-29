@@ -59,6 +59,20 @@ const MarketingPromotionRowSchema = Schema.Struct({
 const CheckoutSessionIdPattern = /^cs_[A-Za-z0-9]{10,200}$/;
 const MAX_STRIPE_WEBHOOK_BODY_BYTES = 512 * 1024;
 
+interface StripeProviderDiagnostic {
+  readonly code?: string | undefined;
+  readonly type?: string | undefined;
+  readonly param?: string | undefined;
+}
+
+/** Report bounded provider diagnostics without logging messages, customer data, or Stripe ids. */
+function reportStripeRejection(event: string, error: StripeProviderDiagnostic): void {
+  reportWarning(
+    event,
+    `type=${error.type ?? 'unspecified'} code=${error.code ?? 'unspecified'} param=${error.param ?? 'unspecified'}`
+  );
+}
+
 /**
  * Fetch a Stripe API resource and decode its JSON payload.
  *
@@ -616,6 +630,7 @@ export async function handleCreateCheckout(
   }
 
   if (session.error) {
+    reportStripeRejection('Stripe checkout session rejected', session.error);
     return errorResponse(session.error.message, 502);
   }
 
@@ -769,8 +784,12 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
     return errorResponse('Failed to create portal session', 502);
   }
 
-  if (session.error || !session.url) {
-    return errorResponse(session.error?.message || 'Failed to create portal session', 502);
+  if (session.error) {
+    reportStripeRejection('Stripe portal session rejected', session.error);
+    return errorResponse(session.error.message, 502);
+  }
+  if (!session.url) {
+    return errorResponse('Failed to create portal session', 502);
   }
 
   await Effect.runPromise(

@@ -101,6 +101,29 @@ describe('Stripe JSON decode', () => {
     expect(isSuccess(exit)).toBe(true);
   });
 
+  it('retains bounded provider diagnostics from Stripe errors', async () => {
+    const exit = await Effect.runPromiseExit(
+      decodeStripeJson(StripeCheckoutSessionSchema, 'checkout', {
+        error: {
+          message: 'Permission denied',
+          code: 'more_permissions_required',
+          type: 'invalid_request_error',
+          param: 'line_items[0][price]',
+        },
+      })
+    );
+    expect(Exit.isSuccess(exit)).toBe(true);
+    if (Exit.isFailure(exit)) {
+      return;
+    }
+    expect(exit.value.error).toEqual({
+      message: 'Permission denied',
+      code: 'more_permissions_required',
+      type: 'invalid_request_error',
+      param: 'line_items[0][price]',
+    });
+  });
+
   it('rejects a customer list without data', async () => {
     const exit = await Effect.runPromiseExit(
       decodeStripeJson(StripeCustomerListSchema, 'customers', { has_more: false })

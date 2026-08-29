@@ -18,8 +18,12 @@ function mapParseError(reason: string) {
   return (cause: unknown): StripeParseError => new StripeParseError(reason, cause);
 }
 
+const StripeErrorDiagnosticSchema = Schema.String.pipe(Schema.maxLength(128));
 const StripeErrorSchema = Schema.Struct({
-  message: Schema.String,
+  message: Schema.String.pipe(Schema.maxLength(1_000)),
+  code: Schema.optional(StripeErrorDiagnosticSchema),
+  type: Schema.optional(StripeErrorDiagnosticSchema),
+  param: Schema.optional(StripeErrorDiagnosticSchema),
 });
 
 /** Checkout session returned by Stripe. */
