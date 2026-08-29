@@ -35,6 +35,44 @@ const AdminAuditPageTestSchema = Schema.Struct({
   logs: Schema.Array(Schema.Struct({ action: Schema.String })),
   pagination: Schema.Struct({ total: Schema.Number }),
 });
+const AdminAnalyticsEmptyTestSchema = Schema.Struct({
+  time_saved: Schema.Struct({ total_hours: Schema.Number }),
+  funnel: Schema.Struct({ power_users: Schema.Number }),
+  performance: Schema.Struct({
+    avg_latency_ms: Schema.Number,
+    min_ms: Schema.Number,
+    max_ms: Schema.Number,
+  }),
+  sessions: Schema.Struct({
+    avg_duration_seconds: Schema.Number,
+    max_duration_seconds: Schema.Number,
+  }),
+  user_journey: Schema.Struct({
+    funnel: Schema.Struct({
+      installed: Schema.Number,
+      activated: Schema.Number,
+      first_command: Schema.Number,
+      exploring: Schema.Number,
+      engaged: Schema.Number,
+      power_user: Schema.Number,
+    }),
+  }),
+});
+const AdminAdvancedMetricsEmptyTestSchema = Schema.Struct({
+  feature_adoption: Schema.Struct({
+    total_installs: Schema.Number,
+    total_searches: Schema.Number,
+    total_runtime_switches: Schema.Number,
+    total_sbom: Schema.Number,
+    total_vulns: Schema.Number,
+    install_adopters: Schema.Number,
+    search_adopters: Schema.Number,
+    runtime_adopters: Schema.Number,
+    sbom_adopters: Schema.Number,
+    total_active_users: Schema.Number,
+  }),
+  revenue_metrics: Schema.Struct({ current_mrr: Schema.Number }),
+});
 
 async function ensureSchema(): Promise<void> {
   env.AUTH_RATE_LIMITER = ALLOW_ALL_RATE_LIMITER;
@@ -640,6 +678,71 @@ describe('admin handler authorization', () => {
     expect(note).toEqual({
       note_type: 'success',
       content: 'Customer reached the activation milestone.',
+    });
+  });
+
+  it('returns zero-valued analytics when telemetry tables are empty', async () => {
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM analytics_events'),
+      env.DB.prepare('DELETE FROM usage_daily'),
+    ]);
+
+    const context = createExecutionContext();
+    const response = await worker.fetch(getPath('/api/admin/analytics', adminToken), env, context);
+    await waitOnExecutionContext(context);
+
+    expect(response.status).toBe(200);
+    const payload = Schema.decodeUnknownSync(AdminAnalyticsEmptyTestSchema)(await response.json());
+    expect(payload).toEqual({
+      time_saved: { total_hours: 0 },
+      funnel: { power_users: 0 },
+      performance: { avg_latency_ms: 0, min_ms: 0, max_ms: 0 },
+      sessions: { avg_duration_seconds: 0, max_duration_seconds: 0 },
+      user_journey: {
+        funnel: {
+          installed: 0,
+          activated: 0,
+          first_command: 0,
+          exploring: 0,
+          engaged: 0,
+          power_user: 0,
+        },
+      },
+    });
+  });
+
+  it('returns complete zero-valued advanced metrics when retained data is empty', async () => {
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM usage_daily'),
+      env.DB.prepare('DELETE FROM subscriptions'),
+    ]);
+
+    const context = createExecutionContext();
+    const response = await worker.fetch(
+      getPath('/api/admin/advanced-metrics', adminToken),
+      env,
+      context
+    );
+    await waitOnExecutionContext(context);
+
+    expect(response.status).toBe(200);
+    const payload = Schema.decodeUnknownSync(AdminAdvancedMetricsEmptyTestSchema)(
+      await response.json()
+    );
+    expect(payload).toEqual({
+      feature_adoption: {
+        total_installs: 0,
+        total_searches: 0,
+        total_runtime_switches: 0,
+        total_sbom: 0,
+        total_vulns: 0,
+        install_adopters: 0,
+        search_adopters: 0,
+        runtime_adopters: 0,
+        sbom_adopters: 0,
+        total_active_users: 0,
+      },
+      revenue_metrics: { current_mrr: 0 },
     });
   });
 

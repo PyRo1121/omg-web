@@ -102,7 +102,12 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 - [x] The production Alchemy plan creates only the stage-scoped Svelte Website, bindings, limiters, and auth secret; it contains no D1 resource action and does not adopt an existing Worker.
 - [x] The existing D1 database is attached as a raw Worker binding by its stable database identifier. Alchemy does not own the database resource or its schema; Wrangler remains the sole migration authority.
 - [x] The shadow auth endpoint returns `200 null` anonymously after the binding change, proving the retained database remains reachable without exposing session data.
-- [ ] Complete user-controlled authenticated Helium characterization before approving the hostname window.
+- [x] User-controlled authenticated Helium characterization rendered account overview, analytics, achievements, machines, settings, organization bootstrap, operator overview, customers, organizations, analytics, insights, revenue, audit, exports, and live activity without exposing retained private identifiers.
+- [x] Empty production telemetry initially broke operator analytics. Worker version `5d8b1813-77f5-4190-8349-0edc42848179` made empty aggregates concrete, corrected churn filtering, and grouped journey events through licenses with session fallback; the complete Worker suite passed before deployment and the repaired page rendered successfully.
+- [x] Operator insights then exposed an incomplete feature-adoption projection. Worker version `65860efe-5c7c-45f3-b03f-c5587a25b611` restored SBOM/vulnerability totals and SBOM adopters; focused authorization tests, Worker typecheck, lint, and formatting passed before deployment, and Insights, Revenue, and Audit rendered successfully afterward.
+- [x] Live activity returned `200`, resumed its bounded five-second polling when visible, and stopped issuing `/admin/live/events` requests while its tab was hidden. The fixed-name `omg-users.csv` export downloaded as a 409-byte `text/csv` file with the expected header and was deleted after validation.
+- [ ] Checkout remains blocked: authenticated Pro Checkout reaches `omg-saas` but returns `502` and the page presents `Checkout is temporarily unavailable.` A live restricted-key probe reproduced Stripe `more_permissions_required` for Checkout Sessions Write. Add only that permission to the dedicated Worker key, repeat Checkout, expire the unpaid characterization session, and record the successful redirect before approving the hostname window.
+- [ ] Complete invitation-email and compact authenticated characterization before approving the hostname window.
 
 ### M6 — Atomic hostname cutover
 
@@ -140,7 +145,7 @@ After the agreed observation window:
 - [x] Shadow deployment, no-op plan, live offer creation, anonymous Checkout fail-closed behavior, and private-identifier projection checks.
 - [x] Authenticated Checkout creation with exact offer parsing and an allowlisted Stripe redirect.
 - [x] Bounded post-checkout fulfillment status with no session id, email, license key, or provider identifier in page data/DOM.
-- [ ] User-controlled authenticated checkout characterization.
+- [ ] User-controlled authenticated Checkout characterization is blocked on the dedicated live restricted key's missing Checkout Sessions Write permission; the application fails closed with a bounded generic message.
 
 Do not attach production routes before the coordinated cutover. Do not enable Stripe Tax until registrations and liability jurisdictions are established. Automated implementation parity does not replace user-controlled authenticated characterization.
 

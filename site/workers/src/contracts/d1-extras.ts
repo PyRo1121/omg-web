@@ -720,9 +720,12 @@ export const FeatureAdoptionRowSchema = Schema.Struct({
   total_installs: D1Number,
   total_searches: D1Number,
   total_runtime_switches: D1Number,
+  total_sbom: D1Number,
+  total_vulns: D1Number,
   install_adopters: D1Number,
   search_adopters: D1Number,
   runtime_adopters: D1Number,
+  sbom_adopters: D1Number,
   total_active_users: D1Number,
 });
 

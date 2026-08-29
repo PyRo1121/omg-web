@@ -57,7 +57,7 @@ Known no-op in the canonical chain: migration `015_customers_email_unique.sql` s
 
 License JWTs are EdDSA-only. Verifiers must pin `alg=EdDSA`, `kid=omg-license-ed25519-v1`, `iss=https://omg-api.latham.cloud`, and `aud=omg-cli`; they must never select an algorithm from an untrusted JWT header. The matching public key is published at `https://omg.latham.cloud/.well-known/omg-license-ed25519-v1.pem`. Rotate by introducing a new key ID and serving both public keys during the bounded one-hour token overlap; never reuse `JWT_SECRET` for license signing.
 
-Stripe secrets are server-only on `omg-saas`; billing routes are unlocked and no longer return `503`.
+Stripe secrets are server-only on `omg-saas`. The routes are configured, but billing is not cutover-ready until the restricted-key permission gate below passes.
 
 ### Stripe live-mode wiring (2026-08-24)
 
@@ -69,7 +69,9 @@ Stripe live mode is active on account `acct_1TpcWPPI6tkdUQSc`; charges and payou
   - `STRIPE_TEAM_PRICE_ID=price_1U7ub3PI6tkdUQScFqTRFgv8` ($200/month Team)
 - Introductory offer coupon `omg_intro_20_3mo_v1` provides 20% off for three months and is restricted to those two products. The Worker creates one first-transaction, single-redemption promotion code per normalized email; checkout applies it only when the authenticated account uses that same email.
 - Live webhook endpoint `we_1U7uexPI6tkdUQSclmocHNWo` targets `https://omg-api.latham.cloud/api/stripe/webhook` for `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`, and `customer.created`.
-- `STRIPE_SECRET_KEY` is a dedicated restricted live key with Promotion Codes Write access; its value and the endpoint signing secret are stored only as `omg-saas` Wrangler secrets.
+- `STRIPE_SECRET_KEY` is a dedicated restricted live key; its value and the endpoint signing secret are stored only as `omg-saas` Wrangler secrets.
+- Its least-privilege Stripe surface is Checkout Sessions Write, Billing Portal Sessions Write, Promotion Codes Write, and read access for Customers, Subscriptions, Invoices, and Balance. Write includes read for the same Stripe resource. No payment-method, charge, payout, product, price, refund, or account mutation permission is required by the Worker.
+- Authenticated shadow characterization on 2026-08-29 reached the live Checkout boundary but Stripe rejected session creation. A live restricted-key probe returned `more_permissions_required` for Checkout Sessions Write. Add only that permission, repeat the controlled Checkout redirect, then expire the unpaid session before treating this gate as complete.
 
 The historical test-mode catalog remains isolated in Stripe and is not referenced by production. A signed live `customer.created` delivery was processed by the D1 webhook inbox on 2026-08-24 (`status=processed`, one attempt, no error); the no-email smoke customer was deleted immediately. Automated production E2E never creates live Checkout Sessions; controlled release verification must expire its unpaid smoke-test session through Stripe CLI.
 

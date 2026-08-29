@@ -545,19 +545,19 @@ export const loadAnalytics = (db: D1Database) =>
       db,
       HoursSavedRowSchema,
       'Admin hours-saved row has an invalid shape',
-      'SELECT SUM(time_saved_ms) / 3600000.0 as total_hours FROM usage_daily'
+      'SELECT COALESCE(SUM(time_saved_ms), 0) / 3600000.0 as total_hours FROM usage_daily'
     );
     const funnel = yield* optionalRow(
       db,
       FunnelRowSchema,
       'Admin funnel row has an invalid shape',
-      "SELECT (SELECT COUNT(*) FROM install_stats WHERE created_at >= datetime('now', '-30 days')) as installs, (SELECT COUNT(DISTINCT u.license_id) FROM usage_daily u WHERE u.date >= datetime('now', '-30 days') AND u.commands_run > 0) as activated, (SELECT COUNT(DISTINCT u.license_id) FROM usage_daily u WHERE u.date >= datetime('now', '-30 days') GROUP BY u.license_id HAVING SUM(u.commands_run) > 1000) as power_users"
+      "SELECT (SELECT COUNT(*) FROM install_stats WHERE created_at >= datetime('now', '-30 days')) as installs, (SELECT COUNT(DISTINCT u.license_id) FROM usage_daily u WHERE u.date >= datetime('now', '-30 days') AND u.commands_run > 0) as activated, (SELECT COUNT(*) FROM (SELECT u.license_id FROM usage_daily u WHERE u.date >= datetime('now', '-30 days') GROUP BY u.license_id HAVING SUM(u.commands_run) > 1000)) as power_users"
     );
     const churnRisk = yield* optionalRow(
       db,
       AtRiskRowSchema,
       'Admin at-risk row has an invalid shape',
-      "SELECT COUNT(*) as at_risk_users FROM (SELECT l.customer_id, (SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-3 days')) as cmds_3d, (SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-10 days') AND date < date('now', '-3 days')) as cmds_prev_7d FROM licenses l WHERE l.status = 'active' HAVING (COALESCE(cmds_prev_7d, 0) > 10 AND (COALESCE(cmds_3d, 0) / 3.0) / (COALESCE(cmds_prev_7d, 0) / 7.0 + 0.001) < 0.2) OR (SELECT MAX(date) FROM usage_daily WHERE license_id = l.id) < date('now', '-7 days'))"
+      "WITH activity AS (SELECT l.customer_id, COALESCE((SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-3 days')), 0) as cmds_3d, COALESCE((SELECT SUM(commands_run) FROM usage_daily WHERE license_id = l.id AND date >= date('now', '-10 days') AND date < date('now', '-3 days')), 0) as cmds_prev_7d, (SELECT MAX(date) FROM usage_daily WHERE license_id = l.id) as last_activity FROM licenses l WHERE l.status = 'active') SELECT COUNT(*) as at_risk_users FROM activity WHERE (cmds_prev_7d > 10 AND (cmds_3d / 3.0) / (cmds_prev_7d / 7.0 + 0.001) < 0.2) OR last_activity < date('now', '-7 days')"
     );
     const retentionRate = yield* optionalRow(
       db,
@@ -569,19 +569,19 @@ export const loadAnalytics = (db: D1Database) =>
       db,
       PerformanceStatsRowSchema,
       'Admin performance row has an invalid shape',
-      "SELECT AVG(duration_ms) as avg_ms, MIN(duration_ms) as min_ms, MAX(duration_ms) as max_ms, COUNT(*) as count FROM analytics_events WHERE event_type = 'performance' AND created_at >= datetime('now', '-7 days')"
+      "SELECT COALESCE(AVG(duration_ms), 0) as avg_ms, COALESCE(MIN(duration_ms), 0) as min_ms, COALESCE(MAX(duration_ms), 0) as max_ms, COUNT(*) as count FROM analytics_events WHERE event_type = 'performance' AND created_at >= datetime('now', '-7 days')"
     );
     const sessions = yield* optionalRow(
       db,
       SessionStatsRowSchema,
       'Admin session stats row has an invalid shape',
-      "SELECT COUNT(DISTINCT session_id) as total_sessions, COUNT(CASE WHEN event_type = 'session_start' THEN 1 END) as sessions_started, COUNT(CASE WHEN event_type = 'heartbeat' THEN 1 END) as heartbeats_sent, AVG(CASE WHEN event_type = 'session_end' THEN json_extract(properties, '$.duration_seconds') END) as avg_duration_seconds, MAX(CASE WHEN event_type = 'session_end' THEN json_extract(properties, '$.duration_seconds') END) as max_duration_seconds FROM analytics_events WHERE event_type IN ('session_start', 'heartbeat', 'session_end') AND created_at >= datetime('now', '-30 days')"
+      "SELECT COUNT(DISTINCT session_id) as total_sessions, COUNT(CASE WHEN event_type = 'session_start' THEN 1 END) as sessions_started, COUNT(CASE WHEN event_type = 'heartbeat' THEN 1 END) as heartbeats_sent, COALESCE(AVG(CASE WHEN event_type = 'session_end' THEN json_extract(properties, '$.duration_seconds') END), 0) as avg_duration_seconds, COALESCE(MAX(CASE WHEN event_type = 'session_end' THEN json_extract(properties, '$.duration_seconds') END), 0) as max_duration_seconds FROM analytics_events WHERE event_type IN ('session_start', 'heartbeat', 'session_end') AND created_at >= datetime('now', '-30 days')"
     );
     const userJourney = yield* optionalRow(
       db,
       JourneyRowSchema,
       'Admin journey row has an invalid shape',
-      "WITH latest_stages AS (SELECT customer_id, MAX(CASE json_extract(properties, '$.to_stage') WHEN 'installed' THEN 1 WHEN 'activated' THEN 2 WHEN 'first_command' THEN 3 WHEN 'exploring' THEN 4 WHEN 'engaged' THEN 5 WHEN 'power_user' THEN 6 WHEN 'at_risk' THEN 7 WHEN 'churned' THEN 8 ELSE 0 END) as stage_order FROM analytics_events WHERE event_type = 'feature' AND event_name = 'stage_transition' AND created_at >= datetime('now', '-30 days') GROUP BY customer_id) SELECT SUM(CASE WHEN stage_order = 1 THEN 1 END) as installed, SUM(CASE WHEN stage_order = 2 THEN 1 END) as activated, SUM(CASE WHEN stage_order = 3 THEN 1 END) as first_command, SUM(CASE WHEN stage_order = 4 THEN 1 END) as exploring, SUM(CASE WHEN stage_order = 5 THEN 1 END) as engaged, SUM(CASE WHEN stage_order = 6 THEN 1 END) as power_user FROM latest_stages"
+      "WITH latest_stages AS (SELECT COALESCE(l.customer_id, e.session_id) as actor_id, MAX(CASE json_extract(e.properties, '$.to_stage') WHEN 'installed' THEN 1 WHEN 'activated' THEN 2 WHEN 'first_command' THEN 3 WHEN 'exploring' THEN 4 WHEN 'engaged' THEN 5 WHEN 'power_user' THEN 6 WHEN 'at_risk' THEN 7 WHEN 'churned' THEN 8 ELSE 0 END) as stage_order FROM analytics_events e LEFT JOIN licenses l ON e.license_key = l.license_key WHERE e.event_type = 'feature' AND e.event_name = 'stage_transition' AND e.created_at >= datetime('now', '-30 days') GROUP BY COALESCE(l.customer_id, e.session_id)) SELECT COALESCE(SUM(CASE WHEN stage_order = 1 THEN 1 END), 0) as installed, COALESCE(SUM(CASE WHEN stage_order = 2 THEN 1 END), 0) as activated, COALESCE(SUM(CASE WHEN stage_order = 3 THEN 1 END), 0) as first_command, COALESCE(SUM(CASE WHEN stage_order = 4 THEN 1 END), 0) as exploring, COALESCE(SUM(CASE WHEN stage_order = 5 THEN 1 END), 0) as engaged, COALESCE(SUM(CASE WHEN stage_order = 6 THEN 1 END), 0) as power_user FROM latest_stages"
     );
     const runtimeUsage = yield* rows(
       db,
@@ -739,10 +739,12 @@ export const loadAdvancedMetrics = (db: D1Database) =>
         FeatureAdoptionRowSchema,
         'Admin feature adoption row has an invalid shape',
         `SELECT SUM(packages_installed) as total_installs, SUM(packages_searched) as total_searches,
-        SUM(runtimes_switched) as total_runtime_switches,
+        SUM(runtimes_switched) as total_runtime_switches, SUM(sbom_generated) as total_sbom,
+        SUM(vulnerabilities_found) as total_vulns,
         COUNT(DISTINCT CASE WHEN packages_installed > 0 THEN license_id END) as install_adopters,
         COUNT(DISTINCT CASE WHEN packages_searched > 0 THEN license_id END) as search_adopters,
         COUNT(DISTINCT CASE WHEN runtimes_switched > 0 THEN license_id END) as runtime_adopters,
+        COUNT(DISTINCT CASE WHEN sbom_generated > 0 THEN license_id END) as sbom_adopters,
         COUNT(DISTINCT license_id) as total_active_users FROM usage_daily WHERE date >= date('now', '-30 days')`
       ),
       heatmap: rows(
