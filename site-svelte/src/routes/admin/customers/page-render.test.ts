@@ -75,6 +75,7 @@ describe('customer directory SSR', () => {
             maxSeats: 5,
             status: 'active',
             telemetryOptOut: false,
+            billingLinked: true,
             tier: 'team',
             updatedAt: '2026-08-28T12:00:00.000Z',
             usage: [],
@@ -122,8 +123,17 @@ describe('customer directory SSR', () => {
     });
 
     expect(result.body).toContain('Customer health');
+    expect(result.body).toContain('Historical health snapshots are unavailable');
     expect(result.body).toContain('Expansion review scheduled.');
     expect(result.body).toContain('Ready for account growth');
+    expect(result.body).toContain('Add audited note');
+    expect(result.body).toContain('Delete note');
+    expect(result.body).toContain('Assign catalog tag');
+    expect(result.body).toContain('Create tag');
+    expect(result.body).toContain('Open customer Billing Portal');
+    expect(result.body).not.toContain('name="noteId"');
+    expect(result.body).not.toContain('name="tagId"');
+    expect(result.body).not.toContain('name="customerId"');
     expect(result.body).not.toContain('private-customer-id');
     expect(result.body).not.toContain('private-note-id');
     expect(result.body).not.toContain('private-tag-id');

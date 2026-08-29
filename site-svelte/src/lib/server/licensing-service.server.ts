@@ -467,6 +467,55 @@ export function loadUserServiceSession(
   );
 }
 
+export type PrivateWorkerRequest =
+  | { readonly method: 'GET' | 'DELETE' }
+  | { readonly method: 'POST' | 'PUT'; readonly body: LicensingBoundaryInput };
+
+/** Execute one authenticated Worker request and decode its bounded JSON response. */
+export function requestPrivateWorkerPayload<S extends Schema.Top>(
+  env: LicensingSummaryEnvironment,
+  session: LicensingServiceSession,
+  path: `/${string}`,
+  operation: LicensingServiceOperation,
+  limit: number,
+  schema: S,
+  request: PrivateWorkerRequest
+): Effect.Effect<
+  S['Type'],
+  | LicensingSummaryServiceUnavailable
+  | LicensingSummaryWorkerRejected
+  | LicensingSummaryBodyTooLarge
+  | LicensingSummaryInvalidPayload,
+  S['DecodingServices']
+> {
+  return Effect.gen(function* () {
+    const response = yield* serviceFetch(
+      env.LICENSING_API,
+      new Request(
+        `${INTERNAL_ORIGIN}${path}`,
+        !('body' in request)
+          ? {
+              method: request.method,
+              headers: { Authorization: `Bearer ${session.token}` },
+            }
+          : {
+              method: request.method,
+              headers: {
+                Authorization: `Bearer ${session.token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(request.body),
+            }
+      )
+    );
+    if (!response.ok) {
+      return yield* Effect.fail(new LicensingSummaryWorkerRejected(operation, response.status));
+    }
+    const json = yield* readBoundedJson(response, operation, limit);
+    return yield* parseWorkerPayload(schema, json, operation);
+  });
+}
+
 export function loadPrivateWorkerPayload<S extends Schema.Top>(
   env: LicensingSummaryEnvironment,
   session: LicensingServiceSession,
@@ -482,23 +531,11 @@ export function loadPrivateWorkerPayload<S extends Schema.Top>(
   | LicensingSummaryInvalidPayload,
   S['DecodingServices']
 > {
-  return Effect.gen(function* () {
-    const response = yield* serviceFetch(
-      env.LICENSING_API,
-      new Request(`${INTERNAL_ORIGIN}${path}`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${session.token}` },
-      })
-    );
-    if (!response.ok) {
-      return yield* Effect.fail(new LicensingSummaryWorkerRejected(operation, response.status));
-    }
-    const json = yield* readBoundedJson(response, operation, limit);
-    return yield* parseWorkerPayload(schema, json, operation);
+  return requestPrivateWorkerPayload(env, session, path, operation, limit, schema, {
+    method: 'GET',
   });
 }
 
-/** Mint a private Worker session only after verifying the website admin role. */
 /** Send a bounded JSON request through an authenticated private Worker session. */
 export function sendPrivateWorkerPayload<S extends Schema.Top>(
   env: LicensingSummaryEnvironment,
@@ -516,23 +553,9 @@ export function sendPrivateWorkerPayload<S extends Schema.Top>(
   | LicensingSummaryInvalidPayload,
   S['DecodingServices']
 > {
-  return Effect.gen(function* () {
-    const response = yield* serviceFetch(
-      env.LICENSING_API,
-      new Request(`${INTERNAL_ORIGIN}${path}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      })
-    );
-    if (!response.ok) {
-      return yield* Effect.fail(new LicensingSummaryWorkerRejected(operation, response.status));
-    }
-    const json = yield* readBoundedJson(response, operation, limit);
-    return yield* parseWorkerPayload(schema, json, operation);
+  return requestPrivateWorkerPayload(env, session, path, operation, limit, schema, {
+    method: 'POST',
+    body,
   });
 }
 

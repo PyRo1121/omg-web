@@ -9,6 +9,15 @@ export const ADMIN_CUSTOMER_STATUSES: readonly ['active', 'cancelled', 'inactive
   'cancelled',
   'inactive',
 ];
+export const ADMIN_CUSTOMER_NOTE_TYPES: readonly [
+  'general',
+  'call',
+  'email',
+  'meeting',
+  'support',
+  'sales',
+  'success',
+] = ['general', 'call', 'email', 'meeting', 'support', 'sales', 'success'];
 
 export type AdminCustomerTier = (typeof ADMIN_CUSTOMER_TIERS)[number];
 export type AdminCustomerStatus = (typeof ADMIN_CUSTOMER_STATUSES)[number];
@@ -77,6 +86,7 @@ export interface AdminCustomerDetail {
   readonly maxMachines: number | null;
   readonly expiresAt: string | null;
   readonly telemetryOptOut: boolean;
+  readonly billingLinked: boolean;
   readonly machines: ReadonlyArray<AdminCustomerMachine>;
   readonly usage: ReadonlyArray<AdminCustomerUsageDay>;
 }

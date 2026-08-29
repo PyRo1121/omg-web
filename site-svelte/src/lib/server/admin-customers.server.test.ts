@@ -222,6 +222,7 @@ describe('admin customer service', () => {
       maxSeats: 5,
       status: 'active',
       telemetryOptOut: true,
+      billingLinked: true,
       tier: 'team',
       updatedAt: '2026-08-27 00:00:00',
       usage: [

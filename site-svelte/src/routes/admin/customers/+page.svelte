@@ -203,6 +203,10 @@
                   </div>
                 </dl>
               </div>
+              <p class="unavailable-detail">
+                Historical health snapshots are unavailable because the retained store keeps only
+                the current score.
+              </p>
             {:else if selectedSupport.health.kind === 'empty'}
               <div class="empty-state"><strong>No health snapshot has been computed.</strong></div>
             {:else}
@@ -230,9 +234,53 @@
                       <strong>{tag.name}</strong>
                       <small>{tag.description ?? 'No description'}</small>
                     </div>
+                    <form method="POST" action="?/changeTag">
+                      <input type="hidden" name="email" value={selectedCustomer.email} />
+                      <input type="hidden" name="tagName" value={tag.name} />
+                      <input type="hidden" name="intent" value="remove" />
+                      <button class="quiet-action" type="submit">Remove</button>
+                    </form>
                   </li>
                 {/each}
               </ul>
+            {/if}
+            {#if selectedSupport.tagCatalog.kind === 'available'}
+              <div class="support-forms">
+                <form class="inline-support-form" method="POST" action="?/changeTag">
+                  <input type="hidden" name="email" value={selectedCustomer.email} />
+                  <input type="hidden" name="intent" value="assign" />
+                  <label>
+                    Assign catalog tag
+                    <select name="tagName" required>
+                      <option value="">Choose a tag</option>
+                      {#each selectedSupport.tagCatalog.values as tag (tag.name)}
+                        <option value={tag.name}>{tag.name} ({formatCount(tag.usageCount)})</option>
+                      {/each}
+                    </select>
+                  </label>
+                  <button type="submit">Assign tag</button>
+                </form>
+                <form
+                  class="inline-support-form create-tag-form"
+                  method="POST"
+                  action="?/createTag"
+                >
+                  <input type="hidden" name="email" value={selectedCustomer.email} />
+                  <label>
+                    New catalog tag
+                    <input name="name" maxlength="64" required />
+                  </label>
+                  <label>
+                    Color
+                    <input name="color" type="color" value="#6366f1" required />
+                  </label>
+                  <label>
+                    Description
+                    <input name="description" maxlength="256" />
+                  </label>
+                  <button type="submit">Create tag</button>
+                </form>
+              </div>
             {/if}
           </section>
 
@@ -241,6 +289,26 @@
               <h3 id="notes-title">Support notes</h3>
               <span>Audited history</span>
             </header>
+            <form class="note-form" method="POST" action="?/createNote">
+              <input type="hidden" name="email" value={selectedCustomer.email} />
+              <label>
+                Note type
+                <select name="noteType">
+                  <option value="general">General</option>
+                  <option value="call">Call</option>
+                  <option value="email">Email</option>
+                  <option value="meeting">Meeting</option>
+                  <option value="support">Support</option>
+                  <option value="sales">Sales</option>
+                  <option value="success">Success</option>
+                </select>
+              </label>
+              <label>
+                Support note
+                <textarea name="content" maxlength="4000" rows="4" required></textarea>
+              </label>
+              <button type="submit">Add audited note</button>
+            </form>
             {#if selectedSupport.notes.kind === 'unavailable'}
               <div class="empty-state"><strong>Notes are temporarily unavailable.</strong></div>
             {:else if selectedSupport.notes.values.length === 0}
@@ -257,6 +325,16 @@
                     <small>
                       {note.authorEmail ?? 'Unknown operator'} / {formatTimestamp(note.createdAt)}
                     </small>
+                    <form class="note-delete-form" method="POST" action="?/deleteNote">
+                      <input type="hidden" name="email" value={selectedCustomer.email} />
+                      <input type="hidden" name="content" value={note.content} />
+                      <input type="hidden" name="createdAt" value={note.createdAt} />
+                      <label>
+                        <input type="checkbox" name="confirmation" value="delete-note" required />
+                        Confirm deletion
+                      </label>
+                      <button class="quiet-action" type="submit">Delete note</button>
+                    </form>
                   </li>
                 {/each}
               </ol>
@@ -314,6 +392,20 @@
             </label>
             <button type="submit">Apply license change</button>
           </form>
+          {#if selectedCustomer.billingLinked}
+            <form class="billing-form" method="POST" action="?/openBilling">
+              <input type="hidden" name="email" value={selectedCustomer.email} />
+              <label class="confirmation">
+                <input type="checkbox" name="confirmation" value="open-billing" required />
+                I understand this opens delegated billing settings for this customer.
+              </label>
+              <button type="submit">Open customer Billing Portal</button>
+            </form>
+          {:else}
+            <div class="empty-state">
+              <strong>No billing account is linked to this customer.</strong>
+            </div>
+          {/if}
         </section>
 
         <section aria-labelledby="machines-title">
@@ -479,9 +571,13 @@
   }
   input,
   select,
+  textarea,
   button {
     border-radius: 0;
     font: inherit;
+  }
+  textarea {
+    resize: vertical;
   }
   .directory-tools input {
     width: min(20rem, 48vw);
@@ -493,7 +589,11 @@
   .directory-tools button,
   .directory-tools a,
   .inspect-button,
-  .license-form button {
+  .license-form button,
+  .support-forms button,
+  .note-form button,
+  .billing-form button,
+  .quiet-action {
     padding: 0.7rem 0.9rem;
     border: 1px solid var(--rule-strong);
     background: var(--signal);
@@ -634,6 +734,13 @@
     font-size: 2.5rem;
     letter-spacing: -0.06em;
   }
+  .unavailable-detail {
+    margin: 0;
+    padding: 0.8rem 1.25rem;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+  }
   .health-summary dl {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -666,8 +773,9 @@
   }
   .tag-list li {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 0.75rem;
+    align-items: start;
     padding: 0.9rem 1.25rem;
     border-bottom: 1px solid var(--rule);
   }
@@ -721,6 +829,70 @@
     font-size: 0.78rem;
     line-height: 1.5;
     white-space: pre-wrap;
+  }
+  .support-forms,
+  .note-form,
+  .billing-form {
+    display: grid;
+    gap: 0.8rem;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--rule);
+  }
+  .inline-support-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.6rem;
+    align-items: end;
+  }
+  .create-tag-form {
+    grid-template-columns: minmax(8rem, 1fr) auto minmax(10rem, 1.4fr) auto;
+  }
+  .support-forms label,
+  .note-form label,
+  .billing-form label,
+  .note-delete-form label {
+    display: grid;
+    gap: 0.35rem;
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+  }
+  .support-forms input:not([type='color']),
+  .support-forms select,
+  .note-form select,
+  .note-form textarea {
+    min-width: 0;
+    padding: 0.65rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .support-forms input[type='color'] {
+    width: 3rem;
+    height: 2.25rem;
+    padding: 0.1rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper);
+  }
+  .note-delete-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+  }
+  .note-delete-form label,
+  .billing-form .confirmation {
+    display: flex;
+    align-items: center;
+  }
+  .quiet-action {
+    padding: 0.45rem 0.6rem;
+    background: transparent;
+    color: var(--ink-muted);
+  }
+  .billing-form {
+    margin-top: 0;
   }
   .support-grid {
     display: grid;
@@ -830,6 +1002,12 @@
     margin: 0.35rem 0 0;
     color: var(--ink-muted);
     font-size: 0.75rem;
+  }
+  @media (max-width: 47.99rem) {
+    .inline-support-form,
+    .create-tag-form {
+      grid-template-columns: 1fr;
+    }
   }
   @media (min-width: 48rem) {
     .page-header {

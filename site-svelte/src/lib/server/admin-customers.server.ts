@@ -260,6 +260,7 @@ export function loadAdminCustomerDetailById(
       maxMachines: payload.license.max_machines,
       expiresAt: payload.license.expires_at,
       telemetryOptOut: payload.user.telemetry_opt_out === 1,
+      billingLinked: payload.user.stripe_customer_id !== null,
       machines: payload.machines.map(machine => ({
         hostname: normalizedOptionalText(machine.hostname),
         operatingSystem: normalizedOptionalText(machine.os),

@@ -458,6 +458,9 @@ describe('admin handler authorization', () => {
   });
 
   afterEach(async () => {
+    await env.DB.prepare(`DELETE FROM customer_notes WHERE customer_id IN (?, ?)`)
+      .bind(adminCustomerId, userCustomerId)
+      .run();
     await env.DB.prepare(`DELETE FROM audit_log WHERE customer_id IN (?, ?)`)
       .bind(adminCustomerId, userCustomerId)
       .run();
@@ -518,7 +521,7 @@ describe('admin handler authorization', () => {
           Authorization: `Bearer ${adminToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: userCustomerId, tier: 'pro' }),
+        body: JSON.stringify({ userId: userCustomerId, tier: 'pro', status: 'cancelled' }),
       }),
       env,
       context
@@ -526,10 +529,42 @@ describe('admin handler authorization', () => {
     await waitOnExecutionContext(context);
 
     expect(response.status).toBe(200);
-    const license = await env.DB.prepare(`SELECT tier FROM licenses WHERE id = ?`)
+    const license = await env.DB.prepare(`SELECT tier, status FROM licenses WHERE id = ?`)
       .bind('admin-update-license')
-      .first<{ tier: string }>();
-    expect(license?.tier).toBe('pro');
+      .first<{ tier: string; status: string }>();
+    expect(license).toEqual({ tier: 'pro', status: 'cancelled' });
+  });
+
+  it('accepts every note type offered by the admin customer workspace', async () => {
+    const context = createExecutionContext();
+    const response = await worker.fetch(
+      new Request('http://localhost/api/admin/notes', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: userCustomerId,
+          content: 'Customer reached the activation milestone.',
+          noteType: 'success',
+        }),
+      }),
+      env,
+      context
+    );
+    await waitOnExecutionContext(context);
+
+    expect(response.status).toBe(200);
+    const note = await env.DB.prepare(
+      `SELECT note_type, content FROM customer_notes WHERE customer_id = ?`
+    )
+      .bind(userCustomerId)
+      .first<{ note_type: string; content: string }>();
+    expect(note).toEqual({
+      note_type: 'success',
+      content: 'Customer reached the activation milestone.',
+    });
   });
 
   it('lists users with a count from the independently batched query', async () => {

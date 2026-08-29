@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import {
+  ADMIN_CUSTOMER_NOTE_TYPES,
   ADMIN_CUSTOMER_STATUSES,
   ADMIN_CUSTOMER_TIERS,
   type AdminCustomerStatus,
@@ -25,11 +26,72 @@ const CustomerUpdateFormSchema = Schema.Struct({
   status: Schema.Literals(ADMIN_CUSTOMER_STATUSES),
   confirmation: Schema.Literal('confirmed'),
 });
+const NoteContentSchema = Schema.String.check(
+  Schema.isTrimmed(),
+  Schema.isMinLength(1),
+  Schema.isMaxLength(4000)
+);
+const NoteCreateFormSchema = Schema.Struct({
+  email: EmailFieldSchema,
+  content: NoteContentSchema,
+  noteType: Schema.Literals(ADMIN_CUSTOMER_NOTE_TYPES),
+});
+const NoteDeleteFormSchema = Schema.Struct({
+  email: EmailFieldSchema,
+  content: NoteContentSchema,
+  createdAt: Schema.String.check(
+    Schema.isMaxLength(64),
+    Schema.makeFilter(value => Number.isFinite(Date.parse(value)))
+  ),
+  confirmation: Schema.Literal('delete-note'),
+});
+const TagAssignmentFormSchema = Schema.Struct({
+  email: EmailFieldSchema,
+  tagName: Schema.String.check(Schema.isTrimmed(), Schema.isMinLength(1), Schema.isMaxLength(64)),
+  intent: Schema.Literals(['assign', 'remove']),
+});
+const TagCreateFormSchema = Schema.Struct({
+  email: EmailFieldSchema,
+  name: Schema.String.check(Schema.isTrimmed(), Schema.isMinLength(1), Schema.isMaxLength(64)),
+  color: Schema.String.check(Schema.isPattern(/^#[0-9a-fA-F]{6}$/u)),
+  description: Schema.optional(
+    Schema.String.check(Schema.isTrimmed(), Schema.isMinLength(1), Schema.isMaxLength(256))
+  ),
+});
+const BillingPortalFormSchema = Schema.Struct({
+  email: EmailFieldSchema,
+  confirmation: Schema.Literal('open-billing'),
+});
 
 export interface AdminCustomerLicenseFormInput {
   readonly email: string;
   readonly tier: AdminCustomerTier;
   readonly status: AdminCustomerStatus;
+}
+
+export interface AdminCustomerNoteCreateInput {
+  readonly email: string;
+  readonly content: string;
+  readonly noteType: (typeof ADMIN_CUSTOMER_NOTE_TYPES)[number];
+}
+
+export interface AdminCustomerNoteDeleteInput {
+  readonly email: string;
+  readonly content: string;
+  readonly createdAt: string;
+}
+
+export interface AdminCustomerTagAssignmentInput {
+  readonly email: string;
+  readonly tagName: string;
+  readonly intent: 'assign' | 'remove';
+}
+
+export interface AdminCustomerTagCreateInput {
+  readonly email: string;
+  readonly name: string;
+  readonly color: string;
+  readonly description?: string;
 }
 
 class AdminCustomerFormInvalid extends Error {
@@ -74,5 +136,90 @@ export function readAdminCustomerLicenseUpdate(
       confirmation: form.get('confirmation'),
     });
     return { email: input.email, tier: input.tier, status: input.status };
+  });
+}
+
+/** Decode one CRM note creation without accepting a customer or note database key. */
+export function readAdminCustomerNoteCreate(
+  request: Request
+): Effect.Effect<AdminCustomerNoteCreateInput, AdminCustomerFormError> {
+  return Effect.gen(function* () {
+    const form = yield* readBoundedUrlEncodedForm(request, MAX_ADMIN_CUSTOMER_FORM_BYTES);
+    return yield* decodeForm(NoteCreateFormSchema, {
+      email: form.get('email'),
+      content: form.get('content')?.trim(),
+      noteType: form.get('noteType'),
+    });
+  });
+}
+
+/** Decode an exactly confirmed note deletion using only already-visible note fields. */
+export function readAdminCustomerNoteDelete(
+  request: Request
+): Effect.Effect<AdminCustomerNoteDeleteInput, AdminCustomerFormError> {
+  return Effect.gen(function* () {
+    const form = yield* readBoundedUrlEncodedForm(request, MAX_ADMIN_CUSTOMER_FORM_BYTES);
+    const input = yield* decodeForm(NoteDeleteFormSchema, {
+      email: form.get('email'),
+      content: form.get('content')?.trim(),
+      createdAt: form.get('createdAt'),
+      confirmation: form.get('confirmation'),
+    });
+    return { email: input.email, content: input.content, createdAt: input.createdAt };
+  });
+}
+
+/** Decode one existing catalog tag assignment or removal by its unique public name. */
+export function readAdminCustomerTagAssignment(
+  request: Request
+): Effect.Effect<AdminCustomerTagAssignmentInput, AdminCustomerFormError> {
+  return Effect.gen(function* () {
+    const form = yield* readBoundedUrlEncodedForm(request, MAX_ADMIN_CUSTOMER_FORM_BYTES);
+    return yield* decodeForm(TagAssignmentFormSchema, {
+      email: form.get('email'),
+      tagName: form.get('tagName')?.trim(),
+      intent: form.get('intent'),
+    });
+  });
+}
+
+/** Decode a new bounded global CRM tag. */
+export function readAdminCustomerTagCreate(
+  request: Request
+): Effect.Effect<AdminCustomerTagCreateInput, AdminCustomerFormError> {
+  return Effect.gen(function* () {
+    const form = yield* readBoundedUrlEncodedForm(request, MAX_ADMIN_CUSTOMER_FORM_BYTES);
+    const rawDescription = form.get('description')?.trim();
+    const input = yield* decodeForm(TagCreateFormSchema, {
+      email: form.get('email'),
+      name: form.get('name')?.trim(),
+      color: form.get('color'),
+      ...(rawDescription !== undefined &&
+        rawDescription.length > 0 && {
+          description: rawDescription,
+        }),
+    });
+    return input.description === undefined
+      ? { email: input.email, name: input.name, color: input.color }
+      : {
+          email: input.email,
+          name: input.name,
+          color: input.color,
+          description: input.description,
+        };
+  });
+}
+
+/** Decode an explicitly confirmed delegated Billing Portal request. */
+export function readAdminBillingPortalRequest(
+  request: Request
+): Effect.Effect<string, AdminCustomerFormError> {
+  return Effect.gen(function* () {
+    const form = yield* readBoundedUrlEncodedForm(request, MAX_ADMIN_CUSTOMER_FORM_BYTES);
+    const input = yield* decodeForm(BillingPortalFormSchema, {
+      email: form.get('email'),
+      confirmation: form.get('confirmation'),
+    });
+    return input.email;
   });
 }

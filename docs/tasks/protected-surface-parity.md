@@ -60,16 +60,25 @@ The shared licensing BFF and Worker `/api/dashboard` route are not on this list:
 
 ## 3. Customer support operations
 
-Progress: selected customer workspaces now load browser-safe health, notes, assigned tags, and the tag catalog through one private admin session with localized empty/unavailable states. Mutations and admin Billing Portal access remain.
+Progress: selected customer workspaces now load browser-safe health, notes, assigned tags, and the tag catalog through one private admin session. Operators can create and delete notes, create/assign/remove tags, update licenses, and open delegated Billing Portal sessions. Health history remains.
 
 - [x] Replace unbounded admin `request.formData()` calls with the bounded form reader.
 - [x] Decode forms once at the route boundary and pass trusted domain values internally.
-- [ ] Add customer health history, notes, tags, audited mutations, and admin Billing Portal access.
-- [ ] Preserve confirmation, forbidden-role, rate-limit, degraded-service, and post-mutation reload behavior.
-- [ ] Keep customer, Stripe, database, license, and machine identifiers out of page data/DOM.
-- [ ] Add focused action-result and render tests.
+- [x] Add notes, tags, audited mutations, and admin Billing Portal access.
+- [x] Render health-history unavailability explicitly; the retained schema stores one current score and M2 forbids adding history persistence.
+- [x] Preserve confirmation, forbidden-role, rate-limit, degraded-service, and post-mutation reload behavior.
+- [x] Keep customer, Stripe, database, license, note, tag, and machine identifiers out of page data/DOM.
+- [x] Add focused boundary, service, Worker integration, and render tests.
 
-**Blocked by:** 1.
+Superseded after the production observation gate, subject to the final caller check:
+
+- `site/src/components/dashboard/admin/CustomerDetailDrawer.tsx`
+- `site/src/components/dashboard/admin/NotesSection.tsx`
+- `site/src/components/dashboard/admin/TagsSection.tsx`
+- Customer note, tag, and delegated Billing Portal calls in `site/src/lib/api.ts`
+- Customer note and tag mutations in `site/src/lib/api-hooks.ts`
+
+**Blocked by:** authenticated desktop and compact-viewport characterization.
 
 **Verification:** focused customer tests, strict checks, lint, build, shadow admin characterization.
 

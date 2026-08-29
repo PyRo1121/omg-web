@@ -1,7 +1,12 @@
 import { error } from '@sveltejs/kit';
 import { Cause, Effect, Exit, Option } from 'effect';
 import {
+  changeAdminCustomerTagAction,
+  createAdminCustomerNoteAction,
+  createAdminCustomerTagAction,
+  deleteAdminCustomerNoteAction,
   inspectAdminCustomer,
+  openAdminCustomerBillingPortalAction,
   requireAdminCustomerIdentity,
   updateAdminCustomerLicenseAction,
 } from '../../../lib/server/admin-customer-route-actions.server';
@@ -43,4 +48,9 @@ export const load: PageServerLoad = async event => {
 export const actions = {
   inspect: inspectAdminCustomer,
   updateLicense: updateAdminCustomerLicenseAction,
+  createNote: createAdminCustomerNoteAction,
+  deleteNote: deleteAdminCustomerNoteAction,
+  changeTag: changeAdminCustomerTagAction,
+  createTag: createAdminCustomerTagAction,
+  openBilling: openAdminCustomerBillingPortalAction,
 } satisfies Actions;

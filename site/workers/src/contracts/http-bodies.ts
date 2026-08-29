@@ -1,6 +1,10 @@
 // Boundary parser internals decode remaining Worker HTTP JSON bodies.
 
 import * as Schema from 'effect/Schema';
+import {
+  ADMIN_CUSTOMER_NOTE_TYPES,
+  ADMIN_CUSTOMER_STATUSES,
+} from '../../../shared/admin-customers';
 
 const OptionalBoolean = Schema.optional(Schema.Boolean);
 const OptionalEpochMs = Schema.optional(
@@ -17,13 +21,13 @@ const BoundedId = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(128))
 const NoteContent = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(4000));
 
 /** Note classifications offered by the admin notes UI (`NOTE_TYPES`). */
-const NoteType = Schema.Literal('general', 'call', 'email', 'meeting', 'support', 'sales');
+const NoteType = Schema.Literal(...ADMIN_CUSTOMER_NOTE_TYPES);
 
 /** License tiers recognized by MRR pricing and badge rendering. */
 const LicenseTier = Schema.Literal('free', 'pro', 'team', 'enterprise');
 
 /** License statuses an admin may set (privacy deletion writes `deleted_by_user` directly). */
-const AdminLicenseStatus = Schema.Literal('active', 'inactive');
+const AdminLicenseStatus = Schema.Literal(...ADMIN_CUSTOMER_STATUSES);
 
 const MAX_ANALYTICS_PROPERTIES_BYTES = 4096;
 const MAX_ANALYTICS_PROPERTY_ENTRIES = 32;
