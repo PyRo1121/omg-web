@@ -194,6 +194,7 @@ export type LicensingServiceOperation =
   | 'admin-activity'
   | 'admin-customers'
   | 'admin-organizations'
+  | 'admin-organization-support'
   | 'admin-customer-detail'
   | 'admin-customer-update'
   | 'admin-customer-health'

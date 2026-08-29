@@ -66,8 +66,8 @@
 ## 6. Operator organization support
 
 - [x] Add the authorized, searchable `/admin/organizations/` directory with browser-safe summaries.
-- [ ] Add the browser-safe selected organization support workspace.
-- [ ] Expose entitlement, seat, membership, invitation, usage, fleet, and audit state without raw identifiers.
+- [x] Add the browser-safe selected organization support workspace.
+- [x] Expose entitlement, seat, membership, invitation, usage, fleet, and audit state without raw identifiers.
 - [ ] Add only explicitly approved audited support mutations.
 - [ ] Add search, pagination, authorization, render, and compact-viewport tests.
 

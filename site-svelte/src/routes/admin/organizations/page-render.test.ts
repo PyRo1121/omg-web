@@ -34,6 +34,7 @@ describe('operator organization directory', () => {
     expect(result.body).toContain('acme-engineering');
     expect(result.body).toContain('team · active');
     expect(result.body).toContain('Aug 29, 2026, 12:00 PM UTC');
+    expect(result.body).toContain('/admin/organizations/support/?slug=acme-engineering');
     expect(result.body).not.toContain('customer-private-id');
     expect(result.body).not.toContain('license-key');
     expect(result.body).not.toContain('member-private-id');

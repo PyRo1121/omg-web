@@ -40,7 +40,7 @@
         <thead
           ><tr
             ><th>Organization</th><th>Entitlement</th><th>Seats</th><th>Invites</th><th>Machines</th
-            ><th>Last audit</th></tr
+            ><th>Last audit</th><th><span class="visually-hidden">Support</span></th></tr
           ></thead
         >
         <tbody>
@@ -54,6 +54,12 @@
               <td>{organization.pendingInvitations}</td>
               <td>{organization.activeMachines}</td>
               <td>{formatTimestamp(organization.lastAuditAt)}</td>
+              <td
+                ><a
+                  class="support-link"
+                  href={`/admin/organizations/support/?slug=${organization.slug}`}>Open support →</a
+                ></td
+              >
             </tr>
           {/each}
         </tbody>
@@ -140,6 +146,12 @@
   }
   tbody th span {
     margin-top: 0.25rem;
+  }
+  .support-link {
+    color: var(--signal);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    white-space: nowrap;
   }
   .empty-state {
     border: 1px solid var(--rule);
