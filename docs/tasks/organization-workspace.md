@@ -53,11 +53,11 @@
 
 ## 5. Organization intelligence
 
-- [ ] Add `/dashboard/organization/usage/` with exact seat utilization and member-attributed usage.
-- [ ] Keep unattributed machines separate rather than inventing employee assignments.
-- [ ] Add fleet health and version drift using grounded machine telemetry.
+- [x] Add `/dashboard/organization/usage/` with exact seat utilization and member-attributed usage.
+- [x] Keep unattributed machines separate rather than inventing employee assignments.
+- [x] Add seven-day fleet recency and reported-version distribution using grounded machine telemetry.
 - [ ] Add `/dashboard/organization/audit/` with bounded filtering and pagination.
-- [ ] Preserve restricted read/removal behavior after downgrade or payment failure.
+- [x] Preserve restricted read/removal behavior after downgrade or payment failure.
 - [ ] Add pure derivation, boundary, export, and degraded-state tests.
 
 **Blocked by:** 4.

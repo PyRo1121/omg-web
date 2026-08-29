@@ -68,6 +68,11 @@
           </p>
         {/if}
 
+        <nav class="organization-nav" aria-label="Organization workspace">
+          <a href="/dashboard/organization/members/" aria-current="page">People</a>
+          <a href="/dashboard/organization/usage/">Usage</a>
+        </nav>
+
         {#if form?.kind === 'organization-invitation-error'}
           <p class="form-error" role="alert">{form.message}</p>
         {:else if form?.kind === 'organization-member-error'}
@@ -314,6 +319,24 @@
     font-size: 0.68rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  .organization-nav {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.75rem;
+  }
+
+  .organization-nav a {
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-decoration: none;
+  }
+
+  .organization-nav a:hover,
+  .organization-nav a[aria-current='page'] {
+    color: var(--signal);
   }
 
   .restriction {

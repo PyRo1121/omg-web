@@ -112,9 +112,12 @@
           </p>
         {/if}
 
-        <a class="text-link workspace-members-link" href="/dashboard/organization/members/">
-          Review people and invitations
-        </a>
+        <nav class="workspace-links" aria-label="Organization workspace">
+          <a class="text-link" href="/dashboard/organization/members/">
+            Review people and invitations
+          </a>
+          <a class="text-link" href="/dashboard/organization/usage/">Review usage and fleet</a>
+        </nav>
 
         <dl class="organization-facts">
           <div>
@@ -290,8 +293,10 @@
     color: var(--signal);
   }
 
-  .workspace-members-link {
-    display: inline-block;
+  .workspace-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
     margin-top: 2rem;
   }
 

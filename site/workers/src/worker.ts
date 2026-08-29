@@ -82,6 +82,7 @@ import { handleGetDashboard } from './handlers/account-dashboard';
 import { handleCreateSiteSession } from './handlers/site-session';
 import { cleanupMarketingOfferLeads, handleMarketingOffer } from './handlers/marketing-offer';
 import { handleOrganizationInvitationEmail } from './handlers/organization-invitation-email';
+import { handleOrganizationUsage } from './handlers/organization-usage';
 import { reportError, reportWarning } from './observability';
 import {
   handleTrackEvent,
@@ -339,6 +340,8 @@ export default Sentry.withSentry(
             return handleMarketingOffer(request, env);
           case '/api/internal/organization-invitation-email':
             return handleOrganizationInvitationEmail(request, env);
+          case '/api/internal/organization-usage':
+            return handleOrganizationUsage(request, env);
           case '/api/dashboard':
             return handleGetDashboard(request, env);
           case '/api/user/profile':

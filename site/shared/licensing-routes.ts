@@ -187,6 +187,12 @@ export const LicensingRoutes = {
     authentication: 'admin-secret',
     transport: 'internal',
   },
+  organizationUsage: {
+    method: 'POST',
+    path: '/api/internal/organization-usage',
+    authentication: 'admin-secret',
+    transport: 'internal',
+  },
   dashboard: {
     method: 'GET',
     path: '/api/dashboard',
