@@ -99,6 +99,8 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 
 - [x] Commit `b539501` passed CI run `33274855308`, including the complete repository check, bundle budget, and 12 anonymous browser tests.
 - [x] Analytics remediation commit `80e4cab` passed CI run `33279942937`, including the complete repository check, bundle budget, and 12 anonymous browser tests.
+- [x] Safe Stripe diagnostic commit `5465fbe` passed CI run `33280357839`; Worker version `ae49849a-2309-434f-9684-6cd6636c9b8c` then deployed successfully. `/health` returned `200` and anonymous Checkout remained fail-closed with `401`.
+- [x] The immediate Worker rollback target is `65860efe-5c7c-45f3-b03f-c5587a25b611`; the exact code-only command is `cd site/workers && npx wrangler rollback 65860efe-5c7c-45f3-b03f-c5587a25b611 --message "rollback safe Stripe diagnostics"`. The command has been syntax-checked and the version is present, but it was deliberately not executed because the new version passed its smoke gates.
 - [x] The shadow Alchemy plan is a no-op after deployment.
 - [x] The production Alchemy plan creates only the stage-scoped Svelte Website, bindings, limiters, and auth secret; it contains no D1 resource action and does not adopt an existing Worker.
 - [x] The existing D1 database is attached as a raw Worker binding by its stable database identifier. Alchemy does not own the database resource or its schema; Wrangler remains the sole migration authority.
