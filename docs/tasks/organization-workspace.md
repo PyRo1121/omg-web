@@ -42,10 +42,10 @@
 ## 4. Member operations
 
 - [x] Add read-only `/dashboard/organization/members/` with bounded accepted-member and pending-invitation projections.
-- [ ] Add Admin/Member role changes with the fixed permission matrix.
-- [ ] Add member removal and immediate organization authorization revocation.
+- [x] Add Admin/Member role changes with the fixed permission matrix.
+- [x] Add member removal and immediate organization authorization revocation.
 - [ ] Add recent-auth, exact-target, double-confirmed ownership transfer.
-- [ ] Prevent Owner removal/demotion and self-lockout.
+- [x] Prevent Owner removal/demotion and self-lockout at the server action boundary.
 - [ ] Keep Better Auth member/invitation IDs and all SaaS identifiers out of page data and DOM.
 - [ ] Add mutation, stale-state, forbidden-role, and cross-tenant tests.
 
