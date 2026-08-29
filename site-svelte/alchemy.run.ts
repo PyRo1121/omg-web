@@ -1,15 +1,11 @@
 import * as Alchemy from 'alchemy';
 import * as Cloudflare from 'alchemy/Cloudflare';
-import * as RemovalPolicy from 'alchemy/RemovalPolicy';
 import * as Config from 'effect/Config';
 import * as Effect from 'effect/Effect';
 
 export const ShadowAuthSecret = Alchemy.Random('ShadowAuthSecret');
 
-/** Existing production database; Alchemy binds it but does not own migrations. */
-export const PlatformDatabase = Cloudflare.D1.Database('PlatformDatabase', {
-  name: 'omg-platform',
-}).pipe(RemovalPolicy.retain());
+const PLATFORM_DATABASE_ID = 'fee8ddab-fb4a-4be4-b8d2-8abb7c2db188';
 
 export const Website = Cloudflare.Website.SvelteKit(
   'Website',
@@ -35,7 +31,6 @@ export const Website = Cloudflare.Website.SvelteKit(
           simple: { limit: 30, period: 60 },
         }),
         BETTER_AUTH_SECRET: authSecret.text,
-        DB: PlatformDatabase,
         DEPLOYMENT_STAGE: stage,
         GITHUB_CLIENT_ID: Config.string('GITHUB_CLIENT_ID'),
         GITHUB_CLIENT_SECRET: Config.redacted('GITHUB_CLIENT_SECRET'),
@@ -77,6 +72,7 @@ interface LicensingApiBinding {
 }
 
 export type WebsiteEnv = Cloudflare.InferEnv<typeof Website> & {
+  readonly DB: Cloudflare.GetBindingType<Cloudflare.D1.Database>;
   readonly LICENSING_API: LicensingApiBinding;
 };
 
@@ -88,6 +84,15 @@ export default Alchemy.Stack(
   },
   Effect.gen(function* () {
     const site = yield* Website;
+    yield* site.bind('DB', {
+      bindings: [
+        {
+          type: 'd1',
+          name: 'DB',
+          databaseId: PLATFORM_DATABASE_ID,
+        },
+      ],
+    });
     yield* site.bind('LICENSING_API', {
       bindings: [
         {

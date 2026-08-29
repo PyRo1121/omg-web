@@ -95,6 +95,15 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 - Run full automated checks and user-controlled Helium verification on the shadow.
 - Record exact domain transfer and rollback commands immediately before the window.
 
+#### M5 rehearsal evidence
+
+- [x] Commit `b539501` passed CI run `33274855308`, including the complete repository check, bundle budget, and 12 anonymous browser tests.
+- [x] The shadow Alchemy plan is a no-op after deployment.
+- [x] The production Alchemy plan creates only the stage-scoped Svelte Website, bindings, limiters, and auth secret; it contains no D1 resource action and does not adopt an existing Worker.
+- [x] The existing D1 database is attached as a raw Worker binding by its stable database identifier. Alchemy does not own the database resource or its schema; Wrangler remains the sole migration authority.
+- [x] The shadow auth endpoint returns `200 null` anonymously after the binding change, proving the retained database remains reachable without exposing session data.
+- [ ] Complete user-controlled authenticated Helium characterization before approving the hostname window.
+
 ### M6 — Atomic hostname cutover
 
 1. Freeze deployments and confirm both repositories/CI are green.
