@@ -182,9 +182,12 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
       const properties = event.properties || {};
       const referrer = optionalStringField(properties['referrer']);
       let referrerDomain = 'direct';
-      if (referrer) {
+      if (referrer === 'direct' || referrer === 'internal') {
+        referrerDomain = referrer;
+      } else if (referrer) {
         try {
-          referrerDomain = new URL(referrer).hostname.replace(/^www\./, '');
+          const candidate = referrer.includes('://') ? referrer : `https://${referrer}`;
+          referrerDomain = new URL(candidate).hostname.replace(/^www\./, '');
         } catch {
           // Invalid referrers are grouped with direct traffic.
         }

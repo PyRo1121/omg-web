@@ -31,6 +31,10 @@ const CheckoutFulfillmentTestSchema = Schema.Struct({
     Schema.Struct({ license_key: Schema.String, tier: Schema.String })
   ),
 });
+const AdminAuditPageTestSchema = Schema.Struct({
+  logs: Schema.Array(Schema.Struct({ action: Schema.String })),
+  pagination: Schema.Struct({ total: Schema.Number }),
+});
 
 async function ensureSchema(): Promise<void> {
   env.AUTH_RATE_LIMITER = ALLOW_ALL_RATE_LIMITER;
@@ -494,6 +498,78 @@ describe('admin handler authorization', () => {
 
     expect(userResponse.status).toBe(403);
     expect(adminResponse.status).toBe(200);
+  });
+
+  it('allows only the Svelte Service Binding to poll the internal firehose', async () => {
+    const previousSecret = env.SVELTE_BFF_SECRET;
+    env.SVELTE_BFF_SECRET = 'firehose-private-secret';
+    try {
+      const acceptedContext = createExecutionContext();
+      const accepted = await worker.fetch(
+        new Request('http://localhost/api/internal/admin/firehose?limit=1', {
+          headers: {
+            'X-Admin-Secret': 'firehose-private-secret',
+            'X-Internal-Call': 'service-binding',
+          },
+        }),
+        env,
+        acceptedContext
+      );
+      await waitOnExecutionContext(acceptedContext);
+
+      const rejectedContext = createExecutionContext();
+      const rejected = await worker.fetch(
+        new Request('http://localhost/api/internal/admin/firehose?limit=1', {
+          headers: {
+            'X-Admin-Secret': 'wrong-secret',
+            'X-Internal-Call': 'service-binding',
+          },
+        }),
+        env,
+        rejectedContext
+      );
+      await waitOnExecutionContext(rejectedContext);
+
+      expect(accepted.status).toBe(200);
+      expect(rejected.status).toBe(404);
+    } finally {
+      env.SVELTE_BFF_SECRET = previousSecret;
+    }
+  });
+
+  it('filters audit history by one bounded exact action', async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO audit_log (id, customer_id, action, created_at)
+         VALUES ('admin-gate-audit-login', ?, 'test.filter_one', CURRENT_TIMESTAMP)`
+      ).bind(userCustomerId),
+      env.DB.prepare(
+        `INSERT INTO audit_log (id, customer_id, action, created_at)
+         VALUES ('admin-gate-audit-logout', ?, 'test.filter_two', CURRENT_TIMESTAMP)`
+      ).bind(userCustomerId),
+    ]);
+
+    const context = createExecutionContext();
+    const response = await worker.fetch(
+      getPath('/api/admin/audit-log?page=1&limit=25&action=test.filter_one', adminToken),
+      env,
+      context
+    );
+    await waitOnExecutionContext(context);
+
+    expect(response.status).toBe(200);
+    const payload = Schema.decodeUnknownSync(AdminAuditPageTestSchema)(await response.json());
+    expect(payload.logs.map(log => log.action)).toEqual(['test.filter_one']);
+    expect(payload.pagination.total).toBe(1);
+
+    const invalidContext = createExecutionContext();
+    const invalidResponse = await worker.fetch(
+      getPath('/api/admin/audit-log?action=DROP%20TABLE', adminToken),
+      env,
+      invalidContext
+    );
+    await waitOnExecutionContext(invalidContext);
+    expect(invalidResponse.status).toBe(400);
   });
 
   it('rate limits admin routes before running their handlers', async () => {

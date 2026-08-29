@@ -201,6 +201,18 @@ export type LicensingServiceOperation =
   | 'admin-customer-notes'
   | 'admin-customer-tags'
   | 'admin-tag-catalog'
+  | 'admin-analytics'
+  | 'admin-cohorts'
+  | 'admin-insights'
+  | 'admin-revenue'
+  | 'admin-audit'
+  | 'admin-firehose'
+  | 'admin-export-users'
+  | 'admin-export-usage'
+  | 'admin-export-audit'
+  | 'site-analytics'
+  | 'site-geo'
+  | 'docs-analytics'
   | 'account-analytics'
   | 'account-achievements'
   | 'account-machines'
@@ -471,6 +483,28 @@ export type PrivateWorkerRequest =
   | { readonly method: 'GET' | 'DELETE' }
   | { readonly method: 'POST' | 'PUT'; readonly body: LicensingBoundaryInput };
 
+/** Execute one authenticated private request without decoding a streaming response. */
+export function requestPrivateWorkerResponse(
+  env: LicensingSummaryEnvironment,
+  session: LicensingServiceSession,
+  path: `/${string}`,
+  operation: LicensingServiceOperation
+): Effect.Effect<Response, LicensingSummaryServiceUnavailable | LicensingSummaryWorkerRejected> {
+  return Effect.gen(function* () {
+    const response = yield* serviceFetch(
+      env.LICENSING_API,
+      new Request(`${INTERNAL_ORIGIN}${path}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${session.token}` },
+      })
+    );
+    if (!response.ok) {
+      return yield* Effect.fail(new LicensingSummaryWorkerRejected(operation, response.status));
+    }
+    return response;
+  });
+}
+
 /** Execute one authenticated Worker request and decode its bounded JSON response. */
 export function requestPrivateWorkerPayload<S extends Schema.Top>(
   env: LicensingSummaryEnvironment,
@@ -559,6 +593,38 @@ export function sendPrivateWorkerPayload<S extends Schema.Top>(
   });
 }
 
+/** Load one bounded internal payload authenticated only for the Svelte Service Binding. */
+export function loadInternalWorkerPayload<S extends Schema.Top>(
+  env: LicensingSummaryEnvironment,
+  path: `/${string}`,
+  operation: LicensingServiceOperation,
+  limit: number,
+  schema: S
+): Effect.Effect<S['Type'], LicensingSummaryError, S['DecodingServices']> {
+  return Effect.gen(function* () {
+    const secret = yield* parseLicensingInput(
+      NonEmptyString,
+      env.SVELTE_BFF_SECRET,
+      'Licensing BFF secret is invalid'
+    );
+    const response = yield* serviceFetch(
+      env.LICENSING_API,
+      new Request(`${INTERNAL_ORIGIN}${path}`, {
+        method: 'GET',
+        headers: {
+          'X-Admin-Secret': secret,
+          'X-Internal-Call': 'service-binding',
+        },
+      })
+    );
+    if (!response.ok) {
+      return yield* Effect.fail(new LicensingSummaryWorkerRejected(operation, response.status));
+    }
+    const json = yield* readBoundedJson(response, operation, limit);
+    return yield* parseWorkerPayload(schema, json, operation);
+  });
+}
+
 /** Send one bounded private payload through the Svelte-to-Worker service binding. */
 export function sendInternalWorkerPayload<S extends Schema.Top>(
   env: LicensingSummaryEnvironment,
@@ -600,6 +666,18 @@ export function sendInternalWorkerPayload<S extends Schema.Top>(
     const json = yield* readBoundedJson(response, operation, limit);
     return yield* parseWorkerPayload(schema, json, operation);
   });
+}
+
+/** Re-read the Better Auth role from D1 without minting a Worker session. */
+export function requireAdminServiceAccess(
+  identity: LicensingSummaryIdentity,
+  env: LicensingSummaryEnvironment
+): Effect.Effect<void, LicensingSummaryError | AdminOverviewForbidden> {
+  return loadServicePrincipal(identity, env).pipe(
+    Effect.flatMap(principal =>
+      principal.role === 'admin' ? Effect.void : Effect.fail(new AdminOverviewForbidden())
+    )
+  );
 }
 
 export function loadAdminServiceSession(

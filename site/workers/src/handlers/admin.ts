@@ -63,6 +63,13 @@ function parsePageSize(raw: string | null): number {
   return Math.min(parsePaginationParam(raw, DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
 }
 
+const AUDIT_ACTION_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*){1,4}$/u;
+
+function parseAuditAction(raw: string | null): string | null | undefined {
+  if (raw === null || raw === '') return null;
+  return raw.length <= 128 && AUDIT_ACTION_PATTERN.test(raw) ? raw : undefined;
+}
+
 /** Return the first allowed union member equal to `value`, else undefined. */
 function matchUnion<T extends string>(
   allowed: readonly T[],
@@ -691,11 +698,15 @@ export async function handleAdminExportUsers(request: Request, env: Env): Promis
  * @returns Audit rows plus `{ page, limit, total, pages }`.
  */
 export async function handleAdminAuditLog(request: Request, env: Env): Promise<Response> {
-  return withAdminQuery(request, env, (context, url) => {
+  return withAdminQuery(request, env, async (context, url) => {
     const page = parsePage(url.searchParams.get('page'));
     const limit = parsePageSize(url.searchParams.get('limit'));
+    const action = parseAuditAction(url.searchParams.get('action'));
+    if (action === undefined) {
+      return errorResponse('Invalid audit action', 400);
+    }
     return storeResponse(
-      AdminStore.listAuditLog(env.DB, limit, (page - 1) * limit),
+      AdminStore.listAuditLog(env.DB, limit, (page - 1) * limit, action),
       storeFailure('Failed to load audit log'),
       ({ logs, total }) =>
         secureJsonResponse({

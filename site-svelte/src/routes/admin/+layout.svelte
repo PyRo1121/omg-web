@@ -8,6 +8,11 @@
     { href: '/admin/', label: 'Command center', short: '01' },
     { href: '/admin/customers/', label: 'Customers', short: '02' },
     { href: '/admin/organizations/', label: 'Organizations', short: '03' },
+    { href: '/admin/analytics/', label: 'Analytics', short: '04' },
+    { href: '/admin/insights/', label: 'Insights', short: '05' },
+    { href: '/admin/revenue/', label: 'Revenue', short: '06' },
+    { href: '/admin/audit/', label: 'Audit', short: '07' },
+    { href: '/admin/live/', label: 'Live activity', short: '08' },
   ] as const;
 
   function isCurrent(href: string): boolean {

@@ -1,5 +1,6 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
+import { posix } from 'node:path';
 import { CLI_SERVICE_API_CONTRACT } from '../site/shared/licensing-routes.ts';
 
 const workspaceRoot = new URL('../', import.meta.url);
@@ -37,7 +38,7 @@ function extension(path) {
   return separator < 0 ? '' : path.slice(separator);
 }
 
-async function sourceFiles(relativeDirectory) {
+async function directoryFiles(relativeDirectory, include) {
   const entries = await readdir(new URL(`${relativeDirectory}/`, workspaceRoot), {
     withFileTypes: true,
   });
@@ -45,13 +46,17 @@ async function sourceFiles(relativeDirectory) {
   for (const entry of entries) {
     const relativePath = `${relativeDirectory}/${entry.name}`;
     if (entry.isDirectory()) {
-      files.push(...(await sourceFiles(relativePath)));
-    } else if (entry.isFile() && sourceExtensions.has(extension(entry.name))) {
+      files.push(...(await directoryFiles(relativePath, include)));
+    } else if (entry.isFile() && include(entry.name)) {
       files.push(relativePath);
     }
   }
   return files;
 }
+
+const sourceFiles = relativeDirectory =>
+  directoryFiles(relativeDirectory, name => sourceExtensions.has(extension(name)));
+const allFiles = relativeDirectory => directoryFiles(relativeDirectory, () => true);
 
 let violations = 0;
 const serviceContractPath = 'contracts/service-api-v1.json';
@@ -96,9 +101,42 @@ for (const configPath of productionWranglerConfigs) {
   }
 }
 
+const solidManifestPath = 'docs/operations/svelte-production-cutover.md';
+const solidManifest = await readFile(new URL(solidManifestPath, workspaceRoot), 'utf8');
+const manifestStart = '<!-- solid-deletion-manifest:start -->';
+const manifestEnd = '<!-- solid-deletion-manifest:end -->';
+const manifestBody = solidManifest.split(manifestStart)[1]?.split(manifestEnd)[0];
+const manifestEntries =
+  manifestBody
+    ?.match(/^site\/src\/[^\n]+$/gm)
+    ?.toSorted((left, right) => left.localeCompare(right)) ?? [];
+const solidFiles = (await allFiles('site/src')).toSorted((left, right) =>
+  left.localeCompare(right)
+);
+if (!isDeepStrictEqual(manifestEntries, solidFiles)) {
+  process.stderr.write(
+    `[source-policy] ${solidManifestPath}: Solid deletion manifest must list every current site/src file exactly once\n`
+  );
+  violations += 1;
+}
+
 for (const root of sourceRoots) {
   for (const path of await sourceFiles(root)) {
     const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
+    if (root !== 'site/src') {
+      const importPattern = /(?:from\s+|import\s*(?:\(\s*)?)['"]([^'"]+)['"]/gu;
+      for (const match of contents.matchAll(importPattern)) {
+        const specifier = match[1];
+        if (specifier?.startsWith('.') !== true) continue;
+        const resolved = posix.normalize(posix.join(posix.dirname(path), specifier));
+        if (resolved === 'site/src' || resolved.startsWith('site/src/')) {
+          process.stderr.write(
+            `[source-policy] ${path}: external production caller still imports Solid source (${specifier})\n`
+          );
+          violations += 1;
+        }
+      }
+    }
     if (contents.includes('localStorage.getItem') && contents.includes('JSON.parse(')) {
       process.stderr.write(
         `[source-policy] ${path}: localStorage values must be length-bounded before parsing through the shared browser-storage boundary\n`

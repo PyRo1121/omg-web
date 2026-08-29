@@ -10,6 +10,7 @@ import {
   loadAdminOverview,
   loadLicensingSummary,
   loadLicensingSummaryState,
+  requireAdminServiceAccess,
   type LicensingSummaryEnvironment,
   type LicensingSummaryError,
 } from './licensing-service.server';
@@ -140,9 +141,25 @@ function serviceWith(
   return new LicensingServiceStub(session, dashboard);
 }
 
-function failureOf(exit: Exit.Exit<unknown, LicensingSummaryError>): LicensingSummaryError | null {
+function failureOf(
+  exit: Exit.Exit<unknown, LicensingSummaryError | AdminOverviewForbidden>
+): LicensingSummaryError | AdminOverviewForbidden | null {
   return Exit.isSuccess(exit) ? null : Option.getOrNull(Cause.findErrorOption(exit.cause));
 }
+
+describe('requireAdminServiceAccess', () => {
+  it('authorizes from the current D1 role without minting a Worker session', async () => {
+    const service = serviceWith();
+
+    await Effect.runPromise(requireAdminServiceAccess(identity, environment('admin', service)));
+    const denied = await Effect.runPromiseExit(
+      requireAdminServiceAccess(identity, environment('user', service))
+    );
+
+    expect(service.requests).toEqual([]);
+    expect(failureOf(denied)).toBeInstanceOf(AdminOverviewForbidden);
+  });
+});
 
 describe('claimMarketingOffer', () => {
   it('uses only the caller-specific secret over the private binding', async () => {

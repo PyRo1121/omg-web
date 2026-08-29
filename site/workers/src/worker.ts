@@ -62,7 +62,7 @@ import {
   handleAdminOrganizations,
   handleAdminOrganizationSupport,
 } from './handlers/admin-organizations';
-import { handleGetFirehose } from './handlers/firehose';
+import { handleGetFirehose, handleInternalFirehose } from './handlers/firehose';
 import {
   handleCreateCheckout,
   handleCheckoutSessionStatus,
@@ -403,6 +403,8 @@ export default Sentry.withSentry(
             return handleAdminAdvancedMetrics(request, env);
           case '/api/admin/firehose':
             return handleGetFirehose(request, env);
+          case '/api/internal/admin/firehose':
+            return handleInternalFirehose(request, env);
           case '/api/stripe/webhook':
             return handleStripeWebhook(request, env);
           case '/api/billing/portal':

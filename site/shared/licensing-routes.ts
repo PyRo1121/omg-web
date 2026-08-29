@@ -175,6 +175,12 @@ export const LicensingRoutes = {
     authentication: 'admin-secret',
     transport: 'internal',
   },
+  internalAdminFirehose: {
+    method: 'GET',
+    path: '/api/internal/admin/firehose',
+    authentication: 'admin-secret',
+    transport: 'internal',
+  },
   marketingOffer: {
     method: 'POST',
     path: '/api/internal/marketing-offer',

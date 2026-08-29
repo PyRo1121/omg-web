@@ -4,3 +4,7 @@ site/workers/worker-configuration.d.ts whitespace=-blank-at-eol
 workers/releases/worker-configuration.d.ts whitespace=-blank-at-eol
 workers/router/worker-configuration.d.ts whitespace=-blank-at-eol
 workers/worker-runtime.d.ts whitespace=-blank-at-eol
+
+# Release installers are byte-for-byte mirrors; preserve their intentional banner spacing.
+site-svelte/static/install.ps1 whitespace=-blank-at-eol
+site-svelte/static/install.sh whitespace=-blank-at-eol

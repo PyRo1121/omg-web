@@ -656,18 +656,27 @@ export const exportUsers = (db: D1Database) =>
     'SELECT c.id, c.email, c.company, c.created_at, l.tier, l.status, (SELECT COUNT(*) FROM machines m WHERE m.license_id = l.id AND m.is_active = 1) as active_machines, (SELECT SUM(commands_run) FROM usage_daily u WHERE u.license_id = l.id) as total_commands FROM customers c LEFT JOIN licenses l ON c.id = l.customer_id ORDER BY c.created_at DESC LIMIT 1000'
   );
 
-/** Load one page of enriched audit events, plus the total event count. */
-export const listAuditLog = (db: D1Database, limit: number, offset: number) =>
+/** Load one optionally action-filtered page of enriched audit events, plus its total. */
+export const listAuditLog = (
+  db: D1Database,
+  limit: number,
+  offset: number,
+  action: string | null
+) =>
   Effect.gen(function* () {
+    const where = action === null ? '' : ' WHERE a.action = ?';
+    const pageBindings: ReadonlyArray<BindValue> =
+      action === null ? [limit, offset] : [action, limit, offset];
+    const countBindings: ReadonlyArray<BindValue> = action === null ? [] : [action];
     const batchResults = yield* Effect.tryPromise({
       try: () =>
         db.batch([
           statement(
             db,
-            'SELECT a.id, a.customer_id, c.email as user_email, a.action, a.ip_address, a.metadata, a.created_at FROM audit_log a LEFT JOIN customers c ON a.customer_id = c.id ORDER BY a.created_at DESC LIMIT ? OFFSET ?',
-            [limit, offset]
+            `SELECT a.id, a.customer_id, c.email as user_email, a.action, a.ip_address, a.metadata, a.created_at FROM audit_log a LEFT JOIN customers c ON a.customer_id = c.id${where} ORDER BY a.created_at DESC LIMIT ? OFFSET ?`,
+            pageBindings
           ),
-          statement(db, 'SELECT COUNT(*) as count FROM audit_log'),
+          statement(db, `SELECT COUNT(*) as count FROM audit_log a${where}`, countBindings),
         ]),
       catch: fail('listAuditLog'),
     });

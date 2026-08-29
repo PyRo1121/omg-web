@@ -30,6 +30,10 @@ export const Website = Cloudflare.Website.SvelteKit(
           namespaceId: 2001,
           simple: { limit: 10, period: 60 },
         }),
+        ADMIN_LIVE_RATE_LIMITER: Cloudflare.RateLimit('ADMIN_LIVE_RATE_LIMITER', {
+          namespaceId: 2002,
+          simple: { limit: 30, period: 60 },
+        }),
         BETTER_AUTH_SECRET: authSecret.text,
         DB: PlatformDatabase,
         DEPLOYMENT_STAGE: stage,

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import {
   healthResponse,
@@ -8,6 +10,19 @@ import {
 } from './public-files';
 
 describe('public migration endpoints', () => {
+  it.each([
+    ['install.sh', 'be63920bd56f0ce4a1587a868fba34b1fe2961a42e38a39b1b47dbec4f6dd4c7'],
+    ['install.ps1', '34e184b210b701fb3bf96b53b32e9e3e48bee1bca7a742bbbf97193a4d675c3b'],
+    [
+      '.well-known/omg-license-ed25519-v1.pem',
+      '8bf0749afe4761500cb47a370cef66f1ab4c88415a1298c4481ead53ac4bc13c',
+    ],
+    ['logo-globe.png', 'f7354655b916e7c6449f34900849e74d330b7be2f3f7cb39710252853616836c'],
+  ])('retains the reviewed public artifact %s', async (path, expectedHash) => {
+    const bytes = await readFile(new URL(`../../../static/${path}`, import.meta.url));
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(expectedHash);
+  });
+
   it('preserves the production robots policy', async () => {
     const response = robotsResponse();
 

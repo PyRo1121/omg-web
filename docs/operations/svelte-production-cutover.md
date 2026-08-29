@@ -1,6 +1,6 @@
 # Svelte production cutover and Solid removal
 
-**Status:** approved implementation plan; M1 in progress
+**Status:** implementation parity complete; authenticated characterization and cutover pending
 
 **End state:** SvelteKit owns `omg.latham.cloud`; `omg-site` and the Solid/Vinxi tree are deleted after the observation window
 **Selected decisions:** preserve offer/Stripe checkout; use a coordinated logout instead of cross-runtime session continuity
@@ -40,17 +40,14 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 
 ## 3. Current parity and blockers
 
-| Capability                           | Svelte shadow                                                              | Gate before production                                                                   |
-| ------------------------------------ | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Home, docs, privacy, terms, metadata | Implemented and characterized                                              | Home cannot move while it truthfully states checkout is disconnected                     |
-| Login/signup and Better Auth         | Implemented with isolated secret and GitHub app                            | Production callback inputs plus coordinated logout/cookie gate                           |
-| Account dashboard                    | Retained-D1 identity plus private licensing, usage, and machine projection | Auth cutover and authenticated production verification                                   |
-| Admin command center/customers       | Implemented with server authorization and bounded mutations                | Required operations scope, action-result tests, authenticated verification               |
-| Offer and Stripe checkout            | Worker APIs exist; Svelte UI/actions absent                                | Must be migrated because checkout preservation was selected                              |
-| Solid BFF routes                     | Auth, dashboard, licensing proxy, and offer remain                         | Replace required behavior with Svelte server loads/actions; delete obsolete browser BFFs |
-| Static assets/installers/public key  | Split between both trees                                                   | Copy only assets Svelte must own; keep installer/public-key behavior exact               |
-
-The Svelte homepage currently labels paid checkout as unavailable. That is a truthful shadow state, not production parity.
+| Capability                           | Svelte shadow                                                                                                                 | Gate before production                                         |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Home, docs, privacy, terms, metadata | Implemented with canonical metadata, checkout, and first-party analytics                                                      | Final anonymous desktop/compact characterization               |
+| Login/signup and Better Auth         | Implemented with an isolated secret and GitHub app                                                                            | Production callback inputs plus coordinated logout/cookie gate |
+| Account and organization workspaces  | Implemented with private licensing, billing, usage, fleet, invitations, membership, ownership, and audit flows                | Authenticated role/tier characterization                       |
+| Operator workspaces                  | Command center, customers, organizations, analytics, insights, revenue, audit, exports, and bounded live activity implemented | Authenticated operator characterization                        |
+| Solid BFF routes                     | Replaced by SvelteKit server loads, actions, same-origin endpoints, and private Service Binding calls                         | Caller-free check, hostname transfer, and observation          |
+| Static assets/installers/public key  | Required artifacts copied to `site-svelte/static` with fixed hash tests                                                       | Production-path smoke checks after hostname transfer           |
 
 ## 4. Migration tickets
 
@@ -136,4 +133,135 @@ After the agreed observation window:
 - [x] Bounded post-checkout fulfillment status with no session id, email, license key, or provider identifier in page data/DOM.
 - [ ] User-controlled authenticated checkout characterization.
 
-Do not attach production routes during M1. Do not enable Stripe Tax until registrations and liability jurisdictions are established. The slice is complete only after automated verification and user-controlled authenticated checkout characterization when credentials are available.
+Do not attach production routes before the coordinated cutover. Do not enable Stripe Tax until registrations and liability jurisdictions are established. Automated implementation parity does not replace user-controlled authenticated characterization.
+
+## 7. Caller-checked Solid deletion manifest
+
+Every path below is classified **remove after successful hostname observation**. The replacement class is determined by its prefix:
+
+| Solid prefix                                                                                           | Replacement authority                                                                            |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `site/src/routes`, `site/src/entry-*`, `site/src/app.*`, `site/src/middleware*`                        | SvelteKit routes, hooks, server loads/actions, and Alchemy Worker runtime                        |
+| `site/src/components`, `site/src/pages`, `site/src/design-system`                                      | Svelte components and route-local presentation                                                   |
+| `site/src/lib/analytics-client.ts`, `site/src/lib/performance-entry*`                                  | Same-origin Svelte analytics view model and Service Binding endpoint                             |
+| `site/src/lib/contracts`, `site/src/lib/licensing-bff*`, `site/src/lib/admin.ts`, `site/src/lib/auth*` | Effect Schema Svelte server boundaries and retained `site/shared` contracts                      |
+| remaining `site/src/lib` and `site/src/types`                                                          | Superseded Solid-only state, fetch, formatting, helper, and test modules with no retained caller |
+
+`tools/check-source-policy.mjs` fails unless this inventory exactly matches the filesystem and no production source outside `site/src` imports a listed path.
+
+<!-- solid-deletion-manifest:start -->
+
+site/src/app.css
+site/src/app.tsx
+site/src/components/Benchmarks.tsx
+site/src/components/Footer.tsx
+site/src/components/Header.tsx
+site/src/components/Hero.tsx
+site/src/components/Installation.tsx
+site/src/components/MarketingOfferDialog.tsx
+site/src/components/Pricing.tsx
+site/src/components/UpgradeModal.tsx
+site/src/components/dashboard/AdminDashboard.tsx
+site/src/components/dashboard/admin/AuditLogTab.tsx
+site/src/components/dashboard/admin/CohortAnalysis.tsx
+site/src/components/dashboard/admin/CustomerDetailDrawer.tsx
+site/src/components/dashboard/admin/DocsAnalytics.tsx
+site/src/components/dashboard/admin/NotesSection.tsx
+site/src/components/dashboard/admin/RevenueTab.tsx
+site/src/components/dashboard/admin/TagsSection.tsx
+site/src/components/dashboard/admin/analytics/CohortRetentionHeatmap.tsx
+site/src/components/dashboard/admin/analytics/GeoDistribution.tsx
+site/src/components/dashboard/admin/insights/CommandHeatmap.tsx
+site/src/components/dashboard/admin/insights/EngagementMetrics.tsx
+site/src/components/dashboard/admin/insights/FeatureAdoptionChart.tsx
+site/src/components/dashboard/admin/insights/InsightsTab.tsx
+site/src/components/dashboard/admin/insights/RuntimeAdoptionChart.tsx
+site/src/components/dashboard/admin/insights/TimeToValueMetrics.tsx
+site/src/components/dashboard/admin/shared/ErrorCard.tsx
+site/src/components/dashboard/admin/shared/TabErrorBoundary.tsx
+site/src/components/dashboard/admin/tabs/AnalyticsTab.tsx
+site/src/components/dashboard/admin/tabs/CRMTab.tsx
+site/src/components/dashboard/admin/tabs/OverviewTab.tsx
+site/src/components/dashboard/admin/tag-color.ts
+site/src/components/dashboard/premium/RealTimeCommandCenter.tsx
+site/src/components/dashboard/premium/index.ts
+site/src/components/dashboard/premium/types.ts
+site/src/components/landing/FeatureGrid.tsx
+site/src/components/landing/LicenseSuccessModal.tsx
+site/src/components/ui/BrandIcons.tsx
+site/src/components/ui/Icons.tsx
+site/src/components/ui/Skeleton.tsx
+site/src/design-system/DESIGN_SYSTEM.md
+site/src/design-system/tokens.css
+site/src/entry-client.tsx
+site/src/entry-server.tsx
+site/src/lib/admin.ts
+site/src/lib/analytics-client.ts
+site/src/lib/api-error.ts
+site/src/lib/api-hooks.ts
+site/src/lib/api.ts
+site/src/lib/auth-client.ts
+site/src/lib/auth.ts
+site/src/lib/better-auth-sign-out.test.ts
+site/src/lib/better-auth-sign-out.ts
+site/src/lib/browser-storage.test.ts
+site/src/lib/browser-storage.ts
+site/src/lib/contracts/account-dashboard.ts
+site/src/lib/contracts/d1-rows.test.ts
+site/src/lib/contracts/d1-rows.ts
+site/src/lib/contracts/dashboard-store.test.ts
+site/src/lib/contracts/dashboard-store.ts
+site/src/lib/contracts/dashboard.test.ts
+site/src/lib/contracts/licensing-dashboard.test.ts
+site/src/lib/contracts/licensing-dashboard.ts
+site/src/lib/contracts/licensing-routes.test.ts
+site/src/lib/contracts/login-credentials.test.ts
+site/src/lib/contracts/telemetry-dashboard.test.ts
+site/src/lib/contracts/telemetry-dashboard.ts
+site/src/lib/contracts/tier.test.ts
+site/src/lib/contracts/tier.ts
+site/src/lib/contracts/worker-http.test.ts
+site/src/lib/contracts/worker-http.ts
+site/src/lib/dashboard-contract.test.ts
+site/src/lib/dashboard-contract.ts
+site/src/lib/dashboard-page.ts
+site/src/lib/error-message.ts
+site/src/lib/licensing-bff.test.ts
+site/src/lib/licensing-bff.ts
+site/src/lib/lookup.test.ts
+site/src/lib/lookup.ts
+site/src/lib/mailto.ts
+site/src/lib/observability.ts
+site/src/lib/performance-entry.test.ts
+site/src/lib/performance-entry.ts
+site/src/lib/prelude.ts
+site/src/lib/query.test.ts
+site/src/lib/query.ts
+site/src/lib/segment-condition.test.ts
+site/src/lib/segment-condition.ts
+site/src/lib/state/dashboard-view.ts
+site/src/lib/stores/dashboardStore.ts
+site/src/lib/worker-api.test.ts
+site/src/lib/worker-api.ts
+site/src/middleware.test.ts
+site/src/middleware.ts
+site/src/pages/DashboardPage.tsx
+site/src/routes/[...404].tsx
+site/src/routes/admin.tsx
+site/src/routes/api/auth/[...auth].ts
+site/src/routes/api/dashboard.ts
+site/src/routes/api/licensing/[...path].ts
+site/src/routes/api/offer.ts
+site/src/routes/dashboard.tsx
+site/src/routes/docs.tsx
+site/src/routes/index.tsx
+site/src/routes/login.tsx
+site/src/routes/privacy.tsx
+site/src/routes/robots.txt.ts
+site/src/routes/signup.tsx
+site/src/routes/sitemap.xml.ts
+site/src/routes/terms.tsx
+site/src/types/cloudflare.d.ts
+site/src/types/index.ts
+site/src/types/ui/filters.ts
+<!-- solid-deletion-manifest:end -->

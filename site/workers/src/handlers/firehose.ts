@@ -4,6 +4,7 @@ import { Effect, Exit } from 'effect';
 
 import { type Env, jsonResponse, errorResponse } from '../api';
 import { forbiddenUnlessAdminSession } from '../admin-auth';
+import { requireInternalSecret } from '../admin-secret';
 import {
   decodeExtraRowArray,
   decodeStoredProperties,
@@ -23,10 +24,23 @@ const SINCE_PATTERN = /^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}:\d{2})?$/;
  */
 export async function handleGetFirehose(request: Request, env: Env): Promise<Response> {
   const denial = await forbiddenUnlessAdminSession(request, env);
-  if (denial !== null) {
-    return denial;
-  }
+  return denial ?? loadFirehoseResponse(request, env);
+}
 
+/** Private Svelte polling adapter that avoids minting a database session every five seconds. */
+export async function handleInternalFirehose(request: Request, env: Env): Promise<Response> {
+  if (request.headers.get('X-Internal-Call') !== 'service-binding') {
+    return errorResponse('Not found', 404);
+  }
+  const secret = await Effect.runPromiseExit(
+    requireInternalSecret(request.headers.get('X-Admin-Secret'), [env.SVELTE_BFF_SECRET])
+  );
+  return Exit.isFailure(secret)
+    ? errorResponse('Not found', 404)
+    : loadFirehoseResponse(request, env);
+}
+
+async function loadFirehoseResponse(request: Request, env: Env): Promise<Response> {
   try {
     const url = URL.parse(request.url);
     if (url === null) {
