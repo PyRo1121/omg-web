@@ -1,4 +1,3 @@
-import { reportError } from '../observability';
 // Dashboard API handlers (all require authentication)
 import * as Schema from 'effect/Schema';
 import { type Env, jsonResponse, errorResponse, logAudit } from '../api';
@@ -15,26 +14,13 @@ import {
   DashboardAuditLogRowSchema,
   IdRowSchema,
   isTeamOrEnterpriseTier,
-  LicenseTeamAuthRowSchema,
-  optionalRowValue,
   isInvalidExtraRow,
   readOptionalExtraRow,
-  TeamMemberMachineRowSchema,
-  TeamUsageTotalsRowSchema,
   TierRowSchema,
-  UsageDailyRowSchema,
 } from '../contracts/d1-extras';
 
 const SESSION_LIST_LIMIT = 50;
 const AUDIT_LOG_LIMIT = 100;
-
-/** Marketing value assigned to one saved engineering hour. */
-const VALUE_PER_HOUR_USD = 100;
-/** Baseline spend the team ROI multiplier is measured against. */
-const ROI_BASELINE_COST_USD = 200;
-/** Commands a seat must run to reach a full productivity score. */
-const PRODUCTIVITY_SCORE_COMMANDS = 1000;
-const MS_PER_HOUR = 1000 * 60 * 60;
 
 const SessionListRowSchema = Schema.Struct({
   id: Schema.String,
@@ -42,16 +28,6 @@ const SessionListRowSchema = Schema.Struct({
   user_agent: Schema.Union(Schema.Null, Schema.String),
   created_at: Schema.String,
   expires_at: Schema.String,
-});
-
-/** Lifetime per-machine usage totals with a trailing-7-day command column, decoded from one query. */
-const MemberUsageWithRecentRowSchema = Schema.Struct({
-  machine_id: Schema.String,
-  total_commands: Schema.Union(Schema.Null, Schema.Number),
-  total_packages: Schema.Union(Schema.Null, Schema.Number),
-  total_time_saved_ms: Schema.Union(Schema.Null, Schema.Number),
-  last_active: Schema.Union(Schema.Null, Schema.String),
-  commands_last_7d: Schema.Union(Schema.Null, Schema.Number),
 });
 
 /** Run a handler behind dashboard session validation. */
@@ -248,250 +224,6 @@ export async function handleRevokeSession(request: Request, env: Env): Promise<R
   });
 }
 
-// Get team members and their usage (for Team/Enterprise tiers)
-export async function handleGetTeamMembers(request: Request, env: Env): Promise<Response> {
-  return withDashboardSession(request, env, async ({ db, userId }) => {
-    try {
-      // Get license and check tier
-      const licenseRow = await db
-        .prepare(
-          `
-      SELECT id, tier, status, max_seats FROM licenses WHERE customer_id = ?
-    `
-        )
-        .bind(userId)
-        .first();
-
-      const licenseLookup = await readOptionalExtraRow(
-        LicenseTeamAuthRowSchema,
-        'Team license row has an invalid shape',
-        licenseRow
-      );
-      if (isInvalidExtraRow(licenseLookup)) {
-        return errorResponse('Failed to load license', 500);
-      }
-      if (licenseLookup._tag === 'missing') {
-        return errorResponse('License not found', 404);
-      }
-      const license = licenseLookup.value;
-
-      if (!isTeamOrEnterpriseTier(license.tier)) {
-        return errorResponse('Team management requires Team or Enterprise tier', 403);
-      }
-
-      // Get all machines (team members)
-      const machinesResult = await db
-        .prepare(
-          `
-    SELECT
-      m.id,
-      m.machine_id,
-      m.hostname,
-      m.os,
-      m.arch,
-      m.omg_version,
-      m.user_name,
-      m.user_email,
-      m.is_active,
-      m.first_seen_at,
-      m.last_seen_at
-    FROM machines m
-    WHERE m.license_id = ?
-    ORDER BY m.last_seen_at DESC
-  `
-        )
-        .bind(license.id)
-        .all();
-
-      const machinesExit = await Effect.runPromiseExit(
-        decodeExtraRowArray(
-          TeamMemberMachineRowSchema,
-          'Team member machine rows have an invalid shape',
-          machinesResult.results
-        )
-      );
-      if (Exit.isFailure(machinesExit)) {
-        return errorResponse('Failed to load team members', 500);
-      }
-      const machines = machinesExit.value;
-
-      // Get real per-member usage stats: lifetime totals and trailing-7-day
-      // commands decoded from a single query (one D1 round trip instead of two).
-      const memberUsageResult = await db
-        .prepare(
-          `
-    SELECT
-      machine_id,
-      SUM(commands_run) as total_commands,
-      SUM(packages_installed) as total_packages,
-      SUM(time_saved_ms) as total_time_saved_ms,
-      MAX(date) as last_active,
-      SUM(CASE WHEN date >= date('now', '-7 days') THEN commands_run ELSE 0 END) as commands_last_7d
-    FROM usage_member_daily
-    WHERE license_id = ?
-    GROUP BY machine_id
-  `
-        )
-        .bind(license.id)
-        .all();
-
-      const memberUsageExit = await Effect.runPromiseExit(
-        decodeExtraRowArray(
-          MemberUsageWithRecentRowSchema,
-          'Member usage rows have an invalid shape',
-          memberUsageResult.results
-        )
-      );
-      if (Exit.isFailure(memberUsageExit)) {
-        return errorResponse('Failed to load team members', 500);
-      }
-
-      const usageMap = new Map(memberUsageExit.value.map(row => [row.machine_id, row]));
-
-      const totalUsageRow = await db
-        .prepare(
-          `
-    SELECT
-      SUM(commands_run) as total_commands,
-      SUM(packages_installed) as total_packages,
-      SUM(time_saved_ms) as total_time_saved_ms
-    FROM usage_daily
-    WHERE license_id = ?
-  `
-        )
-        .bind(license.id)
-        .first();
-
-      const totalUsageLookup = await readOptionalExtraRow(
-        TeamUsageTotalsRowSchema,
-        'Team usage totals have an invalid shape',
-        totalUsageRow
-      );
-      if (isInvalidExtraRow(totalUsageLookup)) {
-        return errorResponse('Failed to load team members', 500);
-      }
-      const totalUsage = optionalRowValue(totalUsageLookup);
-
-      const membersWithUsage = machines.map(member => {
-        const usage = usageMap.get(member.machine_id);
-        return {
-          ...member,
-          total_commands: usage?.total_commands ?? 0,
-          total_packages: usage?.total_packages ?? 0,
-          total_time_saved_ms: usage?.total_time_saved_ms ?? 0,
-          commands_last_7d: usage?.commands_last_7d ?? 0,
-          last_active: usage?.last_active ?? member.last_seen_at,
-        };
-      });
-
-      // Calculate fleet compliance only from machines that reported a version;
-      // missing telemetry is not a competing release and not part of the rate.
-      const versions = machines.flatMap(member => {
-        const version = member.omg_version?.trim();
-        return version ? [version] : [];
-      });
-      const uniqueVersions = [...new Set(versions)];
-      const latestVersion =
-        uniqueVersions.toSorted((left, right) =>
-          right.localeCompare(left, undefined, { numeric: true, sensitivity: 'base' })
-        )[0] ?? 'unknown';
-      const complianceRate =
-        versions.length === 0
-          ? 0
-          : (versions.filter(version => version === latestVersion).length / versions.length) * 100;
-
-      // Calculate ROI (Return on Investment)
-      const totalHoursSaved = (totalUsage?.total_time_saved_ms ?? 0) / MS_PER_HOUR;
-      const totalValueUSD = Math.round(totalHoursSaved * VALUE_PER_HOUR_USD);
-
-      // Get daily usage breakdown (last 14 days)
-      const dailyUsage = await db
-        .prepare(
-          `
-    SELECT
-      date,
-      commands_run,
-      time_saved_ms
-    FROM usage_daily
-    WHERE license_id = ? AND date >= date('now', '-14 days')
-    ORDER BY date DESC
-  `
-        )
-        .bind(license.id)
-        .all();
-      const dailyUsageExit = await Effect.runPromiseExit(
-        decodeExtraRowArray(
-          UsageDailyRowSchema,
-          'Team daily usage rows have an invalid shape',
-          dailyUsage.results
-        )
-      );
-      if (Exit.isFailure(dailyUsageExit)) {
-        return errorResponse('Failed to load team data', 500);
-      }
-
-      // Get team totals
-      const totalMachines = machines.length;
-      const activeMachines = machines.filter(member => member.is_active === 1).length;
-      const totalCommands = totalUsage?.total_commands ?? 0;
-      const totalTimeSaved = totalUsage?.total_time_saved_ms ?? 0;
-
-      return jsonResponse({
-        license: {
-          tier: license.tier,
-          max_seats: license.max_seats,
-          status: license.status,
-        },
-        members: membersWithUsage,
-        daily_usage: dailyUsageExit.value,
-        totals: {
-          total_machines: totalMachines,
-          active_machines: activeMachines,
-          total_commands: totalCommands,
-          total_time_saved_ms: totalTimeSaved,
-          total_time_saved_hours: Math.round((totalTimeSaved / MS_PER_HOUR) * 10) / 10,
-          total_value_usd: totalValueUSD,
-        },
-        fleet_health: {
-          compliance_rate: Math.round(complianceRate),
-          latest_version: latestVersion,
-          version_drift: uniqueVersions.length > 1,
-        },
-        productivity_score: Math.min(
-          100,
-          Math.round((totalCommands / PRODUCTIVITY_SCORE_COMMANDS) * 100)
-        ),
-        insights: {
-          engagement_rate: Math.round((activeMachines / (totalMachines || 1)) * 100),
-          roi_multiplier:
-            totalValueUSD > 0 ? (totalValueUSD / ROI_BASELINE_COST_USD).toFixed(1) : '0',
-        },
-      });
-    } catch (error: unknown) {
-      reportError('handleGetTeamMembers error:', error);
-      return errorResponse('Failed to load team data', 500);
-    }
-  });
-}
-
-// Revoke a team member's machine access
-export async function handleRevokeTeamMember(request: Request, env: Env): Promise<Response> {
-  return withDashboardSession(request, env, async ({ db, userId }) => {
-    const decoded = await Effect.runPromiseExit(decodeJsonBody(request, MachineIdBodySchema));
-    if (Exit.isFailure(decoded)) {
-      return errorResponse('Invalid JSON body', 400);
-    }
-    return deactivateMachine(
-      db,
-      userId,
-      request,
-      decoded.value.machine_id,
-      'id',
-      'team.member_revoked'
-    );
-  });
-}
-
 // Get audit log
 export async function handleGetAuditLog(request: Request, env: Env): Promise<Response> {
   return withDashboardSession(request, env, async ({ db, userId }) => {
@@ -538,18 +270,4 @@ export async function handleGetAuditLog(request: Request, env: Env): Promise<Res
 
     return jsonResponse({ logs: decodedLogs.value });
   });
-}
-
-// Team policies are not implemented yet.
-export async function handleGetTeamPolicies(request: Request, env: Env): Promise<Response> {
-  return withDashboardSession(request, env, () =>
-    errorResponse('Team policies are not implemented', 501)
-  );
-}
-
-// Notifications are not implemented yet.
-export async function handleGetNotifications(request: Request, env: Env): Promise<Response> {
-  return withDashboardSession(request, env, () =>
-    errorResponse('Notifications are not implemented', 501)
-  );
 }

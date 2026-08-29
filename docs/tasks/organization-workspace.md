@@ -76,8 +76,8 @@
 ## 7. Legacy correction and release gate
 
 - [ ] Rename machine-as-member UI and contracts to fleet/machine vocabulary.
-- [ ] Inventory CLI and Solid callers of `/api/team/*`.
-- [ ] Replace superseded runtime paths without a compatibility proxy.
+- [x] Inventory CLI and Solid callers of `/api/team/*`; no retained browser caller uses them, and the CLI uses explicit `/api/license/*` fleet contracts.
+- [x] Remove the five superseded `/api/team/*` runtime paths without a compatibility proxy.
 - [ ] Run strict checks, focused/full tests, lint, build, audit evidence, migration checks, and source policy.
 - [ ] Deploy shadow and require an all-noop Alchemy follow-up plan.
 - [ ] Complete user-controlled authenticated desktop and compact characterization for Owner, Admin, Member, restricted, Free, and Pro states.

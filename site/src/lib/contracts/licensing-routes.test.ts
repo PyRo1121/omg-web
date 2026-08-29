@@ -77,6 +77,11 @@ describe('licensing HTTP route registry', () => {
   it('does not resolve removed compatibility aliases or unsupported methods', () => {
     expect(resolveLicensingRoute('GET', '/api/fleet/status')).toBeUndefined();
     expect(resolveLicensingRoute('GET', '/api/team/analytics')).toBeUndefined();
+    expect(resolveLicensingRoute('GET', '/api/team/members')).toBeUndefined();
+    expect(resolveLicensingRoute('GET', '/api/team/policies')).toBeUndefined();
+    expect(resolveLicensingRoute('GET', '/api/team/notifications')).toBeUndefined();
+    expect(resolveLicensingRoute('GET', '/api/team/audit-logs')).toBeUndefined();
+    expect(resolveLicensingRoute('POST', '/api/team/revoke')).toBeUndefined();
     expect(resolveLicensingRoute('GET', '/api/admin/events')).toBeUndefined();
     expect(resolveLicensingRoute('DELETE', '/api/dashboard')).toBeUndefined();
   });

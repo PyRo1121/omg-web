@@ -24,10 +24,6 @@ import {
   handleGetSessions,
   handleRevokeSession,
   handleGetAuditLog,
-  handleGetTeamMembers,
-  handleRevokeTeamMember,
-  handleGetTeamPolicies,
-  handleGetNotifications,
 } from './handlers/dashboard';
 import {
   handleValidateLicense,
@@ -363,16 +359,6 @@ export default Sentry.withSentry(
             return handleRevokeSession(request, env);
           case '/api/audit-log':
             return handleGetAuditLog(request, env);
-          case '/api/team/members':
-            return handleGetTeamMembers(request, env);
-          case '/api/team/policies':
-            return handleGetTeamPolicies(request, env);
-          case '/api/team/notifications':
-            return handleGetNotifications(request, env);
-          case '/api/team/audit-logs':
-            return handleGetAuditLog(request, env);
-          case '/api/team/revoke':
-            return handleRevokeTeamMember(request, env);
           case '/api/admin/dashboard':
             return handleAdminDashboard(request, env);
           case '/api/admin/users':

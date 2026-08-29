@@ -241,36 +241,6 @@ export const LicensingRoutes = {
     authentication: 'session',
     transport: 'site-bff',
   },
-  teamMembers: {
-    method: 'GET',
-    path: '/api/team/members',
-    authentication: 'session',
-    transport: 'site-bff',
-  },
-  teamPolicies: {
-    method: 'GET',
-    path: '/api/team/policies',
-    authentication: 'session',
-    transport: 'site-bff',
-  },
-  teamNotifications: {
-    method: 'GET',
-    path: '/api/team/notifications',
-    authentication: 'session',
-    transport: 'site-bff',
-  },
-  teamAuditLogs: {
-    method: 'GET',
-    path: '/api/team/audit-logs',
-    authentication: 'session',
-    transport: 'site-bff',
-  },
-  revokeTeamMember: {
-    method: 'POST',
-    path: '/api/team/revoke',
-    authentication: 'session',
-    transport: 'site-bff',
-  },
   adminDashboard: {
     method: 'GET',
     path: '/api/admin/dashboard',
