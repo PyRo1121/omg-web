@@ -33,6 +33,7 @@ const identity = {
 interface DatabaseOptions {
   readonly restricted?: boolean;
   readonly pending?: boolean;
+  readonly recipientMatch?: boolean;
   readonly unavailable?: boolean;
 }
 
@@ -88,7 +89,9 @@ function database(options: DatabaseOptions = {}): AuthEnvironment['DB'] {
             return { organizationId: 'organization-1' };
           }
           if (sql.includes('SELECT invitation.organization_id')) {
-            return pending === null ? null : { organizationId: 'organization-1' };
+            return pending === null || options.recipientMatch === false
+              ? null
+              : { organizationId: 'organization-1' };
           }
           if (sql.includes('lower(invitation.email)')) {
             return pending;
@@ -303,6 +306,72 @@ describe('organization invitation actions', () => {
       },
       { operation: 'cancel', body: { invitationId: 'invitation-private-id' } },
     ]);
+  });
+
+  it('does not reveal whether an opaque invitation belongs to another email', async () => {
+    const reference = await Effect.runPromise(
+      createOrganizationInvitationReference(
+        'invitation-private-id',
+        new Date('2027-01-02T03:04:05.000Z'),
+        'organization-invitation-test-secret'
+      )
+    );
+    const missingReferenceEvent: OrganizationInvitationAcceptanceEvent = {
+      ...event(request(''), environment().env),
+      cookies: {
+        delete: () => undefined,
+        get: () => undefined,
+      },
+    };
+    const foreignRecipientEvent: OrganizationInvitationAcceptanceEvent = {
+      ...event(request(''), environment({ recipientMatch: false }).env),
+      cookies: {
+        delete: () => undefined,
+        get: () => reference,
+      },
+    };
+    const calls: Array<{ readonly operation: string; readonly body: unknown }> = [];
+    const mismatchGateway = {
+      ...gateway(calls),
+      acceptInvitation: async () => {
+        throw APIError.from('FORBIDDEN', {
+          code: 'YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION',
+          message: 'private invited email',
+        });
+      },
+    };
+    const providerMismatchEvent: OrganizationInvitationAcceptanceEvent = {
+      ...event(request(''), environment().env),
+      cookies: {
+        delete: () => undefined,
+        get: () => reference,
+      },
+    };
+
+    const missing = await acceptOrganizationInvitationAction(
+      missingReferenceEvent,
+      gateway(calls),
+      loadIdentity
+    );
+    const foreign = await acceptOrganizationInvitationAction(
+      foreignRecipientEvent,
+      gateway(calls),
+      loadIdentity
+    );
+    const providerMismatch = await acceptOrganizationInvitationAction(
+      providerMismatchEvent,
+      mismatchGateway,
+      loadIdentity
+    );
+
+    expect(missing.status).toBe(400);
+    expect(foreign.status).toBe(400);
+    expect(providerMismatch.status).toBe(400);
+    expect(foreign.data.message).toBe(missing.data.message);
+    expect(providerMismatch.data.message).toBe(missing.data.message);
+    expect(providerMismatch.data.message).not.toContain('private invited email');
+    expect(foreign.data.message).toBe('This invitation is invalid or has expired.');
+    expect(calls).toEqual([]);
   });
 
   it('records a tenant-scoped lifecycle audit event without invitation identifiers or tokens', async () => {

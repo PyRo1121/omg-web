@@ -35,7 +35,8 @@
 - [x] Implement 48-hour expiry, re-invite cancellation, resend, revoke, accept, and reject flows.
 - [x] Map duplicate, mismatch, full-seat, ineligible-tier, forbidden, expired, rate-limited, delivery, and unavailable failures.
 - [x] Record bounded audit events without IDs, bodies, invitation URLs, or tokens.
-- [ ] Add Better Auth integration coverage for concurrent final-seat acceptance and email-enumeration denial.
+- [x] Add email-enumeration denial coverage for missing, foreign-recipient, and Better Auth mismatch paths.
+- [ ] Add Better Auth integration coverage for concurrent final-seat acceptance; the D1 final-seat race test passes.
 
 **Blocked by:** 2.
 

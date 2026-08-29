@@ -126,9 +126,12 @@ function organizationInvitationFailure(
     });
   }
   if (cause instanceof OrganizationInvitationNotFound) {
-    return fail(404, {
+    const isRecipientOperation = operation === 'accept' || operation === 'reject';
+    return fail(isRecipientOperation ? 400 : 404, {
       kind: 'organization-invitation-error' as const,
-      message: 'That pending invitation is no longer available.',
+      message: isRecipientOperation
+        ? 'This invitation is invalid or has expired.'
+        : 'That pending invitation is no longer available.',
     });
   }
   if (cause instanceof OrganizationInvitationStoreUnavailable) {
@@ -186,12 +189,12 @@ function organizationInvitationFailure(
     code === 'YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION' ||
     code === 'EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION'
   ) {
-    return fail(operation === 'accept' || operation === 'reject' ? 403 : 404, {
+    const isRecipientOperation = operation === 'accept' || operation === 'reject';
+    return fail(isRecipientOperation ? 400 : 404, {
       kind: 'organization-invitation-error' as const,
-      message:
-        operation === 'accept' || operation === 'reject'
-          ? 'This invitation cannot be used by the current account.'
-          : 'That pending invitation is no longer available.',
+      message: isRecipientOperation
+        ? 'This invitation is invalid or has expired.'
+        : 'That pending invitation is no longer available.',
     });
   }
   return fail(503, {
