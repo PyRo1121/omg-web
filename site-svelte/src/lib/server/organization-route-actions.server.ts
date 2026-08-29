@@ -11,6 +11,7 @@ import {
   parseInvitationCreatedResult,
   parseInvitationRejectedResult,
   loadActiveOrganizationId,
+  loadInvitationOrganizationId,
   recordOrganizationAudit,
   OrganizationInvitationFormInvalid,
   OrganizationInvitationNotFound,
@@ -319,6 +320,7 @@ export async function inviteOrganizationMemberAction(
       await recordOrganizationAudit(
         event.platform.env.DB,
         event.request,
+        organizationId,
         'organization.invitation.delivery_failed',
         input.role
       );
@@ -328,6 +330,7 @@ export async function inviteOrganizationMemberAction(
   await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
+    organizationId,
     'organization.invitation.created',
     input.role
   );
@@ -423,6 +426,7 @@ export async function resendOrganizationInvitationAction(
       await recordOrganizationAudit(
         event.platform.env.DB,
         event.request,
+        organizationId,
         'organization.invitation.delivery_failed',
         pending.role
       );
@@ -432,6 +436,7 @@ export async function resendOrganizationInvitationAction(
   await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
+    organizationId,
     'organization.invitation.resent',
     pending.role
   );
@@ -512,6 +517,7 @@ export async function revokeOrganizationInvitationAction(
   await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
+    organizationId,
     'organization.invitation.revoked',
     pending.role
   );
@@ -551,6 +557,19 @@ export async function acceptOrganizationInvitationAction(
     event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, { path: '/' });
     return organizationInvitationFailure(new OrganizationInvitationNotFound(), 'accept');
   }
+  let organizationId: string | null;
+  try {
+    organizationId = await loadInvitationOrganizationId(
+      { ...identity.user, sessionToken: identity.sessionToken },
+      invitationIdExit.value,
+      event.platform.env.DB
+    );
+  } catch (cause) {
+    return organizationInvitationFailure(cause, 'accept');
+  }
+  if (organizationId === null) {
+    return organizationInvitationFailure(new OrganizationInvitationNotFound(), 'accept');
+  }
   const rateLimit = await organizationMutationRateLimit(event, identity.user.id);
   if (rateLimit === 'limited') {
     return fail(429, {
@@ -576,6 +595,7 @@ export async function acceptOrganizationInvitationAction(
   await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
+    organizationId,
     'organization.invitation.accepted'
   );
   event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, { path: '/' });
@@ -615,6 +635,19 @@ export async function rejectOrganizationInvitationAction(
     event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, { path: '/' });
     return organizationInvitationFailure(new OrganizationInvitationNotFound(), 'reject');
   }
+  let organizationId: string | null;
+  try {
+    organizationId = await loadInvitationOrganizationId(
+      { ...identity.user, sessionToken: identity.sessionToken },
+      invitationIdExit.value,
+      event.platform.env.DB
+    );
+  } catch (cause) {
+    return organizationInvitationFailure(cause, 'reject');
+  }
+  if (organizationId === null) {
+    return organizationInvitationFailure(new OrganizationInvitationNotFound(), 'reject');
+  }
   const rateLimit = await organizationMutationRateLimit(event, identity.user.id);
   if (rateLimit === 'limited') {
     return fail(429, {
@@ -640,6 +673,7 @@ export async function rejectOrganizationInvitationAction(
   await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
+    organizationId,
     'organization.invitation.rejected'
   );
   event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, { path: '/' });

@@ -63,6 +63,7 @@
         <nav class="organization-nav" aria-label="Organization workspace">
           <a href="/dashboard/organization/members/">People</a>
           <a href="/dashboard/organization/usage/" aria-current="page">Usage</a>
+          <a href="/dashboard/organization/audit/">Audit</a>
         </nav>
 
         <dl class="metric-grid">

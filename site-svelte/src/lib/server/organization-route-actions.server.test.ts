@@ -87,6 +87,9 @@ function database(options: DatabaseOptions = {}): AuthEnvironment['DB'] {
           if (sql.includes('COALESCE')) {
             return { organizationId: 'organization-1' };
           }
+          if (sql.includes('SELECT invitation.organization_id')) {
+            return pending === null ? null : { organizationId: 'organization-1' };
+          }
           if (sql.includes('lower(invitation.email)')) {
             return pending;
           }
@@ -302,30 +305,34 @@ describe('organization invitation actions', () => {
     ]);
   });
 
-  it('records a bounded lifecycle audit event without invitation identifiers or tokens', async () => {
+  it('records a tenant-scoped lifecycle audit event without invitation identifiers or tokens', async () => {
     let bindings: ReadonlyArray<unknown> = [];
+    let statement = '';
     const db: AuthEnvironment['DB'] = {
       batch: async () => [],
       dump: async () => new ArrayBuffer(0),
       exec: async () => ({ count: 0, duration: 0 }),
-      prepare: () => ({
-        all: async () => ({ results: [] }),
-        bind: (...values: Array<unknown>) => ({
+      prepare: (sql: string) => {
+        statement = sql;
+        return {
           all: async () => ({ results: [] }),
-          bind: () => {
-            throw new Error('bind may only be called once');
-          },
+          bind: (...values: Array<unknown>) => ({
+            all: async () => ({ results: [] }),
+            bind: () => {
+              throw new Error('bind may only be called once');
+            },
+            first: async () => null,
+            raw: async () => [],
+            run: async () => {
+              bindings = values;
+              return { success: true };
+            },
+          }),
           first: async () => null,
           raw: async () => [],
-          run: async () => {
-            bindings = values;
-            return { success: true };
-          },
-        }),
-        first: async () => null,
-        raw: async () => [],
-        run: async () => ({ success: true }),
-      }),
+          run: async () => ({ success: true }),
+        };
+      },
       withSession: () => db,
     };
 
@@ -334,13 +341,17 @@ describe('organization invitation actions', () => {
       new Request('https://shadow.example/dashboard/', {
         headers: { 'CF-Connecting-IP': '192.0.2.30', 'User-Agent': 'test-agent' },
       }),
+      'organization-private-id',
       'organization.invitation.created',
       'member'
     );
 
+    expect(statement).toContain('organization.billing_customer_id');
+    expect(statement).toContain('WHERE organization.id = ?');
     expect(bindings[1]).toBe('organization.invitation.created');
     expect(bindings[2]).toBe('192.0.2.30');
     expect(bindings[4]).toBe('{"role":"member"}');
+    expect(bindings[5]).toBe('organization-private-id');
     expect(JSON.stringify(bindings)).not.toContain('invitation-private-id');
     expect(JSON.stringify(bindings)).not.toContain('token=');
   });

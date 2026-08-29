@@ -11,6 +11,14 @@ const ACTIVE_ORGANIZATION_QUERY = `SELECT COALESCE(
   (SELECT active_organization_id FROM auth_session WHERE user_id = ? AND token = ? LIMIT 1),
   (SELECT organization_id FROM auth_member WHERE user_id = ? ORDER BY created_at, id LIMIT 1)
 ) AS organizationId`;
+const INVITATION_ORGANIZATION_QUERY = `SELECT invitation.organization_id AS organizationId
+FROM auth_invitation AS invitation
+JOIN auth_user AS identity
+  ON identity.id = ?
+  AND identity.email_verified = 1
+  AND lower(identity.email) = lower(invitation.email)
+WHERE invitation.id = ?
+LIMIT 2`;
 const PENDING_INVITATION_QUERY = `SELECT invitation.id, invitation.role
 FROM auth_invitation AS invitation
 JOIN auth_session AS session
@@ -236,6 +244,30 @@ export async function loadActiveOrganizationId(
   }
 }
 
+/** Resolve an invitation's organization only for its verified recipient. */
+export async function loadInvitationOrganizationId(
+  identity: OrganizationWorkspaceIdentity,
+  invitationId: string,
+  database: AuthEnvironment['DB']
+): Promise<string | null> {
+  try {
+    const row = await database
+      .prepare(INVITATION_ORGANIZATION_QUERY)
+      .bind(identity.id, invitationId)
+      .first();
+    const decoded = Schema.decodeUnknownExit(Schema.NullOr(ActiveOrganizationRowSchema))(row);
+    if (Exit.isFailure(decoded)) {
+      throw new OrganizationInvitationStoreUnavailable();
+    }
+    return decoded.value?.organizationId ?? null;
+  } catch (cause) {
+    if (cause instanceof OrganizationInvitationStoreUnavailable) {
+      throw cause;
+    }
+    throw new OrganizationInvitationStoreUnavailable(cause);
+  }
+}
+
 /** Find one pending invitation by normalized email in the active organization. */
 export async function findPendingOrganizationInvitation(
   identity: OrganizationWorkspaceIdentity,
@@ -323,6 +355,7 @@ export type OrganizationAuditAction =
 export async function recordOrganizationAudit(
   database: AuthEnvironment['DB'],
   request: Request,
+  organizationId: string,
   action: OrganizationAuditAction,
   role?: OrganizationInvitationRole
 ): Promise<void> {
@@ -334,14 +367,17 @@ export async function recordOrganizationAudit(
           .prepare(
             `INSERT INTO audit_log
               (id, customer_id, action, resource_type, resource_id, ip_address, user_agent, metadata)
-             VALUES (?, NULL, ?, 'organization', NULL, ?, ?, ?)`
+             SELECT ?, organization.billing_customer_id, ?, 'organization', NULL, ?, ?, ?
+             FROM auth_organization AS organization
+             WHERE organization.id = ?`
           )
           .bind(
             crypto.randomUUID(),
             action,
             request.headers.get('CF-Connecting-IP')?.slice(0, 64) ?? null,
             request.headers.get('User-Agent')?.slice(0, 512) ?? null,
-            metadata
+            metadata,
+            organizationId
           )
           .run(),
       catch: cause => new OrganizationInvitationStoreUnavailable(cause),

@@ -5,6 +5,8 @@ import {
   formatProductLabel,
   formatTimestamp,
   machineAllowanceLabel,
+  organizationAuditActionLabel,
+  organizationAuditPageHref,
   streakLabel,
   providerLabel,
   verificationLabel,
@@ -64,6 +66,24 @@ describe('usage labels', () => {
     [7, '7 days'],
   ])('formats a %s-day streak as %s', (days, label) => {
     expect(streakLabel(days)).toBe(label);
+  });
+});
+
+describe('organization audit labels', () => {
+  it('uses readable labels for fixed audit actions', () => {
+    expect(organizationAuditActionLabel('organization.invitation.delivery_failed')).toBe(
+      'Invitation delivery failed'
+    );
+    expect(organizationAuditActionLabel('organization.member.ownership_transferred')).toBe(
+      'Ownership transferred'
+    );
+  });
+
+  it('builds canonical bounded pagination links', () => {
+    expect(organizationAuditPageHref('all', 1)).toBe('/dashboard/organization/audit/');
+    expect(organizationAuditPageHref('members', 2)).toBe(
+      '/dashboard/organization/audit/?filter=members&page=2'
+    );
   });
 });
 

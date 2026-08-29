@@ -351,6 +351,7 @@ export async function changeOrganizationMemberRoleAction(
   await recordOrganizationAudit(
     prepared.database,
     event.request,
+    prepared.organizationId,
     'organization.member.role_changed',
     input.role
   );
@@ -397,6 +398,7 @@ export async function removeOrganizationMemberAction(
   await recordOrganizationAudit(
     prepared.database,
     event.request,
+    prepared.organizationId,
     'organization.member.removed',
     target.role
   );
@@ -514,6 +516,7 @@ export async function transferOrganizationOwnershipAction(
   await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
+    organizationId,
     'organization.member.ownership_transferred'
   );
   redirect(303, '/dashboard/organization/members/');

@@ -117,6 +117,7 @@
             Review people and invitations
           </a>
           <a class="text-link" href="/dashboard/organization/usage/">Review usage and fleet</a>
+          <a class="text-link" href="/dashboard/organization/audit/">Review organization history</a>
         </nav>
 
         <dl class="organization-facts">

@@ -71,6 +71,7 @@
         <nav class="organization-nav" aria-label="Organization workspace">
           <a href="/dashboard/organization/members/" aria-current="page">People</a>
           <a href="/dashboard/organization/usage/">Usage</a>
+          <a href="/dashboard/organization/audit/">Audit</a>
         </nav>
 
         {#if form?.kind === 'organization-invitation-error'}

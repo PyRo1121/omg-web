@@ -1,3 +1,8 @@
+import type {
+  OrganizationAuditAction,
+  OrganizationAuditFilter,
+} from '../../../../site/shared/organization-audit';
+
 const COUNT_FORMAT = new Intl.NumberFormat('en-US');
 const TIMESTAMP_FORMAT = new Intl.DateTimeFormat('en-US', {
   dateStyle: 'medium',
@@ -53,6 +58,43 @@ export function formatProductLabel(value: string): string {
 
 export function machineAllowanceLabel(active: number, maximum: number): string {
   return `${active} of ${maximum}`;
+}
+
+export function organizationAuditPageHref(filter: OrganizationAuditFilter, page: number): string {
+  const params = new URLSearchParams();
+  if (filter !== 'all') {
+    params.set('filter', filter);
+  }
+  if (page !== 1) {
+    params.set('page', String(page));
+  }
+  const query = params.toString();
+  return query.length === 0
+    ? '/dashboard/organization/audit/'
+    : `/dashboard/organization/audit/?${query}`;
+}
+
+export function organizationAuditActionLabel(action: OrganizationAuditAction): string {
+  switch (action) {
+    case 'organization.invitation.accepted':
+      return 'Invitation accepted';
+    case 'organization.invitation.created':
+      return 'Invitation created';
+    case 'organization.invitation.delivery_failed':
+      return 'Invitation delivery failed';
+    case 'organization.invitation.rejected':
+      return 'Invitation declined';
+    case 'organization.invitation.resent':
+      return 'Invitation resent';
+    case 'organization.invitation.revoked':
+      return 'Invitation revoked';
+    case 'organization.member.ownership_transferred':
+      return 'Ownership transferred';
+    case 'organization.member.removed':
+      return 'Member removed';
+    case 'organization.member.role_changed':
+      return 'Member role changed';
+  }
 }
 
 export function formatTimestamp(value: string | null): string {
