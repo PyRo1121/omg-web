@@ -10,7 +10,7 @@
 - [x] Add an immutable Wrangler migration for organization, member, invitation, and active-organization session state.
 - [x] Add unique membership and billing-link constraints.
 - [x] Add the atomic D1 active-Team/Enterprise seat-limit trigger.
-- [ ] Add last-owner integrity protection and a separate ownership-transfer operation.
+- [x] Add last-owner integrity protection and a separate ownership-transfer operation.
 - [x] Update migration checksums and fresh-schema tests; no competing root schema mirror exists.
 - [ ] Add role, tier, seat-race, malformed-row, and cross-tenant tests.
 
@@ -44,9 +44,9 @@
 - [x] Add read-only `/dashboard/organization/members/` with bounded accepted-member and pending-invitation projections.
 - [x] Add Admin/Member role changes with the fixed permission matrix.
 - [x] Add member removal and immediate organization authorization revocation.
-- [ ] Add recent-auth, exact-target, double-confirmed ownership transfer.
+- [x] Add recent-auth, exact-target, double-confirmed ownership transfer.
 - [x] Prevent Owner removal/demotion and self-lockout at the server action boundary.
-- [ ] Keep Better Auth member/invitation IDs and all SaaS identifiers out of page data and DOM.
+- [x] Keep Better Auth member/invitation IDs and all SaaS identifiers out of page data and DOM.
 - [ ] Add mutation, stale-state, forbidden-role, and cross-tenant tests.
 
 **Blocked by:** 3.

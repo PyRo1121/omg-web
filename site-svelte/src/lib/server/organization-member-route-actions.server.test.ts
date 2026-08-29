@@ -6,6 +6,7 @@ import type { OrganizationMemberAuthGateway } from './organization-member.server
 import {
   changeOrganizationMemberRoleAction,
   removeOrganizationMemberAction,
+  transferOrganizationOwnershipAction,
 } from './organization-member-route-actions.server';
 
 const identity = {
@@ -20,7 +21,11 @@ const identity = {
   },
 };
 
+const TRANSFER_NOW = new Date('2026-08-28T12:00:00.000Z');
+
 interface MemberDatabaseOptions {
+  readonly actorRole?: 'owner' | 'admin' | 'member';
+  readonly recentSessionAt?: number | string;
   readonly restricted?: boolean;
   readonly targetRole?: 'owner' | 'admin' | 'member';
   readonly targetUserId?: string;
@@ -36,14 +41,29 @@ function database(options: MemberDatabaseOptions = {}): AuthEnvironment['DB'] {
     billingCustomerId: 'customer-1',
     maxSeats: 5,
     name: 'Acme Engineering',
-    role: 'owner',
+    role: options.actorRole ?? 'owner',
     slug: 'acme-engineering',
     status: options.restricted ? 'past_due' : 'active',
     tier: 'team',
     usedSeats: 2,
   };
   const db: AuthEnvironment['DB'] = {
-    batch: async () => [],
+    batch: async () => {
+      const result = {
+        meta: {
+          changed_db: true,
+          changes: 1,
+          duration: 0,
+          last_row_id: 0,
+          rows_read: 0,
+          rows_written: 1,
+          size_after: 0,
+        },
+        results: [],
+        success: true,
+      };
+      return [result, result];
+    },
     dump: async () => new ArrayBuffer(0),
     exec: async () => ({ count: 0, duration: 0 }),
     prepare: (sql: string) => ({
@@ -56,6 +76,9 @@ function database(options: MemberDatabaseOptions = {}): AuthEnvironment['DB'] {
         first: async () => {
           if (sql.includes('targetUser')) {
             return target;
+          }
+          if (sql.includes('created_at AS createdAt')) {
+            return { createdAt: options.recentSessionAt ?? TRANSFER_NOW.getTime() };
           }
           if (sql.includes('COALESCE')) {
             return { organizationId: 'organization-1' };
@@ -190,6 +213,56 @@ describe('organization member actions', () => {
     expect(selfResult.status).toBe(403);
     expect(selfResult.data.message).toBe('Your own organization access cannot be changed here.');
     expect(selfCalls).toEqual([]);
+  });
+
+  it('transfers ownership only for an Owner with recent authentication and both confirmations', async () => {
+    const { env, keys } = environment();
+
+    await expect(
+      transferOrganizationOwnershipAction(
+        event(request('email=Member%40Example.com&confirmation=TRANSFER+OWNERSHIP'), env),
+        loadIdentity,
+        TRANSFER_NOW
+      )
+    ).rejects.toMatchObject({ status: 303, location: '/dashboard/organization/members/' });
+    expect(keys).toEqual(['organization:organization-1:owner-user:ownership']);
+  });
+
+  it('fails closed for stale authentication, non-Owners, and a malformed confirmation', async () => {
+    const stale = environment({
+      recentSessionAt: TRANSFER_NOW.getTime() - 15 * 60 * 1000 - 1,
+    });
+    const staleResult = await transferOrganizationOwnershipAction(
+      event(request('email=Member%40Example.com&confirmation=TRANSFER+OWNERSHIP'), stale.env),
+      loadIdentity,
+      TRANSFER_NOW
+    );
+    expect(staleResult.status).toBe(403);
+    expect(staleResult.data.message).toBe(
+      'Sign in again before transferring organization ownership.'
+    );
+
+    const admin = environment({ actorRole: 'admin' });
+    const adminResult = await transferOrganizationOwnershipAction(
+      event(request('email=Member%40Example.com&confirmation=TRANSFER+OWNERSHIP'), admin.env),
+      loadIdentity,
+      TRANSFER_NOW
+    );
+    expect(adminResult.status).toBe(403);
+    expect(adminResult.data.message).toBe('Only the organization Owner can transfer ownership.');
+
+    const malformed = await transferOrganizationOwnershipAction(
+      {
+        platform: undefined,
+        request: request('email=Member%40Example.com&confirmation=TRANSFER'),
+        url: new URL('https://shadow.example/dashboard/organization/members/'),
+      },
+      async () => {
+        throw new Error('identity lookup should not run');
+      },
+      TRANSFER_NOW
+    );
+    expect(malformed.status).toBe(400);
   });
 
   it('bounds forms before identity or storage work and maps Better Auth authorization failures', async () => {

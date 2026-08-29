@@ -11,14 +11,19 @@ import {
 import type { OrganizationActionEvent } from './organization-route-actions.server';
 import {
   findOrganizationMemberTarget,
+  hasRecentOrganizationAuthentication,
   parseRemovedMemberResult,
   parseUpdatedMemberResult,
   OrganizationMemberNotFound,
   OrganizationMemberProtected,
+  OrganizationMemberRecentAuthRequired,
   OrganizationMemberResponseInvalid,
   OrganizationMemberStoreUnavailable,
+  OrganizationMemberTransferConflict,
   readOrganizationMemberEmailForm,
   readOrganizationMemberRoleForm,
+  readOrganizationOwnershipTransferForm,
+  transferOrganizationOwnership,
   type OrganizationMemberAuthGateway,
 } from './organization-member.server';
 import { loadOrganizationMembersState } from './organization-workspace.server';
@@ -137,6 +142,52 @@ function organizationMemberFailure(
     return fail(403, {
       kind: 'organization-member-error' as const,
       message: 'The organization must keep an Owner.',
+    });
+  }
+  return fail(503, {
+    kind: 'organization-member-error' as const,
+    message: 'Organization membership is temporarily unavailable.',
+  });
+}
+
+function organizationOwnershipFailure(cause: unknown): OrganizationMemberActionFailureResult {
+  if (cause instanceof OrganizationInvitationFormInvalid) {
+    return fail(cause.status, {
+      kind: 'organization-member-error' as const,
+      message: 'Enter the target employee email and type TRANSFER OWNERSHIP exactly.',
+    });
+  }
+  if (cause instanceof OrganizationMemberRecentAuthRequired) {
+    return fail(403, {
+      kind: 'organization-member-error' as const,
+      message: 'Sign in again before transferring organization ownership.',
+    });
+  }
+  if (cause instanceof OrganizationMemberNotFound) {
+    return fail(404, {
+      kind: 'organization-member-error' as const,
+      message: 'That organization member is no longer available.',
+    });
+  }
+  if (cause instanceof OrganizationMemberProtected) {
+    return fail(403, {
+      kind: 'organization-member-error' as const,
+      message:
+        cause.reason === 'owner'
+          ? 'The selected employee is already an Owner.'
+          : 'Your own organization access cannot be changed here.',
+    });
+  }
+  if (cause instanceof OrganizationMemberTransferConflict) {
+    return fail(409, {
+      kind: 'organization-member-error' as const,
+      message: 'Ownership changed before the transfer completed. Review the roster and try again.',
+    });
+  }
+  if (cause instanceof OrganizationMemberStoreUnavailable) {
+    return fail(503, {
+      kind: 'organization-member-error' as const,
+      message: 'Organization membership is temporarily unavailable.',
     });
   }
   return fail(503, {
@@ -348,6 +399,122 @@ export async function removeOrganizationMemberAction(
     event.request,
     'organization.member.removed',
     target.role
+  );
+  redirect(303, '/dashboard/organization/members/');
+}
+
+/** Transfer ownership after a fresh session, exact target, and second confirmation. */
+export async function transferOrganizationOwnershipAction(
+  event: OrganizationActionEvent,
+  identityLoader: IdentityLoader = defaultIdentityLoader,
+  now: Date = new Date()
+) {
+  const input = await readActionInput(readOrganizationOwnershipTransferForm(event.request));
+  if (input instanceof OrganizationInvitationFormInvalid) {
+    return organizationOwnershipFailure(input);
+  }
+  if (event.platform === undefined) {
+    error(503, 'Organization service unavailable');
+  }
+  const identity = await identityLoader(event);
+  if (identity === null) {
+    redirect(302, '/login/');
+  }
+  if (!identity.user.emailVerified) {
+    return fail(403, {
+      kind: 'organization-member-error' as const,
+      message: 'Verify your email before transferring organization ownership.',
+    });
+  }
+  const workspaceIdentity = { ...identity.user, sessionToken: identity.sessionToken };
+  const state = await loadOrganizationMembersState(workspaceIdentity, event.platform.env.DB, now);
+  if (state.status === 'restricted') {
+    return fail(403, {
+      kind: 'organization-member-error' as const,
+      message: 'Ownership transfer is paused while the subscription is resolved.',
+    });
+  }
+  if (state.status === 'no-organization') {
+    return organizationOwnershipFailure(new OrganizationMemberNotFound());
+  }
+  if (state.status !== 'active') {
+    return organizationOwnershipFailure(new OrganizationMemberStoreUnavailable());
+  }
+  if (state.organization.role !== 'owner') {
+    return fail(403, {
+      kind: 'organization-member-error' as const,
+      message: 'Only the organization Owner can transfer ownership.',
+    });
+  }
+  let organizationId: string | null;
+  try {
+    organizationId = await loadActiveOrganizationId(workspaceIdentity, event.platform.env.DB);
+  } catch (cause) {
+    return organizationOwnershipFailure(cause);
+  }
+  if (organizationId === null) {
+    return organizationOwnershipFailure(new OrganizationMemberNotFound());
+  }
+  let isRecentAuthentication: boolean;
+  try {
+    isRecentAuthentication = await hasRecentOrganizationAuthentication(
+      workspaceIdentity,
+      event.platform.env.DB,
+      now
+    );
+  } catch (cause) {
+    return organizationOwnershipFailure(cause);
+  }
+  if (!isRecentAuthentication) {
+    return organizationOwnershipFailure(new OrganizationMemberRecentAuthRequired());
+  }
+  const rateLimit = await organizationMemberRateLimit(
+    event,
+    `${organizationId}:${identity.user.id}:ownership`
+  );
+  if (rateLimit === 'limited') {
+    return fail(429, {
+      kind: 'organization-member-error' as const,
+      message: 'Too many ownership changes. Try again shortly.',
+    });
+  }
+  if (rateLimit === 'unavailable') {
+    return organizationOwnershipFailure(new OrganizationMemberStoreUnavailable());
+  }
+  let target: Awaited<ReturnType<typeof findOrganizationMemberTarget>>;
+  try {
+    target = await findOrganizationMemberTarget(
+      workspaceIdentity,
+      input.email,
+      event.platform.env.DB
+    );
+  } catch (cause) {
+    return organizationOwnershipFailure(cause);
+  }
+  if (target === null) {
+    return organizationOwnershipFailure(new OrganizationMemberNotFound());
+  }
+  if (target.role === 'owner') {
+    return organizationOwnershipFailure(new OrganizationMemberProtected('owner'));
+  }
+  if (target.userId === identity.user.id) {
+    return organizationOwnershipFailure(new OrganizationMemberProtected('self'));
+  }
+  try {
+    await transferOrganizationOwnership(
+      workspaceIdentity,
+      organizationId,
+      target,
+      event.platform.env.DB,
+      now
+    );
+  } catch (cause) {
+    return organizationOwnershipFailure(cause);
+  }
+  await recordOrganizationAudit(
+    event.platform.env.DB,
+    event.request,
+    'organization.member.ownership_transferred'
   );
   redirect(303, '/dashboard/organization/members/');
 }

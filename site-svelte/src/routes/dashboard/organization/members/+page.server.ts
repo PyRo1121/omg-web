@@ -8,6 +8,7 @@ import {
 import {
   changeOrganizationMemberRoleAction,
   removeOrganizationMemberAction,
+  transferOrganizationOwnershipAction,
 } from '../../../../lib/server/organization-member-route-actions.server';
 import { loadOrganizationMembersState } from '../../../../lib/server/organization-workspace.server';
 import type { Actions, PageServerLoad } from './$types';
@@ -35,4 +36,5 @@ export const actions = {
   revoke: revokeOrganizationInvitationAction,
   role: changeOrganizationMemberRoleAction,
   remove: removeOrganizationMemberAction,
+  transferOwner: transferOrganizationOwnershipAction,
 } satisfies Actions;

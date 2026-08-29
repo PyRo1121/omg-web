@@ -14,6 +14,19 @@ const MigrationRowsSchema = Schema.Array(
   })
 );
 
+const MemberIdentityRowsSchema = Schema.Array(
+  Schema.Struct({
+    id: Schema.String,
+    userId: Schema.String,
+  })
+);
+const MemberRoleRowsSchema = Schema.Array(
+  Schema.Struct({
+    role: Schema.String,
+    userId: Schema.String,
+  })
+);
+
 async function tableColumns(table: string): Promise<ReadonlyArray<string>> {
   const result = await env.DB.prepare(`PRAGMA table_info(${table})`).all();
   return Schema.decodeUnknownSync(TableInfoRowsSchema)(result.results).map(row => row.name);
@@ -44,6 +57,7 @@ describe('canonical D1 migrations', () => {
       '022_licenses_customer_unique.sql',
       '023_session_token_hashes.sql',
       '024_better_auth_organizations.sql',
+      '025_organization_owner_integrity.sql',
     ]);
   });
 
@@ -122,6 +136,95 @@ describe('canonical D1 migrations', () => {
     );
   });
 
+  it('preserves the last organization Owner and permits ordered ownership transfer', async () => {
+    const suffix = crypto.randomUUID();
+    const customerId = `owner-customer-${suffix}`;
+    const organizationId = `owner-organization-${suffix}`;
+    const ownerId = `owner-user-${suffix}`;
+    const successorId = `owner-successor-${suffix}`;
+    const now = Date.now();
+
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO customers (id, email, tier) VALUES (?, ?, 'team')`).bind(
+        customerId,
+        `${customerId}@example.com`
+      ),
+      env.DB.prepare(
+        `INSERT INTO licenses (id, customer_id, license_key, tier, status, max_seats)
+         VALUES (?, ?, ?, 'team', 'active', 2)`
+      ).bind(crypto.randomUUID(), customerId, crypto.randomUUID()),
+      ...[ownerId, successorId].map(userId =>
+        env.DB.prepare(
+          `INSERT INTO auth_user (id, name, email, email_verified, created_at, updated_at)
+           VALUES (?, ?, ?, 1, ?, ?)`
+        ).bind(userId, userId, `${userId}@example.com`, now, now)
+      ),
+      env.DB.prepare(
+        `INSERT INTO auth_organization
+           (id, name, slug, billing_customer_id, created_at)
+         VALUES (?, 'Example', ?, ?, ?)`
+      ).bind(organizationId, organizationId, customerId, now),
+      env.DB.prepare(
+        `INSERT INTO auth_member (id, organization_id, user_id, role, created_at)
+         VALUES (?, ?, ?, 'owner', ?)`
+      ).bind(crypto.randomUUID(), organizationId, ownerId, now),
+      env.DB.prepare(
+        `INSERT INTO auth_member (id, organization_id, user_id, role, created_at)
+         VALUES (?, ?, ?, 'member', ?)`
+      ).bind(crypto.randomUUID(), organizationId, successorId, now),
+    ]);
+
+    await expect(
+      env.DB.prepare(`DELETE FROM auth_member WHERE organization_id = ? AND user_id = ?`)
+        .bind(organizationId, ownerId)
+        .run()
+    ).rejects.toThrow('organization must retain an owner');
+    await expect(
+      env.DB.prepare(
+        `UPDATE auth_member SET role = 'member' WHERE organization_id = ? AND user_id = ?`
+      )
+        .bind(organizationId, ownerId)
+        .run()
+    ).rejects.toThrow('organization must retain an owner');
+
+    const memberRowsResult = await env.DB.prepare(
+      `SELECT id, user_id AS userId FROM auth_member WHERE organization_id = ? ORDER BY role DESC`
+    )
+      .bind(organizationId)
+      .all();
+    const memberRows = Schema.decodeUnknownSync(MemberIdentityRowsSchema)(memberRowsResult.results);
+    const successor = memberRows.find(row => row.userId === successorId);
+    const owner = memberRows.find(row => row.userId === ownerId);
+    if (successor === undefined || owner === undefined) {
+      throw new Error('ownership transfer fixture is incomplete');
+    }
+
+    const transferResults = await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE auth_member SET role = 'owner'
+         WHERE id = ? AND organization_id = ? AND role IN ('admin', 'member')`
+      ).bind(successor.id, organizationId),
+      env.DB.prepare(
+        `UPDATE auth_member SET role = 'admin'
+         WHERE id = ? AND organization_id = ? AND role = 'owner'`
+      ).bind(owner.id, organizationId),
+    ]);
+    expect(transferResults.map(result => result.meta.changes)).toEqual([1, 1]);
+
+    const rolesResult = await env.DB.prepare(
+      `SELECT user_id AS userId, role FROM auth_member WHERE organization_id = ? ORDER BY user_id`
+    )
+      .bind(organizationId)
+      .all();
+    const roles = Schema.decodeUnknownSync(MemberRoleRowsSchema)(rolesResult.results);
+    expect(roles).toEqual(
+      expect.arrayContaining([
+        { userId: ownerId, role: 'admin' },
+        { userId: successorId, role: 'owner' },
+      ])
+    );
+  });
+
   it('atomically enforces active paid organization seats', async () => {
     const suffix = crypto.randomUUID();
     const customerId = `organization-customer-${suffix}`;
@@ -170,14 +273,6 @@ describe('canonical D1 migrations', () => {
     expect(finalSeatAttempts.filter(result => result.status === 'fulfilled')).toHaveLength(1);
     expect(finalSeatAttempts.filter(result => result.status === 'rejected')).toHaveLength(1);
 
-    await env.DB.prepare(`DELETE FROM auth_member WHERE organization_id = ?`)
-      .bind(organizationId)
-      .run();
-    await env.DB.prepare(`DELETE FROM auth_organization WHERE id = ?`).bind(organizationId).run();
-    await env.DB.prepare(`DELETE FROM auth_user WHERE id IN (?, ?, ?)`)
-      .bind(ownerId, memberId, extraId)
-      .run();
-    await env.DB.prepare(`DELETE FROM licenses WHERE customer_id = ?`).bind(customerId).run();
-    await env.DB.prepare(`DELETE FROM customers WHERE id = ?`).bind(customerId).run();
+    // The owner-integrity trigger intentionally prevents teardown from deleting the last Owner.
   });
 });

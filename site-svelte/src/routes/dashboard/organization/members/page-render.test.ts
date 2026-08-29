@@ -56,6 +56,7 @@ describe('organization members page', () => {
     expect(result.body).toContain('invitee@example.com');
     expect(result.body).toContain('Organization');
     expect(result.body).toContain('Send invitation');
+    expect(result.body).toContain('Transfer ownership');
     expect(result.body).toContain('Save role');
     expect(result.body).toContain('Remove access');
     expect(result.body).toContain('Resend');
@@ -99,6 +100,7 @@ describe('organization members page', () => {
     expect(restricted.body).toContain('Membership changes are paused');
     expect(restricted.body).not.toContain('Send invitation');
     expect(restricted.body).not.toContain('Resend');
+    expect(restricted.body).not.toContain('Transfer ownership');
     expect(restricted.body).not.toContain('Save role');
     expect(restricted.body).toContain('Revoke');
     expect(restricted.body).toContain('Unavailable');

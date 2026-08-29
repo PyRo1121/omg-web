@@ -17,6 +17,9 @@
       (data.organization.organization.role === 'owner' ||
         data.organization.organization.role === 'admin')
   );
+  let canTransferOwnership = $derived(
+    data.organization.status === 'active' && data.organization.organization.role === 'owner'
+  );
 </script>
 
 <svelte:head>
@@ -97,6 +100,45 @@
                 </select>
               </label>
               <button class="primary-action" type="submit">Send invitation</button>
+            </form>
+          </section>
+        {/if}
+
+        {#if canTransferOwnership}
+          <section class="members-section transfer-section" aria-labelledby="transfer-title">
+            <div class="section-heading">
+              <h3 id="transfer-title">Transfer ownership</h3>
+              <span>Owner only · recent sign-in required</span>
+            </div>
+            <p class="transfer-warning">
+              This changes the primary owner and gives the selected employee control of this
+              organization. The current Owner becomes an Admin.
+            </p>
+            <form class="transfer-form" method="POST" action="?/transferOwner">
+              <label>
+                <span>New Owner email</span>
+                <input
+                  name="email"
+                  type="email"
+                  autocomplete="email"
+                  maxlength="320"
+                  required
+                  placeholder="employee@company.com"
+                />
+              </label>
+              <label>
+                <span>Type TRANSFER OWNERSHIP</span>
+                <input
+                  name="confirmation"
+                  type="text"
+                  autocomplete="off"
+                  maxlength="19"
+                  pattern="TRANSFER OWNERSHIP"
+                  required
+                  placeholder="TRANSFER OWNERSHIP"
+                />
+              </label>
+              <button class="danger-action" type="submit">Transfer ownership</button>
             </form>
           </section>
         {/if}
@@ -295,7 +337,23 @@
     margin-top: 1.25rem;
   }
 
-  .invite-form label {
+  .transfer-warning {
+    max-width: 48rem;
+    margin: 1rem 0 0;
+    color: var(--ink-muted);
+    line-height: 1.6;
+  }
+
+  .transfer-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: end;
+    margin-top: 1.25rem;
+  }
+
+  .invite-form label,
+  .transfer-form label {
     display: grid;
     gap: 0.45rem;
     color: var(--ink-muted);
@@ -306,7 +364,8 @@
   }
 
   .invite-form input,
-  .invite-form select {
+  .invite-form select,
+  .transfer-form input {
     min-width: 0;
     padding: 0.75rem 0.8rem;
     border: 1px solid var(--rule-strong);
@@ -319,7 +378,8 @@
   }
 
   .invite-form input:focus,
-  .invite-form select:focus {
+  .invite-form select:focus,
+  .transfer-form input:focus {
     border-color: var(--signal);
     outline: 2px solid color-mix(in srgb, var(--signal) 25%, transparent);
     outline-offset: 1px;
@@ -340,6 +400,23 @@
   .primary-action:focus-visible {
     background: transparent;
     color: var(--signal);
+  }
+
+  .danger-action {
+    padding: 0.78rem 1rem;
+    border: 1px solid var(--signal);
+    background: transparent;
+    color: var(--signal);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .danger-action:hover,
+  .danger-action:focus-visible {
+    background: var(--signal);
+    color: var(--signal-ink);
   }
 
   .form-error {
@@ -494,7 +571,8 @@
   }
 
   @media (max-width: 47.99rem) {
-    .invite-form {
+    .invite-form,
+    .transfer-form {
       grid-template-columns: 1fr;
       align-items: stretch;
     }

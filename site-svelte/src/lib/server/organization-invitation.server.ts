@@ -33,7 +33,7 @@ const PendingInvitationRowSchema = Schema.Struct({
   id: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256)),
   role: Schema.Literals(['admin', 'member']),
 });
-const InvitationEmailSchema = Schema.String.check(
+export const OrganizationInvitationEmailSchema = Schema.String.check(
   Schema.isMinLength(3),
   Schema.isMaxLength(320),
   Schema.isTrimmed(),
@@ -42,10 +42,10 @@ const InvitationEmailSchema = Schema.String.check(
 );
 const InvitationRoleSchema = Schema.Literals(['admin', 'member']);
 const InvitationFormSchema = Schema.Struct({
-  email: InvitationEmailSchema,
+  email: OrganizationInvitationEmailSchema,
   role: InvitationRoleSchema,
 });
-const InvitationEmailFormSchema = Schema.Struct({ email: InvitationEmailSchema });
+const InvitationEmailFormSchema = Schema.Struct({ email: OrganizationInvitationEmailSchema });
 const PendingInvitationResponseSchema = Schema.Struct({ status: Schema.Literal('pending') });
 const CanceledInvitationResponseSchema = Schema.Struct({ status: Schema.Literal('canceled') });
 const RejectedInvitationResponseSchema = Schema.Struct({
@@ -161,9 +161,9 @@ function oneParameter(params: URLSearchParams, name: string): string | null {
 function parseInvitationEmail(
   value: string
 ): Effect.Effect<string, OrganizationInvitationFormInvalid> {
-  return Schema.decodeUnknownEffect(InvitationEmailSchema)(value.trim().toLowerCase()).pipe(
-    Effect.mapError(() => new OrganizationInvitationFormInvalid(400))
-  );
+  return Schema.decodeUnknownEffect(OrganizationInvitationEmailSchema)(
+    value.trim().toLowerCase()
+  ).pipe(Effect.mapError(() => new OrganizationInvitationFormInvalid(400)));
 }
 
 /** Parse one bounded new-invitation form. */
@@ -313,7 +313,8 @@ export type OrganizationAuditAction =
   | 'organization.invitation.rejected'
   | 'organization.invitation.delivery_failed'
   | 'organization.member.removed'
-  | 'organization.member.role_changed';
+  | 'organization.member.role_changed'
+  | 'organization.member.ownership_transferred';
 
 /**
  * Persist one bounded invitation lifecycle audit event without making the
