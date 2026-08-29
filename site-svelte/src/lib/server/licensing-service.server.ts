@@ -193,6 +193,7 @@ export type LicensingServiceOperation =
   | 'admin-overview'
   | 'admin-activity'
   | 'admin-customers'
+  | 'admin-organizations'
   | 'admin-customer-detail'
   | 'admin-customer-update'
   | 'admin-customer-health'

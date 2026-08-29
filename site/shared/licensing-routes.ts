@@ -277,6 +277,12 @@ export const LicensingRoutes = {
     authentication: 'admin-session',
     transport: 'site-bff',
   },
+  adminOrganizations: {
+    method: 'GET',
+    path: '/api/admin/organizations',
+    authentication: 'admin-session',
+    transport: 'site-bff',
+  },
   adminUsers: {
     method: 'GET',
     path: '/api/admin/users',

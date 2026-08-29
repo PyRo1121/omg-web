@@ -62,6 +62,7 @@ import {
   handleAdminGetCustomerHealth,
   handleAdminAdvancedMetrics,
 } from './handlers/admin';
+import { handleAdminOrganizations } from './handlers/admin-organizations';
 import { handleGetFirehose } from './handlers/firehose';
 import {
   handleCreateCheckout,
@@ -373,6 +374,8 @@ export default Sentry.withSentry(
             return handleAdminDashboard(request, env);
           case '/api/admin/users':
             return handleAdminCRMUsers(request, env);
+          case '/api/admin/organizations':
+            return handleAdminOrganizations(request, env);
           case '/api/admin/user':
             return route.method === 'GET'
               ? handleAdminUserDetail(request, env)

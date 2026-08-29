@@ -7,6 +7,7 @@
   const navigation = [
     { href: '/admin/', label: 'Command center', short: '01' },
     { href: '/admin/customers/', label: 'Customers', short: '02' },
+    { href: '/admin/organizations/', label: 'Organizations', short: '03' },
   ] as const;
 
   function isCurrent(href: string): boolean {

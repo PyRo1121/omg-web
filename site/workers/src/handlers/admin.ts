@@ -32,7 +32,7 @@ const SECURITY_HEADERS = {
   Pragma: 'no-cache',
 };
 
-function secureJsonResponse<T>(data: T, status = 200): Response {
+export function secureJsonResponse<T>(data: T, status = 200): Response {
   const response = jsonResponse(data, status);
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) response.headers.set(key, value);
   return response;
@@ -179,7 +179,7 @@ async function withAdminContext(
   return 'error' in result ? result.error : handler(result.context);
 }
 
-async function withAdminQuery(
+export async function withAdminQuery(
   request: Request,
   env: Env,
   handler: (context: AdminContext, url: URL) => Promise<Response>
