@@ -5,6 +5,10 @@ import {
   resendOrganizationInvitationAction,
   revokeOrganizationInvitationAction,
 } from '../../../../lib/server/organization-route-actions.server';
+import {
+  changeOrganizationMemberRoleAction,
+  removeOrganizationMemberAction,
+} from '../../../../lib/server/organization-member-route-actions.server';
 import { loadOrganizationMembersState } from '../../../../lib/server/organization-workspace.server';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -29,4 +33,6 @@ export const actions = {
   invite: inviteOrganizationMemberAction,
   resend: resendOrganizationInvitationAction,
   revoke: revokeOrganizationInvitationAction,
+  role: changeOrganizationMemberRoleAction,
+  remove: removeOrganizationMemberAction,
 } satisfies Actions;

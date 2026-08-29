@@ -27,6 +27,12 @@ describe('organization members page', () => {
                 name: 'Owner',
                 role: 'owner',
               },
+              {
+                email: 'admin@example.com',
+                joinedAt: '2026-08-28T00:00:00.000Z',
+                name: 'Admin',
+                role: 'admin',
+              },
             ],
             invitations: [
               {
@@ -50,6 +56,8 @@ describe('organization members page', () => {
     expect(result.body).toContain('invitee@example.com');
     expect(result.body).toContain('Organization');
     expect(result.body).toContain('Send invitation');
+    expect(result.body).toContain('Save role');
+    expect(result.body).toContain('Remove access');
     expect(result.body).toContain('Resend');
     expect(result.body).toContain('Revoke');
     expect(result.body).not.toContain('private-member-id');
@@ -91,6 +99,7 @@ describe('organization members page', () => {
     expect(restricted.body).toContain('Membership changes are paused');
     expect(restricted.body).not.toContain('Send invitation');
     expect(restricted.body).not.toContain('Resend');
+    expect(restricted.body).not.toContain('Save role');
     expect(restricted.body).toContain('Revoke');
     expect(restricted.body).toContain('Unavailable');
     expect(individual.body).toContain('Create an eligible Team or Enterprise workspace');

@@ -11,7 +11,7 @@ import {
   parseInvitationCreatedResult,
   parseInvitationRejectedResult,
   loadActiveOrganizationId,
-  recordOrganizationInvitationAudit,
+  recordOrganizationAudit,
   OrganizationInvitationFormInvalid,
   OrganizationInvitationNotFound,
   OrganizationInvitationResponseInvalid,
@@ -316,7 +316,7 @@ export async function inviteOrganizationMemberAction(
     });
   } catch (cause) {
     if (cause instanceof OrganizationInvitationDeliveryFailed) {
-      await recordOrganizationInvitationAudit(
+      await recordOrganizationAudit(
         event.platform.env.DB,
         event.request,
         'organization.invitation.delivery_failed',
@@ -325,7 +325,7 @@ export async function inviteOrganizationMemberAction(
     }
     return organizationInvitationFailure(cause, 'invite');
   }
-  await recordOrganizationInvitationAudit(
+  await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
     'organization.invitation.created',
@@ -420,7 +420,7 @@ export async function resendOrganizationInvitationAction(
     });
   } catch (cause) {
     if (cause instanceof OrganizationInvitationDeliveryFailed) {
-      await recordOrganizationInvitationAudit(
+      await recordOrganizationAudit(
         event.platform.env.DB,
         event.request,
         'organization.invitation.delivery_failed',
@@ -429,7 +429,7 @@ export async function resendOrganizationInvitationAction(
     }
     return organizationInvitationFailure(cause, 'resend');
   }
-  await recordOrganizationInvitationAudit(
+  await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
     'organization.invitation.resent',
@@ -509,7 +509,7 @@ export async function revokeOrganizationInvitationAction(
   } catch (cause) {
     return organizationInvitationFailure(cause, 'revoke');
   }
-  await recordOrganizationInvitationAudit(
+  await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
     'organization.invitation.revoked',
@@ -573,7 +573,7 @@ export async function acceptOrganizationInvitationAction(
   } catch (cause) {
     return organizationInvitationFailure(cause, 'accept');
   }
-  await recordOrganizationInvitationAudit(
+  await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
     'organization.invitation.accepted'
@@ -637,7 +637,7 @@ export async function rejectOrganizationInvitationAction(
   } catch (cause) {
     return organizationInvitationFailure(cause, 'reject');
   }
-  await recordOrganizationInvitationAudit(
+  await recordOrganizationAudit(
     event.platform.env.DB,
     event.request,
     'organization.invitation.rejected'

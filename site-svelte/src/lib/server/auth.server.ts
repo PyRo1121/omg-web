@@ -69,7 +69,7 @@ const bootstrapOnlyOrganizationRole = organizationAccess.newRole({
 });
 const invitationOrganizationRole = organizationAccess.newRole({
   organization: [],
-  member: [],
+  member: ['update', 'delete'],
   invitation: ['create', 'cancel'],
 });
 

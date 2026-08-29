@@ -304,23 +304,25 @@ export function parseInvitationAcceptedResult(
   return decoded.value;
 }
 
-/** Audit events emitted by invitation lifecycle actions. */
-export type OrganizationInvitationAuditAction =
+/** Audit events emitted by organization membership lifecycle actions. */
+export type OrganizationAuditAction =
   | 'organization.invitation.accepted'
   | 'organization.invitation.created'
   | 'organization.invitation.revoked'
   | 'organization.invitation.resent'
   | 'organization.invitation.rejected'
-  | 'organization.invitation.delivery_failed';
+  | 'organization.invitation.delivery_failed'
+  | 'organization.member.removed'
+  | 'organization.member.role_changed';
 
 /**
  * Persist one bounded invitation lifecycle audit event without making the
  * primary Better Auth mutation depend on the audit table.
  */
-export async function recordOrganizationInvitationAudit(
+export async function recordOrganizationAudit(
   database: AuthEnvironment['DB'],
   request: Request,
-  action: OrganizationInvitationAuditAction,
+  action: OrganizationAuditAction,
   role?: OrganizationInvitationRole
 ): Promise<void> {
   const metadata = role === undefined ? null : JSON.stringify({ role });

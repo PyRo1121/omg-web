@@ -67,6 +67,8 @@
 
         {#if form?.kind === 'organization-invitation-error'}
           <p class="form-error" role="alert">{form.message}</p>
+        {:else if form?.kind === 'organization-member-error'}
+          <p class="form-error" role="alert">{form.message}</p>
         {/if}
 
         {#if canManageMembers}
@@ -117,6 +119,30 @@
                   <div class="member-meta">
                     <span>{member.role}</span>
                     <span>Joined {formatTimestamp(member.joinedAt)}</span>
+                    {#if canManageMembers && member.role !== 'owner'}
+                      <div class="member-actions">
+                        <form method="POST" action="?/role">
+                          <input type="hidden" name="email" value={member.email} />
+                          <label>
+                            <span class="sr-only">Role for {member.email}</span>
+                            <select name="role" aria-label={`Role for ${member.email}`}>
+                              <option value="member" selected={member.role === 'member'}
+                                >Member</option
+                              >
+                              <option value="admin" selected={member.role === 'admin'}>Admin</option
+                              >
+                            </select>
+                          </label>
+                          <button type="submit">Save role</button>
+                        </form>
+                      </div>
+                    {/if}
+                    {#if canRevokeInvitations && member.role !== 'owner'}
+                      <form method="POST" action="?/remove">
+                        <input type="hidden" name="email" value={member.email} />
+                        <button class="remove-action" type="submit">Remove access</button>
+                      </form>
+                    {/if}
                   </div>
                 </li>
               {/each}
@@ -379,6 +405,43 @@
     text-align: right;
   }
 
+  .member-actions form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .member-actions select {
+    padding: 0.35rem 0.45rem;
+    border: 1px solid var(--rule-strong);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.68rem;
+  }
+
+  .member-actions button,
+  .member-meta > form button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-muted);
+    font: inherit;
+    font-size: 0.68rem;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+  }
+
+  .member-actions button:hover,
+  .member-actions button:focus-visible,
+  .member-meta > form button:hover,
+  .member-meta > form button:focus-visible {
+    color: var(--signal);
+  }
+
   .member-meta span:first-child {
     color: var(--ink);
     text-transform: capitalize;
@@ -394,6 +457,18 @@
     gap: 0.65rem;
     justify-content: flex-end;
     margin-top: 0.25rem;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .invitation-actions button {
@@ -431,7 +506,8 @@
       text-align: left;
     }
 
-    .invitation-actions {
+    .invitation-actions,
+    .member-actions form {
       justify-content: flex-start;
     }
   }

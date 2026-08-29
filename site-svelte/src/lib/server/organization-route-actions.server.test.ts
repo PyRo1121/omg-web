@@ -13,7 +13,7 @@ import {
 } from './organization-route-actions.server';
 import { OrganizationInvitationDeliveryFailed } from './organization-invitation-email.server';
 import {
-  recordOrganizationInvitationAudit,
+  recordOrganizationAudit,
   type OrganizationInvitationAuthGateway,
 } from './organization-invitation.server';
 import { createOrganizationInvitationReference } from './organization-invitation-token.server';
@@ -329,7 +329,7 @@ describe('organization invitation actions', () => {
       withSession: () => db,
     };
 
-    await recordOrganizationInvitationAudit(
+    await recordOrganizationAudit(
       db,
       new Request('https://shadow.example/dashboard/', {
         headers: { 'CF-Connecting-IP': '192.0.2.30', 'User-Agent': 'test-agent' },
