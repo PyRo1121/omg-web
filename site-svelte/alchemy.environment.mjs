@@ -1,11 +1,24 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+const alchemyArguments = process.argv.slice(2);
+const stageFlagIndex = alchemyArguments.indexOf('--stage');
+const inlineStage = alchemyArguments.find(argument => argument.startsWith('--stage='));
+const stage =
+  inlineStage?.slice('--stage='.length) ??
+  (stageFlagIndex >= 0 ? alchemyArguments[stageFlagIndex + 1] : undefined);
+const githubCredentialPrefix = stage === 'prod' ? 'PRODUCTION_' : '';
 const REQUIRED_ENVIRONMENT = [
-  'CLOUDFLARE_ACCOUNT_ID',
-  'GITHUB_CLIENT_ID',
-  'GITHUB_CLIENT_SECRET',
-  'SVELTE_BFF_SECRET',
+  { binding: 'CLOUDFLARE_ACCOUNT_ID', source: 'CLOUDFLARE_ACCOUNT_ID' },
+  {
+    binding: 'GITHUB_CLIENT_ID',
+    source: `${githubCredentialPrefix}GITHUB_CLIENT_ID`,
+  },
+  {
+    binding: 'GITHUB_CLIENT_SECRET',
+    source: `${githubCredentialPrefix}GITHUB_CLIENT_SECRET`,
+  },
+  { binding: 'SVELTE_BFF_SECRET', source: 'SVELTE_BFF_SECRET' },
 ];
 const KEYRING_SERVICE = 'omg-web-alchemy';
 const ALCHEMY_BINARY = fileURLToPath(new URL('node_modules/.bin/alchemy', import.meta.url));
@@ -22,21 +35,25 @@ function keyringValue(name) {
 }
 
 const environment = { ...process.env };
-for (const name of REQUIRED_ENVIRONMENT) {
-  if (environment[name] !== undefined && environment[name] !== '') {
-    continue;
-  }
-  const value = keyringValue(name);
+for (const input of REQUIRED_ENVIRONMENT) {
+  const injectedValue = environment[input.source];
+  const value =
+    injectedValue !== undefined && injectedValue !== ''
+      ? injectedValue
+      : keyringValue(input.source);
   if (value === null) {
     process.stderr.write(
-      `[alchemy-env] ${name} must be injected by the environment or the desktop keyring\n`
+      `[alchemy-env] ${input.source} must be injected by the environment or the desktop keyring\n`
     );
     process.exit(1);
   }
-  environment[name] = value;
+  environment[input.binding] = value;
+  if (input.source !== input.binding) {
+    delete environment[input.source];
+  }
 }
 
-const result = spawnSync(ALCHEMY_BINARY, process.argv.slice(2), {
+const result = spawnSync(ALCHEMY_BINARY, alchemyArguments, {
   env: environment,
   stdio: 'inherit',
 });
