@@ -28,11 +28,11 @@ Rejected as the default production plan because preserving authenticated checkou
 
 Retain this design only as an emergency or explicitly bounded prefix migration for independent pages such as `/docs/`; do not use it to create a long-lived mixed application.
 
-### B. Shadow parity, then one hostname transfer — selected
+### B. Shadow parity, then one whole-host traffic switch — selected
 
-Continue implementing complete slices on the isolated Svelte shadow. Once public, auth, billing, account, admin, and required BFF behavior pass their gates, transfer the production Custom Domain once, perform the selected coordinated logout, observe, then delete Solid.
+Continue implementing complete slices on the isolated Svelte shadow. Once public, auth, billing, account, admin, and required BFF behavior pass their gates, deploy the production Svelte Worker without a public route, perform the selected coordinated logout, and add one temporary whole-host Worker Route in front of the existing Solid Custom Domain. Every path moves to Svelte together; this is not the rejected mixed path overlay.
 
-This keeps the code migration incremental while making the traffic cutover atomic. Rollback restores the hostname to `omg-site`; users may need to authenticate again because session continuity is intentionally not preserved.
+The installed Alchemy provider deliberately rejects a Custom Domain already owned by another Worker, so a direct delete-then-attach handoff cannot be treated as atomic. The temporary whole-host route makes the initial traffic switch and rollback atomic while preserving `omg-site` as the dormant rollback origin. After the observation window, transfer permanent hostname ownership to Svelte, remove the temporary route, then delete Solid. Users may need to authenticate again because session continuity is intentionally not preserved.
 
 ### C. Svelte front door with a legacy Solid binding
 
@@ -113,16 +113,19 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 - [x] Operator insights then exposed an incomplete feature-adoption projection. Worker version `65860efe-5c7c-45f3-b03f-c5587a25b611` restored SBOM/vulnerability totals and SBOM adopters; focused authorization tests, Worker typecheck, lint, and formatting passed before deployment, and Insights, Revenue, and Audit rendered successfully afterward.
 - [x] Live activity returned `200`, resumed its bounded five-second polling when visible, and stopped issuing `/admin/live/events` requests while its tab was hidden. The fixed-name `omg-users.csv` export downloaded as a 409-byte `text/csv` file with the expected header and was deleted after validation.
 - [ ] Checkout remains blocked: authenticated Pro Checkout reaches `omg-saas` but returns `502` and the page presents `Checkout is temporarily unavailable.` A live restricted-key probe reproduced Stripe `more_permissions_required` for Checkout Sessions Write. Add only that permission to the dedicated Worker key, repeat Checkout, expire the unpaid characterization session, and record the successful redirect before approving the hostname window.
+- [ ] Production OAuth now fails closed before planning unless stage-specific credentials exist. The public production GitHub client ID was discovered from the live authorization redirect and stored as `PRODUCTION_GITHUB_CLIENT_ID`; the write-only client secret cannot be recovered from Cloudflare and still must be provisioned as `PRODUCTION_GITHUB_CLIENT_SECRET` before the production plan can run.
 - [ ] Complete invitation-email and compact authenticated characterization before approving the hostname window.
 
-### M6 — Atomic hostname cutover
+### M6 — Atomic whole-host cutover
 
 1. Freeze deployments and confirm both repositories/CI are green.
 2. Back up/bookmark D1 and record the current Worker versions.
-3. Clear stale Better Auth sessions for the coordinated logout.
-4. Detach `omg.latham.cloud` from `omg-site` and attach it to the Alchemy Svelte production Worker.
-5. Run anonymous, GitHub OAuth, dashboard, admin, offer, checkout, fulfillment, legal, SEO, CSP, and installer gates.
-6. Roll back the hostname immediately on any failed gate. Do not patch forward during the window.
+3. With the production OAuth and Stripe gates satisfied, deploy the production-stage Svelte Worker without a public route and verify its binding inventory.
+4. Clear Better Auth sessions for the coordinated logout.
+5. In one reviewed Alchemy change, add the full-host `omg.latham.cloud/*` Worker Route to the production Svelte Worker. Keep the existing `omg-site` Custom Domain attached as the dormant rollback origin; do not add path exceptions or legacy forwarding.
+6. Run anonymous, GitHub OAuth, dashboard, admin, offer, checkout, fulfillment, legal, SEO, CSP, and installer gates.
+7. On any failed gate, remove the Svelte whole-host route so the existing Solid Custom Domain resumes immediately. Do not patch forward during the window.
+8. After the observation gate passes, transfer permanent hostname ownership to Svelte, verify DNS/TLS, remove the temporary route, and only then begin Solid deletion.
 
 ### M7 — Observation and deletion
 
