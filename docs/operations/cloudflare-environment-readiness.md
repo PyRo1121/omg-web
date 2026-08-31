@@ -23,7 +23,7 @@ Alchemy's Cloudflare state backend adds one infrastructure-only Worker backed by
 
 Deliberately **not provisioned** (free-tier and ownership constraints):
 
-- `omg-router` and `omg-releases` Workers: `/docs` links point at the GitHub README until a docs product returns, and release artifacts are delivered from GitHub Releases by `install.sh` (with a `_redirects` fallback).
+- `omg-router` and `omg-releases` Workers: live deployment lookup returned Cloudflare code `10007` for both names, confirming neither Worker exists in the account. Their unused source and deployment configuration were removed. Svelte owns `/docs/`, and release artifacts remain on GitHub Releases through the retained installers.
 - All R2 buckets (`omg-assets`, `omg-releases`, `omg-releases-preview`): metered storage/operations can exceed the free allowance, so binary downloads stay on GitHub Releases.
 - Workers AI binding: removed with the AI insights feature; inference is a paid metered product.
 - Separate auth/analytics D1 databases: the Free plan allows 10 databases per account and this account already holds ten unrelated databases (11 total including `omg-platform`, re-counted 2026-08-23 via the D1 API). One physical database is used with strict table-level ownership instead.

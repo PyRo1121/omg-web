@@ -31,16 +31,12 @@ jobs:
             site/package-lock.json
             site-svelte/package-lock.json
             workers/api/package-lock.json
-            workers/router/package-lock.json
-            workers/releases/package-lock.json
       # Honor the packageManager pin from package.json instead of the runner's stock npm.
       - run: corepack enable npm && npm --version
       - run: npm ci
       - run: npm ci --prefix site
       - run: npm ci --prefix site-svelte
       - run: npm ci --prefix workers/api
-      - run: npm ci --prefix workers/router
-      - run: npm ci --prefix workers/releases
       # The deploy dry-run inside check builds the site after cheap deterministic gates.
       - run: npm run check
       - run: npm run check:bundle-budget --prefix site-svelte

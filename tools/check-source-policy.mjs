@@ -11,13 +11,12 @@ const sourceRoots = [
   'site-svelte/src',
   'workers/api/src',
   'workers/api/tests',
-  'workers/router/src',
-  'workers/releases/src',
 ];
 const sourceExtensions = new Set(['.js', '.jsx', '.mjs', '.svelte', '.ts', '.tsx']);
 const solidOwnedDirectoryReference = /\bsite\/(?:public|src|tools)(?:\/|\b)/u;
 const solidOwnedRootFileReference =
   /\bsite\/(?:package(?:-lock)?\.json|worker-configuration\.d\.ts|wrangler\.toml)\b/u;
+const obsoleteWorkerEntries = new Set(['releases', 'router']);
 const solidDeletionDirectories = ['site/src', 'site/public', 'site/tools'];
 const solidDeletionRootFiles = [
   'site/.prettierignore',
@@ -38,12 +37,7 @@ const transientSolidBuildEntries = new Set([
   'node_modules',
   'test-results',
 ]);
-const productionWranglerConfigs = [
-  'site/wrangler.toml',
-  'workers/api/wrangler.toml',
-  'workers/router/wrangler.toml',
-  'workers/releases/wrangler.toml',
-];
+const productionWranglerConfigs = ['site/wrangler.toml', 'workers/api/wrangler.toml'];
 const secretVariableName = /(?:API_KEY|PASSWORD|PRIVATE_KEY|SECRET|TOKEN)$/u;
 const forbiddenPolicies = [
   { marker: '@effect/schema', reason: 'use Schema from the main effect package' },
@@ -98,6 +92,14 @@ const antiSlopSync = await readFile(new URL(antiSlopSyncPath, workspaceRoot), 'u
 if (antiSlopSync.includes('tmpdir')) {
   process.stderr.write(
     `[source-policy] ${antiSlopSyncPath}: network clones belong under ~/.cache/build-targets, not RAM-backed temporary storage\n`
+  );
+  violations += 1;
+}
+
+for (const entry of await readdir(new URL('workers/', workspaceRoot), { withFileTypes: true })) {
+  if (!obsoleteWorkerEntries.has(entry.name)) continue;
+  process.stderr.write(
+    `[source-policy] workers/${entry.name}: obsolete undeployed Worker must not be reintroduced\n`
   );
   violations += 1;
 }

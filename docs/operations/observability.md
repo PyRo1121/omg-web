@@ -9,8 +9,6 @@ The following deployed applications enable persistent Workers Logs and traces:
 - `site/wrangler.toml` — SolidStart site served through Workers Static Assets (`omg-site`)
 - `workers/api/wrangler.toml` — licensing and telemetry API (`omg-saas`)
 
-`workers/router/wrangler.toml` and `workers/releases/wrangler.toml` carry observability blocks too, but those Workers are kept in the repository only and are deliberately not deployed.
-
 Local Worker tests use `workers/api/wrangler.test.toml` and intentionally omit production observability and Workers AI bindings.
 
 ## Sampling
