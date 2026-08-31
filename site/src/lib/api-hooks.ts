@@ -56,9 +56,6 @@ export const useAdminAuditLog = (
     queryFn: () => api.getAdminAuditLog(page(), limit(), action()),
   }));
 
-export const useAdminCRMUsers = (page = 1, limit = 50, search = '') =>
-  apiQuery(['admin-crm-users', page, limit, search], () => api.getAdminUsers(page, limit, search));
-
 export const useAdminCohorts = () => apiQuery(['admin-cohorts'], api.getAdminCohorts);
 
 export const useCreateNote = () =>
