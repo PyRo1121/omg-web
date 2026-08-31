@@ -15,6 +15,9 @@ const sourceRoots = [
   'workers/releases/src',
 ];
 const sourceExtensions = new Set(['.js', '.jsx', '.mjs', '.svelte', '.ts', '.tsx']);
+const solidOwnedDirectoryReference = /\bsite\/(?:public|src|tools)(?:\/|\b)/u;
+const solidOwnedRootFileReference =
+  /\bsite\/(?:package(?:-lock)?\.json|worker-configuration\.d\.ts|wrangler\.toml)\b/u;
 const solidDeletionDirectories = ['site/src', 'site/public', 'site/tools'];
 const solidDeletionRootFiles = [
   'site/.prettierignore',
@@ -189,6 +192,15 @@ for (const root of sourceRoots) {
   for (const path of await sourceFiles(root)) {
     const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
     if (root !== 'site/src') {
+      if (
+        solidOwnedDirectoryReference.test(contents) ||
+        solidOwnedRootFileReference.test(contents)
+      ) {
+        process.stderr.write(
+          `[source-policy] ${path}: retained source references a Solid-owned application path\n`
+        );
+        violations += 1;
+      }
       const importPattern = /(?:from\s+|import\s*(?:\(\s*)?)['"]([^'"]+)['"]/gu;
       for (const match of contents.matchAll(importPattern)) {
         const specifier = match[1];

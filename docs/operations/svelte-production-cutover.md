@@ -140,9 +140,12 @@ After the agreed observation window:
 
 - remove the Solid Custom Domain and any obsolete route resources;
 - delete `site/src`, Solid/Vinxi dependencies, Solid-only tests, build tooling, and BFF compatibility code;
+- in the same atomic deletion revision, remove Solid ownership from `.gitattributes`, `.github/CODEOWNERS`, `.github/workflows/ci.yml`, `.gitignore`, `package.json`, `tools/check-lockfile-integrity.mjs`, and the pre-deletion branch of `tools/check-source-policy.mjs`;
 - retain top-level `shared`, `workers/api`, canonical migrations, public installer/key artifacts, and only the tooling still owned by those runtimes;
-- verify the deletion changes no retained `shared` or `workers/api` file;
-- update topology, incident, rollback, dependency, and audit documentation.
+- verify the deletion changes no retained `shared` or `workers/api` runtime file;
+- update topology, incident, rollback, dependency, threat-model, and audit documentation.
+
+A detached, cache-backed deletion rehearsal at revision `f40bfe8` removed all 138 manifest entries and the seven active ownership references above without changing the real checkout. The resulting repository passed the complete retained `npm run check`, including 525 Svelte and Worker tests, 26 immutable migration checks, all typechecks, formatting, lint, audits, the Svelte production build, the `omg-saas` Wrangler dry run, and the Svelte bundle budget. Five local public browser checks passed with three expected binding-dependent skips. A negative probe confirmed the post-deletion policy rejects any retained source reference to the removed Solid tree. The rehearsal worktree and build outputs were deleted after verification.
 
 ## 5. Proof obligations
 
@@ -179,7 +182,7 @@ Every path below is classified **remove after successful hostname observation**.
 | `site/public` retained artifacts                                                                       | Byte-identical copies in `site-svelte/static`; `_headers` and `_redirects` are replaced by Svelte hooks and Alchemy |
 | remaining `site/tools`, root configuration, package, generated types, and Wrangler files               | Solid build and deployment authority, removed only after hostname observation                                       |
 
-`tools/check-source-policy.mjs` fails unless this inventory exactly matches every Solid-owned file, every retained public artifact is byte-identical in `site-svelte/static`, and no retained production source imports from `site/`.
+`tools/check-source-policy.mjs` fails unless this inventory exactly matches every Solid-owned file, every retained public artifact is byte-identical in `site-svelte/static`, and no retained production source imports or otherwise references a Solid-owned application path.
 
 <!-- solid-deletion-manifest:start -->
 
