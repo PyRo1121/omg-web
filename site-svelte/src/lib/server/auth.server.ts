@@ -20,7 +20,7 @@ interface AuthRateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
-interface AuthSessionRequest {
+export interface AuthRequestEvent {
   readonly platform: { readonly env: AuthEnvironment } | undefined;
   readonly request: { readonly headers: Headers };
   readonly url: URL;
@@ -36,7 +36,7 @@ interface AuthProviderSession {
   };
 }
 
-interface AuthSessionLookupInput {
+export interface AuthSessionLookupInput {
   readonly env: AuthEnvironment;
   readonly headers: Headers;
   readonly requestUrl: URL;
@@ -90,7 +90,7 @@ async function lookupAuthSession({
  * @returns The minimal authenticated session fields used by routes, or `null` for an anonymous request.
  */
 export async function getRequestSession(
-  event: AuthSessionRequest,
+  event: AuthRequestEvent,
   lookup: AuthSessionLookup = lookupAuthSession
 ): Promise<RequestSession | null> {
   const platform = event.platform;
@@ -139,7 +139,7 @@ export function authEntryDestination(url: URL): string {
   return next;
 }
 
-export async function loadAuthEntry(event: AuthSessionRequest): Promise<{ readonly next: string }> {
+export async function loadAuthEntry(event: AuthRequestEvent): Promise<{ readonly next: string }> {
   const next = authEntryDestination(event.url);
   const session = await getRequestSession(event);
   if (session !== null) {

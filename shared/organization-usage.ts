@@ -14,6 +14,17 @@ export interface OrganizationUsageTotals {
   readonly timeSavedMs: number;
 }
 
+export interface OrganizationFleetSummary {
+  readonly activeMachines: number;
+  readonly seenWithinSevenDays: number;
+  readonly notSeenWithinSevenDays: number;
+  readonly versions: ReadonlyArray<{
+    readonly version: string | null;
+    readonly machines: number;
+  }>;
+  readonly hasMoreVersions: boolean;
+}
+
 /** Browser-safe organization usage and fleet projection. */
 export interface OrganizationUsageResponse {
   readonly organization: {
@@ -39,14 +50,5 @@ export interface OrganizationUsageResponse {
     readonly machines: number;
     readonly usage: OrganizationUsageTotals;
   };
-  readonly fleet: {
-    readonly activeMachines: number;
-    readonly seenWithinSevenDays: number;
-    readonly notSeenWithinSevenDays: number;
-    readonly versions: ReadonlyArray<{
-      readonly version: string | null;
-      readonly machines: number;
-    }>;
-    readonly hasMoreVersions: boolean;
-  };
+  readonly fleet: OrganizationFleetSummary;
 }

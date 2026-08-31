@@ -1,4 +1,9 @@
 import type { OrganizationAuditAction } from './organization-audit';
+import type {
+  OrganizationFleetSummary,
+  OrganizationUsageRole,
+  OrganizationUsageTier,
+} from './organization-usage';
 
 export interface AdminOrganizationDirectory {
   readonly organizations: ReadonlyArray<{
@@ -20,9 +25,6 @@ export interface AdminOrganizationDirectory {
   };
 }
 
-type AdminOrganizationRole = 'owner' | 'admin' | 'member';
-type AdminOrganizationTier = 'free' | 'pro' | 'team' | 'enterprise' | null;
-
 interface AdminOrganizationUsageTotals {
   readonly commands: number;
   readonly packagesInstalled: number;
@@ -40,7 +42,7 @@ export interface AdminOrganizationSupport {
     readonly slug: string;
   };
   readonly entitlement: {
-    readonly tier: AdminOrganizationTier;
+    readonly tier: OrganizationUsageTier;
     readonly licenseStatus: string | null;
     readonly access: 'active' | 'restricted';
   };
@@ -51,7 +53,7 @@ export interface AdminOrganizationSupport {
   readonly members: ReadonlyArray<{
     readonly name: string;
     readonly email: string;
-    readonly role: AdminOrganizationRole;
+    readonly role: OrganizationUsageRole;
     readonly joinedAt: string;
   }>;
   readonly hasMoreMembers: boolean;
@@ -67,20 +69,11 @@ export interface AdminOrganizationSupport {
     readonly activeDays: number;
     readonly totals: AdminOrganizationUsageTotals;
   };
-  readonly fleet: {
-    readonly activeMachines: number;
-    readonly seenWithinSevenDays: number;
-    readonly notSeenWithinSevenDays: number;
-    readonly versions: ReadonlyArray<{
-      readonly version: string | null;
-      readonly machines: number;
-    }>;
-    readonly hasMoreVersions: boolean;
-  };
+  readonly fleet: OrganizationFleetSummary;
   readonly audit: {
     readonly events: ReadonlyArray<{
       readonly action: OrganizationAuditAction;
-      readonly role: AdminOrganizationRole | null;
+      readonly role: OrganizationUsageRole | null;
       readonly occurredAt: string;
     }>;
     readonly hasMoreEvents: boolean;

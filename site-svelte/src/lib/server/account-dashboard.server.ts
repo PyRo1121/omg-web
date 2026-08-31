@@ -1,7 +1,11 @@
 import { error } from '@sveltejs/kit';
 import { Exit } from 'effect';
 import * as Schema from 'effect/Schema';
-import { createShadowAuth, type AuthEnvironment } from './auth.server';
+import {
+  createShadowAuth,
+  type AuthRequestEvent,
+  type AuthSessionLookupInput,
+} from './auth.server';
 import { normalizedOptionalText } from './optional-text.server';
 
 const SESSION_QUERY =
@@ -50,12 +54,6 @@ type AccountDashboardSessionRow = Omit<SessionRow, 'createdAt' | 'expiresAt'> & 
 };
 type AccountDashboardAccountRow = Schema.Schema.Type<typeof AccountRowSchema>;
 
-interface AccountDashboardRequest {
-  readonly platform: { readonly env: AuthEnvironment } | undefined;
-  readonly request: { readonly headers: Headers };
-  readonly url: URL;
-}
-
 interface DashboardProviderSession {
   readonly session: { readonly token: string };
   readonly user: {
@@ -68,21 +66,15 @@ interface DashboardProviderSession {
   };
 }
 
-interface DashboardLookupInput {
-  readonly env: AuthEnvironment;
-  readonly headers: Headers;
-  readonly requestUrl: URL;
-}
-
 type DashboardSessionLookup = (
-  input: DashboardLookupInput
+  input: AuthSessionLookupInput
 ) => Promise<DashboardProviderSession | null>;
 
 async function lookupDashboardSession({
   env,
   headers,
   requestUrl,
-}: DashboardLookupInput): Promise<DashboardProviderSession | null> {
+}: AuthSessionLookupInput): Promise<DashboardProviderSession | null> {
   return createShadowAuth(env, requestUrl).api.getSession({ headers });
 }
 
@@ -145,7 +137,7 @@ export interface AccountDashboardContext {
 
 /** Load the current verified Better Auth identity without querying account detail tables. */
 export async function loadAccountIdentity(
-  event: AccountDashboardRequest,
+  event: AuthRequestEvent,
   lookup: DashboardSessionLookup = lookupDashboardSession
 ): Promise<AccountDashboardIdentity | null> {
   if (event.platform === undefined) {
@@ -173,7 +165,7 @@ export async function loadAccountIdentity(
 }
 
 export async function loadAccountDashboardContext(
-  event: AccountDashboardRequest,
+  event: AuthRequestEvent,
   lookup: DashboardSessionLookup = lookupDashboardSession
 ): Promise<AccountDashboardContext | null> {
   const identity = await loadAccountIdentity(event, lookup);
