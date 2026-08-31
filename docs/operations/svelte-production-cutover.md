@@ -109,6 +109,7 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 - [x] Playwright ownership, pinned dependency, configuration, public browser checks, external authorization checks, and authenticated account/operator characterization moved from `site/` to `site-svelte/`. CI now starts the current Svelte source locally and runs the public suite there; Cloudflare-bound authentication checks remain explicit external-deployment tests. The local suite passed five tests with three expected binding-dependent skips, and the shadow suite passed all nine selected anonymous checks.
 - [x] Cross-runtime contracts moved from `site/shared/` to top-level `shared/`, so Svelte and `omg-saas` no longer resolve retained source through the Solid application directory. The root package now owns the exact Effect version those contracts import. The Solid-only Drizzle auth schema moved to `site/src/db/auth-schema.ts` and is covered by the deletion manifest instead of being retained accidentally. Solid, Svelte, and Worker typechecks; 610 unit tests; both production builds; both Wrangler dry runs; and five local plus nine shadow browser checks passed. The shadow and unattached production deployments completed with their auth secrets unchanged, and both follow-up plans report `2 to noop`.
 - [x] A retained-caller audit found that `shared/account-dashboard.ts` was consumed only by Solid. Its type now lives in Solid's existing account-dashboard contract and will leave with `site/`; every remaining top-level shared module has a retained Svelte or API caller. The Worker test compiler migrated from the removed `@cloudflare/vitest-pool-workers` type package to `@cloudflare/vitest-plugin`, Worker tests joined the required typecheck, all maintained TypeScript projects now reject unused locals and parameters, and a duplicate secret-lock test was consolidated into the canonical site-session and route-registry suites.
+- [x] The 15,064-line checked-in Workerd declaration snapshot was removed. Solid and `omg-saas` now generate exact compatibility-date runtime declarations into their ignored `.wrangler/` directories before every standalone typecheck, while the small tracked binding declarations remain drift-checked. Two Solid helpers reachable only from their own tests were deleted with those tests, and the caller-checked deletion manifest was reduced accordingly.
 - [x] A second retained-caller audit removed superseded D1 team-dashboard rows, obsolete Stripe metric payloads, an unused seat-count row, a test-only validate-license decoder, dead secret and CORS wrappers, and unreachable handler method guards from `omg-saas`. The tests that existed only to keep those dead schemas alive were deleted; active CLI rows, route dispatch, and validate-license behavior remain covered through production callers and endpoint tests. The same slice removed two duplicate Svelte admin customer loaders, three unused shared types, and the stale Worker test guide; the active combined admin workspace remains the only browser-facing customer loader. CI run `33440895886` passed before `omg-saas` version `86b141c4-8b77-4c0c-9ef6-b46e8cb4612e` deployed. `/health` returned `200`, anonymous Checkout and Billing Portal remained `401`, and the removed runtime initializer remained `404`.
 - [x] The retained `omg-saas` runtime, Wrangler configurations, lockfile, and immutable migrations moved byte-for-byte from the Solid application tree to `workers/api/`; tests, generated types, commands, and active operations references moved with them. The obsolete cron note that prescribed ad hoc production deletion was removed. The Worker name, custom domain, D1 database identifier, migration directory, bindings, and deployment authority did not change. This makes `site/` exclusively Solid-owned instead of requiring a directory exception during deletion.
 - [x] Removed the undeployed `workers/router` docs proxy and `workers/releases` R2 download implementation after current Cloudflare deployment lookup returned `10007` for both names. Svelte already owns `/docs/`, retained installers use GitHub Releases, and neither latent Worker owned a production acceptance requirement. CI, root scripts, lockfile checks, observability ownership, generated declarations, and Wrangler configurations were removed with them. Source policy now rejects reintroducing either obsolete Worker directory.
@@ -276,8 +277,6 @@ site/src/lib/contracts/licensing-routes.test.ts
 site/src/lib/contracts/login-credentials.test.ts
 site/src/lib/contracts/telemetry-dashboard.test.ts
 site/src/lib/contracts/telemetry-dashboard.ts
-site/src/lib/contracts/tier.test.ts
-site/src/lib/contracts/tier.ts
 site/src/lib/contracts/worker-http.test.ts
 site/src/lib/contracts/worker-http.ts
 site/src/lib/dashboard-contract.test.ts
@@ -295,8 +294,6 @@ site/src/lib/performance-entry.ts
 site/src/lib/prelude.ts
 site/src/lib/query.test.ts
 site/src/lib/query.ts
-site/src/lib/segment-condition.test.ts
-site/src/lib/segment-condition.ts
 site/src/lib/state/dashboard-view.ts
 site/src/lib/stores/dashboardStore.ts
 site/src/lib/worker-api.test.ts

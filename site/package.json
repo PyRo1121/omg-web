@@ -21,7 +21,7 @@
     "preview": "wrangler dev --config wrangler.toml --port 3000",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "node tools/prepare-worker-assets.mjs --clean && wrangler types worker-configuration.d.ts --include-runtime=false --check && tsc --noEmit"
+    "typecheck": "node tools/prepare-worker-assets.mjs --clean && wrangler types .wrangler/worker-runtime.d.ts --include-env=false && wrangler types worker-configuration.d.ts --include-runtime=false --check && tsc --noEmit"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "5.3.0",

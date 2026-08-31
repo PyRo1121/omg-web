@@ -19,7 +19,7 @@
   },
   "include": [
     "worker-configuration.d.ts",
-    "../worker-runtime.d.ts",
+    ".wrangler/worker-runtime.d.ts",
     "src/**/*.ts",
     "../../shared/**/*.ts"
   ]
