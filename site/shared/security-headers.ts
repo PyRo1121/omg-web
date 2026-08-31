@@ -7,10 +7,10 @@ const NON_SCRIPT_DIRECTIVES = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://avatars.githubusercontent.com",
   "font-src 'self' data:",
-  `connect-src 'self' ${SITE_ORIGIN} https://omg-api.latham.cloud https://api.github.com https://cloudflareinsights.com`,
+  "connect-src 'self' https://cloudflareinsights.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  `form-action 'self' ${SITE_ORIGIN} https://github.com`,
+  "form-action 'self'",
   "object-src 'none'",
   "worker-src 'self'",
 ];

@@ -72,9 +72,11 @@ Sitemap: https://omg.latham.cloud/sitemap.xml
 
     const contentSecurityPolicy = response.headers.get('content-security-policy');
     expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
-    expect(contentSecurityPolicy).toContain(
-      "form-action 'self' https://omg.latham.cloud https://github.com"
-    );
+    expect(contentSecurityPolicy).toContain("connect-src 'self' https://cloudflareinsights.com");
+    expect(contentSecurityPolicy).toContain("form-action 'self'");
+    expect(contentSecurityPolicy).not.toContain('omg-api.latham.cloud');
+    expect(contentSecurityPolicy).not.toContain('api.github.com');
+    expect(contentSecurityPolicy).not.toContain('https://github.com');
     expect(contentSecurityPolicy).not.toContain('accounts.google.com');
     expect(contentSecurityPolicy).not.toMatch(/script-src[^;]*'unsafe-inline'/u);
     expect(response.headers.get('strict-transport-security')).toBe(
