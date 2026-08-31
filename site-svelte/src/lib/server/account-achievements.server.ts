@@ -30,7 +30,7 @@ const AccountAchievementsResponseSchema = Schema.Struct({
   achievements: Schema.Array(AchievementSchema),
 });
 
-export interface AccountAchievements {
+interface AccountAchievements {
   readonly unlocked: number;
   readonly total: number;
   readonly achievements: ReadonlyArray<{
@@ -41,13 +41,13 @@ export interface AccountAchievements {
   }>;
 }
 
-export type AccountAchievementsState =
+type AccountAchievementsState =
   | { readonly status: 'available'; readonly achievements: AccountAchievements }
   | { readonly status: 'verification-required' }
   | { readonly status: 'unavailable' };
 
 /** Load the catalog-derived achievement projection for one verified account. */
-export function loadAccountAchievements(
+function loadAccountAchievements(
   identity: LicensingSummaryIdentity,
   env: LicensingSummaryEnvironment
 ): Effect.Effect<AccountAchievements, LicensingSummaryError> {

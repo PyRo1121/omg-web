@@ -1,10 +1,6 @@
-import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
-import {
-  loadAccountAchievements,
-  loadAccountAchievementsState,
-} from './account-achievements.server';
+import { loadAccountAchievementsState } from './account-achievements.server';
 
 const identity = {
   id: 'user-id',
@@ -73,25 +69,28 @@ describe('account achievements service', () => {
       ],
     });
 
-    const result = await Effect.runPromise(loadAccountAchievements(identity, environment(service)));
+    const result = await loadAccountAchievementsState(identity, environment(service));
 
     expect(result).toEqual({
-      unlocked: 1,
-      total: 2,
-      achievements: [
-        {
-          name: 'First command',
-          description: 'Run your first command.',
-          unlocked: true,
-          unlockedAt: '2026-08-27T12:00:00.000Z',
-        },
-        {
-          name: 'Package pro',
-          description: 'Install ten packages.',
-          unlocked: false,
-          unlockedAt: null,
-        },
-      ],
+      status: 'available',
+      achievements: {
+        unlocked: 1,
+        total: 2,
+        achievements: [
+          {
+            name: 'First command',
+            description: 'Run your first command.',
+            unlocked: true,
+            unlockedAt: '2026-08-27T12:00:00.000Z',
+          },
+          {
+            name: 'Package pro',
+            description: 'Install ten packages.',
+            unlocked: false,
+            unlockedAt: null,
+          },
+        ],
+      },
     });
     expect(JSON.stringify(result)).not.toContain('raw-key');
     expect(JSON.stringify(result)).not.toContain('first-command');
@@ -110,7 +109,7 @@ describe('account achievements service', () => {
     expect(service.requests).toHaveLength(0);
   });
 
-  it('rejects inconsistent locked achievement timestamps', async () => {
+  it('maps inconsistent locked achievement timestamps to unavailable', async () => {
     const service = new AchievementServiceStub({
       achievements: [
         {
@@ -124,10 +123,8 @@ describe('account achievements service', () => {
       ],
     });
 
-    const exit = await Effect.runPromiseExit(
-      loadAccountAchievements(identity, environment(service))
-    );
+    const state = await loadAccountAchievementsState(identity, environment(service));
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(state).toEqual({ status: 'unavailable' });
   });
 });
