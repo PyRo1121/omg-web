@@ -5,7 +5,6 @@ import { EmailAddress } from './site-session';
 export const MarketingOfferRequestSchema = Schema.Struct({
   email: EmailAddress,
 });
-export type MarketingOfferRequest = Schema.Schema.Type<typeof MarketingOfferRequestSchema>;
 
 /** Customer-facing code shape accepted by offer and checkout boundaries. */
 export const MarketingPromotionCodeSchema = Schema.String.pipe(

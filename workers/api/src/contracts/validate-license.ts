@@ -63,11 +63,6 @@ export const ExistingMachineRowSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),
 });
 
-/** Active machine count for seat enforcement. */
-export const MachineCountRowSchema = Schema.Struct({
-  count: D1Number,
-});
-
 /** Machine row returned to the CLI for dashboard sync. */
 export const ActiveMachineRowSchema = Schema.Struct({
   machine_id: Schema.String,
@@ -104,20 +99,6 @@ function nonempty(value: string | null | undefined): string | null {
     return null;
   }
   return value;
-}
-
-/**
- * Decode untrusted validate-license fields.
- *
- * @param value - Raw JSON or query-derived object.
- * @returns The typed fields, or `ValidateLicenseParseError`.
- */
-export function decodeValidateLicenseFields(
-  value: Schema.Schema.Encoded<Schema.Schema.Any>
-): Effect.Effect<ValidateLicenseFields, ValidateLicenseParseError> {
-  return Schema.decodeUnknown(ValidateLicenseFieldsSchema)(value).pipe(
-    Effect.mapError(mapParseError('Validate-license request has an invalid shape'))
-  );
 }
 
 /**

@@ -281,24 +281,6 @@ export function loadAdminCustomerDetailById(
   });
 }
 
-/** Load one browser-safe support view after resolving the customer server-side. */
-export function loadAdminCustomerDetail(
-  identity: LicensingSummaryIdentity,
-  env: LicensingSummaryEnvironment,
-  email: string
-): Effect.Effect<AdminCustomerDetail, AdminCustomerError> {
-  return Effect.gen(function* () {
-    const safeEmail = yield* parseLicensingInput(
-      NormalizedEmail,
-      email,
-      'Customer email is invalid'
-    );
-    const session = yield* loadAdminServiceSession(identity, env);
-    const customerId = yield* resolveAdminCustomerId(safeEmail, env);
-    return yield* loadAdminCustomerDetailById(env, session, customerId);
-  });
-}
-
 /** Apply an existing audited tier or status mutation without exposing customer IDs. */
 export function updateAdminCustomerLicense(
   identity: LicensingSummaryIdentity,

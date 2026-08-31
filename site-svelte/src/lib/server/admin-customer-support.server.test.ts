@@ -1,9 +1,6 @@
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import {
-  loadAdminCustomerSupport,
-  loadAdminCustomerWorkspace,
-} from './admin-customer-support.server';
+import { loadAdminCustomerWorkspace } from './admin-customer-support.server';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
 
 const identity = {
@@ -148,8 +145,8 @@ function environment(service: SupportServiceStub): LicensingSummaryEnvironment {
 describe('admin customer support service', () => {
   it('loads health, notes, and tags without projecting private identifiers', async () => {
     const service = new SupportServiceStub();
-    const support = await Effect.runPromise(
-      loadAdminCustomerSupport(identity, environment(service), 'customer@example.com')
+    const { support } = await Effect.runPromise(
+      loadAdminCustomerWorkspace(identity, environment(service), 'customer@example.com')
     );
 
     expect(support).toEqual({
@@ -210,6 +207,7 @@ describe('admin customer support service', () => {
       expect(serialized).not.toContain(identifier);
     }
     expect(service.requests.slice(1)).toEqual([
+      { pathname: '/api/admin/user', search: '?id=private-customer-id' },
       { pathname: '/api/admin/customer-health', search: '?customerId=private-customer-id' },
       { pathname: '/api/admin/notes', search: '?customerId=private-customer-id' },
       { pathname: '/api/admin/customer-tags', search: '?customerId=private-customer-id' },
@@ -219,8 +217,8 @@ describe('admin customer support service', () => {
 
   it('keeps a missing health snapshot distinct from unavailable support data', async () => {
     const service = new MissingHealthServiceStub();
-    const support = await Effect.runPromise(
-      loadAdminCustomerSupport(identity, environment(service), 'customer@example.com')
+    const { support } = await Effect.runPromise(
+      loadAdminCustomerWorkspace(identity, environment(service), 'customer@example.com')
     );
 
     expect(support.health).toEqual({ kind: 'empty' });

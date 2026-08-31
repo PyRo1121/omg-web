@@ -1,7 +1,7 @@
 import { reportError, reportWarning } from '../observability';
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
-import { errorResponse, getCorsHeaders } from '../api';
+import { corsHeaders, errorResponse } from '../api';
 import { GitHubCommitActivityResponseSchema } from '../contracts/provider-boundaries';
 import { decodeBoundedJsonResponse } from '../body';
 
@@ -46,12 +46,6 @@ export async function handleGitHubProxy(
   request: Request,
   ctx: ExecutionContext
 ): Promise<Response> {
-  const cors = getCorsHeaders();
-
-  if (request.method !== 'GET') {
-    return errorResponse('Method not allowed', 405);
-  }
-
   const originUrl = URL.parse(request.url);
   if (originUrl === null) {
     return errorResponse('Invalid request URL', 400);
@@ -82,7 +76,7 @@ export async function handleGitHubProxy(
 
       // Override through Headers.set so cached and CORS names cannot be duplicated.
       const headers = new Headers(cachedResponse.headers);
-      for (const [name, value] of Object.entries(cors)) {
+      for (const [name, value] of Object.entries(corsHeaders)) {
         headers.set(name, value);
       }
       headers.delete(STORED_AT_HEADER);
@@ -152,7 +146,7 @@ async function refreshCache(cache: Cache, cacheKey: Request): Promise<Response> 
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
           'Retry-After': RETRY_AFTER_SECONDS.toString(),
-          ...getCorsHeaders(),
+          ...corsHeaders,
           'X-GitHub-Status': 'computing',
         },
       }
@@ -194,7 +188,7 @@ async function refreshCache(cache: Cache, cacheKey: Request): Promise<Response> 
   const clientHeaders = new Headers({
     'Content-Type': 'application/json',
     'Cache-Control': CLIENT_CACHE_CONTROL,
-    ...getCorsHeaders(),
+    ...corsHeaders,
     'X-Cache': 'MISS',
     'X-RateLimit-Remaining': remainingHeader,
   });

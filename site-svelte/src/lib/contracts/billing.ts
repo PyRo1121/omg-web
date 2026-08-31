@@ -9,7 +9,6 @@ export const BillingCheckoutInputSchema = Schema.Struct({
   offer: BillingOfferSchema,
   promotionCode: Schema.optional(MarketingPromotionCodeSchema),
 });
-export type BillingCheckoutInput = Schema.Schema.Type<typeof BillingCheckoutInputSchema>;
 
 const StripeCheckoutSessionIdSchema = Schema.String.check(
   Schema.isPattern(/^cs_[A-Za-z0-9]{10,200}$/u)

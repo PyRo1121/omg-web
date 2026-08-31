@@ -135,37 +135,6 @@ const StripeInvoiceSchema = Schema.Struct({
   ...StripeInvoiceFields,
 });
 
-/** Active subscription item shape used for MRR metrics. */
-const StripeMetricsItemSchema = Schema.Struct({
-  price: Schema.Struct({
-    unit_amount: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
-    recurring: Schema.optional(
-      Schema.Struct({
-        interval: Schema.optional(Schema.String),
-        interval_count: Schema.optional(Schema.Number),
-      })
-    ),
-  }),
-});
-
-/** Active subscription used for MRR metrics. */
-const StripeMetricsSubscriptionSchema = Schema.Struct({
-  items: Schema.Struct({
-    data: Schema.Array(StripeMetricsItemSchema),
-  }),
-});
-
-/** One Stripe balance bucket. */
-const StripeBalanceFundsSchema = Schema.Struct({
-  amount: Schema.Number,
-});
-
-/** Stripe balance payload. */
-export const StripeBalanceSchema = Schema.Struct({
-  available: Schema.Array(StripeBalanceFundsSchema),
-  pending: Schema.Array(StripeBalanceFundsSchema),
-});
-
 /** Paged Stripe customer list response. */
 export const StripeCustomerListSchema = Schema.Struct({
   has_more: Schema.Boolean,
@@ -182,12 +151,6 @@ export const StripeSubscriptionListSchema = Schema.Struct({
 export const StripeInvoiceListSchema = Schema.Struct({
   has_more: Schema.Boolean,
   data: Schema.Array(StripeInvoiceSchema),
-});
-
-/** Active-subscription list response used for MRR metrics. */
-export const StripeMetricsListSchema = Schema.Struct({
-  has_more: Schema.Boolean,
-  data: Schema.Array(StripeMetricsSubscriptionSchema),
 });
 
 /** Signed Stripe webhook envelope. */

@@ -196,18 +196,13 @@ export const TIER_FEATURES = {
   },
 };
 
-// CORS headers - Allow the deployed site subdomain
+// Fixed-origin CORS headers. Same-origin requests are the primary consumer,
+// so credentials are not granted cross-origin.
 export const corsHeaders = {
   'Access-Control-Allow-Origin': 'https://omg.latham.cloud',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
-
-// Fixed-origin CORS headers (no origin reflection; same-origin requests are the
-// primary consumer, so credentials are not granted cross-origin).
-export function getCorsHeaders() {
-  return { ...corsHeaders };
-}
 
 export function jsonResponse<TResponse>(data: TResponse, status = 200): Response {
   const headers = new Headers({

@@ -1,229 +1,28 @@
-# OMG Workers API Tests
+# Worker tests
 
-## Overview
+These tests run the `omg-saas` Worker in Cloudflare's Vitest isolate with an in-memory D1 database. The test environment applies the immutable migrations from `../migrations/`; it does not maintain a separate schema or setup SQL file.
 
-This directory contains comprehensive API tests for the OMG Cloudflare Workers endpoints, focusing on telemetry and privacy compliance (GDPR/CCPA).
+## Commands
 
-## Test Structure
-
-```
-tests/
-├── setup.sql              # Database schema for testing
-├── test-utils.ts          # Helper functions for test setup/teardown
-├── telemetry.test.ts      # Telemetry endpoint tests
-├── privacy.test.ts        # Privacy/GDPR endpoint tests
-└── README.md              # This file
-```
-
-## Running Tests
+Run these from `workers/api/`:
 
 ```bash
-# Run all tests
 npm test
-
-# Run tests in watch mode
 npm run test:watch
-
-# Run specific test file
-npm test telemetry.test.ts
-
-# Run tests with verbose output
-npm test -- --reporter=verbose
+npm run typecheck:tests
+npm test -- telemetry.test.ts
 ```
 
-## Test Coverage
+The root `npm run check` command runs the Worker tests and their strict TypeScript compiler gate.
 
-### Telemetry API (`/api/cli/event`, `/api/cli/batch`)
+## Scope
 
-#### Single Event Tests
+The suite covers the public licensing and telemetry API, private Svelte service-binding routes, operator routes, billing provider boundaries, privacy operations, route dispatch, migration integrity, and D1 concurrency guards.
 
-- ✅ Accept and store valid command events
-- ✅ Store session events
-- ✅ Store performance metric events
-- ✅ Store feature usage events
-- ✅ Return 401 when license_key is missing
-- ✅ Return 401 when license_key is invalid
-- ✅ Return 401 when license is inactive
-- ✅ Return 400 for malformed events
-- ✅ Return 500 for malformed JSON
+Tests should use the real Worker entry point when checking routing, authentication, rate limits, or response headers. A handler or contract may be called directly when the test targets a provider boundary or pure decoder that the Worker isolate cannot observe separately.
 
-#### Batch Event Tests
+## Database state
 
-- ✅ Process batches of mixed event types atomically
-- ✅ Return success with 0 processed for empty batch
-- ✅ Return 401 when license_key is missing
-- ✅ Return 401 when license_key is invalid
-- ✅ Handle large batches (100+ events)
+`vitest.config.ts` loads every migration through `readD1Migrations`. Suites create only the rows they need and remove persistent fixture rows in their own lifecycle hooks. `migration-schema.test.ts` checks the migration sequence and security-critical constraints against the same migrated database.
 
-### Privacy API (GDPR/CCPA Compliance)
-
-#### Privacy Status (`GET /api/privacy/status`)
-
-- ✅ Return the public privacy policy without authentication
-- ✅ Return customer status only for a valid Worker session
-- ✅ Reject invalid session tokens
-- ✅ Show available rights (access, deletion, opt-out, portability)
-
-#### Data Export (`POST /api/privacy/export`)
-
-- ✅ Reject unauthenticated export requests
-- ✅ Derive export ownership from the Worker session
-- ✅ Ignore caller-supplied email/license selectors
-- ✅ Include every customer license in telemetry scope
-- ✅ Create audit log entries for exports
-- ✅ Return a non-cacheable structured JSON download
-
-#### Data Deletion (`POST /api/privacy/delete`)
-
-- ✅ Reject unauthenticated deletion without mutation
-- ✅ Require `confirm: true`
-- ✅ Derive deletion scope from the Worker session
-- ✅ Prevent caller identifiers from redirecting deletion across tenants
-- ✅ Delete telemetry, usage, notes, sessions, and OTP records atomically
-- ✅ Mark customer licenses as deleted
-- ✅ Create an audit receipt in the deletion transaction
-- ✅ Preserve payment records
-
-#### Telemetry Opt-Out (`POST /api/privacy/opt-out`)
-
-- ✅ Reject unauthenticated preference changes
-- ✅ Opt the authenticated customer out of telemetry
-- ✅ Opt the authenticated customer back in
-- ✅ Reject missing preference values and invalid sessions
-- ✅ Keep licenses functional after opt-out
-
-## Test Data Setup
-
-All tests use isolated in-memory D1 databases via Miniflare. Each test suite:
-
-1. **beforeEach**: Creates fresh test customer, license, and telemetry data
-2. **test**: Executes test scenarios
-3. **afterEach**: Cleans up all test data
-
-### Test Customer Structure
-
-```typescript
-{
-  customerId: 'test-customer-xyz',
-  licenseId: 'test-license-xyz',
-  licenseKey: 'test-key-xyz',
-  email: 'test@example.com',
-  tier: 'pro'
-}
-```
-
-## Database Schema
-
-The test pool reads `../migrations/` with Cloudflare's `readD1Migrations` API and applies the same ordered sequence used by Wrangler. `migration-schema.test.ts` verifies the recorded migration names and security-critical columns. There is no separate test schema.
-
-Key tables include:
-
-- `customers` - Customer records
-- `licenses` - License keys
-- `command_event` - CLI command telemetry
-- `session` - CLI telemetry sessions
-- `performance_metric` - Performance metrics
-- `feature_usage` - Feature adoption tracking
-- `audit_log` - Audit trail for privacy actions
-
-## Helper Functions
-
-### Test Customer Management
-
-```typescript
-createTestCustomer(db, email, tier); // Create test customer with license
-deleteTestCustomer(db, customerId); // Delete customer and cascade
-```
-
-### Test Data Creation
-
-```typescript
-createTelemetryData(db, licenseId, machineId); // Seed telemetry data
-```
-
-## Assertions
-
-All tests use Vitest assertions:
-
-```typescript
-expect(response.status).toBe(200);
-expect(body).toHaveProperty('success', true);
-expect(body.error).toContain('License key required');
-```
-
-## CI/CD Integration
-
-These tests run on:
-
-- Every pull request
-- Pre-deployment checks
-- Scheduled nightly runs
-
-### GitHub Actions Workflow
-
-```yaml
-- name: Run API Tests
-  run: |
-    cd workers/api
-    npm install
-    npm test
-```
-
-## Privacy Compliance Notes
-
-The privacy tests ensure **global availability** of GDPR/CCPA rights:
-
-- ✅ Right to Access (data export)
-- ✅ Right to Deletion (forget me)
-- ✅ Right to Opt-Out (telemetry)
-- ✅ Right to Portability (JSON export)
-
-These rights are available to **ALL users worldwide**, not just EU/California residents.
-
-## Performance Benchmarks
-
-Test execution targets:
-
-- Single test: < 100ms
-- Full suite: < 5s
-- Database setup: < 500ms
-
-## Debugging
-
-### View Test Output
-
-```bash
-npm test -- --reporter=verbose
-```
-
-### Debug Single Test
-
-```bash
-npm test -- --grep "should accept and store a valid command event"
-```
-
-### Database State Inspection
-
-Add this to any test:
-
-```typescript
-const data = await env.DB.prepare('SELECT * FROM command_event').all();
-console.log(data);
-```
-
-## Related Documentation
-
-- [Cloudflare Workers Testing](https://developers.cloudflare.com/workers/testing/)
-- [Vitest Documentation](https://vitest.dev/)
-- [D1 Database API](https://developers.cloudflare.com/d1/api/)
-- [GDPR Compliance Guide](https://gdpr.eu/)
-
-## Contributing
-
-When adding new tests:
-
-1. Follow existing test structure
-2. Use descriptive test names
-3. Clean up test data in `afterEach`
-4. Add test coverage to this README
-5. Ensure tests are idempotent
+Do not add a second test schema, mutable migration fixture, or runtime database initializer. Add schema changes as a new immutable migration under `../migrations/` and update `../migrations.sha256` with the guarded migration tool.

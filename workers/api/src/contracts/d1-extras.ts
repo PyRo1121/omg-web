@@ -109,13 +109,6 @@ export const PrivacyFeatureRowSchema = Schema.Struct({
   last_used: OptNullStr,
 });
 
-/** usage_daily chart row for the dashboard team view. */
-export const UsageDailyRowSchema = Schema.Struct({
-  date: Schema.String,
-  commands_run: D1Number,
-  time_saved_ms: D1Number,
-});
-
 /** Dashboard audit log list row. */
 export const DashboardAuditLogRowSchema = Schema.Struct({
   id: Schema.String,
@@ -134,21 +127,6 @@ export const PolicyRowSchema = Schema.Struct({
   value: Schema.String,
   enforced: Schema.Number,
   created_at: Schema.String,
-});
-
-/** Team-controls member machine rollup. */
-export const TeamControlMemberRowSchema = Schema.Struct({
-  machine_id: Schema.String,
-  hostname: OptNullStr,
-  os: OptNullStr,
-  arch: OptNullStr,
-  omg_version: OptNullStr,
-  last_seen_at: OptNullStr,
-  first_seen_at: OptNullStr,
-  is_active: Schema.optional(Schema.Number),
-  total_commands: D1Number,
-  total_time_saved_ms: D1Number,
-  commands_last_7d: D1Number,
 });
 
 /** Docs analytics daily pageview totals. */
@@ -458,25 +436,6 @@ export const SiteAnalyticsTotalsRowSchema = Schema.Struct({
   total_sessions: D1Number,
 });
 
-/** Active license id and tier. */
-export const LicenseIdTierRowSchema = Schema.Struct({ id: NonEmptyStr, tier: Schema.String });
-
-/** Active license row that also carries seat counts. */
-export const LicenseSeatsRowSchema = Schema.Struct({
-  id: NonEmptyStr,
-  tier: Schema.String,
-  max_seats: D1Number,
-  used_seats: D1Number,
-});
-
-/** Dashboard team-management license row. */
-export const LicenseTeamAuthRowSchema = Schema.Struct({
-  id: NonEmptyStr,
-  tier: Schema.String,
-  status: Schema.String,
-  max_seats: Schema.optional(Schema.Union(Schema.Null, Schema.Number)),
-});
-
 /** License-tier-only lookup. */
 export const TierRowSchema = Schema.Struct({ tier: Schema.String });
 
@@ -493,22 +452,6 @@ export const TeamMemberMachineRowSchema = Schema.Struct({
   is_active: Schema.Number,
   first_seen_at: Schema.String,
   last_seen_at: Schema.String,
-});
-
-/** Per-machine usage rolled up for team members. */
-export const MemberUsageRowSchema = Schema.Struct({
-  machine_id: Schema.String,
-  total_commands: D1Number,
-  total_packages: D1Number,
-  total_time_saved_ms: D1Number,
-  last_active: OptNullStr,
-});
-
-/** License-wide usage SUM for the team dashboard. */
-export const TeamUsageTotalsRowSchema = Schema.Struct({
-  total_commands: D1Number,
-  total_packages: D1Number,
-  total_time_saved_ms: D1Number,
 });
 
 /**
@@ -764,15 +707,6 @@ export const BillingCustomerRowSchema = Schema.Struct({
   stripe_customer_id: OptNullStr,
 });
 export type BillingCustomerRow = Schema.Schema.Type<typeof BillingCustomerRowSchema>;
-
-/** Admin-insights platform totals. */
-export const InsightsStatsRowSchema = Schema.Struct({
-  users: D1Number,
-  cmds: D1Number,
-  time_ms: D1Number,
-  top_error: OptNullStr,
-  version_drift_count: D1Number,
-});
 
 /**
  * Decode stored firehose properties JSON.

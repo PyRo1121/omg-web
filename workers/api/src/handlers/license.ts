@@ -143,13 +143,6 @@ function queryFirst(
 function decodeInput(
   request: Request
 ): Effect.Effect<ValidateLicenseRequest, InvalidJsonBodyError | LicenseHandlerError> {
-  // POST only: a GET would put the sole activation credential into edge and
-  // proxy logs via the query string.
-  if (request.method !== 'POST') {
-    return Effect.fail(
-      new LicenseHandlerError('InvalidRequestUrlError', 'Method not allowed', 400)
-    );
-  }
   return decodeJsonBody(request, ValidateLicenseFieldsSchema).pipe(
     Effect.flatMap(fields => {
       const body = toValidateLicenseRequest(fields);

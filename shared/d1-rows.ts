@@ -15,8 +15,6 @@ export const D1Number = Schema.Union(Schema.Number, Schema.Null).pipe(
 export const IdRowSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),
 });
-export type IdRow = Schema.Schema.Type<typeof IdRowSchema>;
 
 /** COUNT(*) aggregate. */
 export const CountRowSchema = Schema.Struct({ count: D1Number });
-export type CountRow = Schema.Schema.Type<typeof CountRowSchema>;

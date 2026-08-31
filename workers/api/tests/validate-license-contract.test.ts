@@ -1,41 +1,28 @@
-import { Effect, Exit } from 'effect';
+import { Effect } from 'effect';
+import * as Schema from 'effect/Schema';
 import { describe, expect, it } from 'vitest';
 import {
-  decodeValidateLicenseFields,
   toValidateLicenseRequest,
+  ValidateLicenseFieldsSchema,
   ValidateLicenseRowSchema,
   decodeRow,
 } from '../src/contracts/validate-license';
 
-describe('decodeValidateLicenseFields', () => {
-  it('accepts key or license_key', async () => {
-    const fromKey = await Effect.runPromise(decodeValidateLicenseFields({ key: 'abc' }));
-    const fromLicenseKey = await Effect.runPromise(
-      decodeValidateLicenseFields({ license_key: 'abc' })
-    );
-    expect(fromKey.key).toBe('abc');
-    expect(fromLicenseKey.license_key).toBe('abc');
-  });
-
-  it('rejects a numeric key', async () => {
-    const exit = await Effect.runPromiseExit(decodeValidateLicenseFields({ key: 123 }));
-    expect(Exit.isFailure(exit)).toBe(true);
-  });
-});
-
 describe('toValidateLicenseRequest', () => {
   it('prefers key over license_key', async () => {
-    const fields = await Effect.runPromise(
-      decodeValidateLicenseFields({ key: 'from-key', license_key: 'from-license-key' })
-    );
+    const fields = Schema.decodeUnknownSync(ValidateLicenseFieldsSchema)({
+      key: 'from-key',
+      license_key: 'from-license-key',
+    });
     const request = toValidateLicenseRequest(fields);
     expect(request?.licenseKey).toBe('from-key');
   });
 
   it('returns null when both keys are empty', async () => {
-    const fields = await Effect.runPromise(
-      decodeValidateLicenseFields({ key: '', license_key: '' })
-    );
+    const fields = Schema.decodeUnknownSync(ValidateLicenseFieldsSchema)({
+      key: '',
+      license_key: '',
+    });
     expect(toValidateLicenseRequest(fields)).toBeNull();
   });
 });

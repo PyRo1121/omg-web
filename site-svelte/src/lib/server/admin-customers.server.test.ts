@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
-  loadAdminCustomerDetail,
+  loadAdminCustomerDetailById,
   loadAdminCustomers,
   updateAdminCustomerLicense,
 } from './admin-customers.server';
@@ -199,7 +199,11 @@ describe('admin customer service', () => {
     });
 
     const detail = await Effect.runPromise(
-      loadAdminCustomerDetail(identity, environment(service), 'customer@example.com')
+      loadAdminCustomerDetailById(
+        environment(service),
+        { role: 'admin', token: 'server-only-token' },
+        'private-customer-id'
+      )
     );
 
     expect(detail).toEqual({

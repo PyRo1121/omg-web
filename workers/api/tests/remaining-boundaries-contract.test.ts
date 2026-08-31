@@ -2,7 +2,6 @@ import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   decodeStripeJson,
-  StripeBalanceSchema,
   StripeCheckoutSessionSchema,
   StripeCustomerListSchema,
 } from '../src/contracts/stripe';
@@ -59,12 +58,7 @@ import {
   DocsUtmRowSchema,
   FirehoseEventRowSchema,
   GrowthRowSchema,
-  InsightsStatsRowSchema,
   isTeamOrEnterpriseTier,
-  LicenseIdTierRowSchema,
-  LicenseSeatsRowSchema,
-  LicenseTeamAuthRowSchema,
-  MemberUsageRowSchema,
   PolicyRowSchema,
   PrivacyCommandRowSchema,
   PrivacyFeatureRowSchema,
@@ -72,8 +66,6 @@ import {
   PrivacyPerformanceRowSchema,
   PrivacyProfileRowSchema,
   PrivacySessionRowSchema,
-  TeamControlMemberRowSchema,
-  UsageDailyRowSchema,
   SessionJoinRowSchema,
   SiteAnalyticsTotalsRowSchema,
   SiteDailyTrendRowSchema,
@@ -129,21 +121,6 @@ describe('Stripe JSON decode', () => {
       decodeStripeJson(StripeCustomerListSchema, 'customers', { has_more: false })
     );
     expect(Exit.isFailure(exit)).toBe(true);
-  });
-
-  it('sums typed balance amounts', async () => {
-    const exit = await Effect.runPromiseExit(
-      decodeStripeJson(StripeBalanceSchema, 'balance', {
-        available: [{ amount: 100 }],
-        pending: [{ amount: 25 }],
-      })
-    );
-    expect(isSuccess(exit)).toBe(true);
-    if (exit._tag !== 'Success') {
-      return;
-    }
-    const available = exit.value.available.reduce((sum, funds) => sum + funds.amount, 0);
-    expect(available).toBe(100);
   });
 });
 
@@ -366,45 +343,7 @@ describe('optional extra rows', () => {
     expect(row?.total_visitors).toBe(4);
   });
 
-  it('decodes an id/tier license row used for authorization', async () => {
-    const row = await Effect.runPromise(
-      decodeOptionalExtraRow(LicenseIdTierRowSchema, 'license', { id: 'lic_1', tier: 'team' })
-    );
-    expect(row?.id).toBe('lic_1');
-    expect(isTeamOrEnterpriseTier(row?.tier ?? '')).toBe(true);
-  });
-
-  it('rejects a license row without an id', async () => {
-    const exit = await Effect.runPromiseExit(
-      decodeOptionalExtraRow(LicenseIdTierRowSchema, 'license', { tier: 'team' })
-    );
-    expect(Exit.isFailure(exit)).toBe(true);
-  });
-
-  it('decodes seat counts from an active license', async () => {
-    const row = await Effect.runPromise(
-      decodeOptionalExtraRow(LicenseSeatsRowSchema, 'seats', {
-        id: 'lic_1',
-        tier: 'enterprise',
-        max_seats: null,
-        used_seats: 3,
-      })
-    );
-    expect(row?.max_seats).toBe(0);
-    expect(row?.used_seats).toBe(3);
-  });
-
-  it('decodes a dashboard team license and member usage', async () => {
-    const license = await Effect.runPromise(
-      decodeOptionalExtraRow(LicenseTeamAuthRowSchema, 'team-license', {
-        id: 'lic_1',
-        tier: 'team',
-        status: 'active',
-        max_seats: 25,
-      })
-    );
-    expect(license?.status).toBe('active');
-
+  it('decodes a team member machine row', async () => {
     const machines = await Effect.runPromise(
       decodeExtraRowArray(TeamMemberMachineRowSchema, 'machines', [
         {
@@ -423,17 +362,6 @@ describe('optional extra rows', () => {
       ])
     );
     expect(machines[0]?.machine_id).toBe('m1');
-
-    const usage = await Effect.runPromise(
-      decodeOptionalExtraRow(MemberUsageRowSchema, 'usage', {
-        machine_id: 'm1',
-        total_commands: 9,
-        total_packages: 2,
-        total_time_saved_ms: 1000,
-        last_active: '2026-01-02',
-      })
-    );
-    expect(usage?.total_commands).toBe(9);
   });
 
   it('decodes a tier-only license lookup', async () => {
@@ -467,23 +395,12 @@ describe('optional extra rows', () => {
     expect(row?.email).toBe('a@b.com');
   });
 
-  it('decodes growth and insights aggregate rows', async () => {
+  it('decodes growth aggregates', async () => {
     const growth = await Effect.runPromise(
       decodeOptionalExtraRow(GrowthRowSchema, 'growth', { new_users_7d: 3, new_paid_7d: null })
     );
     expect(growth?.new_users_7d).toBe(3);
     expect(growth?.new_paid_7d).toBe(0);
-
-    const stats = await Effect.runPromise(
-      decodeOptionalExtraRow(InsightsStatsRowSchema, 'stats', {
-        users: 10,
-        cmds: 20,
-        time_ms: 3600000,
-        top_error: null,
-        version_drift_count: 2,
-      })
-    );
-    expect(stats?.cmds).toBe(20);
   });
 
   it('decodes billing and privacy profile lookups', async () => {
@@ -583,14 +500,7 @@ describe('remaining D1 result arrays', () => {
     expect(features[0]?.enabled).toBe(1);
   });
 
-  it('decodes dashboard daily usage and team policy/member rows', async () => {
-    const daily = await Effect.runPromise(
-      decodeExtraRowArray(UsageDailyRowSchema, 'daily', [
-        { date: '2026-08-17', commands_run: null, time_saved_ms: 1000 },
-      ])
-    );
-    expect(daily[0]?.commands_run).toBe(0);
-
+  it('decodes a team policy row', async () => {
     const policies = await Effect.runPromise(
       decodeExtraRowArray(PolicyRowSchema, 'policies', [
         {
@@ -604,25 +514,6 @@ describe('remaining D1 result arrays', () => {
       ])
     );
     expect(policies[0]?.scope).toBe('runtime');
-
-    const members = await Effect.runPromise(
-      decodeExtraRowArray(TeamControlMemberRowSchema, 'members', [
-        {
-          machine_id: 'm1',
-          hostname: 'dev',
-          os: 'linux',
-          arch: 'x64',
-          omg_version: '0.1.0',
-          last_seen_at: '2026-08-17',
-          first_seen_at: '2026-08-01',
-          is_active: 1,
-          total_commands: 9,
-          total_time_saved_ms: 100,
-          commands_last_7d: 3,
-        },
-      ])
-    );
-    expect(members[0]?.total_commands).toBe(9);
   });
 
   it('rejects a malformed privacy command export row', async () => {

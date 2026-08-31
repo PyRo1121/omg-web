@@ -196,19 +196,6 @@ function loadAdminCustomerSupportById(
   });
 }
 
-/** Load localized, browser-safe CRM support state for one selected customer. */
-export function loadAdminCustomerSupport(
-  identity: LicensingSummaryIdentity,
-  env: LicensingSummaryEnvironment,
-  email: string
-): Effect.Effect<AdminCustomerSupport, LicensingSummaryError | AdminOverviewForbidden> {
-  return Effect.gen(function* () {
-    const session = yield* loadAdminServiceSession(identity, env);
-    const customerId = yield* resolveAdminCustomerId(email, env);
-    return yield* loadAdminCustomerSupportById(env, session, customerId);
-  });
-}
-
 /** Load customer detail and CRM state through one admin session and customer resolution. */
 export function loadAdminCustomerWorkspace(
   identity: LicensingSummaryIdentity,

@@ -323,5 +323,3 @@ export function createShadowAuth(env: AuthEnvironment, requestUrl: URL) {
     ],
   });
 }
-
-export type ShadowAuth = ReturnType<typeof createShadowAuth>;
