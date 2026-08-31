@@ -1,17 +1,14 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
-import type { AdminBreakdownItem, AdminOverview } from '../../../../site/shared/admin-overview';
-import { EMAIL_PATTERN } from '../../../../site/shared/email';
-import type { SiteSessionRole } from '../../../../site/shared/site-session';
+import type { AdminBreakdownItem, AdminOverview } from '../../../../shared/admin-overview';
+import { EMAIL_PATTERN } from '../../../../shared/email';
+import type { SiteSessionRole } from '../../../../shared/site-session';
 import {
   MarketingOfferRequestSchema,
   MarketingOfferResponseSchema,
   type MarketingOffer,
 } from '../contracts/marketing-offer';
-import type {
-  LicensingSummary,
-  LicensingSummaryState,
-} from '../../../../site/shared/licensing-summary';
+import type { LicensingSummary, LicensingSummaryState } from '../../../../shared/licensing-summary';
 import { reportEffectFailure } from './observability.server';
 import { normalizedOptionalText } from './optional-text.server';
 

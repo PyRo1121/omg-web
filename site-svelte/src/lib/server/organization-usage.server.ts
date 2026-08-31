@@ -3,7 +3,7 @@ import * as Schema from 'effect/Schema';
 import type {
   OrganizationUsageRequest,
   OrganizationUsageResponse,
-} from '../../../../site/shared/organization-usage';
+} from '../../../../shared/organization-usage';
 import type { AuthEnvironment } from './auth.server';
 import { type LicensingSummaryError, sendInternalWorkerPayload } from './licensing-service.server';
 import {

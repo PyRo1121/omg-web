@@ -1,6 +1,6 @@
 import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
-import type { OrganizationAuditResponse } from '../../../../../../site/shared/organization-audit';
+import type { OrganizationAuditResponse } from '../../../../../../shared/organization-audit';
 import OrganizationAuditPage from './+page.svelte';
 
 const AUDIT: OrganizationAuditResponse = {

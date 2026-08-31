@@ -7,7 +7,7 @@ import { reportError, reportInfo } from '../observability';
 import {
   MarketingOfferRequestSchema,
   type MarketingOfferResponse,
-} from '../../../shared/marketing-offer';
+} from '../../../../shared/marketing-offer';
 import { decodeStripeJson, type StripeParseError } from '../contracts/stripe';
 
 const OFFER_PERCENT = 20 as const;

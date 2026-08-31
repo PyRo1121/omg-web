@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema';
 import { describe, expect, it } from 'vitest';
-import type { OrganizationAuditResponse } from '../../../../site/shared/organization-audit';
+import type { OrganizationAuditResponse } from '../../../../shared/organization-audit';
 import type { AuthEnvironment } from './auth.server';
 import {
   loadOrganizationAuditState,

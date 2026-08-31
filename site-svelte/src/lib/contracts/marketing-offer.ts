@@ -1,5 +1,5 @@
 import * as Schema from 'effect/Schema';
-import { EMAIL_PATTERN } from '../../../../site/shared/email';
+import { EMAIL_PATTERN } from '../../../../shared/email';
 
 export const MarketingOfferRequestSchema = Schema.Struct({
   email: Schema.String.check(

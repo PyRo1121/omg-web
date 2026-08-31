@@ -6,8 +6,8 @@ import {
   ADMIN_CUSTOMER_TIERS,
   type AdminCustomerStatus,
   type AdminCustomerTier,
-} from '../../../../site/shared/admin-customers';
-import { EMAIL_PATTERN } from '../../../../site/shared/email';
+} from '../../../../shared/admin-customers';
+import { EMAIL_PATTERN } from '../../../../shared/email';
 import {
   readBoundedUrlEncodedForm,
   type BoundedFormRejected,

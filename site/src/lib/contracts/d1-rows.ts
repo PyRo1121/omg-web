@@ -109,8 +109,8 @@ export function isInvalidD1Row(row: OptionalD1Row<unknown>): row is { readonly _
   return row._tag === 'invalid';
 }
 
-// Shared aggregate/id primitives live in site/shared/d1-rows.ts.
-export { CountRowSchema } from '../../../shared/d1-rows';
+// Shared aggregate/id primitives live in shared/d1-rows.ts.
+export { CountRowSchema } from '../../../../shared/d1-rows';
 
 /** Customer role lookup row. */
 export const UserRoleRowSchema = Schema.Struct({

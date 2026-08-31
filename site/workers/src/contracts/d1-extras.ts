@@ -3,7 +3,7 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 
-import { CountRowSchema, D1Number, IdRowSchema } from '../../../shared/d1-rows';
+import { CountRowSchema, D1Number, IdRowSchema } from '../../../../shared/d1-rows';
 
 export { CountRowSchema, IdRowSchema };
 

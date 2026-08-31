@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import workerSource from '../src/worker.ts?raw';
-import { LicensingRoutes, resolveLicensingRoute } from '../../shared/licensing-routes';
+import { LicensingRoutes, resolveLicensingRoute } from '../../../shared/licensing-routes';
 
 /** Dispatch paths handled by the worker switch (`case '<path>':` literals). */
 const dispatchedPaths = new Set<string>(

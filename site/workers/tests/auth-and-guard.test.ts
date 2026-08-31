@@ -7,7 +7,7 @@ import worker from '../src/worker';
 import { sendVerificationCode } from '../src/handlers/auth';
 import { handleCheckoutSessionStatus } from '../src/handlers/billing';
 import secureOtpMigration from '../migrations/012_secure_otp.sql?raw';
-import { LicensingRoutes } from '../../shared/licensing-routes';
+import { LicensingRoutes } from '../../../shared/licensing-routes';
 
 const TEST_EMAIL = 'otp@example.com';
 const VICTIM_EMAIL = 'victim@example.com';

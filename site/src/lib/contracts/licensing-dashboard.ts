@@ -5,7 +5,7 @@ import { Effect } from 'effect';
 import {
   LicensingDashboardSchema,
   type LicensingDashboard,
-} from '../../../shared/licensing-dashboard';
+} from '../../../../shared/licensing-dashboard';
 import { parseTelemetryDashboard, type TelemetryDashboard } from './telemetry-dashboard';
 
 /** Canonical licensing dashboard payload could not be decoded or projected. */

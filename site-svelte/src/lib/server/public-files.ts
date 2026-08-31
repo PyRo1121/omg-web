@@ -1,4 +1,4 @@
-import { applySecurityHeaders, SITE_ORIGIN } from '../../../../site/shared/security-headers';
+import { applySecurityHeaders, SITE_ORIGIN } from '../../../../shared/security-headers';
 
 const SHADOW_ROBOTS_POLICY = 'noindex, nofollow';
 const DOCS_CACHE_POLICY = 'public, max-age=0, must-revalidate';

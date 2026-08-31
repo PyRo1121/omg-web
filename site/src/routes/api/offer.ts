@@ -1,6 +1,6 @@
 import type { APIEvent } from '@solidjs/start/server';
 import { Cause, Effect, Exit, Option } from 'effect';
-import { LicensingRoutes } from '../../../shared/licensing-routes';
+import { LicensingRoutes } from '../../../../shared/licensing-routes';
 
 const MAX_OFFER_BODY_BYTES = 4096;
 

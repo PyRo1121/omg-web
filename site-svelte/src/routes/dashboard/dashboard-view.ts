@@ -1,7 +1,7 @@
 import type {
   OrganizationAuditAction,
   OrganizationAuditFilter,
-} from '../../../../site/shared/organization-audit';
+} from '../../../../shared/organization-audit';
 
 const COUNT_FORMAT = new Intl.NumberFormat('en-US');
 const TIMESTAMP_FORMAT = new Intl.DateTimeFormat('en-US', {

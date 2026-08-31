@@ -2,7 +2,7 @@
   import {
     MAX_LOGIN_EMAIL_CHARACTERS,
     MAX_LOGIN_PASSWORD_CHARACTERS,
-  } from '../../../../site/shared/login-credentials';
+  } from '../../../../shared/login-credentials';
   import GitHubMark from '../../lib/components/GitHubMark.svelte';
   import { LoginView } from '../../lib/login-view.svelte';
   import type { PageProps } from './$types';

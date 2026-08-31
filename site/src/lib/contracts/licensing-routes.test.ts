@@ -6,7 +6,7 @@ import {
   isSiteBffRoute,
   normalizeLicensingPath,
   resolveLicensingRoute,
-} from '../../../shared/licensing-routes';
+} from '../../../../shared/licensing-routes';
 
 describe('licensing HTTP route registry', () => {
   it('has a version and no duplicate method/path pairs', () => {

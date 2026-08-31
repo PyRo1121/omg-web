@@ -1,7 +1,7 @@
 import { Dialog } from '@kobalte/core';
 import { Check, Copy, LoaderCircle, X } from 'lucide-solid';
 import { type Component, createSignal, Show } from 'solid-js';
-import type { MarketingOfferResponse } from '../../shared/marketing-offer';
+import type { MarketingOfferResponse } from '../../../shared/marketing-offer';
 
 interface MarketingOfferDialogProps {
   readonly open: boolean;

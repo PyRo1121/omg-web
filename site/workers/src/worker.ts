@@ -100,7 +100,7 @@ import {
   handlePrivacyStatus,
   cleanupExpiredAuditLogs,
 } from './handlers/privacy';
-import { normalizeLicensingPath, resolveLicensingRoute } from '../../shared/licensing-routes';
+import { normalizeLicensingPath, resolveLicensingRoute } from '../../../shared/licensing-routes';
 
 function badgeResponse(message: string): Response {
   return new Response(

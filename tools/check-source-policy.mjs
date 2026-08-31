@@ -1,12 +1,12 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { posix } from 'node:path';
-import { CLI_SERVICE_API_CONTRACT } from '../site/shared/licensing-routes.ts';
+import { CLI_SERVICE_API_CONTRACT } from '../shared/licensing-routes.ts';
 
 const workspaceRoot = new URL('../', import.meta.url);
 const sourceRoots = [
   'site/src',
-  'site/shared',
+  'shared',
   'site-svelte/e2e',
   'site-svelte/src',
   'site/workers/src',

@@ -1,4 +1,4 @@
-import type { AdminDailyActivity, AdminOverview } from '../../../../site/shared/admin-overview';
+import type { AdminDailyActivity, AdminOverview } from '../../../../shared/admin-overview';
 
 /** Operator attention severity used only for presentation ordering and color. */
 export type AdminAttentionTone = 'urgent' | 'watch' | 'clear';

@@ -4,7 +4,7 @@ import {
   decodeSiteSessionRequest,
   decodeSiteSessionWorkerResponse,
   decodeCustomerRow,
-} from '../../shared/site-session';
+} from '../../../shared/site-session';
 
 /** Keep in sync with `site/src/lib/contracts/site-session.test.ts`. */
 const validRequest = {

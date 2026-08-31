@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { serializeJsonLd } from '../../../site/shared/public-site';
+  import { serializeJsonLd } from '../../../shared/public-site';
   import type { PageProps } from './$types';
   import CheckoutStatus from '../lib/components/home/CheckoutStatus.svelte';
   import HomeBenchmarks from '../lib/components/home/HomeBenchmarks.svelte';

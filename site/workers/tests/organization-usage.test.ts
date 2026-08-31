@@ -2,7 +2,7 @@ import '../src/cloudflare-test.d.ts';
 import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
 import * as Schema from 'effect/Schema';
 import { describe, expect, it } from 'vitest';
-import type { OrganizationUsageRequest } from '../../shared/organization-usage';
+import type { OrganizationUsageRequest } from '../../../shared/organization-usage';
 import { OrganizationUsageResponseSchema } from '../src/contracts/organization-usage';
 import worker from '../src/worker';
 

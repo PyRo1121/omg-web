@@ -1,6 +1,6 @@
 import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
-import type { OrganizationUsageResponse } from '../../../../../../site/shared/organization-usage';
+import type { OrganizationUsageResponse } from '../../../../../../shared/organization-usage';
 import OrganizationUsagePage from './+page.svelte';
 
 const USAGE: OrganizationUsageResponse = {

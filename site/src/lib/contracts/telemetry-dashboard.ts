@@ -2,7 +2,7 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { LicensingGlobalStatsSchema } from '../../../shared/licensing-dashboard';
+import { LicensingGlobalStatsSchema } from '../../../../shared/licensing-dashboard';
 
 /** A failure decoding or encoding a telemetry dashboard payload. */
 export class TelemetryDashboardParseError extends Error {

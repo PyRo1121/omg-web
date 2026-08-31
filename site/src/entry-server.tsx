@@ -1,5 +1,5 @@
 import { createHandler, StartServer } from '@solidjs/start/server';
-import { contentSecurityPolicyWithNonce, createCspNonce } from '../shared/security-headers';
+import { contentSecurityPolicyWithNonce, createCspNonce } from '../../shared/security-headers';
 // Preloaded by URL so the LCP font starts downloading before CSS @font-face discovery.
 import archivoLatinWoff2 from '@fontsource-variable/archivo/files/archivo-latin-wght-normal.woff2?url';
 import plexMonoLatin400Woff2 from '@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2?url';

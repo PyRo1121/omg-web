@@ -4,7 +4,7 @@ import * as Schema from 'effect/Schema';
 import {
   ADMIN_CUSTOMER_NOTE_TYPES,
   ADMIN_CUSTOMER_STATUSES,
-} from '../../../shared/admin-customers';
+} from '../../../../shared/admin-customers';
 
 const OptionalBoolean = Schema.optional(Schema.Boolean);
 const OptionalEpochMs = Schema.optional(

@@ -1,5 +1,5 @@
 import { createMiddleware } from '@solidjs/start/middleware';
-import { applySecurityHeaders } from '../shared/security-headers';
+import { applySecurityHeaders } from '../../shared/security-headers';
 
 /** Apply browser security policy and private caching to dynamic account surfaces. */
 export function applyResponsePolicy(requestUrl: string, headers: Headers): void {

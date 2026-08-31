@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import type { OrganizationUsageResponse } from '../../../shared/organization-usage';
+import type { OrganizationUsageResponse } from '../../../../shared/organization-usage';
 import { AdminUnauthorizedError, requireInternalSecret } from '../admin-secret';
 import {
   type Env,

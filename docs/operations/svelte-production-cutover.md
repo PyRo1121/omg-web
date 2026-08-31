@@ -107,8 +107,9 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 - [x] Post-deployment boundary smokes reconfirmed anonymous shadow session access at `200`, public internal firehose concealment at `404`, public admin firehose rejection at `401`, installer hash parity, and a nonce-based script CSP without `'unsafe-inline'`.
 - [x] External Stripe, Turnstile, and GitHub JSON responses are now streamed under protocol-specific byte ceilings, strictly decoded as UTF-8, parsed once, and schema-validated before use. Focused provider, offer, billing, and webhook tests cover valid, oversized, malformed UTF-8, and invalid-shape behavior. CI run `33401717745` passed, then `omg-saas` version `73b49320-482f-4919-b735-8cff04664260` deployed; `/health` returned `200`, while anonymous Checkout and Billing Portal requests remained `401`.
 - [x] Playwright ownership, pinned dependency, configuration, public browser checks, external authorization checks, and authenticated account/operator characterization moved from `site/` to `site-svelte/`. CI now starts the current Svelte source locally and runs the public suite there; Cloudflare-bound authentication checks remain explicit external-deployment tests. The local suite passed five tests with three expected binding-dependent skips, and the shadow suite passed all nine selected anonymous checks.
+- [x] Cross-runtime contracts moved from `site/shared/` to top-level `shared/`, so Svelte and `omg-saas` no longer resolve retained source through the Solid application directory. The root package now owns the exact Effect version those contracts import. The Solid-only Drizzle auth schema moved to `site/src/db/auth-schema.ts` and is covered by the deletion manifest instead of being retained accidentally. Solid, Svelte, and Worker typechecks; 610 unit tests; both production builds; both Wrangler dry runs; and five local plus nine shadow browser checks passed. The shadow and unattached production deployments completed with their auth secrets unchanged, and both follow-up plans report `2 to noop`.
 - [x] On 2026-08-31, the reviewed shadow `Website` updates deployed without rotating `ShadowAuthSecret`. Public routes, legal pages, auth session lookup, installers, public key, CSP, cache policy, and internal-firehose concealment passed live smoke checks. The Svelte-owned Playwright suite then passed nine deployed public, compact-layout, documentation, legal, authentication-entry, protected-redirect, and invalid-credential checks; the follow-up shadow plan is `2 to noop`.
-- [x] With dedicated production OAuth inputs present, the 2026-08-31 production Alchemy deployment created only the unattached `omgsveltesite-website-prod-dlaqgfttmir2ky5x` Worker, stage-scoped bindings, limiters, and generated auth secret. It has no workers.dev URL, hostname, Worker Route, D1 resource action, or existing-Worker adoption. The matching source-only update produced deployment `3cb5c958-e895-45aa-bb49-bad578739664`, serving Worker version `1138f135-317e-4be2-ae1b-7f1fbbdbc9a6` at 100%; the follow-up production plan is `2 to noop`.
+- [x] With dedicated production OAuth inputs present, the 2026-08-31 production Alchemy deployment created only the unattached `omgsveltesite-website-prod-dlaqgfttmir2ky5x` Worker, stage-scoped bindings, limiters, and generated auth secret. It has no workers.dev URL, hostname, Worker Route, D1 resource action, or existing-Worker adoption. The latest source-only update produced deployment `a5a7654b-b19b-4a76-a435-fb1d98fbcc70`, serving Worker version `88e2322f-a3c5-4ca7-afc6-cc60ac9198ce` at 100%; the follow-up production plan is `2 to noop`.
 - [x] The existing D1 database is attached as a raw Worker binding by its stable database identifier. Alchemy does not own the database resource or its schema; Wrangler remains the sole migration authority.
 - [x] The shadow auth endpoint returns `200 null` anonymously after the binding change, proving the retained database remains reachable without exposing session data.
 - [x] User-controlled authenticated Helium characterization rendered account overview, analytics, achievements, machines, settings, organization bootstrap, operator overview, customers, organizations, analytics, insights, revenue, audit, exports, and live activity without exposing retained private identifiers.
@@ -137,7 +138,7 @@ After the agreed observation window:
 
 - remove the Solid Custom Domain and any obsolete route resources;
 - delete `site/src`, Solid/Vinxi dependencies, Solid-only tests, build tooling, and BFF compatibility code;
-- retain `site/shared`, `site/workers`, canonical migrations, public installer/key artifacts, and only the tooling still owned by those surfaces;
+- retain top-level `shared`, `site/workers`, canonical migrations, public installer/key artifacts, and only the tooling still owned by those runtimes;
 - rename/restructure retained directories only in a separate cleanup after deletion, not during cutover;
 - update topology, incident, rollback, dependency, and audit documentation.
 
@@ -171,7 +172,7 @@ Every path below is classified **remove after successful hostname observation**.
 | `site/src/routes`, `site/src/entry-*`, `site/src/app.*`, `site/src/middleware*`                        | SvelteKit routes, hooks, server loads/actions, and Alchemy Worker runtime                        |
 | `site/src/components`, `site/src/pages`, `site/src/design-system`                                      | Svelte components and route-local presentation                                                   |
 | `site/src/lib/analytics-client.ts`, `site/src/lib/performance-entry*`                                  | Same-origin Svelte analytics view model and Service Binding endpoint                             |
-| `site/src/lib/contracts`, `site/src/lib/licensing-bff*`, `site/src/lib/admin.ts`, `site/src/lib/auth*` | Effect Schema Svelte server boundaries and retained `site/shared` contracts                      |
+| `site/src/lib/contracts`, `site/src/lib/licensing-bff*`, `site/src/lib/admin.ts`, `site/src/lib/auth*` | Effect Schema Svelte server boundaries and retained top-level `shared` contracts                 |
 | remaining `site/src/lib` and `site/src/types`                                                          | Superseded Solid-only state, fetch, formatting, helper, and test modules with no retained caller |
 
 `tools/check-source-policy.mjs` fails unless this inventory exactly matches the filesystem and no production source outside `site/src` imports a listed path.
@@ -218,6 +219,7 @@ site/src/components/landing/LicenseSuccessModal.tsx
 site/src/components/ui/BrandIcons.tsx
 site/src/components/ui/Icons.tsx
 site/src/components/ui/Skeleton.tsx
+site/src/db/auth-schema.ts
 site/src/design-system/DESIGN_SYSTEM.md
 site/src/design-system/tokens.css
 site/src/entry-client.tsx

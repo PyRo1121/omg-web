@@ -11,12 +11,12 @@ import {
   type WorkerApiFailure,
 } from './worker-api';
 import * as Http from './contracts/worker-http';
-import { LicensingRoutes } from '../../shared/licensing-routes';
+import { LicensingRoutes } from '../../../shared/licensing-routes';
 import {
   MarketingOfferResponseSchema,
   type MarketingOfferResponse,
   type MarketingPromotionCode,
-} from '../../shared/marketing-offer';
+} from '../../../shared/marketing-offer';
 
 type WorkerBody<S extends Schema.Schema.AnyNoContext> = Schema.Schema.Type<S>;
 

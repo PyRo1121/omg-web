@@ -40,7 +40,7 @@ export const Website = Cloudflare.Website.SvelteKit(
         include: [
           'src/**',
           'static/**',
-          '../site/shared/**',
+          '../shared/**',
           'alchemy.run.ts',
           'package-lock.json',
           'package.json',

@@ -1,15 +1,12 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
-import {
-  ADMIN_CUSTOMER_STATUSES,
-  ADMIN_CUSTOMER_TIERS,
-} from '../../../../site/shared/admin-customers';
-import { EMAIL_PATTERN } from '../../../../site/shared/email';
+import { ADMIN_CUSTOMER_STATUSES, ADMIN_CUSTOMER_TIERS } from '../../../../shared/admin-customers';
+import { EMAIL_PATTERN } from '../../../../shared/email';
 import type {
   AdminCustomerDetail,
   AdminCustomerDirectory,
   AdminCustomerLicenseUpdate,
-} from '../../../../site/shared/admin-customers';
+} from '../../../../shared/admin-customers';
 import {
   AdminOverviewForbidden,
   LicensingSummaryInvalidInput,

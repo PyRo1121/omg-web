@@ -1,7 +1,7 @@
 import { Dialog } from '@kobalte/core';
 import { ArrowLeft, Check, LoaderCircle, X } from 'lucide-solid';
 import { type Component, createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
-import type { MarketingPromotionCode } from '../../shared/marketing-offer';
+import type { MarketingPromotionCode } from '../../../shared/marketing-offer';
 import { ApiError } from '../lib/api-error';
 
 interface UpgradeModalProps {

@@ -2,7 +2,7 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { CountRowSchema } from '../../../shared/d1-rows';
+import { CountRowSchema } from '../../../../shared/d1-rows';
 import { LicenseKey } from './license-key';
 
 export { LicenseKey, CountRowSchema };

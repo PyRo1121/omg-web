@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle } from 'drizzle-orm/d1';
-import * as schema from '../../shared/auth-schema';
+import * as schema from '../db/auth-schema';
 
 export interface CloudflareEnv {
   DB: D1Database;

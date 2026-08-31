@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AdminOverview } from '../../../../site/shared/admin-overview';
+import type { AdminOverview } from '../../../../shared/admin-overview';
 import {
   activityBars,
   attentionItems,

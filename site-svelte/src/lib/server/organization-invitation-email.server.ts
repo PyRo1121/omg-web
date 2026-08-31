@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { EMAIL_PATTERN } from '../../../../site/shared/email';
-import type { OrganizationInvitationEmailRequest } from '../../../../site/shared/organization-invitation-email';
+import { EMAIL_PATTERN } from '../../../../shared/email';
+import type { OrganizationInvitationEmailRequest } from '../../../../shared/organization-invitation-email';
 import {
   sendInternalWorkerPayload,
   type LicensingSummaryEnvironment,

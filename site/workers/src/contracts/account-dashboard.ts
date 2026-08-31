@@ -2,7 +2,7 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { D1Number } from '../../../shared/d1-rows';
+import { D1Number } from '../../../../shared/d1-rows';
 import { AdminFlagRowSchema } from './d1-extras';
 
 /** Shared persisted-row primitives used by account-dashboard consumers. */

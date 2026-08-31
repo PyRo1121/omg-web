@@ -10,7 +10,7 @@ omg-web is a Cloudflare Workers SaaS platform that issues paid license/API keys,
 
 ## Scope and assumptions
 
-**In scope:** `site/workers/**` (licensing/billing/auth Workers), `site/src/**`, `site/shared/**`, `workers/router/**`, `workers/releases/**`, `tools/**`, `.github/workflows/ci.yml`, all wrangler configs, migrations, `site/public/install.*`.
+**In scope:** `site/workers/**` (licensing/billing/auth Workers), `site/src/**`, `shared/**`, `workers/router/**`, `workers/releases/**`, `tools/**`, `.github/workflows/ci.yml`, all wrangler configs, migrations, `site/public/install.*`.
 
 **Out of scope:** the out-of-repo Rust CLI (`PyRo1121/omg`) — its verifier behavior decides TM-004/TM-011; Stripe Dashboard configuration; production D1 contents; Cloudflare zone/WAF settings not represented in wrangler configs.
 
@@ -163,7 +163,7 @@ flowchart TD
 | `site/workers/src/handlers/auth.ts` (verifyCode, sendVerificationCode quotas)                    | Attempt-counter burn, broken send quota, mixed timestamp formats                         | TM-008, TM-009                       |
 | `site/public/install.sh`                                                                         | Unsigned executable delivery, `setcap` amplifier                                         | TM-003                               |
 | `workers/releases/src/index.ts` (+ its wrangler.toml)                                            | Latent fleet-update attack channel; fix-before-deploy list                               | TM-018                               |
-| `site/shared/licensing-routes.ts`                                                                | Contract/handler auth drift (`get-license`, `adminHealth`)                               | TM-010, F-05(auth)                   |
+| `shared/licensing-routes.ts`                                                                | Contract/handler auth drift (`get-license`, `adminHealth`)                               | TM-010, F-05(auth)                   |
 | `site/workers/migrations/015_customers_email_unique.sql`                                         | Verified no-op unique index; identity race remains                                       | TM-001, dup-identity integrity       |
 | `.github/workflows/ci.yml` + branch protection settings                                          | npm downgrade voids allowScripts; no review gate on main                                 | TM-017                               |
 

@@ -3,7 +3,7 @@ import * as Schema from 'effect/Schema';
 import type {
   OrganizationAuditFilter,
   OrganizationAuditResponse,
-} from '../../../shared/organization-audit';
+} from '../../../../shared/organization-audit';
 import { AdminUnauthorizedError, requireInternalSecret } from '../admin-secret';
 import {
   type Env,

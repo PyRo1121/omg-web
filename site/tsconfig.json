@@ -30,7 +30,7 @@
     "worker-configuration.d.ts",
     "../workers/worker-runtime.d.ts",
     "src/**/*",
-    "shared/**/*"
+    "../shared/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

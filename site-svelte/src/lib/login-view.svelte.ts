@@ -1,4 +1,4 @@
-import { validateLoginCredentials } from '../../../site/shared/login-credentials';
+import { validateLoginCredentials } from '../../../shared/login-credentials';
 import { signIn } from './auth-client';
 
 export class LoginView {

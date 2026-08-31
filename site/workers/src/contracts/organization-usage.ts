@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { D1Number } from '../../../shared/d1-rows';
+import { D1Number } from '../../../../shared/d1-rows';
 
 const PrivateReference = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
 const DisplayText = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));

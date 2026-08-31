@@ -3,7 +3,7 @@ import * as Schema from 'effect/Schema';
 import type {
   AdminOrganizationDirectory,
   AdminOrganizationSupport,
-} from '../../../../site/shared/admin-organizations';
+} from '../../../../shared/admin-organizations';
 import {
   AdminOverviewForbidden,
   loadAdminServiceSession,

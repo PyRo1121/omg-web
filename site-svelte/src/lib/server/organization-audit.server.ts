@@ -4,7 +4,7 @@ import type {
   OrganizationAuditFilter,
   OrganizationAuditRequest,
   OrganizationAuditResponse,
-} from '../../../../site/shared/organization-audit';
+} from '../../../../shared/organization-audit';
 import type { AuthEnvironment } from './auth.server';
 import { type LicensingSummaryError, sendInternalWorkerPayload } from './licensing-service.server';
 import {

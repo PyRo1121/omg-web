@@ -1,6 +1,6 @@
 import type { Component } from 'solid-js';
 import { createSignal, For, Show } from 'solid-js';
-import type { MarketingPromotionCode } from '../../shared/marketing-offer';
+import type { MarketingPromotionCode } from '../../../shared/marketing-offer';
 import MarketingOfferDialog from './MarketingOfferDialog';
 import UpgradeModal from './UpgradeModal';
 

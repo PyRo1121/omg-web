@@ -8,7 +8,7 @@ import {
   MAX_LOGIN_EMAIL_CHARACTERS,
   MAX_LOGIN_PASSWORD_CHARACTERS,
   validateLoginCredentials,
-} from '../../shared/login-credentials';
+} from '../../../shared/login-credentials';
 import { getErrorMessage } from '~/lib/error-message';
 
 export default function LoginPage() {

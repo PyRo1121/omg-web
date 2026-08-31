@@ -29,7 +29,7 @@ import {
   type ValidateLicenseRequest,
   type ValidateLicenseRow,
 } from '../contracts/validate-license';
-import { EmailAddress } from '../../../shared/site-session';
+import { EmailAddress } from '../../../../shared/site-session';
 import {
   AnalyticsBatchSchema,
   type LicenseOpsParseError,

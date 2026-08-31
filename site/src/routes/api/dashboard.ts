@@ -3,14 +3,14 @@ import * as Sentry from '@sentry/solid';
 import { Cause, Effect, Exit, Option } from 'effect';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
-import * as schema from '../../../shared/auth-schema';
+import * as schema from '../../db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import {
   AccountDashboardAccountRowSchema,
   AccountDashboardSessionRowSchema,
   parseAccountDashboard,
 } from '~/lib/contracts/account-dashboard';
-import type { DashboardData } from '../../../shared/account-dashboard';
+import type { DashboardData } from '../../../../shared/account-dashboard';
 import { readD1RowArray } from '~/lib/contracts/d1-rows';
 import { casesHandled } from '~/lib/prelude';
 

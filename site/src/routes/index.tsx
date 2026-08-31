@@ -1,5 +1,5 @@
 import { Link, Meta, Title } from '@solidjs/meta';
-import { serializeJsonLd } from '../../shared/public-site';
+import { serializeJsonLd } from '../../../shared/public-site';
 import Benchmarks from '../components/Benchmarks';
 import Footer from '../components/Footer';
 import Header from '../components/Header';

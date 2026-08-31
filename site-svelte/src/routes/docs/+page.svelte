@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { serializeJsonLd } from '../../../../site/shared/public-site';
+  import { serializeJsonLd } from '../../../../shared/public-site';
 
   const breadcrumbData = serializeJsonLd({
     '@context': 'https://schema.org',

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { access, appendFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { contentSecurityPolicyWithScriptHashes } from '../../site/shared/security-headers.ts';
+import { contentSecurityPolicyWithScriptHashes } from '../../shared/security-headers.ts';
 
 const distRoot = new URL('../dist/', import.meta.url);
 const distPath = fileURLToPath(distRoot);

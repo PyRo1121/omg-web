@@ -3,7 +3,7 @@ import {
   MAX_LOGIN_EMAIL_CHARACTERS,
   MAX_LOGIN_PASSWORD_CHARACTERS,
   validateLoginCredentials,
-} from '../../../shared/login-credentials';
+} from '../../../../shared/login-credentials';
 
 describe('login credential boundary', () => {
   it('accepts an email with a password', () => {

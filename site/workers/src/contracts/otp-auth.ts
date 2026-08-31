@@ -2,7 +2,7 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { CustomerId, EmailAddress, SessionToken } from '../../../shared/site-session';
+import { CustomerId, EmailAddress, SessionToken } from '../../../../shared/site-session';
 
 export { CustomerId, EmailAddress, SessionToken };
 

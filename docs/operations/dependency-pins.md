@@ -2,6 +2,10 @@
 
 All dependency versions and overrides are exact. Renovate must not automerge changes to this file, an `overrides` block, or `allowScripts`.
 
+## Root `package.json`
+
+- `effect` `3.22.1` owns the schema/runtime imports used by the top-level `shared/` contracts. Keeping this dependency at the repository root lets Solid, Svelte, and `omg-saas` compile one canonical contract source without tying it to any application directory. Remove it only after every retained shared module stops importing Effect.
+
 ## `site/package.json`
 
 - `dax-sh -> npm:dax@0.44.2`: compatibility alias for Vinxi's `dax-sh` request. Remove when the retained Vinxi toolchain no longer requests `dax-sh`; verify `npm ci`, the production build, and deployment dry-run first.

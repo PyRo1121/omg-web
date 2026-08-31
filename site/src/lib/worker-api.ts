@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import type * as Schema from 'effect/Schema';
-import { LICENSING_API_ORIGIN } from '../../shared/licensing-routes';
+import { LICENSING_API_ORIGIN } from '../../../shared/licensing-routes';
 import { parseApiError } from './dashboard-contract';
 import { decodeWorkerHttp, type WorkerHttpParseError } from './contracts/worker-http';
 

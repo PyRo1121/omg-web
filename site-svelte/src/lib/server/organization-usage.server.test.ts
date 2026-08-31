@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as Schema from 'effect/Schema';
-import type { OrganizationUsageResponse } from '../../../../site/shared/organization-usage';
+import type { OrganizationUsageResponse } from '../../../../shared/organization-usage';
 import type { AuthEnvironment } from './auth.server';
 import {
   loadOrganizationUsageState,

@@ -2,7 +2,7 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { D1Number, NullableStringSchema } from '../../../shared/d1-rows';
+import { D1Number, NullableStringSchema } from '../../../../shared/d1-rows';
 
 /** A failure decoding a Worker JSON response. */
 export class WorkerHttpParseError extends Error {

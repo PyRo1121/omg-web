@@ -86,7 +86,7 @@ Evidence keys:
 | W5-F2    | Script CSP allowed `unsafe-inline`                            | Fixed       | SEC/LIVE; dynamic nonces and prerender SHA-256 sources.                                                                                                                    |
 | W5-F3    | Fragile raw JSON-LD script children                           | Fixed       | BND; centralized escaped serializer neutralizes script breakouts.                                                                                                          |
 | W5-F4    | Unbounded local-storage parsing                               | Fixed       | BND; bounded readers reject oversized/malformed values.                                                                                                                    |
-| W5-F5    | Divergent app security policies                               | Fixed       | SEC; canonical `site/shared/security-headers.ts`.                                                                                                                          |
+| W5-F5    | Divergent app security policies                               | Fixed       | SEC; canonical `shared/security-headers.ts`.                                                                                                                               |
 | W6-P1-1  | Unbounded Stripe webhook buffering                            | Fixed       | SEC/BND; pre-parse body limit and webhook tests.                                                                                                                           |
 | W6-P2-1  | Unbounded analytics properties storage                        | Fixed       | BND; bounded key/value/count schemas.                                                                                                                                      |
 | W6-P2-2  | Telemetry parsed before rate limiting                         | Fixed       | SEC; limiter runs before body decoding.                                                                                                                                    |
@@ -156,7 +156,7 @@ Evidence keys:
 | Y2-P0   | Session/request seam type family duplicated      | Dismissed   | Consumers intentionally project different minimum identity fields; all-fields superset would expose extra data.                                                              |
 | Y2-P1a  | Email/schema vocabulary duplicated               | Fixed       | `eda6d32`; shared normalized email contract.                                                                                                                                 |
 | Y2-P1b  | `parseInput` duplicated                          | Fixed       | `17b1344`; one licensing parse adapter.                                                                                                                                      |
-| Y2-P2a  | Customer update contract duplicated              | Fixed       | Shared `site/shared/admin-customers.ts`.                                                                                                                                     |
+| Y2-P2a  | Customer update contract duplicated              | Fixed       | Shared `shared/admin-customers.ts`.                                                                                                                                          |
 | Y2-P2b  | Boundary input alias repeated                    | Dismissed   | Module-specific schema-encoded aliases preserve distinct boundary semantics.                                                                                                 |
 | Y2-P3a  | Breakdown row restated shared type               | Fixed       | `821ec28`; shared overview item.                                                                                                                                             |
 | Y2-P3b  | Inline role unions                               | Fixed       | `df7a5d2`; shared role contract.                                                                                                                                             |
@@ -224,7 +224,7 @@ Evidence keys:
   stable event name and typed failure tag.
 - CSP images are restricted to same-origin, data URLs, and
   `avatars.githubusercontent.com`; production and shadow headers were verified.
-- Alchemy memoization includes `../site/shared/**`, preventing stale Svelte builds
+- Alchemy memoization includes `../shared/**`, preventing stale Svelte builds
   when shared contracts or security policy change.
 - The undeployed releases Worker now has fail-closed native download limiting;
   default and production Wrangler dry-runs pass.

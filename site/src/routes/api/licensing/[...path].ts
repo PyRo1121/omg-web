@@ -2,7 +2,7 @@ import type { APIEvent } from '@solidjs/start/server';
 import { Cause, Effect, Exit, Option } from 'effect';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
-import * as schema from '../../../../shared/auth-schema';
+import * as schema from '../../../db/auth-schema';
 import { createAuth, type CloudflareEnv } from '~/lib/auth';
 import {
   LicensingEmailVerificationRequired,

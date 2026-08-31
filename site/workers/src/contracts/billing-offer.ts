@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema';
 import { Effect } from 'effect';
-import { MarketingPromotionCodeSchema } from '../../../shared/marketing-offer';
+import { MarketingPromotionCodeSchema } from '../../../../shared/marketing-offer';
 
 /** Public offer identifiers accepted by checkout. */
 export const BillingOfferSchema = Schema.Literal('pro', 'team');

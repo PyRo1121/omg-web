@@ -2,8 +2,8 @@ import * as Schema from 'effect/Schema';
 import type {
   AdminOrganizationDirectory,
   AdminOrganizationSupport,
-} from '../../../shared/admin-organizations';
-import { D1Number } from '../../../shared/d1-rows';
+} from '../../../../shared/admin-organizations';
+import { D1Number } from '../../../../shared/d1-rows';
 import type { Env } from '../api';
 import { reportError } from '../observability';
 import { secureJsonResponse, withAdminQuery } from './admin';

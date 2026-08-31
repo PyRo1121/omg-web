@@ -14,7 +14,7 @@ import {
   SessionToken,
   SiteSessionRequestSchema,
   type SiteSessionWorkerResponse,
-} from '../../../shared/site-session';
+} from '../../../../shared/site-session';
 import { AdminUnauthorizedError, requireInternalSecret } from '../admin-secret';
 import { casesHandled } from '../prelude';
 import { deriveSiteSessionToken, hashSessionToken } from '../session-token';

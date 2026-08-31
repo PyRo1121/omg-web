@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { MAX_LOGIN_EMAIL_CHARACTERS } from '../../../../../site/shared/login-credentials';
+  import { MAX_LOGIN_EMAIL_CHARACTERS } from '../../../../../shared/login-credentials';
   import type { MarketingOffer } from '../../contracts/marketing-offer';
 
   let {

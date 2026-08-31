@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import {
   LicensingDashboardSchema,
   type LicensingDashboard,
-} from '../../../shared/licensing-dashboard';
+} from '../../../../shared/licensing-dashboard';
 import { type Env, errorResponse, respondFromEffect, ACHIEVEMENTS, TIER_FEATURES } from '../api';
 import { isAdminCustomer, requireSession, type SessionUnauthorizedError } from '../admin-auth';
 import { casesHandled } from '../prelude';

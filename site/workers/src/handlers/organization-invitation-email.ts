@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
-import type { OrganizationInvitationEmailResponse } from '../../../../site/shared/organization-invitation-email';
-import { EMAIL_PATTERN } from '../../../../site/shared/email';
+import type { OrganizationInvitationEmailResponse } from '../../../../shared/organization-invitation-email';
+import { EMAIL_PATTERN } from '../../../../shared/email';
 import { AdminUnauthorizedError, requireInternalSecret } from '../admin-secret';
 import { decodeJsonBody, InvalidJsonBodyError } from '../body';
 import type { Env } from '../api';

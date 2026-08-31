@@ -1,11 +1,11 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { isSiteBffRoute, LicensingRoutes } from '../../shared/licensing-routes';
+import { isSiteBffRoute, LicensingRoutes } from '../../../shared/licensing-routes';
 import {
   decodeSiteSessionWorkerResponse,
   EmailAddress,
   type SiteSessionWorkerResponse,
-} from '../../shared/site-session';
+} from '../../../shared/site-session';
 
 const INTERNAL_WORKER_ORIGIN = 'https://omg-saas.internal';
 const BFF_PATH_PREFIX = '/api/licensing';

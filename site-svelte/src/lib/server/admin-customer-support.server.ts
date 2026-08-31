@@ -9,7 +9,7 @@ import type {
   AdminCustomerSupport,
   AdminCustomerTag,
   AdminCustomerWorkspace,
-} from '../../../../site/shared/admin-customers';
+} from '../../../../shared/admin-customers';
 import { loadAdminCustomerDetailById, resolveAdminCustomerId } from './admin-customers.server';
 import {
   AdminOverviewForbidden,

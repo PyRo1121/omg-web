@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { ADMIN_CUSTOMER_NOTE_TYPES } from '../../../../site/shared/admin-customers';
+import { ADMIN_CUSTOMER_NOTE_TYPES } from '../../../../shared/admin-customers';
 import { BillingPortalResponseSchema, type BillingPortalRedirect } from '../contracts/billing';
 import type {
   AdminCustomerNoteCreateInput,
@@ -21,7 +21,7 @@ import {
   type LicensingSummaryError,
   type LicensingSummaryIdentity,
 } from './licensing-service.server';
-import { EMAIL_PATTERN } from '../../../../site/shared/email';
+import { EMAIL_PATTERN } from '../../../../shared/email';
 
 const MUTATION_RESPONSE_LIMIT = 16 * 1024;
 const SuccessResponseSchema = Schema.Struct({ success: Schema.Literal(true) });

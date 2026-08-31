@@ -3,7 +3,7 @@ import { type Env, jsonResponse, errorResponse, enforceRateLimit, logAudit } fro
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import { decodeBoundedJsonResponse, decodeJsonBody, readBoundedBodyText } from '../body';
-import { EmailAddress } from '../../../shared/site-session';
+import { EmailAddress } from '../../../../shared/site-session';
 import {
   authenticateSession,
   forbiddenUnlessAdminSession,

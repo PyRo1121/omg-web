@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { serializeJsonLd } from '../shared/public-site';
+import { serializeJsonLd } from '../../shared/public-site';
 import {
   contentSecurityPolicyWithNonce,
   contentSecurityPolicyWithScriptHashes,
   createCspNonce,
-} from '../shared/security-headers';
+} from '../../shared/security-headers';
 import { applyResponsePolicy } from './middleware';
 
 describe('structured data serialization', () => {

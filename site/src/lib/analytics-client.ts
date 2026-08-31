@@ -10,7 +10,7 @@
  * - Geo derived from edge/CDN headers on server
  */
 
-import { LICENSING_API_ORIGIN } from '../../shared/licensing-routes';
+import { LICENSING_API_ORIGIN } from '../../../shared/licensing-routes';
 import {
   inputDelayMs,
   interactionMs,
