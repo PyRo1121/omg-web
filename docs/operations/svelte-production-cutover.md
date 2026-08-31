@@ -109,6 +109,7 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 - [x] Playwright ownership, pinned dependency, configuration, public browser checks, external authorization checks, and authenticated account/operator characterization moved from `site/` to `site-svelte/`. CI now starts the current Svelte source locally and runs the public suite there; Cloudflare-bound authentication checks remain explicit external-deployment tests. The local suite passed five tests with three expected binding-dependent skips, and the shadow suite passed all nine selected anonymous checks.
 - [x] Cross-runtime contracts moved from `site/shared/` to top-level `shared/`, so Svelte and `omg-saas` no longer resolve retained source through the Solid application directory. The root package now owns the exact Effect version those contracts import. The Solid-only Drizzle auth schema moved to `site/src/db/auth-schema.ts` and is covered by the deletion manifest instead of being retained accidentally. Solid, Svelte, and Worker typechecks; 610 unit tests; both production builds; both Wrangler dry runs; and five local plus nine shadow browser checks passed. The shadow and unattached production deployments completed with their auth secrets unchanged, and both follow-up plans report `2 to noop`.
 - [x] The retained `omg-saas` runtime, Wrangler configurations, lockfile, and immutable migrations moved byte-for-byte from the Solid application tree to `workers/api/`; tests, generated types, commands, and active operations references moved with them. The obsolete cron note that prescribed ad hoc production deletion was removed. The Worker name, custom domain, D1 database identifier, migration directory, bindings, and deployment authority did not change. This makes `site/` exclusively Solid-owned instead of requiring a directory exception during deletion.
+- [x] Client bundle-budget acceptance moved from the Solid/Vinxi output layout to the Svelte/Vite manifest and client output. The Svelte-owned check bounds every JavaScript chunk, aggregate JavaScript, the transitive landing-page closure, every stylesheet, and dynamic code constructors. Three unconfigured, unreferenced `site/drizzle` migrations were removed; they were never part of Wrangler's immutable `workers/api/migrations/` chain.
 - [x] On 2026-08-31, the reviewed shadow `Website` updates deployed without rotating `ShadowAuthSecret`. Public routes, legal pages, auth session lookup, installers, public key, CSP, cache policy, and internal-firehose concealment passed live smoke checks. The Svelte-owned Playwright suite then passed nine deployed public, compact-layout, documentation, legal, authentication-entry, protected-redirect, and invalid-credential checks; the follow-up shadow plan is `2 to noop`.
 - [x] With dedicated production OAuth inputs present, the 2026-08-31 production Alchemy deployment created only the unattached `omgsveltesite-website-prod-dlaqgfttmir2ky5x` Worker, stage-scoped bindings, limiters, and generated auth secret. It has no workers.dev URL, hostname, Worker Route, D1 resource action, or existing-Worker adoption. The latest source-only update produced deployment `a5a7654b-b19b-4a76-a435-fb1d98fbcc70`, serving Worker version `88e2322f-a3c5-4ca7-afc6-cc60ac9198ce` at 100%; the follow-up production plan is `2 to noop`.
 - [x] The existing D1 database is attached as a raw Worker binding by its stable database identifier. Alchemy does not own the database resource or its schema; Wrangler remains the sole migration authority.
@@ -168,18 +169,39 @@ Do not attach production routes before the coordinated cutover. Do not enable St
 
 Every path below is classified **remove after successful hostname observation**. The replacement class is determined by its prefix:
 
-| Solid prefix                                                                                           | Replacement authority                                                                            |
-| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `site/src/routes`, `site/src/entry-*`, `site/src/app.*`, `site/src/middleware*`                        | SvelteKit routes, hooks, server loads/actions, and Alchemy Worker runtime                        |
-| `site/src/components`, `site/src/pages`, `site/src/design-system`                                      | Svelte components and route-local presentation                                                   |
-| `site/src/lib/analytics-client.ts`, `site/src/lib/performance-entry*`                                  | Same-origin Svelte analytics view model and Service Binding endpoint                             |
-| `site/src/lib/contracts`, `site/src/lib/licensing-bff*`, `site/src/lib/admin.ts`, `site/src/lib/auth*` | Effect Schema Svelte server boundaries and retained top-level `shared` contracts                 |
-| remaining `site/src/lib` and `site/src/types`                                                          | Superseded Solid-only state, fetch, formatting, helper, and test modules with no retained caller |
+| Solid prefix                                                                                           | Replacement authority                                                                                               |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `site/src/routes`, `site/src/entry-*`, `site/src/app.*`, `site/src/middleware*`                        | SvelteKit routes, hooks, server loads/actions, and Alchemy Worker runtime                                           |
+| `site/src/components`, `site/src/pages`, `site/src/design-system`                                      | Svelte components and route-local presentation                                                                      |
+| `site/src/lib/analytics-client.ts`, `site/src/lib/performance-entry*`                                  | Same-origin Svelte analytics view model and Service Binding endpoint                                                |
+| `site/src/lib/contracts`, `site/src/lib/licensing-bff*`, `site/src/lib/admin.ts`, `site/src/lib/auth*` | Effect Schema Svelte server boundaries and retained top-level `shared` contracts                                    |
+| remaining `site/src/lib` and `site/src/types`                                                          | Superseded Solid-only state, fetch, formatting, helper, and test modules with no retained caller                    |
+| `site/public` retained artifacts                                                                       | Byte-identical copies in `site-svelte/static`; `_headers` and `_redirects` are replaced by Svelte hooks and Alchemy |
+| remaining `site/tools`, root configuration, package, generated types, and Wrangler files               | Solid build and deployment authority, removed only after hostname observation                                       |
 
-`tools/check-source-policy.mjs` fails unless this inventory exactly matches the filesystem and no production source outside `site/src` imports a listed path.
+`tools/check-source-policy.mjs` fails unless this inventory exactly matches every Solid-owned file, every retained public artifact is byte-identical in `site-svelte/static`, and no retained production source imports from `site/`.
 
 <!-- solid-deletion-manifest:start -->
 
+site/.prettierignore
+site/.prettierrc
+site/app.config.ts
+site/package-lock.json
+site/package.json
+site/postcss.config.js
+site/public/_headers
+site/public/_redirects
+site/public/.well-known/omg-license-ed25519-v1.pem
+site/public/favicon.png
+site/public/favicon.svg
+site/public/icons/icon-192.png
+site/public/icons/icon-512.png
+site/public/install.ps1
+site/public/install.sh
+site/public/logo-globe.png
+site/public/manifest.json
+site/public/og/omg-og.png
+site/public/og/omg-og.svg
 site/src/app.css
 site/src/app.tsx
 site/src/components/Benchmarks.tsx
@@ -294,4 +316,9 @@ site/src/routes/terms.tsx
 site/src/types/cloudflare.d.ts
 site/src/types/index.ts
 site/src/types/ui/filters.ts
+site/tools/prepare-worker-assets.mjs
+site/tsconfig.json
+site/vitest.config.ts
+site/worker-configuration.d.ts
+site/wrangler.toml
 <!-- solid-deletion-manifest:end -->

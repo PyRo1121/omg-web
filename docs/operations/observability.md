@@ -61,7 +61,7 @@ Before deploying an observability change:
 1. Run repository checks and Worker tests.
 2. Run `wrangler types --check` for Workers with generated bindings.
 3. Run `wrangler deploy --dry-run` for each standalone Worker.
-4. Build the Pages application and verify its production bundle budgets.
+4. Build the current Solid rollback origin and the Svelte application, then run the Svelte-owned production client bundle budget.
 5. After an approved deployment, confirm invocation logs, one structured application event, and sampled traces in the Cloudflare dashboard.
 
 Never mutate production bindings or sampling settings during an audit-only task.

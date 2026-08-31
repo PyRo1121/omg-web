@@ -10,9 +10,7 @@
   "scripts": {
     "audit": "npm audit",
     "build": "npm run build:site",
-    "build:check": "npm run build:site && npm run check:bundle-budget",
     "build:site": "vinxi build && node tools/prepare-worker-assets.mjs",
-    "check:bundle-budget": "node tools/check-bundle-budget.mjs",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
     "check:fix": "npm run lint:fix && npm run format",
     "dev": "vinxi dev",

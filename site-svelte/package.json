@@ -11,7 +11,9 @@
   "scripts": {
     "audit": "npm audit",
     "build": "vite build",
+    "build:check": "npm run build && npm run check:bundle-budget",
     "check": "npm run sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --noEmit && npm run typecheck:e2e",
+    "check:bundle-budget": "node tools/check-bundle-budget.mjs",
     "deploy": "node alchemy.environment.mjs deploy",
     "destroy": "node alchemy.environment.mjs destroy",
     "dev": "node alchemy.environment.mjs dev",

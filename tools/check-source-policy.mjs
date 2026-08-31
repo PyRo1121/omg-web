@@ -15,6 +15,26 @@ const sourceRoots = [
   'workers/releases/src',
 ];
 const sourceExtensions = new Set(['.js', '.jsx', '.mjs', '.svelte', '.ts', '.tsx']);
+const solidDeletionDirectories = ['site/src', 'site/public', 'site/tools'];
+const solidDeletionRootFiles = [
+  'site/.prettierignore',
+  'site/.prettierrc',
+  'site/app.config.ts',
+  'site/package-lock.json',
+  'site/package.json',
+  'site/postcss.config.js',
+  'site/tsconfig.json',
+  'site/vitest.config.ts',
+  'site/worker-configuration.d.ts',
+  'site/wrangler.toml',
+];
+const transientSolidBuildEntries = new Set([
+  '.vinxi',
+  '.wrangler',
+  'dist',
+  'node_modules',
+  'test-results',
+]);
 const productionWranglerConfigs = [
   'site/wrangler.toml',
   'workers/api/wrangler.toml',
@@ -107,17 +127,62 @@ const manifestStart = '<!-- solid-deletion-manifest:start -->';
 const manifestEnd = '<!-- solid-deletion-manifest:end -->';
 const manifestBody = solidManifest.split(manifestStart)[1]?.split(manifestEnd)[0];
 const manifestEntries =
-  manifestBody
-    ?.match(/^site\/src\/[^\n]+$/gm)
-    ?.toSorted((left, right) => left.localeCompare(right)) ?? [];
-const solidFiles = (await allFiles('site/src')).toSorted((left, right) =>
-  left.localeCompare(right)
-);
+  manifestBody?.match(/^site\/[^\n]+$/gm)?.toSorted((left, right) => left.localeCompare(right)) ??
+  [];
+const solidFiles = [
+  ...(await Promise.all(solidDeletionDirectories.map(directory => allFiles(directory)))).flat(),
+  ...solidDeletionRootFiles,
+].toSorted((left, right) => left.localeCompare(right));
 if (!isDeepStrictEqual(manifestEntries, solidFiles)) {
   process.stderr.write(
-    `[source-policy] ${solidManifestPath}: Solid deletion manifest must list every current site/src file exactly once\n`
+    `[source-policy] ${solidManifestPath}: Solid deletion manifest must list every owned site file exactly once\n`
   );
   violations += 1;
+}
+
+const solidDeletionDirectoryNames = new Set(
+  solidDeletionDirectories.map(path => posix.basename(path))
+);
+const solidDeletionRootNames = new Set(solidDeletionRootFiles.map(path => posix.basename(path)));
+for (const entry of await readdir(new URL('site/', workspaceRoot), { withFileTypes: true })) {
+  if (transientSolidBuildEntries.has(entry.name)) continue;
+  if (solidDeletionDirectoryNames.has(entry.name) && entry.isDirectory()) continue;
+  if (solidDeletionRootNames.has(entry.name) && entry.isFile()) continue;
+  process.stderr.write(
+    `[source-policy] site/${entry.name}: unclassified Solid application entry is outside the deletion manifest\n`
+  );
+  violations += 1;
+}
+
+const solidPublicRuntimeFiles = new Set(['site/public/_headers', 'site/public/_redirects']);
+const solidPublicFiles = (await allFiles('site/public')).filter(
+  path => !solidPublicRuntimeFiles.has(path)
+);
+const svelteStaticFiles = await allFiles('site-svelte/static');
+const relativeSolidPublicFiles = solidPublicFiles
+  .map(path => path.slice('site/public/'.length))
+  .toSorted();
+const relativeSvelteStaticFiles = svelteStaticFiles
+  .map(path => path.slice('site-svelte/static/'.length))
+  .toSorted();
+if (!isDeepStrictEqual(relativeSolidPublicFiles, relativeSvelteStaticFiles)) {
+  process.stderr.write(
+    '[source-policy] site/public and site-svelte/static must contain the same retained public artifacts apart from Solid-only routing files\n'
+  );
+  violations += 1;
+} else {
+  for (const relativePath of relativeSolidPublicFiles) {
+    const solidBytes = await readFile(new URL(`site/public/${relativePath}`, workspaceRoot));
+    const svelteBytes = await readFile(
+      new URL(`site-svelte/static/${relativePath}`, workspaceRoot)
+    );
+    if (!solidBytes.equals(svelteBytes)) {
+      process.stderr.write(
+        `[source-policy] site-svelte/static/${relativePath}: retained public artifact differs from the current production copy\n`
+      );
+      violations += 1;
+    }
+  }
 }
 
 for (const root of sourceRoots) {

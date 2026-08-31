@@ -43,7 +43,7 @@ jobs:
       - run: npm ci --prefix workers/releases
       # The deploy dry-run inside check builds the site after cheap deterministic gates.
       - run: npm run check
-      - run: npm run check:bundle-budget --prefix site
+      - run: npm run check:bundle-budget --prefix site-svelte
 
   e2e-anonymous:
     runs-on: ubuntu-latest
