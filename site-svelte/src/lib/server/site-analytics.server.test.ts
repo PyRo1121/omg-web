@@ -11,7 +11,7 @@ class AnalyticsServiceStub {
   }
 }
 
-function request(body: string, contentType = 'application/json'): Request {
+function request(body: string | ArrayBuffer, contentType = 'application/json'): Request {
   return new Request('https://omg.latham.cloud/api/analytics/site/', {
     method: 'POST',
     headers: {
@@ -64,6 +64,22 @@ describe('site analytics forwarding', () => {
     expect(service.request?.headers.get('CF-IPCountry')).toBe('US');
     expect(service.request?.headers.has('Cookie')).toBe(false);
     expect(service.request?.headers.has('Authorization')).toBe(false);
+  });
+
+  it('rejects malformed UTF-8 before the Service Binding', async () => {
+    const service = new AnalyticsServiceStub();
+    const prefix = new TextEncoder().encode('{"events":[],"padding":"');
+    const suffix = new TextEncoder().encode('"}');
+    const buffer = new ArrayBuffer(prefix.byteLength + 1 + suffix.byteLength);
+    const body = new Uint8Array(buffer);
+    body.set(prefix);
+    body[prefix.byteLength] = 0xff;
+    body.set(suffix, prefix.byteLength + 1);
+
+    const exit = await Effect.runPromiseExit(forwardSiteAnalytics(request(buffer), service));
+
+    expect(failureOf(exit)?.status).toBe(400);
+    expect(service.request).toBeNull();
   });
 
   it('rejects malformed and oversized browser input before the Service Binding', async () => {

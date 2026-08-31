@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   loadAdminAudit,
@@ -20,6 +20,13 @@ const identity = {
 class OperationsServiceStub {
   readonly paths: Array<string> = [];
   readonly internalSecrets: Array<string | null> = [];
+
+  constructor(
+    private readonly exportResponse: () => Response = () =>
+      new Response('created_at,action\n2026-08-30,auth.login\n', {
+        headers: { 'Content-Type': 'text/csv' },
+      })
+  ) {}
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -70,9 +77,7 @@ class OperationsServiceStub {
       });
     }
     if (url.pathname === '/api/admin/export/audit') {
-      return new Response('created_at,action\n2026-08-30,auth.login\n', {
-        headers: { 'Content-Type': 'text/csv' },
-      });
+      return this.exportResponse();
     }
     return Response.json({ error: 'not found' }, { status: 404 });
   }
@@ -145,6 +150,23 @@ describe('admin operations service', () => {
     expect(value.events).toHaveLength(1);
     expect(service.paths).toEqual(['/api/internal/admin/firehose?limit=50']);
     expect(service.internalSecrets).toEqual(['private-secret']);
+  });
+
+  it('rejects malformed UTF-8 in a private CSV export', async () => {
+    const service = new OperationsServiceStub(() => {
+      const prefix = new TextEncoder().encode('created_at,action\n2026-08-30,');
+      const buffer = new ArrayBuffer(prefix.byteLength + 1);
+      const body = new Uint8Array(buffer);
+      body.set(prefix);
+      body[prefix.byteLength] = 0xff;
+      return new Response(buffer, { headers: { 'Content-Type': 'text/csv' } });
+    });
+
+    const exit = await Effect.runPromiseExit(
+      loadAdminExport(identity, environment(service), 'audit')
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
   });
 
   it('opens an audited CSV export through the private session', async () => {

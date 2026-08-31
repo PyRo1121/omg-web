@@ -55,7 +55,11 @@ export function readBoundedUrlEncodedForm(
         bytes.set(chunk, offset);
         offset += chunk.byteLength;
       }
-      return new URLSearchParams(new TextDecoder().decode(bytes));
+      try {
+        return new URLSearchParams(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+      } catch {
+        throw new BoundedFormRejected(400, 'invalid');
+      }
     },
     catch: cause =>
       cause instanceof BoundedFormRejected ? cause : new BoundedFormUnavailable(cause),

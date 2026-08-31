@@ -17,7 +17,7 @@ import type { Actions, PageServerLoad } from './$types';
 const INVITATION_COOKIE_OPTIONS = {
   httpOnly: true,
   maxAge: 60 * 60 * 48,
-  path: '/',
+  path: ORGANIZATION_INVITATION_ACCEPT_PATH,
   sameSite: 'lax' as const,
   secure: true,
 };
@@ -83,7 +83,9 @@ export const load: PageServerLoad = async event => {
     event.platform.env.BETTER_AUTH_SECRET
   );
   if (invitationId === null) {
-    event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, { path: '/' });
+    event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, {
+      path: ORGANIZATION_INVITATION_ACCEPT_PATH,
+    });
     return { invitation: INVALID_INVITATION };
   }
 

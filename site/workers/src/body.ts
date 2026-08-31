@@ -77,7 +77,7 @@ export function readBoundedBodyText(
         body.set(chunk, offset);
         offset += chunk.byteLength;
       }
-      return new TextDecoder().decode(body);
+      return new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(body);
     },
     catch: cause =>
       cause instanceof InvalidJsonBodyError

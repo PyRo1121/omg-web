@@ -185,6 +185,24 @@ describe('remaining HTTP bodies', () => {
     expect(Exit.isFailure(exit)).toBe(true);
   });
 
+  it('rejects malformed UTF-8 before JSON schema decoding', async () => {
+    const prefix = new TextEncoder().encode('{"machine_id":"');
+    const suffix = new TextEncoder().encode('"}');
+    const body = new Uint8Array(prefix.byteLength + 1 + suffix.byteLength);
+    body.set(prefix);
+    body[prefix.byteLength] = 0xff;
+    body.set(suffix, prefix.byteLength + 1);
+    const request = new Request('https://omg-api.latham.cloud/api/machines/revoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+
+    const exit = await Effect.runPromiseExit(decodeJsonBody(request, MachineIdBodySchema));
+
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
+
   it('decodes a tracking batch', async () => {
     const request = new Request('https://omg-api.latham.cloud/api/track', {
       method: 'POST',

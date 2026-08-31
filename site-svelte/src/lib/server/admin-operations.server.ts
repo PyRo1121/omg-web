@@ -230,6 +230,11 @@ async function readBoundedExport(
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
+  try {
+    new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch (cause: unknown) {
+    throw new LicensingSummaryInvalidPayload(operation, cause);
+  }
   return buffer;
 }
 

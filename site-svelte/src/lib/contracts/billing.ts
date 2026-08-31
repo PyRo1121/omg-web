@@ -24,6 +24,7 @@ function trustedStripeUrlSchema(hostname: string) {
         parsed !== null &&
         parsed.protocol === 'https:' &&
         parsed.hostname === hostname &&
+        parsed.port === '' &&
         parsed.username === '' &&
         parsed.password === ''
       );

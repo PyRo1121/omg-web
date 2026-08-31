@@ -1,7 +1,12 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 
-const Count = Schema.Number.check(Schema.makeFilter(value => Number.isFinite(value) && value >= 0));
+const POLL_INTERVAL_MS = 5_000;
+const EVENT_LIMIT = 100;
+const LIVE_RESPONSE_LIMIT = 512 * 1024;
+const NonNegativeNumber = Schema.Number.check(
+  Schema.makeFilter(value => Number.isFinite(value) && value >= 0)
+);
 const Text = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256));
 const LivePayloadSchema = Schema.Struct({
   events: Schema.Array(
@@ -11,18 +16,72 @@ const LivePayloadSchema = Schema.Struct({
       timestamp: Text,
       version: Text,
       platform: Text,
-      durationMs: Schema.NullOr(Count),
+      durationMs: Schema.NullOr(NonNegativeNumber),
       createdAt: Text,
     })
-  ),
-  count: Count,
+  ).check(Schema.isMaxLength(EVENT_LIMIT)),
+  count: Schema.Natural,
   refreshedAt: Text,
 });
 
 export type LiveEvent = Schema.Schema.Type<typeof LivePayloadSchema>['events'][number];
 export type LiveFeedState = 'current' | 'refreshing' | 'paused' | 'unavailable';
-const POLL_INTERVAL_MS = 5_000;
-const EVENT_LIMIT = 100;
+
+class LiveResponseInvalid extends Error {
+  readonly _tag = 'LiveResponseInvalid';
+
+  constructor(override readonly cause?: unknown) {
+    super('Live feed response invalid');
+  }
+}
+
+/** Decode one same-origin live response without permitting unbounded browser allocation. */
+export function decodeLivePayloadResponse(
+  response: Response
+): Effect.Effect<Schema.Schema.Type<typeof LivePayloadSchema>, LiveResponseInvalid> {
+  const contentLength = response.headers.get('Content-Length');
+  if (contentLength !== null) {
+    const declaredLength = Number(contentLength);
+    if (!Number.isSafeInteger(declaredLength) || declaredLength < 0) {
+      return Effect.fail(new LiveResponseInvalid());
+    }
+    if (declaredLength > LIVE_RESPONSE_LIMIT) {
+      return Effect.fail(new LiveResponseInvalid());
+    }
+  }
+
+  return Effect.tryPromise({
+    try: async () => {
+      const reader = response.body?.getReader();
+      if (reader === undefined) throw new LiveResponseInvalid();
+      const chunks: Array<Uint8Array> = [];
+      let total = 0;
+      for (;;) {
+        const next = await reader.read();
+        if (next.done) break;
+        total += next.value.byteLength;
+        if (total > LIVE_RESPONSE_LIMIT) {
+          await reader.cancel().catch(() => undefined);
+          throw new LiveResponseInvalid();
+        }
+        chunks.push(next.value);
+      }
+      const bytes = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    },
+    catch: cause => (cause instanceof LiveResponseInvalid ? cause : new LiveResponseInvalid(cause)),
+  }).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(LivePayloadSchema)),
+    Effect.mapError(cause =>
+      cause instanceof LiveResponseInvalid ? cause : new LiveResponseInvalid(cause)
+    )
+  );
+}
 
 function eventKey(event: LiveEvent): string {
   return `${event.timestamp}\u0000${event.createdAt}\u0000${event.eventType}\u0000${event.eventName}\u0000${event.platform}`;
@@ -90,10 +149,8 @@ export class AdminLiveFeed {
         signal: controller.signal,
       });
       if (!response.ok) throw new Error('Live feed request rejected');
-      const decoded = await Effect.runPromiseExit(
-        Schema.decodeUnknownEffect(LivePayloadSchema)(await response.json())
-      );
-      if (Exit.isFailure(decoded)) throw new Error('Live feed response invalid');
+      const decoded = await Effect.runPromiseExit(decodeLivePayloadResponse(response));
+      if (Exit.isFailure(decoded)) throw new LiveResponseInvalid();
       const merged = new Map<string, LiveEvent>();
       for (const event of [...decoded.value.events, ...this.events])
         merged.set(eventKey(event), event);

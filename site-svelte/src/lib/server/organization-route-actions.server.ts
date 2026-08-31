@@ -32,6 +32,7 @@ import {
   readOrganizationBootstrapForm,
 } from './organization-workspace.server';
 import {
+  ORGANIZATION_INVITATION_ACCEPT_PATH,
   ORGANIZATION_INVITATION_REFERENCE_COOKIE,
   resolveOrganizationInvitationReference,
 } from './organization-invitation-token.server';
@@ -557,7 +558,9 @@ export async function acceptOrganizationInvitationAction(
     resolveOrganizationInvitationReference(reference, event.platform.env.BETTER_AUTH_SECRET)
   );
   if (Exit.isFailure(invitationIdExit)) {
-    event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, { path: '/' });
+    event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, {
+      path: ORGANIZATION_INVITATION_ACCEPT_PATH,
+    });
     return organizationInvitationFailure(new OrganizationInvitationNotFound(), 'accept');
   }
   let organizationId: string | null;
@@ -601,7 +604,9 @@ export async function acceptOrganizationInvitationAction(
     organizationId,
     'organization.invitation.accepted'
   );
-  event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, { path: '/' });
+  event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, {
+    path: ORGANIZATION_INVITATION_ACCEPT_PATH,
+  });
   redirect(303, '/dashboard/organization/');
 }
 
@@ -635,7 +640,9 @@ export async function rejectOrganizationInvitationAction(
     resolveOrganizationInvitationReference(reference, event.platform.env.BETTER_AUTH_SECRET)
   );
   if (Exit.isFailure(invitationIdExit)) {
-    event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, { path: '/' });
+    event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, {
+      path: ORGANIZATION_INVITATION_ACCEPT_PATH,
+    });
     return organizationInvitationFailure(new OrganizationInvitationNotFound(), 'reject');
   }
   let organizationId: string | null;
@@ -679,7 +686,9 @@ export async function rejectOrganizationInvitationAction(
     organizationId,
     'organization.invitation.rejected'
   );
-  event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, { path: '/' });
+  event.cookies.delete(ORGANIZATION_INVITATION_REFERENCE_COOKIE, {
+    path: ORGANIZATION_INVITATION_ACCEPT_PATH,
+  });
   redirect(303, '/dashboard/');
 }
 

@@ -70,6 +70,16 @@ describe('Svelte billing service', () => {
     expect(Exit.isFailure(exit)).toBe(true);
   });
 
+  it('rejects a billing portal redirect on a non-default HTTPS port', async () => {
+    const service = new BillingServiceStub(() =>
+      Response.json({ success: true, url: 'https://billing.stripe.com:8443/p/session' })
+    );
+
+    const exit = await Effect.runPromiseExit(createBillingPortal(identity, environment(service)));
+
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
+
   it('creates checkout through an authenticated private session', async () => {
     const service = new BillingServiceStub(() =>
       Response.json({
@@ -101,6 +111,21 @@ describe('Svelte billing service', () => {
       Response.json({
         sessionId: 'cs_1234567890ABCDE',
         url: 'https://attacker.example/checkout',
+      })
+    );
+
+    const exit = await Effect.runPromiseExit(
+      createBillingCheckout(identity, environment(service), { offer: 'pro' })
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
+
+  it('rejects a checkout redirect on a non-default HTTPS port', async () => {
+    const service = new BillingServiceStub(() =>
+      Response.json({
+        sessionId: 'cs_1234567890ABCDE',
+        url: 'https://checkout.stripe.com:8443/c/pay/cs_test_safe',
       })
     );
 

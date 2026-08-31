@@ -133,7 +133,11 @@ async function readBoundedText(
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new TextDecoder().decode(bytes);
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch (cause: unknown) {
+    throw new SiteAnalyticsRejected(invalidStatus, cause);
+  }
 }
 
 function forwardedAnalyticsHeaders(request: Request): Headers {

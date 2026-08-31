@@ -559,6 +559,22 @@ describe('loadLicensingSummary', () => {
     );
     expect(failureOf(invalidUsageExit)).toBeInstanceOf(LicensingSummaryInvalidPayload);
 
+    const sessionPrefix = new TextEncoder().encode('{"token":"');
+    const sessionSuffix = new TextEncoder().encode(
+      '","expiresAt":"2026-09-01T00:00:00.000Z","customerId":"customer-1"}'
+    );
+    const malformedUtf8Body = new Uint8Array(
+      sessionPrefix.byteLength + 1 + sessionSuffix.byteLength
+    );
+    malformedUtf8Body.set(sessionPrefix);
+    malformedUtf8Body[sessionPrefix.byteLength] = 0xff;
+    malformedUtf8Body.set(sessionSuffix, sessionPrefix.byteLength + 1);
+    const malformedUtf8 = serviceWith(() => new Response(malformedUtf8Body));
+    const malformedUtf8Exit = await Effect.runPromiseExit(
+      loadLicensingSummary(identity, environment('user', malformedUtf8))
+    );
+    expect(failureOf(malformedUtf8Exit)).toBeInstanceOf(LicensingSummaryInvalidPayload);
+
     const nonJson = serviceWith(() => new Response('not-json'));
     const nonJsonExit = await Effect.runPromiseExit(
       loadLicensingSummary(identity, environment('user', nonJson))

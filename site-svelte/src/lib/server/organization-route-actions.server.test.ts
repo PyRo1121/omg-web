@@ -436,8 +436,9 @@ describe('organization invitation actions', () => {
     );
     let deleted = false;
     const cookies = {
-      delete: (name: string) => {
+      delete: (name: string, options: { readonly path: string }) => {
         expect(name).toBe('omg-organization-invitation');
+        expect(options.path).toBe('/dashboard/organization/invitations/accept/');
         deleted = true;
       },
       get: (name: string) => (name === 'omg-organization-invitation' ? reference : undefined),
@@ -468,8 +469,9 @@ describe('organization invitation actions', () => {
     );
     let deleted = false;
     const cookies = {
-      delete: (name: string) => {
+      delete: (name: string, options: { readonly path: string }) => {
         expect(name).toBe('omg-organization-invitation');
+        expect(options.path).toBe('/dashboard/organization/invitations/accept/');
         deleted = true;
       },
       get: (name: string) => (name === 'omg-organization-invitation' ? reference : undefined),
