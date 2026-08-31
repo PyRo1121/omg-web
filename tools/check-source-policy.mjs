@@ -75,18 +75,23 @@ const sourceFiles = relativeDirectory =>
   directoryFiles(relativeDirectory, name => sourceExtensions.has(extension(name)));
 const allFiles = relativeDirectory => directoryFiles(relativeDirectory, () => true);
 
-const solidRuntimeEntryPoints = new Set([
+const runtimeSourceDirectories = ['shared', 'site/src', 'site-svelte/src', 'workers/api/src'];
+const runtimeEntryPoints = new Set([
   'site/src/app.tsx',
   'site/src/entry-client.tsx',
   'site/src/entry-server.tsx',
   'site/src/middleware.ts',
+  'site-svelte/src/hooks.server.ts',
+  'workers/api/src/worker.ts',
 ]);
-const solidRuntimeExtensions = ['.js', '.jsx', '.mjs', '.ts', '.tsx'];
+const runtimeExtensions = [...sourceExtensions];
 
-function resolveSolidImport(importer, specifier, files) {
+function resolveRuntimeImport(importer, specifier, files) {
   let unresolved;
   if (specifier.startsWith('~/')) {
     unresolved = `site/src/${specifier.slice(2)}`;
+  } else if (specifier.startsWith('$lib/')) {
+    unresolved = `site-svelte/src/lib/${specifier.slice(5)}`;
   } else if (specifier.startsWith('.')) {
     unresolved = posix.normalize(posix.join(posix.dirname(importer), specifier));
   } else {
@@ -97,22 +102,22 @@ function resolveSolidImport(importer, specifier, files) {
   const candidates = [
     unresolved,
     base,
-    ...solidRuntimeExtensions.map(suffix => `${base}${suffix}`),
-    ...solidRuntimeExtensions.map(suffix => `${base}/index${suffix}`),
+    ...runtimeExtensions.map(suffix => `${base}${suffix}`),
+    ...runtimeExtensions.map(suffix => `${base}/index${suffix}`),
   ];
   return candidates.find(candidate => files.has(candidate)) ?? null;
 }
 
-async function unreachableSolidRuntimeFiles() {
-  const files = new Set(await sourceFiles('site/src'));
+async function unreachableRuntimeFiles() {
+  const files = new Set((await Promise.all(runtimeSourceDirectories.map(sourceFiles))).flat());
   const runtimeFiles = [...files].filter(
-    path =>
-      solidRuntimeExtensions.includes(extension(path)) &&
-      !path.endsWith('.d.ts') &&
-      !/\.(?:test|spec)\.[^.]+$/u.test(path)
+    path => !path.endsWith('.d.ts') && !/\.(?:test|spec)\.[^.]+$/u.test(path)
   );
   const entryPoints = runtimeFiles.filter(
-    path => solidRuntimeEntryPoints.has(path) || path.startsWith('site/src/routes/')
+    path =>
+      runtimeEntryPoints.has(path) ||
+      path.startsWith('site/src/routes/') ||
+      path.startsWith('site-svelte/src/routes/')
   );
   const dependencies = new Map();
 
@@ -123,7 +128,7 @@ async function unreachableSolidRuntimeFiles() {
     for (const match of contents.matchAll(importPattern)) {
       const specifier = match[1];
       if (specifier === undefined) continue;
-      const resolved = resolveSolidImport(path, specifier, files);
+      const resolved = resolveRuntimeImport(path, specifier, files);
       if (resolved !== null) imports.add(resolved);
     }
     dependencies.set(path, imports);
@@ -211,9 +216,9 @@ if (!isDeepStrictEqual(manifestEntries, solidFiles)) {
   violations += 1;
 }
 
-for (const path of await unreachableSolidRuntimeFiles()) {
+for (const path of await unreachableRuntimeFiles()) {
   process.stderr.write(
-    `[source-policy] ${path}: Solid runtime module is unreachable from every application or route entry point\n`
+    `[source-policy] ${path}: production module is unreachable from every application, route, or Worker entry point\n`
   );
   violations += 1;
 }
