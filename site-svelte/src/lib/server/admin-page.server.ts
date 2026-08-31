@@ -3,7 +3,7 @@ import { Cause, Exit, Option } from 'effect';
 import { loadAccountIdentity } from './account-dashboard.server';
 import { AdminOverviewForbidden } from './licensing-service.server';
 
-export interface AdminPageEvent {
+interface AdminPageEvent {
   readonly platform: App.Platform | undefined;
   readonly request: Request;
   readonly url: URL;

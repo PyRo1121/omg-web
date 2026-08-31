@@ -1,23 +1,23 @@
 import { Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 
-export interface InputTimingCandidate {
+interface InputTimingCandidate {
   readonly startTime?: number;
   readonly processingStart?: number;
 }
 
-export interface InteractionTimingCandidate {
+interface InteractionTimingCandidate {
   readonly startTime?: number;
   readonly processingEnd?: number;
 }
 
-export interface LayoutShiftCandidate {
+interface LayoutShiftCandidate {
   readonly startTime?: number;
   readonly value?: number;
   readonly hadRecentInput?: boolean;
 }
 
-export interface NavigationTimingCandidate {
+interface NavigationTimingCandidate {
   readonly startTime?: number;
   readonly requestStart?: number;
   readonly responseStart?: number;

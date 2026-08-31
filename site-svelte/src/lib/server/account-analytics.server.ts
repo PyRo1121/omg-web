@@ -52,7 +52,7 @@ const AccountAnalyticsResponseSchema = Schema.Struct({
   }),
 });
 
-export interface AccountAnalytics {
+interface AccountAnalytics {
   readonly totals: {
     readonly commands: number;
     readonly packagesInstalled: number;
@@ -82,14 +82,14 @@ export interface AccountAnalytics {
   };
 }
 
-export type AccountAnalyticsState =
+type AccountAnalyticsState =
   | { readonly status: 'available'; readonly analytics: AccountAnalytics }
   | { readonly status: 'verification-required' }
   | { readonly status: 'unavailable' };
 
 export type AccountAnalyticsExportFormat = 'csv' | 'json';
 
-export interface AccountAnalyticsExport {
+interface AccountAnalyticsExport {
   readonly body: string;
   readonly contentType: 'application/json; charset=utf-8' | 'text/csv; charset=utf-8';
   readonly filename: string;

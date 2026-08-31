@@ -94,17 +94,17 @@ interface OrganizationMemberWriteResult {
 }
 
 /** A server-only target membership resolved from the active organization. */
-export interface OrganizationMemberTarget {
+interface OrganizationMemberTarget {
   readonly id: string;
   readonly role: OrganizationInvitationRole | 'owner';
   readonly userId: string;
 }
 
 /** Parsed role-change form for an existing organization member. */
-export type OrganizationMemberRoleForm = OrganizationInvitationForm;
+type OrganizationMemberRoleForm = OrganizationInvitationForm;
 
 /** Parsed removal form for an existing organization member. */
-export type OrganizationMemberEmailForm = OrganizationInvitationEmailForm;
+type OrganizationMemberEmailForm = OrganizationInvitationEmailForm;
 
 /** The requested member is not in the actor's active organization. */
 export class OrganizationMemberNotFound extends Error {

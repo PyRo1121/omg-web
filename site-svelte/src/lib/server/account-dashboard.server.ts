@@ -130,7 +130,7 @@ export interface AccountDashboardIdentity {
   };
 }
 
-export interface AccountDashboardContext {
+interface AccountDashboardContext {
   readonly identity: AccountDashboardIdentity;
   readonly dashboard: AccountDashboardData;
 }

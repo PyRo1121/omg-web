@@ -63,7 +63,7 @@ const BillingPortalFormSchema = Schema.Struct({
   confirmation: Schema.Literal('open-billing'),
 });
 
-export interface AdminCustomerLicenseFormInput {
+interface AdminCustomerLicenseFormInput {
   readonly email: string;
   readonly tier: AdminCustomerTier;
   readonly status: AdminCustomerStatus;

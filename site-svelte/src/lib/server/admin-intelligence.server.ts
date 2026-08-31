@@ -200,7 +200,7 @@ const RevenueSchema = Schema.Struct({
   ),
 });
 
-export type AdminAnalytics = ReturnType<typeof projectAnalytics>;
+type AdminAnalytics = ReturnType<typeof projectAnalytics>;
 
 export function parseAdminAnalyticsDays(url: URL): 7 | 30 | 90 | null {
   const value = url.searchParams.get('days') ?? '30';
@@ -209,8 +209,8 @@ export function parseAdminAnalyticsDays(url: URL): 7 | 30 | 90 | null {
   if (value === '90') return 90;
   return null;
 }
-export type AdminInsights = ReturnType<typeof projectInsights>;
-export type AdminRevenue = ReturnType<typeof projectRevenue>;
+type AdminInsights = ReturnType<typeof projectInsights>;
+type AdminRevenue = ReturnType<typeof projectRevenue>;
 
 function compactLabelRows<T extends object, P>(
   rows: ReadonlyArray<T>,

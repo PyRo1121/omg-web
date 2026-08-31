@@ -74,13 +74,13 @@ const OrganizationUsageResponseSchema = Schema.Struct({
   }),
 });
 
-export type OrganizationUsageState =
+type OrganizationUsageState =
   | { readonly status: 'available'; readonly usage: OrganizationUsageResponse }
   | { readonly status: 'verification-required' }
   | { readonly status: 'no-organization' }
   | { readonly status: 'unavailable' };
 
-export class OrganizationUsageUnavailable extends Error {
+class OrganizationUsageUnavailable extends Error {
   readonly _tag = 'OrganizationUsageUnavailable';
 
   constructor(override readonly cause?: unknown) {
@@ -89,7 +89,7 @@ export class OrganizationUsageUnavailable extends Error {
 }
 
 /** Load a browser-safe usage projection for the actor's server-resolved active organization. */
-export function loadOrganizationUsage(
+function loadOrganizationUsage(
   identity: OrganizationWorkspaceIdentity,
   env: Pick<AuthEnvironment, 'DB' | 'LICENSING_API' | 'SVELTE_BFF_SECRET'>
 ): Effect.Effect<

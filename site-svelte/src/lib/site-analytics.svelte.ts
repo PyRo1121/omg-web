@@ -58,7 +58,7 @@ interface AnalyticsEvent {
 }
 
 /** Browser performance metrics accepted by the analytics reporting boundary. */
-export interface WebVitalsMetrics {
+interface WebVitalsMetrics {
   lcp?: number; // Largest Contentful Paint
   inp?: number; // Interaction to Next Paint (replaces FID)
   cls?: number; // Cumulative Layout Shift
@@ -343,7 +343,7 @@ function getMetricRating(
   return 'poor';
 }
 
-export function reportWebVitals(metrics: WebVitalsMetrics): void {
+function reportWebVitals(metrics: WebVitalsMetrics): void {
   if (vitalsReported) {
     return;
   }

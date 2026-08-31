@@ -52,7 +52,7 @@ const FirehoseSchema = Schema.Struct({
   timestamp: NonEmptyText,
 });
 
-export interface AdminAuditQuery {
+interface AdminAuditQuery {
   readonly action: string | null;
   readonly page: number;
 }
@@ -72,8 +72,8 @@ export function parseFirehoseSince(value: string | null): string | null | undefi
   return FIREHOSE_SINCE_PATTERN.test(value) ? value : undefined;
 }
 
-export type AdminAudit = ReturnType<typeof projectAudit>;
-export type AdminFirehose = ReturnType<typeof projectFirehose>;
+type AdminAudit = ReturnType<typeof projectAudit>;
+type AdminFirehose = ReturnType<typeof projectFirehose>;
 
 function projectAudit(payload: Schema.Schema.Type<typeof AuditSchema>) {
   return {
@@ -190,7 +190,7 @@ export const ADMIN_EXPORTS = {
   }
 >;
 
-export type AdminExportKind = keyof typeof ADMIN_EXPORTS;
+type AdminExportKind = keyof typeof ADMIN_EXPORTS;
 
 export function isAdminExportKind(value: string): value is AdminExportKind {
   return value === 'users' || value === 'usage' || value === 'audit';

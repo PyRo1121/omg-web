@@ -476,7 +476,7 @@ export function loadUserServiceSession(
   );
 }
 
-export type PrivateWorkerRequest =
+type PrivateWorkerRequest =
   | { readonly method: 'GET' | 'DELETE' }
   | { readonly method: 'POST' | 'PUT'; readonly body: LicensingBoundaryInput };
 

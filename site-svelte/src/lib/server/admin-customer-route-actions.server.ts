@@ -29,7 +29,7 @@ import {
   type LicensingSummaryIdentity,
 } from './licensing-service.server';
 
-export interface AdminCustomerRequestEvent {
+interface AdminCustomerRequestEvent {
   readonly platform: App.Platform | undefined;
   readonly request: Request;
   readonly url: URL;

@@ -2,7 +2,7 @@ import { Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import { MarketingPromotionCodeSchema } from './marketing-offer';
 
-export const BillingOfferSchema = Schema.Literals(['pro', 'team']);
+const BillingOfferSchema = Schema.Literals(['pro', 'team']);
 export type BillingOffer = Schema.Schema.Type<typeof BillingOfferSchema>;
 
 export const BillingCheckoutInputSchema = Schema.Struct({

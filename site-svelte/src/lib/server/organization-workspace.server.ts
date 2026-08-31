@@ -105,7 +105,7 @@ const OrganizationBootstrapSchema = Schema.Struct({
   name: OrganizationName,
   slug: OrganizationSlug,
 });
-export type OrganizationBootstrapInput = Schema.Schema.Type<typeof OrganizationBootstrapSchema>;
+type OrganizationBootstrapInput = Schema.Schema.Type<typeof OrganizationBootstrapSchema>;
 const OrganizationReferenceRowSchema = Schema.Struct({
   id: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256)),
 });
@@ -164,7 +164,7 @@ export interface OrganizationWorkspaceIdentity {
   readonly sessionToken: string;
 }
 
-export interface OrganizationWorkspaceBoundary {
+interface OrganizationWorkspaceBoundary {
   readonly entitlementRows: OrganizationBoundaryInput;
   readonly membershipRows: OrganizationBoundaryInput;
 }
@@ -178,21 +178,21 @@ export interface OrganizationSummary {
   readonly usedSeats: number;
 }
 
-export interface OrganizationMemberSummary {
+interface OrganizationMemberSummary {
   readonly email: string;
   readonly joinedAt: string;
   readonly name: string;
   readonly role: OrganizationRole;
 }
 
-export interface OrganizationInvitationSummary {
+interface OrganizationInvitationSummary {
   readonly email: string;
   readonly expiresAt: string;
   readonly role: 'admin' | 'member';
   readonly status: 'expired' | 'pending';
 }
 
-export type OrganizationMembersState =
+type OrganizationMembersState =
   | { readonly status: 'verification-required' | 'no-organization' | 'unavailable' }
   | {
       readonly status: 'active' | 'restricted';
@@ -203,13 +203,13 @@ export type OrganizationMembersState =
       readonly hasMoreInvitations: boolean;
     };
 
-export interface OrganizationMembersBoundary {
+interface OrganizationMembersBoundary {
   readonly membership: OrganizationBoundaryInput;
   readonly memberRows: OrganizationBoundaryInput;
   readonly invitationRows: OrganizationBoundaryInput;
 }
 
-export type OrganizationWorkspaceState =
+type OrganizationWorkspaceState =
   | { readonly status: 'verification-required' }
   | { readonly status: 'individual'; readonly tier: 'free' | 'pro' | null }
   | { readonly status: 'eligible'; readonly tier: PaidTierName; readonly maxSeats: number }

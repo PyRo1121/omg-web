@@ -80,28 +80,28 @@ export type OrganizationInvitationForm = Schema.Schema.Type<typeof InvitationFor
 export type OrganizationInvitationEmailForm = Schema.Schema.Type<typeof InvitationEmailFormSchema>;
 
 /** A bounded invitation reference kept on the server for lifecycle actions. */
-export interface PendingOrganizationInvitation {
+interface PendingOrganizationInvitation {
   readonly id: string;
   readonly role: OrganizationInvitationRole;
 }
 
 /** Parsed Better Auth result for a newly created or resent invitation. */
-export type OrganizationInvitationCreatedResult = Schema.Schema.Type<
+type OrganizationInvitationCreatedResult = Schema.Schema.Type<
   typeof PendingInvitationResponseSchema
 >;
 
 /** Parsed Better Auth result for a canceled invitation. */
-export type OrganizationInvitationCanceledResult = Schema.Schema.Type<
+type OrganizationInvitationCanceledResult = Schema.Schema.Type<
   typeof CanceledInvitationResponseSchema
 >;
 
 /** Parsed Better Auth result for an accepted invitation. */
-export type OrganizationInvitationAcceptedResult = Schema.Schema.Type<
+type OrganizationInvitationAcceptedResult = Schema.Schema.Type<
   typeof AcceptedInvitationResponseSchema
 >;
 
 /** Parsed Better Auth result for a rejected invitation. */
-export type OrganizationInvitationRejectedResult = Schema.Schema.Type<
+type OrganizationInvitationRejectedResult = Schema.Schema.Type<
   typeof RejectedInvitationResponseSchema
 >;
 
@@ -336,7 +336,7 @@ export function parseInvitationAcceptedResult(
 }
 
 /** Audit events emitted by organization membership lifecycle actions. */
-export type OrganizationAuditAction =
+type OrganizationAuditAction =
   | 'organization.invitation.accepted'
   | 'organization.invitation.created'
   | 'organization.invitation.revoked'

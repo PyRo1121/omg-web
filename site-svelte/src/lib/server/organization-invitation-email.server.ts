@@ -43,7 +43,7 @@ const InvitationEmailRequestSchema = Schema.Struct({
 const InvitationEmailResponseSchema = Schema.Struct({ sent: Schema.Literal(true) });
 
 /** Data required to deliver one Better Auth invitation email. */
-export interface OrganizationInvitationEmailInput {
+interface OrganizationInvitationEmailInput {
   readonly email: string;
   readonly expiresAt: Date | string;
   readonly invitationId: string;

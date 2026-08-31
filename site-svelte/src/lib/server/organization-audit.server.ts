@@ -66,12 +66,12 @@ const OrganizationAuditResponseSchema = Schema.Struct({
   ).check(Schema.isMaxLength(25)),
 });
 
-export interface OrganizationAuditQuery {
+interface OrganizationAuditQuery {
   readonly filter: OrganizationAuditFilter;
   readonly page: number;
 }
 
-export type OrganizationAuditState =
+type OrganizationAuditState =
   | { readonly status: 'available'; readonly audit: OrganizationAuditResponse }
   | { readonly status: 'verification-required' }
   | { readonly status: 'no-organization' }
@@ -85,7 +85,7 @@ export class OrganizationAuditQueryInvalid extends Error {
   }
 }
 
-export class OrganizationAuditUnavailable extends Error {
+class OrganizationAuditUnavailable extends Error {
   readonly _tag = 'OrganizationAuditUnavailable';
 
   constructor(override readonly cause?: unknown) {
@@ -113,7 +113,7 @@ export function readOrganizationAuditQuery(searchParams: URLSearchParams): Organ
 }
 
 /** Load browser-safe organization history for the server-resolved active organization. */
-export function loadOrganizationAudit(
+function loadOrganizationAudit(
   identity: OrganizationWorkspaceIdentity,
   query: OrganizationAuditQuery,
   env: Pick<AuthEnvironment, 'DB' | 'LICENSING_API' | 'SVELTE_BFF_SECRET'>
