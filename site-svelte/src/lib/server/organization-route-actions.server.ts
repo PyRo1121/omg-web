@@ -89,7 +89,7 @@ const defaultIdentityLoader: IdentityLoader = event => loadAccountIdentity(event
 
 type OrganizationMutationOutcome = 'allowed' | 'limited' | 'unavailable';
 
-async function organizationMutationRateLimit(
+export async function organizationMutationRateLimit(
   event: OrganizationActionEvent,
   key: string
 ): Promise<OrganizationMutationOutcome> {
@@ -106,7 +106,7 @@ async function organizationMutationRateLimit(
   }
 }
 
-function apiErrorCode(cause: unknown): string | null {
+export function apiErrorCode(cause: unknown): string | null {
   if (!(cause instanceof APIError)) {
     return null;
   }
@@ -204,7 +204,7 @@ function organizationInvitationFailure(
   });
 }
 
-async function requireActiveOrganizationForGrowth(
+export async function requireActiveOrganizationForGrowth(
   identity: AccountDashboardIdentity,
   event: OrganizationActionEvent
 ): Promise<'allowed' | 'restricted' | 'missing' | 'unavailable'> {
@@ -227,7 +227,7 @@ async function requireActiveOrganizationForGrowth(
   return 'unavailable';
 }
 
-async function readActionInput<T>(
+export async function readActionInput<T>(
   effect: Effect.Effect<T, OrganizationInvitationFormInvalid>
 ): Promise<T | OrganizationInvitationFormInvalid> {
   const result = await Effect.runPromiseExit(effect);

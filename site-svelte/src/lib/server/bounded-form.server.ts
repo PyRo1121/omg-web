@@ -17,6 +17,12 @@ export class BoundedFormUnavailable extends Error {
   }
 }
 
+/** Return one unambiguous form parameter and reject missing or repeated values. */
+export function readSingleFormParameter(params: URLSearchParams, name: string): string | null {
+  const values = params.getAll(name);
+  return values.length === 1 ? (values[0] ?? null) : null;
+}
+
 /** Read one URL-encoded request body without allowing an unbounded allocation. */
 export function readBoundedUrlEncodedForm(
   request: Request,

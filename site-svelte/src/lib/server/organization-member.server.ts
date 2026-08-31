@@ -1,7 +1,11 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import type { AuthEnvironment } from './auth.server';
-import { BoundedFormRejected, readBoundedUrlEncodedForm } from './bounded-form.server';
+import {
+  BoundedFormRejected,
+  readBoundedUrlEncodedForm,
+  readSingleFormParameter as oneParameter,
+} from './bounded-form.server';
 import {
   OrganizationInvitationEmailSchema,
   OrganizationInvitationFormInvalid,
@@ -168,11 +172,6 @@ export function readOrganizationMemberEmailForm(
   request: Request
 ): Effect.Effect<OrganizationMemberEmailForm, OrganizationInvitationFormInvalid> {
   return readOrganizationInvitationEmailForm(request);
-}
-
-function oneParameter(params: URLSearchParams, name: string): string | null {
-  const values = params.getAll(name);
-  return values.length === 1 ? (values[0] ?? null) : null;
 }
 
 /** Parse the exact target and second confirmation required for ownership transfer. */

@@ -2,7 +2,11 @@ import { Exit, Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import { EMAIL_PATTERN } from '../../../../shared/email';
 import type { AuthEnvironment } from './auth.server';
-import { BoundedFormRejected, readBoundedUrlEncodedForm } from './bounded-form.server';
+import {
+  BoundedFormRejected,
+  readBoundedUrlEncodedForm,
+  readSingleFormParameter as oneParameter,
+} from './bounded-form.server';
 import { reportEffectFailure } from './observability.server';
 import type { OrganizationWorkspaceIdentity } from './organization-workspace.server';
 
@@ -159,11 +163,6 @@ export class OrganizationInvitationResponseInvalid extends Error {
   constructor() {
     super('Organization invitation response is invalid');
   }
-}
-
-function oneParameter(params: URLSearchParams, name: string): string | null {
-  const values = params.getAll(name);
-  return values.length === 1 ? (values[0] ?? null) : null;
 }
 
 function parseInvitationEmail(

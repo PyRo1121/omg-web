@@ -1,6 +1,4 @@
 import { error, fail, redirect, type ActionFailure } from '@sveltejs/kit';
-import { APIError } from 'better-auth';
-import { Cause, Effect, Exit, Option } from 'effect';
 import { loadAccountIdentity, type AccountDashboardIdentity } from './account-dashboard.server';
 import { createShadowAuth, type AuthEnvironment } from './auth.server';
 import {
@@ -8,7 +6,13 @@ import {
   loadActiveOrganizationId,
   recordOrganizationAudit,
 } from './organization-invitation.server';
-import type { OrganizationActionEvent } from './organization-route-actions.server';
+import {
+  apiErrorCode,
+  organizationMutationRateLimit as organizationMemberRateLimit,
+  readActionInput,
+  requireActiveOrganizationForGrowth as loadMemberMutationState,
+  type OrganizationActionEvent,
+} from './organization-route-actions.server';
 import {
   findOrganizationMemberTarget,
   hasRecentOrganizationAuthentication,
@@ -54,32 +58,6 @@ interface OrganizationMemberActionFailure {
 }
 
 type OrganizationMemberActionFailureResult = ActionFailure<OrganizationMemberActionFailure>;
-
-type OrganizationMemberMutation = 'allowed' | 'limited' | 'unavailable';
-
-async function organizationMemberRateLimit(
-  event: OrganizationActionEvent,
-  key: string
-): Promise<OrganizationMemberMutation> {
-  if (event.platform === undefined) {
-    return 'unavailable';
-  }
-  try {
-    const result = await event.platform.env.AUTH_RATE_LIMITER.limit({
-      key: `organization:${key}`,
-    });
-    return result.success ? 'allowed' : 'limited';
-  } catch {
-    return 'unavailable';
-  }
-}
-
-function apiErrorCode(cause: unknown): string | null {
-  if (!(cause instanceof APIError)) {
-    return null;
-  }
-  return cause.body?.code ?? null;
-}
 
 function organizationMemberFailure(
   cause: unknown,
@@ -194,42 +172,6 @@ function organizationOwnershipFailure(cause: unknown): OrganizationMemberActionF
     kind: 'organization-member-error' as const,
     message: 'Organization membership is temporarily unavailable.',
   });
-}
-
-async function readActionInput<T>(
-  effect: Effect.Effect<T, OrganizationInvitationFormInvalid>
-): Promise<T | OrganizationInvitationFormInvalid> {
-  const result = await Effect.runPromiseExit(effect);
-  if (Exit.isSuccess(result)) {
-    return result.value;
-  }
-  const failure = Option.getOrNull(Cause.findErrorOption(result.cause));
-  return failure instanceof OrganizationInvitationFormInvalid
-    ? failure
-    : new OrganizationInvitationFormInvalid(400);
-}
-
-async function loadMemberMutationState(
-  identity: AccountDashboardIdentity,
-  event: OrganizationActionEvent
-): Promise<'allowed' | 'restricted' | 'missing' | 'unavailable'> {
-  if (event.platform === undefined) {
-    return 'unavailable';
-  }
-  const state = await loadOrganizationMembersState(
-    { ...identity.user, sessionToken: identity.sessionToken },
-    event.platform.env.DB
-  );
-  if (state.status === 'active') {
-    return 'allowed';
-  }
-  if (state.status === 'restricted') {
-    return 'restricted';
-  }
-  if (state.status === 'no-organization') {
-    return 'missing';
-  }
-  return 'unavailable';
 }
 
 async function prepareMemberMutation(
