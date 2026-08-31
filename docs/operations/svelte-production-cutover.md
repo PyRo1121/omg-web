@@ -40,14 +40,14 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 
 ## 3. Current parity and blockers
 
-| Capability                           | Svelte shadow                                                                                                                 | Gate before production                                         |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Home, docs, privacy, terms, metadata | Implemented with canonical metadata, checkout, and first-party analytics                                                      | Final anonymous desktop/compact characterization               |
-| Login/signup and Better Auth         | Implemented with an isolated secret and GitHub app                                                                            | Production callback inputs plus coordinated logout/cookie gate |
-| Account and organization workspaces  | Implemented with private licensing, billing, usage, fleet, invitations, membership, ownership, and audit flows                | Authenticated role/tier characterization                       |
-| Operator workspaces                  | Command center, customers, organizations, analytics, insights, revenue, audit, exports, and bounded live activity implemented | Authenticated operator characterization                        |
-| Solid BFF routes                     | Replaced by SvelteKit server loads, actions, same-origin endpoints, and private Service Binding calls                         | Caller-free check, hostname transfer, and observation          |
-| Static assets/installers/public key  | Required artifacts copied to `site-svelte/static` with fixed hash tests                                                       | Production-path smoke checks after hostname transfer           |
+| Capability                           | Svelte shadow                                                                                                                 | Gate before production                                                   |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Home, docs, privacy, terms, metadata | Implemented with canonical metadata, checkout, and first-party analytics                                                      | Final anonymous desktop/compact characterization                         |
+| Login/signup and Better Auth         | Implemented with an isolated secret and GitHub app                                                                            | Production callback characterization plus coordinated logout/cookie gate |
+| Account and organization workspaces  | Implemented with private licensing, billing, usage, fleet, invitations, membership, ownership, and audit flows                | Authenticated role/tier characterization                                 |
+| Operator workspaces                  | Command center, customers, organizations, analytics, insights, revenue, audit, exports, and bounded live activity implemented | Authenticated operator characterization                                  |
+| Solid BFF routes                     | Replaced by SvelteKit server loads, actions, same-origin endpoints, and private Service Binding calls                         | Caller-free check, hostname transfer, and observation                    |
+| Static assets/installers/public key  | Required artifacts copied to `site-svelte/static` with fixed hash tests                                                       | Production-path smoke checks after hostname transfer                     |
 
 ## 4. Migration tickets
 
@@ -105,8 +105,9 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 - [x] Production D1 returned `ok` from `PRAGMA quick_check`, no rows from `PRAGMA foreign_key_check`, and no pending Wrangler migrations.
 - [x] The coordinated-logout inventory query found 145 Better Auth sessions: 72 active and 73 expired. The exact cutover command is `cd site/workers && npx wrangler d1 execute omg-platform --remote --command "DELETE FROM auth_session"`; it remains deliberately unexecuted until the approved freeze window.
 - [x] Post-deployment boundary smokes reconfirmed anonymous shadow session access at `200`, public internal firehose concealment at `404`, public admin firehose rejection at `401`, installer hash parity, and a nonce-based script CSP without `'unsafe-inline'`.
-- [x] The shadow Alchemy plan was a no-op immediately after its last deployment. On 2026-08-31, the current `a16f6a7` plan reported only `Website` update with `ShadowAuthSecret` no-op because reviewed source has advanced since that deployment; this pending shadow code update was not deployed.
-- [x] With dedicated production OAuth inputs present, the 2026-08-31 production Alchemy plan reported `2 to create`: only the stage-scoped Svelte Website, bindings, limiters, and generated auth secret. It contains no hostname, Worker Route, D1 resource action, or existing-Worker adoption.
+- [x] External Stripe, Turnstile, and GitHub JSON responses are now streamed under protocol-specific byte ceilings, strictly decoded as UTF-8, parsed once, and schema-validated before use. Focused provider, offer, billing, and webhook tests cover valid, oversized, malformed UTF-8, and invalid-shape behavior.
+- [x] On 2026-08-31, the reviewed shadow `Website` update deployed without rotating `ShadowAuthSecret`. Public routes, legal pages, auth session lookup, installers, public key, CSP, cache policy, and internal-firehose concealment passed live smoke checks; the follow-up shadow plan is `2 to noop`.
+- [x] With dedicated production OAuth inputs present, the 2026-08-31 production Alchemy deployment created only the unattached `omgsveltesite-website-prod-dlaqgfttmir2ky5x` Worker, stage-scoped bindings, limiters, and generated auth secret. It has no workers.dev URL, hostname, Worker Route, D1 resource action, or existing-Worker adoption. Deployment `35abceae-3c66-4373-a9aa-bb6946446b50` serves Worker version `b23c0fdb-d9c1-42d0-9600-97423978d76e` at 100%; the follow-up production plan is `2 to noop`.
 - [x] The existing D1 database is attached as a raw Worker binding by its stable database identifier. Alchemy does not own the database resource or its schema; Wrangler remains the sole migration authority.
 - [x] The shadow auth endpoint returns `200 null` anonymously after the binding change, proving the retained database remains reachable without exposing session data.
 - [x] User-controlled authenticated Helium characterization rendered account overview, analytics, achievements, machines, settings, organization bootstrap, operator overview, customers, organizations, analytics, insights, revenue, audit, exports, and live activity without exposing retained private identifiers.
@@ -114,7 +115,7 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 - [x] Operator insights then exposed an incomplete feature-adoption projection. Worker version `65860efe-5c7c-45f3-b03f-c5587a25b611` restored SBOM/vulnerability totals and SBOM adopters; focused authorization tests, Worker typecheck, lint, and formatting passed before deployment, and Insights, Revenue, and Audit rendered successfully afterward.
 - [x] Live activity returned `200`, resumed its bounded five-second polling when visible, and stopped issuing `/admin/live/events` requests while its tab was hidden. The fixed-name `omg-users.csv` export downloaded as a 409-byte `text/csv` file with the expected header and was deleted after validation.
 - [ ] Checkout remains blocked: authenticated Pro Checkout reaches `omg-saas` but returns `502` and the page presents `Checkout is temporarily unavailable.` A live restricted-key probe reproduced Stripe `more_permissions_required` for Checkout Sessions Write. Add only that permission to the dedicated Worker key, repeat Checkout, expire the unpaid characterization session, and record the successful redirect before approving the hostname window.
-- [x] Production OAuth fails closed before planning unless stage-specific credentials exist. On 2026-08-31, dedicated `PRODUCTION_GITHUB_CLIENT_ID` and `PRODUCTION_GITHUB_CLIENT_SECRET` entries were confirmed present in Secret Service, the production and shadow client IDs were compared without printing either value and confirmed distinct, and the production plan completed without printing credentials. Live production callback characterization remains a post-deployment gate.
+- [x] Production OAuth fails closed before planning unless stage-specific credentials exist. On 2026-08-31, dedicated `PRODUCTION_GITHUB_CLIENT_ID` and `PRODUCTION_GITHUB_CLIENT_SECRET` entries were confirmed present in Secret Service, the production and shadow client IDs were compared without printing either value and confirmed distinct, and the production deployment completed without printing secret values. Live production callback characterization remains a post-route gate.
 - [ ] The Alchemy OAuth profile currently has Worker Scripts access but no `workers_routes:write` or zone-read scope. Reauthorize it with only those additional permissions before reviewing the whole-host route plan; retain them through rollback/observation, then remove them after permanent hostname ownership is established.
 - [ ] Complete invitation-email and compact authenticated characterization before approving the hostname window.
 
@@ -122,7 +123,7 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 
 1. Freeze deployments and confirm both repositories/CI are green.
 2. Back up/bookmark D1 and record the current Worker versions.
-3. With the production OAuth and Stripe gates satisfied, deploy the production-stage Svelte Worker without a public route and verify its binding inventory.
+3. Reconfirm the already-deployed production-stage Svelte Worker is a no-op plan, record its current version, and verify its binding inventory remains unattached.
 4. Clear Better Auth sessions for the coordinated logout.
 5. In one reviewed Alchemy change, add the full-host `omg.latham.cloud/*` Worker Route to the production Svelte Worker. Keep the existing `omg-site` Custom Domain attached as the dormant rollback origin; do not add path exceptions or legacy forwarding.
 6. Run anonymous, GitHub OAuth, dashboard, admin, offer, checkout, fulfillment, legal, SEO, CSP, and installer gates.
@@ -153,7 +154,7 @@ After the agreed observation window:
 
 - [x] Target Worker independently accepts `SVELTE_BFF_SECRET` for private marketing-offer calls while retaining `ADMIN_API_SECRET` for existing callers.
 - [x] Svelte offer form/action bounds the request stream, schema-decodes inputs and responses, classifies failures, and projects only the public promotion code.
-- [x] Shadow deployment, post-deployment no-op plan, live offer creation, anonymous Checkout fail-closed behavior, and private-identifier projection checks. The current source now has a reviewed, undeployed shadow `Website` update pending.
+- [x] Shadow deployment, post-deployment no-op plan, live offer creation, anonymous Checkout fail-closed behavior, and private-identifier projection checks. The reviewed 2026-08-31 source update is deployed and its follow-up plan is a no-op.
 - [x] Authenticated Checkout creation with exact offer parsing and an allowlisted Stripe redirect.
 - [x] Bounded post-checkout fulfillment status with no session id, email, license key, or provider identifier in page data/DOM.
 - [ ] User-controlled authenticated Checkout characterization is blocked on the dedicated live restricted key's missing Checkout Sessions Write permission; the application fails closed with a bounded generic message.

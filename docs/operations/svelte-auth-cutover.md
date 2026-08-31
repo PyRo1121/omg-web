@@ -1,6 +1,6 @@
 # SvelteKit auth cutover plan
 
-**Status:** draft plan; no production change has been made
+**Status:** production Svelte Worker deployed but unattached; production auth traffic remains on Solid
 **Scope:** moving `/api/auth/*` from the SolidStart `omg-site` Worker to the SvelteKit `OmgSvelteSite` Alchemy stack at domain cutover
 
 This plan assumes the state recorded in [`cloudflare-environment-readiness.md`](./cloudflare-environment-readiness.md) (shadow topology, shared-database ownership contract, live characterization results) and the auth compatibility gate in [`../research/production-recovery-and-svelte-migration.md`](../research/production-recovery-and-svelte-migration.md) (§6, "Auth compatibility gate").
@@ -12,7 +12,7 @@ This plan assumes the state recorded in [`cloudflare-environment-readiness.md`](
 | Production | `omg-site` Worker (`site/wrangler.toml`)        | `site/src/routes/api/auth/[...auth].ts` → `createAuth()` in [`site/src/lib/auth.ts`](../../site/src/lib/auth.ts)       | write-only `BETTER_AUTH_SECRET` Wrangler secret plus `BETTER_AUTH_URL=https://omg.latham.cloud` |
 | Shadow     | SvelteKit Worker (`site-svelte/alchemy.run.ts`) | `createShadowAuth()` in [`site-svelte/src/lib/server/auth.server.ts`](../../site-svelte/src/lib/server/auth.server.ts) | `Alchemy.Random('ShadowAuthSecret')` bound as its own `BETTER_AUTH_SECRET`                      |
 
-Both runtimes mount Better Auth `1.7.1` against the retained `omg-platform` D1 tables (`auth_user`, `auth_session`, `auth_account`, `auth_verification`), with signup disabled and GitHub as the only social provider.
+Both traffic-bearing runtimes mount Better Auth `1.7.1` against the retained `omg-platform` D1 tables (`auth_user`, `auth_session`, `auth_account`, `auth_verification`), with signup disabled and GitHub as the only social provider. The production Svelte Worker is now deployed with its own fresh Alchemy-generated auth secret and dedicated GitHub app, but it has no workers.dev URL, hostname, or route and therefore receives no auth traffic.
 
 ### Alchemy deployment input injection
 
@@ -53,13 +53,13 @@ recreate `site-svelte/.env`.
 
 On 2026-08-31, both dedicated production entries were confirmed present in
 Secret Service and the production client ID was confirmed distinct from the
-shadow client ID without printing either value. The production plan completed
-with only the new Svelte Website and its stage-scoped bindings/resources. The
-shadow plan reported `ShadowAuthSecret` no-op plus a pending `Website` update
-from source changes after the last shadow deployment; neither plan deployed or
-attached traffic.
+shadow client ID without printing either value. The reviewed shadow update was
+deployed without rotating its auth secret, and its live public/auth smoke gates
+passed. The production Svelte Worker was then deployed with only its
+stage-scoped bindings/resources and no public hostname or route. Both follow-up
+plans report `2 to noop`; production auth traffic remains on Solid.
 
-**Sessions are not portable between the two runtimes.** Each derives its session tokens, signatures, and encrypted payloads from a different secret: production uses the human-provisioned Wrangler secret; the shadow uses an Alchemy-generated random value that is stable redacted state, deliberately different from production's. A session created by one runtime will not validate in the other. **Shadow sessions must never be presented as cutover-compatible sessions** — the shadow's green live checks prove runtime compatibility only, never session continuity ([readiness doc](./cloudflare-environment-readiness.md), "Alchemy migration authority").
+**Sessions are not portable between the runtimes.** Each derives its session tokens, signatures, and encrypted payloads from a different secret: current Solid production uses the human-provisioned Wrangler secret, while the shadow and unattached Svelte production stages each use separate Alchemy-generated random values stored as stable redacted state. A session created by one runtime will not validate in another. **Shadow sessions must never be presented as cutover-compatible sessions** — the shadow's green live checks prove runtime compatibility only, never session continuity ([readiness doc](./cloudflare-environment-readiness.md), "Alchemy migration authority").
 
 ## 2. Session continuity options at domain cutover
 
