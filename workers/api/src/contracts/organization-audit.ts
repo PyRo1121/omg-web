@@ -2,9 +2,9 @@ import * as Schema from 'effect/Schema';
 
 const PrivateReference = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
 const DisplayText = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
-export const OrganizationAuditFilterSchema = Schema.Literal('all', 'invitations', 'members');
-export const OrganizationAuditRoleSchema = Schema.Literal('owner', 'admin', 'member');
-export const OrganizationAuditActionSchema = Schema.Literal(
+const OrganizationAuditFilterSchema = Schema.Literal('all', 'invitations', 'members');
+const OrganizationAuditRoleSchema = Schema.Literal('owner', 'admin', 'member');
+const OrganizationAuditActionSchema = Schema.Literal(
   'organization.invitation.accepted',
   'organization.invitation.created',
   'organization.invitation.delivery_failed',

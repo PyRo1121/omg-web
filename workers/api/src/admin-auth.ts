@@ -29,7 +29,7 @@ class SessionForbiddenError extends Error {
 }
 
 /** D1 could not determine the persisted admin flag. */
-export class AdminAuthorizationUnavailable extends Error {
+class AdminAuthorizationUnavailable extends Error {
   readonly _tag = 'AdminAuthorizationUnavailable';
   constructor(override readonly cause?: unknown) {
     super('Admin authorization unavailable');

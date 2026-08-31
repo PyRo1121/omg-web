@@ -42,7 +42,7 @@ export type StripeFetch = (input: string | URL, init?: RequestInit) => Promise<R
 const MAX_STRIPE_API_RESPONSE_BYTES = 2 * 1024 * 1024;
 
 /** Current Stripe state or local projection could not be reconciled safely. */
-export class StripeReconciliationError extends Error {
+class StripeReconciliationError extends Error {
   readonly _tag = 'StripeReconciliationError';
 
   constructor(

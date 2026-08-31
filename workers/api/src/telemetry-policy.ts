@@ -8,7 +8,7 @@ const TelemetryPolicyRowSchema = Schema.Struct({
 });
 
 /** D1 failed while resolving a license's telemetry policy. */
-export class TelemetryPolicyStoreUnavailable extends Error {
+class TelemetryPolicyStoreUnavailable extends Error {
   readonly _tag = 'TelemetryPolicyStoreUnavailable';
 
   constructor(override readonly cause: unknown) {
@@ -17,7 +17,7 @@ export class TelemetryPolicyStoreUnavailable extends Error {
 }
 
 /** A persisted telemetry policy row violated its schema. */
-export class InvalidTelemetryPolicyRow extends Error {
+class InvalidTelemetryPolicyRow extends Error {
   readonly _tag = 'InvalidTelemetryPolicyRow';
 
   constructor(override readonly cause: unknown) {

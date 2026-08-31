@@ -7,7 +7,7 @@ import { CustomerId, EmailAddress, SessionToken } from '../../../../shared/site-
 export { CustomerId, EmailAddress, SessionToken };
 
 /** A failure decoding an OTP auth payload or D1 row. */
-export class AuthParseError extends Error {
+class AuthParseError extends Error {
   readonly _tag = 'AuthParseError';
   constructor(
     readonly reason: string,
@@ -18,8 +18,8 @@ export class AuthParseError extends Error {
 }
 
 /** A one-time verification code. */
-export const OtpCode = Schema.String.pipe(Schema.pattern(/^\d{6}$/u), Schema.brand('OtpCode'));
-export type OtpCode = Schema.Schema.Type<typeof OtpCode>;
+const OtpCode = Schema.String.pipe(Schema.pattern(/^\d{6}$/u), Schema.brand('OtpCode'));
+type OtpCode = Schema.Schema.Type<typeof OtpCode>;
 
 /** Body posted to send an OTP. */
 export const SendCodeRequestSchema = Schema.Struct({
@@ -39,14 +39,14 @@ export const SessionTokenRequestSchema = Schema.Struct({
 });
 
 /** Payload returned after sending an OTP. */
-export const SendCodeResponseSchema = Schema.Struct({
+const SendCodeResponseSchema = Schema.Struct({
   success: Schema.Literal(true),
   message: Schema.String,
 });
 export type SendCodeResponse = Schema.Schema.Type<typeof SendCodeResponseSchema>;
 
 /** Payload returned after verifying an OTP. */
-export const VerifyCodeResponseSchema = Schema.Struct({
+const VerifyCodeResponseSchema = Schema.Struct({
   success: Schema.Literal(true),
   token: SessionToken,
   expires_at: Schema.String.pipe(Schema.minLength(1)),
@@ -62,13 +62,13 @@ export const VerifyCodeResponseSchema = Schema.Struct({
 export type VerifyCodeResponse = Schema.Schema.Type<typeof VerifyCodeResponseSchema>;
 
 /** A valid unused OTP row. */
-export const AuthCodeRowSchema = Schema.Struct({
+const AuthCodeRowSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),
 });
 export type AuthCodeRow = Schema.Schema.Type<typeof AuthCodeRowSchema>;
 
 /** A customer row used while creating a session. */
-export const AuthCustomerRowSchema = Schema.Struct({
+const AuthCustomerRowSchema = Schema.Struct({
   id: CustomerId,
   email: Schema.String,
   company: Schema.optional(Schema.Union(Schema.Null, Schema.String)),

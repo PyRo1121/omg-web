@@ -5,8 +5,6 @@ import * as Schema from 'effect/Schema';
 import { D1Number, NullableStringSchema } from '../../../../shared/d1-rows';
 import { LicenseKey } from './license-key';
 
-export { LicenseKey };
-
 /** A failure decoding a validate-license payload or D1 row. */
 export class ValidateLicenseParseError extends Error {
   readonly _tag = 'ValidateLicenseParseError';
@@ -33,7 +31,7 @@ export const ValidateLicenseFieldsSchema = Schema.Struct({
   user_name: Schema.optional(Capped(128)),
   user_email: Schema.optional(NullableEmail),
 });
-export type ValidateLicenseFields = Schema.Schema.Type<typeof ValidateLicenseFieldsSchema>;
+type ValidateLicenseFields = Schema.Schema.Type<typeof ValidateLicenseFieldsSchema>;
 
 /** Normalized CLI activation request. */
 export interface ValidateLicenseRequest {

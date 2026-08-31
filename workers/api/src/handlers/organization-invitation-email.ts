@@ -49,7 +49,7 @@ const OpaqueReference = Schema.String.pipe(
 );
 
 /** The message shape passed to the email service adapter. */
-export interface OrganizationInvitationEmailMessage {
+interface OrganizationInvitationEmailMessage {
   readonly to: string;
   readonly from: string;
   readonly subject: string;
@@ -58,7 +58,7 @@ export interface OrganizationInvitationEmailMessage {
 }
 
 /** A private email adapter used by the handler and its integration tests. */
-export type OrganizationInvitationEmailSender = (
+type OrganizationInvitationEmailSender = (
   message: OrganizationInvitationEmailMessage
 ) => Promise<void>;
 

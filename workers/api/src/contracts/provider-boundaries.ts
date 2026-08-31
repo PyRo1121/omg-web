@@ -7,7 +7,7 @@ export const TurnstileSiteverifySchema = Schema.Struct({
 });
 
 /** One weekly entry from GitHub's commit-activity statistics endpoint. */
-export const GitHubCommitActivitySchema = Schema.Struct({
+const GitHubCommitActivitySchema = Schema.Struct({
   days: Schema.Array(Schema.Number),
   total: Schema.Number,
   week: Schema.Number,

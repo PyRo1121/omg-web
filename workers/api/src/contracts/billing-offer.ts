@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import { MarketingPromotionCodeSchema } from '../../../../shared/marketing-offer';
 
 /** Public offer identifiers accepted by checkout. */
-export const BillingOfferSchema = Schema.Literal('pro', 'team');
+const BillingOfferSchema = Schema.Literal('pro', 'team');
 export type BillingOffer = Schema.Schema.Type<typeof BillingOfferSchema>;
 
 /** HTTP body accepted by the checkout endpoint. */
@@ -16,7 +16,7 @@ const StripePriceIdSchema = Schema.String.pipe(
   Schema.pattern(/^price_[A-Za-z0-9_]+$/),
   Schema.brand('StripePriceId')
 );
-export type StripePriceId = Schema.Schema.Type<typeof StripePriceIdSchema>;
+type StripePriceId = Schema.Schema.Type<typeof StripePriceIdSchema>;
 
 /** Server-owned Stripe prices available for public billing offers. */
 export interface BillingCatalog {
@@ -36,7 +36,7 @@ const BILLING_ENTITLEMENTS = {
 } as const satisfies Record<BillingOffer, BillingEntitlement>;
 
 /** The selected offer has no valid server-owned Stripe price configured. */
-export class BillingOfferUnavailable extends Error {
+class BillingOfferUnavailable extends Error {
   readonly _tag = 'BillingOfferUnavailable';
 
   constructor(

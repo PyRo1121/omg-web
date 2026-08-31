@@ -154,7 +154,7 @@ export const StripeInvoiceListSchema = Schema.Struct({
 });
 
 /** Signed Stripe webhook envelope. */
-export const StripeWebhookEventSchema = Schema.Struct({
+const StripeWebhookEventSchema = Schema.Struct({
   id: Schema.String.pipe(Schema.minLength(1)),
   type: Schema.String.pipe(Schema.minLength(1)),
   data: Schema.Struct({

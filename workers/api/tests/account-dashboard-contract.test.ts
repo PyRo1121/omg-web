@@ -1,6 +1,7 @@
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { D1Number, DashboardLicenseRowSchema, decodeRow } from '../src/contracts/account-dashboard';
+import { D1Number } from '../../../shared/d1-rows';
+import { DashboardLicenseRowSchema, decodeRow } from '../src/contracts/account-dashboard';
 
 describe('decodeRow', () => {
   it('decodes an explicit license row', async () => {

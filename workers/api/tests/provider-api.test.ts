@@ -1,6 +1,8 @@
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { enforceRateLimit, TIER_FEATURES, verifyTurnstile, type ProviderFetch } from '../src/api';
+import { enforceRateLimit, TIER_FEATURES, verifyTurnstile } from '../src/api';
+
+type ProviderFetch = NonNullable<Parameters<typeof verifyTurnstile>[3]>;
 
 function responseFetch(body: string, status = 200): ProviderFetch {
   return () => Promise.resolve(new Response(body, { status }));

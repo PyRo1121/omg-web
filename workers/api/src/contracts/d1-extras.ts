@@ -798,7 +798,7 @@ export function decodeOptionalExtraRow<S extends Schema.Schema.AnyNoContext>(
 }
 
 /** Outcome of reading an optional D1 `.first()` row. */
-export type OptionalExtraRow<A> =
+type OptionalExtraRow<A> =
   | { readonly _tag: 'present'; readonly value: A }
   | { readonly _tag: 'missing' }
   | { readonly _tag: 'invalid' };

@@ -2,10 +2,7 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { CountRowSchema } from '../../../../shared/d1-rows';
 import { LicenseKey } from './license-key';
-
-export { LicenseKey, CountRowSchema };
 
 /** A failure decoding a license-ops payload or D1 row. */
 export class LicenseOpsParseError extends Error {
@@ -75,7 +72,7 @@ const AnalyticsPropertyValue = Schema.Union(
 // analytics_errors: without them every request mints new aggregate rows.
 const CappedKey = (max: number) => Schema.String.pipe(Schema.minLength(1), Schema.maxLength(max));
 
-export const AnalyticsEventSchema = Schema.Struct({
+const AnalyticsEventSchema = Schema.Struct({
   event_type: CappedKey(32),
   event_name: CappedKey(128),
   properties: Schema.optional(

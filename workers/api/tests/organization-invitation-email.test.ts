@@ -1,10 +1,12 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import type { Env } from '../src/api';
-import {
-  handleOrganizationInvitationEmail,
-  type OrganizationInvitationEmailMessage,
-} from '../src/handlers/organization-invitation-email';
+import { handleOrganizationInvitationEmail } from '../src/handlers/organization-invitation-email';
+
+type OrganizationInvitationEmailSender = NonNullable<
+  Parameters<typeof handleOrganizationInvitationEmail>[2]
+>;
+type OrganizationInvitationEmailMessage = Parameters<OrganizationInvitationEmailSender>[0];
 
 const SVELTE_BFF_SECRET = 'test-svelte-bff-secret';
 const INVITATION_URL = `https://omg.latham.cloud/dashboard/organization/invitations/accept/?token=v1.${'a'.repeat(16)}.${'b'.repeat(48)}`;

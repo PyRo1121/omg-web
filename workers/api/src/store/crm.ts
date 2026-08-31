@@ -27,7 +27,7 @@ class CrmStoreError extends Error {
 }
 
 /** A CRM mutation referenced a customer or tag that does not exist. */
-export class CrmTargetMissingError extends Error {
+class CrmTargetMissingError extends Error {
   readonly _tag = 'CrmTargetMissingError';
   constructor(
     readonly operation: string,

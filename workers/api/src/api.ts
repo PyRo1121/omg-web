@@ -422,10 +422,7 @@ export class TurnstileVerificationUnavailable extends Error {
 const MAX_TURNSTILE_RESPONSE_BYTES = 16 * 1024;
 
 /** Fetch seam for provider-boundary behavior tests. */
-export type ProviderFetch = (
-  input: string | URL | Request,
-  init?: RequestInit
-) => Promise<Response>;
+type ProviderFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
 /** Verify a token at Cloudflare's Siteverify boundary and decode its response. */
 export function verifyTurnstile(

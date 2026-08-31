@@ -14,7 +14,7 @@ export class InvalidJsonBodyError extends Error {
 }
 
 /** A provider response that is oversized, malformed UTF-8, or invalid JSON. */
-export class InvalidJsonResponseError extends Error {
+class InvalidJsonResponseError extends Error {
   readonly _tag = 'InvalidJsonResponseError';
   constructor(
     readonly reason: string,
