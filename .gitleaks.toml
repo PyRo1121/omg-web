@@ -1,9 +1,9 @@
 [allowlist]
 description = "Exact committed test and historical PoC evidence files containing verified non-production fixtures"
 paths = [
-  '''^site/workers/tests/validate-license\.test\.ts$''',
-  '''^site/workers/tests/stripe-webhook-inbox\.test\.ts$''',
-  '''^site/workers/tests/privacy\.test\.ts$''',
+  '''^workers/api/tests/validate-license\.test\.ts$''',
+  '''^workers/api/tests/stripe-webhook-inbox\.test\.ts$''',
+  '''^workers/api/tests/privacy\.test\.ts$''',
   '''^piolium/findings/p10-002-auth-surface-no-ip-rate-limiting/setup\.sh$''',
   '''^piolium/findings/p10-006-internal-site-session-public-shared-secret-admin-minting/setup\.sh$''',
   '''^piolium/findings/p10-008-stripe-customer-created-email-autolink/setup\.sh$''',

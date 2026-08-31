@@ -10,7 +10,7 @@ omg-web is a Cloudflare Workers SaaS platform that issues paid license/API keys,
 
 ## Scope and assumptions
 
-**In scope:** `site/workers/**` (licensing/billing/auth Workers), `site/src/**`, `shared/**`, `workers/router/**`, `workers/releases/**`, `tools/**`, `.github/workflows/ci.yml`, all wrangler configs, migrations, `site/public/install.*`.
+**In scope:** `workers/api/**` (licensing/billing/auth Workers), `site/src/**`, `shared/**`, `workers/router/**`, `workers/releases/**`, `tools/**`, `.github/workflows/ci.yml`, all wrangler configs, migrations, `site/public/install.*`.
 
 **Out of scope:** the out-of-repo Rust CLI (`PyRo1121/omg`) — its verifier behavior decides TM-004/TM-011; Stripe Dashboard configuration; production D1 contents; Cloudflare zone/WAF settings not represented in wrangler configs.
 
@@ -29,7 +29,7 @@ omg-web is a Cloudflare Workers SaaS platform that issues paid license/API keys,
 ### Primary components
 
 - **omg-site** (`site/`): SolidStart SSR site on `omg.latham.cloud` — Better Auth (cookie sessions, email+password + OAuth-ready), dashboard UI, licensing BFF (`site/src/lib/licensing-bff.ts`) that mints Worker sessions server-side via service binding.
-- **omg-saas** (`site/workers/`): licensing Worker on public `omg-api.latham.cloud` — OTP auth, license validation/JWT minting, telemetry ingest, Stripe webhooks, admin CRM/analytics, privacy endpoints. Shares D1 `omg-platform` with omg-site.
+- **omg-saas** (`workers/api/`): licensing Worker on public `omg-api.latham.cloud` — OTP auth, license validation/JWT minting, telemetry ingest, Stripe webhooks, admin CRM/analytics, privacy endpoints. Shares D1 `omg-platform` with omg-site.
 - **D1 `omg-platform`**: single shared database — auth tables (Better Auth), customers/licenses/machines/sessions, Stripe inbox, raw telemetry, audit log.
 - **Stripe**: checkout/portal + signed webhook ingestion with durable event dedup.
 - **Latent edge workers**: `workers/router` (docs proxy), `workers/releases` (R2 release server, bucket exists, worker undeployed).
@@ -154,18 +154,18 @@ flowchart TD
 
 ## Focus paths for security review
 
-| Path                                                                                             | Why it matters                                                                           | Related                              |
-| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------ |
-| `site/workers/src/handlers/site-session.ts`                                                      | Email-authoritative binding + body-supplied role elevation — root cause of TM-001/TM-012 | TM-001, TM-012, TM-013               |
-| `site/workers/src/handlers/license.ts` (`registerOrTouchMachine`, `validateLicense`, JWT claims) | Seat-bypass short-circuit, HS256 fallback, raw key in JWT/fleet PII                      | TM-002, TM-004, TM-003(keys), TM-011 |
-| `site/workers/src/stripe-reconciliation.ts` + `billing.ts::claimStripeEvent`                     | Unordered last-writer-wins entitlement projection                                        | TM-005, TM-007                       |
-| `site/src/lib/auth.ts` + `site/src/routes/signup.tsx`                                            | Unverified signup enables pre-account takeover                                           | TM-001                               |
-| `site/workers/src/handlers/auth.ts` (verifyCode, sendVerificationCode quotas)                    | Attempt-counter burn, broken send quota, mixed timestamp formats                         | TM-008, TM-009                       |
-| `site/public/install.sh`                                                                         | Unsigned executable delivery, `setcap` amplifier                                         | TM-003                               |
-| `workers/releases/src/index.ts` (+ its wrangler.toml)                                            | Latent fleet-update attack channel; fix-before-deploy list                               | TM-018                               |
-| `shared/licensing-routes.ts`                                                                | Contract/handler auth drift (`get-license`, `adminHealth`)                               | TM-010, F-05(auth)                   |
-| `site/workers/migrations/015_customers_email_unique.sql`                                         | Verified no-op unique index; identity race remains                                       | TM-001, dup-identity integrity       |
-| `.github/workflows/ci.yml` + branch protection settings                                          | npm downgrade voids allowScripts; no review gate on main                                 | TM-017                               |
+| Path                                                                                            | Why it matters                                                                           | Related                              |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------ |
+| `workers/api/src/handlers/site-session.ts`                                                      | Email-authoritative binding + body-supplied role elevation — root cause of TM-001/TM-012 | TM-001, TM-012, TM-013               |
+| `workers/api/src/handlers/license.ts` (`registerOrTouchMachine`, `validateLicense`, JWT claims) | Seat-bypass short-circuit, HS256 fallback, raw key in JWT/fleet PII                      | TM-002, TM-004, TM-003(keys), TM-011 |
+| `workers/api/src/stripe-reconciliation.ts` + `billing.ts::claimStripeEvent`                     | Unordered last-writer-wins entitlement projection                                        | TM-005, TM-007                       |
+| `site/src/lib/auth.ts` + `site/src/routes/signup.tsx`                                           | Unverified signup enables pre-account takeover                                           | TM-001                               |
+| `workers/api/src/handlers/auth.ts` (verifyCode, sendVerificationCode quotas)                    | Attempt-counter burn, broken send quota, mixed timestamp formats                         | TM-008, TM-009                       |
+| `site/public/install.sh`                                                                        | Unsigned executable delivery, `setcap` amplifier                                         | TM-003                               |
+| `workers/releases/src/index.ts` (+ its wrangler.toml)                                           | Latent fleet-update attack channel; fix-before-deploy list                               | TM-018                               |
+| `shared/licensing-routes.ts`                                                                    | Contract/handler auth drift (`get-license`, `adminHealth`)                               | TM-010, F-05(auth)                   |
+| `workers/api/migrations/015_customers_email_unique.sql`                                         | Verified no-op unique index; identity race remains                                       | TM-001, dup-identity integrity       |
+| `.github/workflows/ci.yml` + branch protection settings                                         | npm downgrade voids allowScripts; no review gate on main                                 | TM-017                               |
 
 ## Quality check
 

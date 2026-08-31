@@ -4,7 +4,7 @@ const LOCKFILES = [
   'package-lock.json',
   'site/package-lock.json',
   'site-svelte/package-lock.json',
-  'site/workers/package-lock.json',
+  'workers/api/package-lock.json',
   'workers/releases/package-lock.json',
   'workers/router/package-lock.json',
 ];

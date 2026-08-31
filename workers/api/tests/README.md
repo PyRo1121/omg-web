@@ -164,7 +164,7 @@ These tests run on:
 ```yaml
 - name: Run API Tests
   run: |
-    cd site/workers
+    cd workers/api
     npm install
     npm test
 ```

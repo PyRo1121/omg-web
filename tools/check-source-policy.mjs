@@ -9,15 +9,15 @@ const sourceRoots = [
   'shared',
   'site-svelte/e2e',
   'site-svelte/src',
-  'site/workers/src',
-  'site/workers/tests',
+  'workers/api/src',
+  'workers/api/tests',
   'workers/router/src',
   'workers/releases/src',
 ];
 const sourceExtensions = new Set(['.js', '.jsx', '.mjs', '.svelte', '.ts', '.tsx']);
 const productionWranglerConfigs = [
   'site/wrangler.toml',
-  'site/workers/wrangler.toml',
+  'workers/api/wrangler.toml',
   'workers/router/wrangler.toml',
   'workers/releases/wrangler.toml',
 ];
@@ -129,9 +129,9 @@ for (const root of sourceRoots) {
         const specifier = match[1];
         if (specifier?.startsWith('.') !== true) continue;
         const resolved = posix.normalize(posix.join(posix.dirname(path), specifier));
-        if (resolved === 'site/src' || resolved.startsWith('site/src/')) {
+        if (resolved === 'site' || resolved.startsWith('site/')) {
           process.stderr.write(
-            `[source-policy] ${path}: external production caller still imports Solid source (${specifier})\n`
+            `[source-policy] ${path}: retained production source still imports the Solid application tree (${specifier})\n`
           );
           violations += 1;
         }

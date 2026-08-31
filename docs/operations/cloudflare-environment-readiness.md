@@ -10,7 +10,7 @@ This document records the deployed Cloudflare topology, the free-tier usage ceil
 
 | Kind                        | Resource                                                | Repository authority                               | Public URL                                                                           |
 | --------------------------- | ------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Worker                      | `omg-saas`                                              | `site/workers/wrangler.toml`                       | `https://omg-api.latham.cloud`                                                       |
+| Worker                      | `omg-saas`                                              | `workers/api/wrangler.toml`                        | `https://omg-api.latham.cloud`                                                       |
 | Worker + static assets      | `omg-site`                                              | `site/wrangler.toml`                               | `https://omg.latham.cloud`                                                           |
 | D1 (single shared database) | `omg-platform` / `fee8ddab-fb4a-4be4-b8d2-8abb7c2db188` | Worker migrations; Wrangler + raw Alchemy bindings | n/a                                                                                  |
 | SvelteKit production Worker | `omgsveltesite-website-prod-dlaqgfttmir2ky5x`           | `site-svelte/alchemy.run.ts`                       | none; `workers.dev` disabled and no route/domain attached                            |
@@ -36,11 +36,11 @@ Deliberately **not provisioned** (free-tier and ownership constraints):
 - Better Auth owns `auth_user`, `auth_session`, `auth_account`, `auth_verification`, `auth_organization`, `auth_member`, and `auth_invitation` (`migrations/013_better_auth.sql`, `014_better_auth_issuer.sql`, and `024_better_auth_organizations.sql`). The hidden organization billing link is server-only; the SaaS Worker may read it for entitlement and audit projection but must not mutate Better Auth rows.
 - The SaaS Worker owns every other canonical table. The site must not write licensing or telemetry tables directly.
 
-The canonical migration sequence lives only in `site/workers/migrations/`; integrity is enforced by `migrations.sha256`. The current sequence through `025_organization_owner_integrity.sql` is applied remotely.
+The canonical migration sequence lives only in `workers/api/migrations/`; integrity is enforced by `migrations.sha256`. The current sequence through `025_organization_owner_integrity.sql` is applied remotely.
 
 #### Remote migration inventory (keep current)
 
-After **every** `npm run db:migrate:remote --prefix site/workers`, record here which migrations `d1_migrations` contains (query: `SELECT name FROM d1_migrations ORDER BY id`) and the date. At 3am the on-call answer to "is prod past the merge?" must be readable from this file, not from a live query.
+After **every** `npm run db:migrate:remote --prefix workers/api`, record here which migrations `d1_migrations` contains (query: `SELECT name FROM d1_migrations ORDER BY id`) and the date. At 3am the on-call answer to "is prod past the merge?" must be readable from this file, not from a live query.
 
 - 2026-08-21 — all migrations through `023_session_token_hashes.sql` were applied remotely.
 - 2026-08-28 — `024_better_auth_organizations.sql` applied successfully; a follow-up read-only `sqlite_master` query confirmed the three organization tables and atomic seat trigger.
@@ -66,7 +66,7 @@ Stripe secrets are server-only on `omg-saas`. The routes are configured, but bil
 Stripe live mode is active on account `acct_1TpcWPPI6tkdUQSc`; charges and payouts are enabled and account details are submitted.
 
 - Products: `prod_V8Aw8jOdyDpka9` (OMG Pro), `prod_V8AwOQr4PMi9Ra` (OMG Team).
-- Live prices, set as server-owned vars in `site/workers/wrangler.toml`:
+- Live prices, set as server-owned vars in `workers/api/wrangler.toml`:
   - `STRIPE_PRO_PRICE_ID=price_1U7ub2PI6tkdUQScfVcPeLY9` ($9/month Pro)
   - `STRIPE_TEAM_PRICE_ID=price_1U7ub3PI6tkdUQScFqTRFgv8` ($200/month Team)
 - Introductory offer coupon `omg_intro_20_3mo_v1` provides 20% off for three months and is restricted to those two products. The Worker creates one first-transaction, single-redemption promotion code per normalized email; checkout applies it only when the authenticated account uses that same email.
@@ -120,7 +120,7 @@ Workers rollback reverts **code only, never D1 schema or data** (<https://develo
 
 `site-svelte/` is exact-pinned to Alchemy `2.0.0-beta.74`, Effect `4.0.0-rc.112`, SvelteKit `3.0.0-next.9`, and Vite `8.2.1`. Alchemy's current SvelteKit adapter fails with newer SvelteKit 3 prereleases despite its published peer range, so updates require a successful shadow plan, deploy, browser smoke, and rollback check before lockfile changes are accepted. The generated static-assets layer must keep `runWorkerFirst: true`; otherwise browser HTML navigation is intercepted by the asset fallback and returns a plaintext 404 before SvelteKit runs.
 
-The Alchemy OAuth profile is local and currently limited to account/user read, D1 write, Secrets Store write, Workers Scripts write, Workers Observability read/write, and Workers Tail read. D1 write remains on the profile from the earlier shadow-binding work, but Alchemy no longer models or adopts `omg-platform` as a resource. `site-svelte/alchemy.run.ts` binds the existing database to the Website by its stable database identifier through the raw Worker binding API; the plan contains no D1 resource, migrations, import files, or removal policy. The canonical migration chain remains exclusively `site/workers/migrations/` under Wrangler. DNS, zones, routes, Pages, R2, AI, queues, and container permissions were not granted. The approved whole-host cutover will require temporary `workers_routes:write` and zone-read access for Alchemy planning, rollback, and observation; do not add those scopes before the remaining cutover gates pass, and remove them after permanent hostname ownership is established. Add any other permission only in the slice that needs it, then remove it when no longer required.
+The Alchemy OAuth profile is local and currently limited to account/user read, D1 write, Secrets Store write, Workers Scripts write, Workers Observability read/write, and Workers Tail read. D1 write remains on the profile from the earlier shadow-binding work, but Alchemy no longer models or adopts `omg-platform` as a resource. `site-svelte/alchemy.run.ts` binds the existing database to the Website by its stable database identifier through the raw Worker binding API; the plan contains no D1 resource, migrations, import files, or removal policy. The canonical migration chain remains exclusively `workers/api/migrations/` under Wrangler. DNS, zones, routes, Pages, R2, AI, queues, and container permissions were not granted. The approved whole-host cutover will require temporary `workers_routes:write` and zone-read access for Alchemy planning, rollback, and observation; do not add those scopes before the remaining cutover gates pass, and remove them after permanent hostname ownership is established. Add any other permission only in the slice that needs it, then remove it when no longer required.
 
 Do not run `alchemy deploy --adopt` against existing production resources as a bulk operation. During coexistence, Alchemy is authoritative for the new Svelte deployment while the two current production Workers and shared D1 remain under their existing Wrangler owners. Each eventual adoption requires a resource-specific plan, characterization gate, rollback command, and explicit confirmation that the plan does not replace the physical resource.
 

@@ -15,12 +15,12 @@ The source contracts in `src/contracts/http-bodies.ts`, handler behavior in `src
 
 ## Local verification
 
-From `site/workers`:
+From `workers/api`:
 
 ```bash
 npm ci
 npm test
-npx wrangler d1 migrations apply omg-licensing-test --local --config wrangler.test.toml
+npx wrangler d1 migrations apply DB --local --config wrangler.test.toml
 npx wrangler dev --test-scheduled --config wrangler.test.toml
 ```
 
@@ -39,7 +39,7 @@ Do not apply migrations or deploy during an audit. Before an approved release:
 1. Inventory remote migration history without mutating it:
 
    ```bash
-   npx wrangler d1 migrations list omg-licensing --remote
+   npx wrangler d1 migrations list DB --remote
    ```
 
 2. Compare the remote history and schema with `migrations/` and `migrations.sha256`.

@@ -17,8 +17,8 @@
   },
   "include": [
     "worker-configuration.d.ts",
-    "../../workers/worker-runtime.d.ts",
+    "../worker-runtime.d.ts",
     "src/**/*.ts",
-    "../shared/**/*.ts"
+    "../../shared/**/*.ts"
   ]
 }

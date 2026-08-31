@@ -44,7 +44,7 @@ Evidence:
 
 - `site/app.config.ts:3-14`
 - `site/wrangler.toml:1-17`
-- `site/workers/wrangler.toml:1-39`
+- `workers/api/wrangler.toml:1-39`
 - `workers/router/wrangler.toml:5-13`
 - `workers/releases/wrangler.toml:1-26`
 - `site/public/install.sh:189-190`
@@ -73,9 +73,9 @@ A framework rewrite without resolving these ownership rules would preserve the f
 
 `handleExportMyData` and `handleDeleteMyData` accept caller-provided email, license key, or machine ID without validating a customer session or verified data-subject workflow:
 
-- `site/workers/src/handlers/privacy.ts:86-210`
-- `site/workers/src/handlers/privacy.ts:288-390`
-- `site/workers/tests/privacy.test.ts:192-209,334-384`
+- `workers/api/src/handlers/privacy.ts:86-210`
+- `workers/api/src/handlers/privacy.ts:288-390`
+- `workers/api/tests/privacy.test.ts:192-209,334-384`
 
 Concrete behavior:
 
@@ -118,11 +118,11 @@ This is security/engineering research, not legal advice.
 
 Evidence:
 
-- `site/workers/src/handlers/privacy.ts:530-605,621-652`
-- `site/workers/src/handlers/telemetry.ts:153-176,319-461`
-- `site/workers/src/handlers/license.ts:574-719,901-999`
-- `site/workers/src/worker.ts:573-584`
-- `site/workers/src/handlers/docs-analytics.ts:468-496`
+- `workers/api/src/handlers/privacy.ts:530-605,621-652`
+- `workers/api/src/handlers/telemetry.ts:153-176,319-461`
+- `workers/api/src/handlers/license.ts:574-719,901-999`
+- `workers/api/src/worker.ts:573-584`
+- `workers/api/src/handlers/docs-analytics.ts:468-496`
 
 #### Required remediation
 
@@ -173,8 +173,8 @@ Primary sources:
 
 #### Verified facts
 
-- OTP verification has no per-code, per-email, or per-IP attempt limit: `site/workers/src/handlers/auth.ts:315-347`.
-- `AUTH_RATE_LIMITER` exists in configuration but is not applied by verification: `site/workers/wrangler.toml:47-51`.
+- OTP verification has no per-code, per-email, or per-IP attempt limit: `workers/api/src/handlers/auth.ts:315-347`.
+- `AUTH_RATE_LIMITER` exists in configuration but is not applied by verification: `workers/api/wrangler.toml:47-51`.
 - Research of the current handler found non-cryptographic OTP generation, plaintext OTP storage, and a select-then-update consume race.
 
 #### Required remediation
@@ -199,8 +199,8 @@ Primary sources:
 
 #### Verified facts
 
-- Checkout accepts an arbitrary non-empty `priceId`: `site/workers/src/handlers/billing.ts:36-38`.
-- It forwards the value directly as `line_items[0][price]`: `site/workers/src/handlers/billing.ts:133-150`.
+- Checkout accepts an arbitrary non-empty `priceId`: `workers/api/src/handlers/billing.ts:36-38`.
+- It forwards the value directly as `line_items[0][price]`: `workers/api/src/handlers/billing.ts:133-150`.
 - Configured Team/Enterprise price variables are not used as authorization.
 - The frontend hardcodes price IDs and calls a different route without a Worker bearer token:
   `site/src/components/UpgradeModal.tsx:10-34,67-77`.
@@ -221,7 +221,7 @@ Stripe sources:
 
 The current handler reads the raw body, validates a timestamp window, computes HMAC-SHA256, and uses a timing-resistant comparison:
 
-- `site/workers/src/handlers/billing.ts:70-119,253-268`
+- `workers/api/src/handlers/billing.ts:70-119,253-268`
 
 #### Defects
 
@@ -234,9 +234,9 @@ The current handler reads the raw body, validates a timestamp window, computes H
 
 Evidence:
 
-- `site/workers/src/contracts/stripe.ts:126-160`
-- `site/workers/src/handlers/billing.ts:273-529`
-- `site/workers/migrations/010_crm_enhancements.sql:184-200,396-408`
+- `workers/api/src/contracts/stripe.ts:126-160`
+- `workers/api/src/handlers/billing.ts:273-529`
+- `workers/api/migrations/010_crm_enhancements.sql:184-200,396-408`
 
 Stripe sources:
 
@@ -332,7 +332,7 @@ Evidence:
 - `site/src/components/UpgradeModal.tsx:67-77`
 - `site/src/lib/analytics-client.ts:20`
 - `site/src/lib/api.ts:350-431,619-654`
-- `site/workers/src/worker.ts:219-222,330-348,402-414,485-488`
+- `workers/api/src/worker.ts:219-222,330-348,402-414,485-488`
 
 ### Required model
 
@@ -370,10 +370,10 @@ releases/       version metadata and artifacts
 
 Repository authority is now consolidated:
 
-- `site/workers/migrations/` is the only configured licensing migration directory.
+- `workers/api/migrations/` is the only configured licensing migration directory.
 - `0000_current_baseline.sql` captures the reconciled schema through legacy migration 010.
 - migrations 011 and 012 remain immutable incremental migrations for Stripe inbox leases and bounded OTP attempts.
-- historical migrations are preserved byte-for-byte under `site/workers/migrations-legacy/`, outside Wrangler's configured migration directory.
+- historical migrations are preserved byte-for-byte under `workers/api/migrations-legacy/`, outside Wrangler's configured migration directory.
 - Worker tests apply the exact configured migration sequence through Cloudflare's `readD1Migrations` and `applyD1Migrations` APIs.
 - manual schema files, direct-file migration scripts, the alternate test schema, and runtime `/api/init-db` initialization have been removed.
 - the licensing Worker no longer binds the unused `ANALYTICS_DB` or legacy KV namespaces; release analytics retains separate ownership of its analytics database.
@@ -412,7 +412,7 @@ Evidence:
 
 - `package.json`
 - `site/package.json`
-- `site/workers/package.json`
+- `workers/api/package.json`
 - `site/package-lock.json`
 - `site/bun.lock`
 
@@ -574,16 +574,16 @@ Cross-framework navigation may require full-document transitions; in-memory stat
 
 ### Recommended slices
 
-| Slice | Scope                              | Gate                                                                                                  |
-| ----- | ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 0     | stabilization and characterization | clean install/check/test/build, route matrix, cookie/OAuth baseline, Playwright, rollback design      |
+| Slice | Scope                              | Gate                                                                                                                    |
+| ----- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 0     | stabilization and characterization | clean install/check/test/build, route matrix, cookie/OAuth baseline, Playwright, rollback design                        |
 | 1     | shadow SvelteKit shell             | `svelte-check`, strict TS, Alchemy plan/deploy, health/robots/sitemap parity, browser HTML smoke, no production traffic |
-| 2     | auth foundation and login/signup   | exact cookies/callbacks, CSRF/trusted origins, login/logout/OAuth E2E                                 |
-| 3     | marketing home                     | SSR/SEO/accessibility/visual parity, lazy Three.js, analytics contract                                |
-| 4     | account dashboard                  | server auth/load, no hydration duplicate fetch, schema decoding, lifecycle cleanup                    |
-| 5     | admin by tab                       | server authorization, query/table parity, mutation outcomes, accessibility/visual tests               |
-| 6     | site API families                  | method/status/header/schema compatibility and local D1/KV integration                                 |
-| 7     | cutover/removal                    | observation window, rollback exercise, remove Solid dependencies and compatibility paths together     |
+| 2     | auth foundation and login/signup   | exact cookies/callbacks, CSRF/trusted origins, login/logout/OAuth E2E                                                   |
+| 3     | marketing home                     | SSR/SEO/accessibility/visual parity, lazy Three.js, analytics contract                                                  |
+| 4     | account dashboard                  | server auth/load, no hydration duplicate fetch, schema decoding, lifecycle cleanup                                      |
+| 5     | admin by tab                       | server authorization, query/table parity, mutation outcomes, accessibility/visual tests                                 |
+| 6     | site API families                  | method/status/header/schema compatibility and local D1/KV integration                                                   |
+| 7     | cutover/removal                    | observation window, rollback exercise, remove Solid dependencies and compatibility paths together                       |
 
 Do not mix Docusaurus migration, Worker domain redesign, D1 migration, and Svelte UI work in the same slice.
 

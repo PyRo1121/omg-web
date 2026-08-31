@@ -243,7 +243,7 @@ After the production observation gate, remove:
 - superseded Solid billing-portal and export helpers;
 - obsolete protected-surface tests after equivalent Svelte behavior tests pass.
 
-Retain `shared/**`, `site/workers/**`, canonical migrations, external CLI service routes, and any HTTP endpoint with a verified non-Svelte caller.
+Retain `shared/**`, `workers/api/**`, canonical migrations, external CLI service routes, and any HTTP endpoint with a verified non-Svelte caller.
 
 ## 13. Test seams and verification
 
