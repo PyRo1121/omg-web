@@ -383,7 +383,9 @@ describe('POST /api/auth/verify-code', () => {
   it('accepts a valid code even when its failed-guess bucket is exhausted', async () => {
     const deliveredCode = await sendCodeWithTestMailer();
     env.AUTH_RATE_LIMITER = {
-      limit: async ({ key }) => ({ success: !key.startsWith('verify_code_email:') }),
+      limit: async ({ key }: RateLimitOptions) => ({
+        success: !key.startsWith('verify_code_email:'),
+      }),
     };
 
     const ctx = createExecutionContext();
@@ -885,6 +887,12 @@ describe('Worker route registry dispatch', () => {
 
   it('rejects a method not registered for a canonical path', async () => {
     const response = await dispatch(LicensingRoutes.dashboard.path, 'DELETE');
+
+    expect(response.status).toBe(404);
+  });
+
+  it('does not expose the removed runtime database initializer', async () => {
+    const response = await dispatch('/api/init-db', 'POST');
 
     expect(response.status).toBe(404);
   });

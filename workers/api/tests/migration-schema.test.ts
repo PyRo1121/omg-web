@@ -209,7 +209,7 @@ describe('canonical D1 migrations', () => {
          WHERE id = ? AND organization_id = ? AND role = 'owner'`
       ).bind(owner.id, organizationId),
     ]);
-    expect(transferResults.map(result => result.meta.changes)).toEqual([1, 1]);
+    expect(transferResults.map((result: D1Result) => result.meta.changes)).toEqual([1, 1]);
 
     const rolesResult = await env.DB.prepare(
       `SELECT user_id AS userId, role FROM auth_member WHERE organization_id = ? ORDER BY user_id`

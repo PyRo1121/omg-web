@@ -19,7 +19,8 @@
     "lint:fix": "npm --prefix ../.. run lint:workers:fix",
     "format": "npm --prefix ../.. run format",
     "format:check": "npm --prefix ../.. run format:check",
-    "typecheck": "wrangler types worker-configuration.d.ts --check && tsc --noEmit",
+    "typecheck": "wrangler types worker-configuration.d.ts --include-runtime=false --check && tsc --noEmit && npm run typecheck:tests",
+    "typecheck:tests": "tsc --project tests/tsconfig.json --noEmit",
     "check": "npm run check:migrations && npm run typecheck && npm run lint && npm run format:check && npm test",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -9,7 +9,7 @@ const dispatchedPaths = new Set<string>(
   )
 );
 
-const registryPaths = new Set(Object.values(LicensingRoutes).map(route => route.path));
+const registryPaths = new Set<string>(Object.values(LicensingRoutes).map(route => route.path));
 
 describe('licensing route registry ↔ worker dispatch parity', () => {
   it('dispatches every registry path', () => {

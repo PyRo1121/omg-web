@@ -98,6 +98,18 @@ describe('POST /api/internal/site-session', () => {
     expect(response.status).toBe(401);
   });
 
+  it('returns 401 when every configured internal secret is empty', async () => {
+    env.ADMIN_API_SECRET = '';
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      createSessionRequest(TEST_SECRET, JSON.stringify({ email: TEST_EMAIL })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(401);
+  });
+
   it('accepts the caller-specific Svelte BFF secret', async () => {
     env.SVELTE_BFF_SECRET = 'test-svelte-bff-secret';
     const ctx = createExecutionContext();

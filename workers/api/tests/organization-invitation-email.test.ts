@@ -51,36 +51,45 @@ function validBody() {
 
 describe('organization invitation email capability', () => {
   it('sends a bounded, escaped transactional email and returns no provider identifier', async () => {
-    let sent: OrganizationInvitationEmailMessage | null = null;
+    const sentMessages: OrganizationInvitationEmailMessage[] = [];
     const response = await handleOrganizationInvitationEmail(
       emailRequest(validBody()),
       emailEnv(),
       async message => {
-        sent = message;
+        sentMessages.push(message);
       }
     );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ sent: true });
-    expect(sent).not.toBeNull();
-    expect(sent?.to).toBe('employee@example.com');
-    expect(sent?.subject).not.toContain('Acme Engineering');
-    expect(sent?.html).toContain('Acme Engineering');
-    expect(sent?.html).toContain(
+    expect(sentMessages).toHaveLength(1);
+    const firstMessage = sentMessages[0];
+    if (firstMessage === undefined) {
+      throw new Error('invitation email was not captured');
+    }
+    expect(firstMessage.to).toBe('employee@example.com');
+    expect(firstMessage.subject).not.toContain('Acme Engineering');
+    expect(firstMessage.html).toContain('Acme Engineering');
+    expect(firstMessage.html).toContain(
       'href="https://omg.latham.cloud/dashboard/organization/invitations/accept/?token='
     );
-    expect(sent?.text).toContain(INVITATION_URL);
+    expect(firstMessage.text).toContain(INVITATION_URL);
 
     const escapedResponse = await handleOrganizationInvitationEmail(
       emailRequest({ ...validBody(), organizationName: '<Acme>' }),
       emailEnv(),
       async message => {
-        sent = message;
+        sentMessages.push(message);
       }
     );
     expect(escapedResponse.status).toBe(200);
-    expect(sent?.html).toContain('&lt;Acme&gt;');
-    expect(sent?.html).not.toContain('<h1>Join <Acme></h1>');
+    expect(sentMessages).toHaveLength(2);
+    const escapedMessage = sentMessages[1];
+    if (escapedMessage === undefined) {
+      throw new Error('escaped invitation email was not captured');
+    }
+    expect(escapedMessage.html).toContain('&lt;Acme&gt;');
+    expect(escapedMessage.html).not.toContain('<h1>Join <Acme></h1>');
   });
 
   it('hides the private endpoint from non-service-binding or wrong-secret callers', async () => {

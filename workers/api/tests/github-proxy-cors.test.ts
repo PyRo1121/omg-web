@@ -40,18 +40,6 @@ async function dispatch(request: Request): Promise<Response> {
   return response;
 }
 
-// SAFETY: workerd provides `caches.default` (Cache Storage) to code running
-// inside the vitest-pool-workers isolate; the tests tsconfig does not include
-// the workerd runtime declarations, hence the minimal structural declaration.
-declare global {
-  var caches: {
-    default: {
-      delete: (request: Request) => Promise<boolean>;
-      put: (request: Request, response: Response) => Promise<void>;
-    };
-  };
-}
-
 async function seedStatsCache(): Promise<void> {
   await caches.default.delete(new Request(STATS_URL));
   await caches.default.put(new Request(STATS_URL), cachedStatsResponse());

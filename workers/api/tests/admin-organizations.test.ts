@@ -80,13 +80,13 @@ interface SupportFixture {
 
 async function request(path: string, token?: string): Promise<Response> {
   const ctx = createExecutionContext();
-  const response = await worker.fetch(
-    new Request(`http://localhost${path}`, {
-      headers: token === undefined ? undefined : { Authorization: `Bearer ${token}` },
-    }),
-    env,
-    ctx
-  );
+  const outboundRequest =
+    token === undefined
+      ? new Request(`http://localhost${path}`)
+      : new Request(`http://localhost${path}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+  const response = await worker.fetch(outboundRequest, env, ctx);
   await waitOnExecutionContext(ctx);
   return response;
 }

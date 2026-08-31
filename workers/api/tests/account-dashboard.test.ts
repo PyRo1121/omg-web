@@ -69,7 +69,7 @@ describe('GET /api/dashboard', () => {
   it('uses a one-way token digest as the limiter key', async () => {
     const limiterKeys: string[] = [];
     env.API_RATE_LIMITER = {
-      limit: async ({ key }) => {
+      limit: async ({ key }: RateLimitOptions) => {
         limiterKeys.push(key);
         return { success: true };
       },

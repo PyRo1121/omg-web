@@ -1,9 +1,29 @@
-// Effect 3 boundary adapter for the shared account dashboard contract.
-
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import type { DashboardData } from '../../../../shared/account-dashboard';
 import { NullableStringSchema } from '../../../../shared/d1-rows';
+
+export interface DashboardData {
+  readonly user: {
+    readonly id: string;
+    readonly name: string;
+    readonly email: string;
+    readonly emailVerified: boolean;
+    readonly image: string | null;
+    readonly createdAt: string;
+  };
+  readonly sessions: ReadonlyArray<{
+    readonly id: string;
+    readonly ipAddress: string | null;
+    readonly userAgent: string | null;
+    readonly createdAt: string;
+    readonly expiresAt: string;
+    readonly isCurrent: boolean;
+  }>;
+  readonly accounts: ReadonlyArray<{
+    readonly provider: string;
+    readonly accountId: string;
+  }>;
+}
 
 export class DashboardDataParseError extends Error {
   readonly _tag = 'DashboardDataParseError';

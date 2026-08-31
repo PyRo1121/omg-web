@@ -356,17 +356,19 @@ describe('POST /api/validate-license', () => {
   it('never exceeds the seat limit under concurrent registrations', async () => {
     await insertCustomer();
     await insertLicense('active', null, 1);
-    const contexts = [createExecutionContext(), createExecutionContext()];
+    const firstContext = createExecutionContext();
+    const secondContext = createExecutionContext();
+    const contexts = [firstContext, secondContext];
     const responses = await Promise.all([
       worker.fetch(
         postJson(JSON.stringify({ key: TEST_KEY, machine_id: 'machine-concurrent-a' })),
         env,
-        contexts[0]
+        firstContext
       ),
       worker.fetch(
         postJson(JSON.stringify({ key: TEST_KEY, machine_id: 'machine-concurrent-b' })),
         env,
-        contexts[1]
+        secondContext
       ),
     ]);
     await Promise.all(contexts.map(context => waitOnExecutionContext(context)));

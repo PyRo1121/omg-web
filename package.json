@@ -35,7 +35,7 @@
     "typecheck:site": "npm run typecheck --prefix site",
     "typecheck:svelte": "npm run check --prefix site-svelte",
     "typecheck:tools": "tsc --project tsconfig.json --noEmit && tsc --project tools/oxlint/anti-slop/tsconfig.json --noEmit",
-    "typecheck:workers": "wrangler types workers/api/worker-configuration.d.ts --config workers/api/wrangler.toml --include-runtime=false --check && tsc --project workers/api/tsconfig.json --noEmit"
+    "typecheck:workers": "npm run typecheck --prefix workers/api"
   },
   "devDependencies": {
     "@oxlint/plugins": "1.79.0",

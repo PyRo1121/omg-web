@@ -9,8 +9,8 @@ import {
   AccountDashboardAccountRowSchema,
   AccountDashboardSessionRowSchema,
   parseAccountDashboard,
+  type DashboardData,
 } from '~/lib/contracts/account-dashboard';
-import type { DashboardData } from '../../../../shared/account-dashboard';
 import { readD1RowArray } from '~/lib/contracts/d1-rows';
 import { casesHandled } from '~/lib/prelude';
 
