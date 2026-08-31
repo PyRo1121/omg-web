@@ -136,6 +136,17 @@ describe('POST /api/internal/site-session', () => {
     expect(response.status).toBe(400);
   });
 
+  it('returns 400 for an unknown role', async () => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      createSessionRequest(TEST_SECRET, JSON.stringify({ email: TEST_EMAIL, role: 'owner' })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(400);
+  });
+
   it('creates a session for an existing non-admin user', async () => {
     await env.DB.prepare(
       `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', 0)`
@@ -229,7 +240,7 @@ describe('POST /api/internal/site-session', () => {
     const response = await worker.fetch(
       createSessionRequest(
         TEST_SECRET,
-        JSON.stringify({ email: TEST_EMAIL, name: 'Ada', role: 'admin' })
+        JSON.stringify({ email: TEST_EMAIL.toUpperCase(), name: 'Ada', role: 'admin' })
       ),
       env,
       ctx

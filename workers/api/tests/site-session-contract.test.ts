@@ -1,55 +1,10 @@
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
-import {
-  decodeSiteSessionRequest,
-  decodeSiteSessionWorkerResponse,
-  decodeCustomerRow,
-} from '../../../shared/site-session';
-
-const validRequest = {
-  email: 'Ada@Example.COM',
-  name: 'Ada',
-  betterAuthUserId: 'user_1',
-  role: 'admin',
-};
+import { decodeSiteSessionWorkerResponse, decodeCustomerRow } from '../../../shared/site-session';
 
 function isSuccess<A, E>(exit: Exit.Exit<A, E>): boolean {
   return Exit.isSuccess(exit);
 }
-
-describe('decodeSiteSessionRequest', () => {
-  it('normalizes and brands a valid email', async () => {
-    const exit = await Effect.runPromiseExit(decodeSiteSessionRequest(validRequest));
-    expect(isSuccess(exit)).toBe(true);
-    if (exit._tag !== 'Success') {
-      return;
-    }
-    expect(exit.value.email).toBe('ada@example.com');
-    expect(exit.value.name).toBe('Ada');
-    expect(exit.value.role).toBe('admin');
-  });
-
-  it('ignores extra fields', async () => {
-    const exit = await Effect.runPromiseExit(
-      decodeSiteSessionRequest({ ...validRequest, extra: true })
-    );
-    expect(isSuccess(exit)).toBe(true);
-  });
-
-  it('rejects an unknown role', async () => {
-    const exit = await Effect.runPromiseExit(
-      decodeSiteSessionRequest({ ...validRequest, role: 'owner' })
-    );
-    expect(Exit.isFailure(exit)).toBe(true);
-  });
-
-  it('rejects an invalid email', async () => {
-    const exit = await Effect.runPromiseExit(
-      decodeSiteSessionRequest({ ...validRequest, email: 'not-an-email' })
-    );
-    expect(Exit.isFailure(exit)).toBe(true);
-  });
-});
 
 describe('decodeCustomerRow', () => {
   it('decodes a valid customer row', async () => {

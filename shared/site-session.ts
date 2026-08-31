@@ -47,8 +47,6 @@ export const SiteSessionRequestSchema = Schema.Struct({
   betterAuthUserId: Schema.optional(Schema.String),
   role: SiteSessionRoleSchema,
 });
-type SiteSessionRequest = Schema.Schema.Type<typeof SiteSessionRequestSchema>;
-
 /** Session payload returned only to the server-side BFF. */
 const SiteSessionWorkerResponseSchema = Schema.Struct({
   token: SessionToken,
@@ -67,15 +65,6 @@ type CustomerRow = Schema.Schema.Type<typeof CustomerRowSchema>;
 
 function mapParseError(reason: string) {
   return (cause: unknown): SiteSessionParseError => new SiteSessionParseError(reason, cause);
-}
-
-/** Decode an untrusted internal site-session request body. */
-export function decodeSiteSessionRequest(
-  value: Schema.Schema.Encoded<Schema.Schema.Any>
-): Effect.Effect<SiteSessionRequest, SiteSessionParseError> {
-  return Schema.decodeUnknown(SiteSessionRequestSchema)(value).pipe(
-    Effect.mapError(mapParseError('Site session request has an invalid shape'))
-  );
 }
 
 /** Decode the untrusted Worker response consumed only by the server-side BFF. */
