@@ -7,7 +7,7 @@ const workspaceRoot = new URL('../', import.meta.url);
 const sourceRoots = [
   'site/src',
   'site/shared',
-  'site/e2e',
+  'site-svelte/e2e',
   'site-svelte/src',
   'site/workers/src',
   'site/workers/tests',

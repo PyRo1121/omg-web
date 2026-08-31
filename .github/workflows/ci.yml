@@ -56,23 +56,23 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: site/package-lock.json
+          cache-dependency-path: site-svelte/package-lock.json
       - run: npm ci
-        working-directory: site
+        working-directory: site-svelte
       - run: corepack enable npm && npm --version
-        working-directory: site
+        working-directory: site-svelte
       - run: npx --no-install playwright install --with-deps chromium
-        working-directory: site
-      - run: npm run test:e2e:anonymous
-        working-directory: site
-      # This job must stay anonymous-only: traces/videos from authenticated
-      # specs would land in downloadable artifacts. Run staging specs elsewhere.
+        working-directory: site-svelte
+      - run: npm run test:e2e:public
+        working-directory: site-svelte
+      # This job stays public and local: authenticated specs require a bound
+      # deployment and their traces must never become downloadable artifacts.
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: failure()
         with:
           name: playwright-report-${{ github.run_id }}
           path: |
-            site/playwright-report
-            site/test-results
+            site-svelte/playwright-report
+            site-svelte/test-results
           if-no-files-found: ignore
           retention-days: 7

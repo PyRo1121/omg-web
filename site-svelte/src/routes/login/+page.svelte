@@ -69,6 +69,11 @@
     {#if view.error}
       <p role="alert" class="form-error">{view.error}</p>
     {/if}
+
+    <p class="login-signup">
+      Need an account?
+      <a href="/signup/">Sign up</a>
+    </p>
   </section>
 </main>
 
@@ -137,5 +142,17 @@
   .login-submit:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .login-signup {
+    margin: 2rem 0 0;
+    color: var(--ink-muted);
+    font-size: 0.875rem;
+  }
+
+  .login-signup a {
+    margin-left: 0.35rem;
+    color: var(--signal);
+    font-weight: 600;
   }
 </style>

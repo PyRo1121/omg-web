@@ -11,14 +11,19 @@
   "scripts": {
     "audit": "npm audit",
     "build": "vite build",
-    "check": "npm run sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --noEmit",
+    "check": "npm run sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --noEmit && npm run typecheck:e2e",
     "deploy": "node alchemy.environment.mjs deploy",
     "destroy": "node alchemy.environment.mjs destroy",
     "dev": "node alchemy.environment.mjs dev",
+    "dev:e2e": "vite dev --host 127.0.0.1 --port 4173",
     "plan": "node alchemy.environment.mjs plan",
     "preview": "vite preview",
     "sync": "svelte-kit sync",
-    "test": "vitest run"
+    "test": "vitest run --exclude 'e2e/**'",
+    "test:e2e": "playwright test",
+    "test:e2e:external": "playwright test",
+    "test:e2e:public": "playwright test e2e/anonymous.spec.ts e2e/billing-unconfigured.spec.ts",
+    "typecheck:e2e": "tsc --project e2e/tsconfig.json --noEmit"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "5.3.0",
@@ -29,6 +34,7 @@
   "devDependencies": {
     "@alchemy.run/frontend-frameworks": "2.0.0-beta.74",
     "@effect/platform-node": "4.0.0-rc.112",
+    "@playwright/test": "1.62.1",
     "@sveltejs/kit": "3.0.0-next.9",
     "@sveltejs/vite-plugin-svelte": "7.2.0",
     "@types/node": "24.13.3",
@@ -54,6 +60,7 @@
     "msgpackr-extract@3.0.4": false,
     "esbuild@0.28.2": true,
     "workerd@1.20260704.1": true,
+    "fsevents@2.3.2": false,
     "fsevents@2.3.3": false
   }
 }

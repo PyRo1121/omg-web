@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { AUTH_FIELDS } from './helpers';
 
+const externalBaseUrl = process.env['E2E_BASE_URL']?.trim();
+
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
-test.describe('OAuth-only signup surface', () => {
+test.describe('deployed Svelte OAuth-only signup surface', () => {
+  test.skip(externalBaseUrl === undefined, 'E2E_BASE_URL is required for bound authentication');
   test.beforeEach(async ({ page }) => {
     await page.goto('/signup', { waitUntil: 'domcontentloaded' });
   });
