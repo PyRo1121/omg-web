@@ -95,4 +95,12 @@ describe('provider API boundaries', () => {
 
     expect(Exit.isFailure(exit)).toBe(true);
   });
+
+  it('rejects an oversized Turnstile response before decoding it', async () => {
+    const exit = await Effect.runPromiseExit(
+      verifyTurnstile('token', 'secret', null, responseFetch('x'.repeat(16 * 1024 + 1)))
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
 });

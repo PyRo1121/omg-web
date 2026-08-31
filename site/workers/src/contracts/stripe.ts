@@ -220,7 +220,7 @@ export type StripeWebhookEvent = Schema.Schema.Type<typeof StripeWebhookEventSch
  *
  * @param schema - Item schema.
  * @param reason - Parse error reason.
- * @param value - Raw `response.json()` result.
+ * @param value - Untrusted payload from the bounded provider-response reader.
  * @returns The typed payload, or `StripeParseError`.
  */
 export function decodeStripeJson<S extends Schema.Schema.AnyNoContext>(

@@ -3,6 +3,7 @@ import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import { errorResponse, getCorsHeaders } from '../api';
 import { GitHubCommitActivityResponseSchema } from '../contracts/provider-boundaries';
+import { decodeBoundedJsonResponse } from '../body';
 
 const CACHE_TTL_SECONDS = 120;
 const STALE_TTL_SECONDS = 3600;
@@ -14,6 +15,7 @@ const STORED_AT_HEADER = 'X-OMG-Stored-At';
 const CLIENT_CACHE_CONTROL = `public, max-age=${CACHE_TTL_SECONDS}, stale-while-revalidate=${STALE_TTL_SECONDS}`;
 /** GitHub warns below this many remaining authenticated requests. */
 const RATE_LIMIT_WARNING_THRESHOLD = 10;
+const MAX_GITHUB_RESPONSE_BYTES = 256 * 1024;
 
 /** GitHub returned a response body that did not match the provider contract. */
 class GitHubProviderPayloadError extends Error {
@@ -165,11 +167,10 @@ async function refreshCache(cache: Cache, cacheKey: Request): Promise<Response> 
   }
 
   const decodedData = await Effect.runPromiseExit(
-    Effect.tryPromise({
-      try: () => ghResponse.json(),
-      catch: cause =>
-        new GitHubProviderPayloadError('GitHub response body was not valid JSON', cause),
-    }).pipe(
+    decodeBoundedJsonResponse(ghResponse, MAX_GITHUB_RESPONSE_BYTES).pipe(
+      Effect.mapError(
+        cause => new GitHubProviderPayloadError('GitHub response body was not valid JSON', cause)
+      ),
       Effect.flatMap(payload =>
         Schema.decodeUnknown(GitHubCommitActivityResponseSchema)(payload).pipe(
           Effect.mapError(

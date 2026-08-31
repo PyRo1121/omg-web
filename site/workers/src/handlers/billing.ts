@@ -2,7 +2,7 @@ import { reportError, reportInfo, reportWarning } from '../observability';
 import { type Env, jsonResponse, errorResponse, enforceRateLimit, logAudit } from '../api';
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
-import { decodeJsonBody, readBoundedBodyText } from '../body';
+import { decodeBoundedJsonResponse, decodeJsonBody, readBoundedBodyText } from '../body';
 import { EmailAddress } from '../../../shared/site-session';
 import {
   authenticateSession,
@@ -57,6 +57,7 @@ const MarketingPromotionRowSchema = Schema.Struct({
 
 /** Checkout Session ids are high-entropy Stripe capabilities; bound the shape. */
 const CheckoutSessionIdPattern = /^cs_[A-Za-z0-9]{10,200}$/;
+const MAX_STRIPE_API_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_STRIPE_WEBHOOK_BODY_BYTES = 512 * 1024;
 
 interface StripeProviderDiagnostic {
@@ -92,7 +93,9 @@ async function fetchStripeJson<S extends Schema.Schema.AnyNoContext>(
     const headers = new Headers(init.headers);
     headers.set('Authorization', `Bearer ${apiKey}`);
     const response = await stripeFetch(url, { ...init, headers });
-    const payload: unknown = await response.json();
+    const payload = await Effect.runPromise(
+      decodeBoundedJsonResponse(response, MAX_STRIPE_API_RESPONSE_BYTES)
+    );
     const decoded = await Effect.runPromiseExit(decodeStripeJson(schema, reason, payload));
     if (Exit.isFailure(decoded)) {
       reportError(reason, decoded.cause);

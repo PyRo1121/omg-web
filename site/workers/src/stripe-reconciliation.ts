@@ -14,6 +14,7 @@ import {
   type BillingOffer,
 } from './contracts/billing-offer';
 import { logAudit } from './api';
+import { decodeBoundedJsonResponse } from './body';
 import {
   decodeStripeJson,
   StripeCustomerEmailSchema,
@@ -38,6 +39,8 @@ function statusRank(status: string): number {
 
 export type StripeFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
+const MAX_STRIPE_API_RESPONSE_BYTES = 2 * 1024 * 1024;
+
 /** Current Stripe state or local projection could not be reconciled safely. */
 export class StripeReconciliationError extends Error {
   readonly _tag = 'StripeReconciliationError';
@@ -55,8 +58,13 @@ async function readStripeJson<S extends Schema.Schema.AnyNoContext>(
   schema: S,
   reason: string
 ): Promise<Schema.Schema.Type<S>> {
-  const payload: unknown = await response.json();
-  const decoded = await Effect.runPromiseExit(decodeStripeJson(schema, reason, payload));
+  const payload = await Effect.runPromiseExit(
+    decodeBoundedJsonResponse(response, MAX_STRIPE_API_RESPONSE_BYTES)
+  );
+  if (Exit.isFailure(payload)) {
+    throw new StripeReconciliationError(reason, payload.cause);
+  }
+  const decoded = await Effect.runPromiseExit(decodeStripeJson(schema, reason, payload.value));
   if (Exit.isFailure(decoded)) {
     throw new StripeReconciliationError(reason, decoded.cause);
   }

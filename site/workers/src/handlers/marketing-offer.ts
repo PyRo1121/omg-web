@@ -2,7 +2,7 @@ import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
 import { type Env, enforceRateLimit, errorResponse, jsonResponse, rateLimitClientIp } from '../api';
 import { AdminUnauthorizedError, requireInternalSecret } from '../admin-secret';
-import { decodeJsonBody, type InvalidJsonBodyError } from '../body';
+import { decodeBoundedJsonResponse, decodeJsonBody, type InvalidJsonBodyError } from '../body';
 import { reportError, reportInfo } from '../observability';
 import {
   MarketingOfferRequestSchema,
@@ -13,6 +13,7 @@ import { decodeStripeJson, type StripeParseError } from '../contracts/stripe';
 const OFFER_PERCENT = 20 as const;
 const OFFER_MONTHS = 3 as const;
 const OFFER_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_STRIPE_PROMOTION_RESPONSE_BYTES = 64 * 1024;
 const PROMOTION_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const MarketingOfferRowSchema = Schema.Struct({
@@ -150,8 +151,9 @@ function createStripePromotion(
         },
         body,
       });
-      const payload: unknown = await response.json();
-      return payload;
+      return Effect.runPromise(
+        decodeBoundedJsonResponse(response, MAX_STRIPE_PROMOTION_RESPONSE_BYTES)
+      );
     },
     catch: cause => new StripeOfferUnavailable(cause),
   }).pipe(

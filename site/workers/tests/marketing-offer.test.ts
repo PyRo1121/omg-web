@@ -266,6 +266,26 @@ describe('marketing introductory offer', () => {
     });
   });
 
+  it('fails closed when Stripe returns an oversized promotion response', async () => {
+    const stripeFetch = vi.fn<typeof fetch>(async () =>
+      Response.json({ padding: 'x'.repeat(64 * 1024) })
+    );
+
+    const response = await handleMarketingOffer(
+      offerRequest('developer@example.com'),
+      offerEnv(),
+      stripeFetch
+    );
+
+    expect(response.status).toBe(502);
+    const failedRow = await env.DB.prepare(
+      `SELECT status, last_error FROM marketing_offer_leads WHERE email = ?`
+    )
+      .bind('developer@example.com')
+      .first();
+    expect(failedRow).toMatchObject({ status: 'failed', last_error: 'stripe unavailable' });
+  });
+
   it('retries provider failures with the same code and idempotency key', async () => {
     const attemptedCodes: Array<string | null> = [];
     const idempotencyKeys: Array<string | null> = [];

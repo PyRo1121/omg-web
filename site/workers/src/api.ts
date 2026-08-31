@@ -10,6 +10,7 @@ import {
   SessionJoinRowSchema,
 } from './contracts/d1-extras';
 import { TurnstileSiteverifySchema } from './contracts/provider-boundaries';
+import { decodeBoundedJsonResponse } from './body';
 import { hashSessionToken } from './session-token';
 
 export interface Env extends Pick<Cloudflare.Env, 'DB'> {
@@ -422,6 +423,9 @@ export class TurnstileVerificationUnavailable extends Error {
   }
 }
 
+/** Turnstile decisions are small; reject unexpectedly large provider bodies. */
+const MAX_TURNSTILE_RESPONSE_BYTES = 16 * 1024;
+
 /** Fetch seam for provider-boundary behavior tests. */
 export type ProviderFetch = (
   input: string | URL | Request,
@@ -453,10 +457,9 @@ export function verifyTurnstile(
         }),
       catch: cause => new TurnstileVerificationUnavailable(cause),
     });
-    const payload = yield* Effect.tryPromise({
-      try: () => response.json(),
-      catch: cause => new TurnstileVerificationUnavailable(cause),
-    });
+    const payload = yield* decodeBoundedJsonResponse(response, MAX_TURNSTILE_RESPONSE_BYTES).pipe(
+      Effect.mapError(cause => new TurnstileVerificationUnavailable(cause))
+    );
     const result = yield* Schema.decodeUnknown(TurnstileSiteverifySchema)(payload).pipe(
       Effect.mapError(cause => new TurnstileVerificationUnavailable(cause))
     );

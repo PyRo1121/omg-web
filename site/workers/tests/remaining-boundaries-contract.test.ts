@@ -7,7 +7,7 @@ import {
   StripeCustomerListSchema,
 } from '../src/contracts/stripe';
 import { SingleTelemetryRequestSchema } from '../src/contracts/cli-telemetry';
-import { decodeJsonBody } from '../src/body';
+import { decodeBoundedJsonResponse, decodeJsonBody } from '../src/body';
 import { MachineIdBodySchema, TrackingBatchSchema } from '../src/contracts/http-bodies';
 import {
   AdminActivityRowSchema,
@@ -144,6 +144,39 @@ describe('Stripe JSON decode', () => {
     }
     const available = exit.value.available.reduce((sum, funds) => sum + funds.amount, 0);
     expect(available).toBe(100);
+  });
+});
+
+describe('bounded provider JSON responses', () => {
+  it('decodes a provider response below its byte ceiling', async () => {
+    const exit = await Effect.runPromiseExit(
+      decodeBoundedJsonResponse(Response.json({ success: true }), 64)
+    );
+
+    expect(Exit.isSuccess(exit)).toBe(true);
+    if (Exit.isSuccess(exit)) {
+      expect(exit.value).toEqual({ success: true });
+    }
+  });
+
+  it('rejects declared and streamed response bodies above the byte ceiling', async () => {
+    const declared = await Effect.runPromiseExit(
+      decodeBoundedJsonResponse(new Response('{}', { headers: { 'Content-Length': '65' } }), 64)
+    );
+    const streamed = await Effect.runPromiseExit(
+      decodeBoundedJsonResponse(new Response(JSON.stringify({ value: 'oversized' })), 8)
+    );
+
+    expect(Exit.isFailure(declared)).toBe(true);
+    expect(Exit.isFailure(streamed)).toBe(true);
+  });
+
+  it('rejects malformed provider UTF-8 before JSON parsing', async () => {
+    const exit = await Effect.runPromiseExit(
+      decodeBoundedJsonResponse(new Response(new Uint8Array([0xc3, 0x28])), 64)
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
   });
 });
 

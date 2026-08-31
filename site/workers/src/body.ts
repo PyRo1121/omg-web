@@ -13,8 +13,73 @@ export class InvalidJsonBodyError extends Error {
   }
 }
 
+/** A provider response that is oversized, malformed UTF-8, or invalid JSON. */
+export class InvalidJsonResponseError extends Error {
+  readonly _tag = 'InvalidJsonResponseError';
+  constructor(
+    readonly reason: string,
+    override readonly cause?: unknown
+  ) {
+    super('Invalid JSON response');
+  }
+}
+
+/** Internal failure while consuming a bounded UTF-8 body stream. */
+class BoundedBodyReadError extends Error {
+  constructor(
+    readonly reason: string,
+    override readonly cause?: unknown
+  ) {
+    super(reason);
+  }
+}
+
 /** Largest JSON body any Worker HTTP boundary will buffer before decoding. */
 const MAX_JSON_BODY_BYTES = 1024 * 1024;
+
+async function readBoundedUtf8Body(
+  headers: Headers,
+  body: ReadableStream<Uint8Array> | null,
+  maxBytes: number
+): Promise<string> {
+  const declaredLength = Number(headers.get('Content-Length') ?? '0');
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    throw new BoundedBodyReadError('Body exceeds the maximum allowed size');
+  }
+
+  const reader = body?.getReader();
+  if (reader === undefined) {
+    return '';
+  }
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const next = await reader.read();
+    if (next.done) {
+      break;
+    }
+    total += next.value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new BoundedBodyReadError('Body exceeds the maximum allowed size');
+    }
+    chunks.push(next.value);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes);
+  } catch (cause: unknown) {
+    throw new BoundedBodyReadError('Body is not valid UTF-8', cause);
+  }
+}
 
 /**
  * Reject cross-origin form-style bodies early: browsers always declare an
@@ -45,44 +110,44 @@ export function readBoundedBodyText(
   maxBytes = MAX_JSON_BODY_BYTES
 ): Effect.Effect<string, InvalidJsonBodyError> {
   return tryPromise({
-    try: async () => {
-      const declaredLength = Number(request.headers.get('Content-Length') ?? '0');
-      if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-        throw new InvalidJsonBodyError('Request body exceeds the maximum allowed size');
-      }
-
-      const reader = request.body?.getReader();
-      if (reader === undefined) {
-        return '';
-      }
-
-      const chunks: Uint8Array[] = [];
-      let total = 0;
-      for (;;) {
-        const next = await reader.read();
-        if (next.done) {
-          break;
-        }
-        total += next.value.byteLength;
-        if (total > maxBytes) {
-          await reader.cancel().catch(() => undefined);
-          throw new InvalidJsonBodyError('Request body exceeds the maximum allowed size');
-        }
-        chunks.push(next.value);
-      }
-
-      const body = new Uint8Array(total);
-      let offset = 0;
-      for (const chunk of chunks) {
-        body.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
-      return new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(body);
-    },
+    try: () => readBoundedUtf8Body(request.headers, request.body, maxBytes),
     catch: cause =>
-      cause instanceof InvalidJsonBodyError
-        ? cause
+      cause instanceof BoundedBodyReadError
+        ? new InvalidJsonBodyError(cause.reason, cause.cause)
         : new InvalidJsonBodyError('Request body could not be read', cause),
+  });
+}
+
+/**
+ * Read an external JSON response under a hard byte cap and strict UTF-8 policy.
+ *
+ * Both declared and streamed lengths are enforced before JSON parsing. This is
+ * the response-side companion to {@link decodeJsonBody}; provider schemas are
+ * applied by the caller after this transport boundary succeeds.
+ */
+export function decodeBoundedJsonResponse(
+  response: Response,
+  maxBytes: number
+): Effect.Effect<unknown, InvalidJsonResponseError> {
+  return tryPromise({
+    try: async () => {
+      const text = await readBoundedUtf8Body(response.headers, response.body, maxBytes);
+      try {
+        const payload: unknown = JSON.parse(text);
+        return payload;
+      } catch (cause: unknown) {
+        throw new InvalidJsonResponseError('Response body is not valid JSON', cause);
+      }
+    },
+    catch: cause => {
+      if (cause instanceof InvalidJsonResponseError) {
+        return cause;
+      }
+      if (cause instanceof BoundedBodyReadError) {
+        return new InvalidJsonResponseError(cause.reason, cause.cause);
+      }
+      return new InvalidJsonResponseError('Response body could not be read', cause);
+    },
   });
 }
 
