@@ -75,6 +75,72 @@ const sourceFiles = relativeDirectory =>
   directoryFiles(relativeDirectory, name => sourceExtensions.has(extension(name)));
 const allFiles = relativeDirectory => directoryFiles(relativeDirectory, () => true);
 
+const solidRuntimeEntryPoints = new Set([
+  'site/src/app.tsx',
+  'site/src/entry-client.tsx',
+  'site/src/entry-server.tsx',
+  'site/src/middleware.ts',
+]);
+const solidRuntimeExtensions = ['.js', '.jsx', '.mjs', '.ts', '.tsx'];
+
+function resolveSolidImport(importer, specifier, files) {
+  let unresolved;
+  if (specifier.startsWith('~/')) {
+    unresolved = `site/src/${specifier.slice(2)}`;
+  } else if (specifier.startsWith('.')) {
+    unresolved = posix.normalize(posix.join(posix.dirname(importer), specifier));
+  } else {
+    return null;
+  }
+
+  const base = unresolved.replace(/\.(?:js|jsx|mjs)$/u, '');
+  const candidates = [
+    unresolved,
+    base,
+    ...solidRuntimeExtensions.map(suffix => `${base}${suffix}`),
+    ...solidRuntimeExtensions.map(suffix => `${base}/index${suffix}`),
+  ];
+  return candidates.find(candidate => files.has(candidate)) ?? null;
+}
+
+async function unreachableSolidRuntimeFiles() {
+  const files = new Set(await sourceFiles('site/src'));
+  const runtimeFiles = [...files].filter(
+    path =>
+      solidRuntimeExtensions.includes(extension(path)) &&
+      !path.endsWith('.d.ts') &&
+      !/\.(?:test|spec)\.[^.]+$/u.test(path)
+  );
+  const entryPoints = runtimeFiles.filter(
+    path => solidRuntimeEntryPoints.has(path) || path.startsWith('site/src/routes/')
+  );
+  const dependencies = new Map();
+
+  for (const path of runtimeFiles) {
+    const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
+    const imports = new Set();
+    const importPattern = /(?:from\s+|import\s*(?:\(\s*)?)['"]([^'"]+)['"]/gu;
+    for (const match of contents.matchAll(importPattern)) {
+      const specifier = match[1];
+      if (specifier === undefined) continue;
+      const resolved = resolveSolidImport(path, specifier, files);
+      if (resolved !== null) imports.add(resolved);
+    }
+    dependencies.set(path, imports);
+  }
+
+  const reachable = new Set();
+  const pending = [...entryPoints];
+  while (pending.length > 0) {
+    const path = pending.pop();
+    if (path === undefined || reachable.has(path)) continue;
+    reachable.add(path);
+    pending.push(...(dependencies.get(path) ?? []));
+  }
+
+  return runtimeFiles.filter(path => !reachable.has(path)).toSorted();
+}
+
 let violations = 0;
 const serviceContractPath = 'contracts/service-api-v1.json';
 const serviceContract = JSON.parse(
@@ -141,6 +207,13 @@ const solidFiles = [
 if (!isDeepStrictEqual(manifestEntries, solidFiles)) {
   process.stderr.write(
     `[source-policy] ${solidManifestPath}: Solid deletion manifest must list every owned site file exactly once\n`
+  );
+  violations += 1;
+}
+
+for (const path of await unreachableSolidRuntimeFiles()) {
+  process.stderr.write(
+    `[source-policy] ${path}: Solid runtime module is unreachable from every application or route entry point\n`
   );
   violations += 1;
 }
