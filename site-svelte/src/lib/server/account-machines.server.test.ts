@@ -1,7 +1,6 @@
-import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
-import { loadAccountMachines, loadAccountMachinesState } from './account-machines.server';
+import { loadAccountMachinesState } from './account-machines.server';
 
 const identity = {
   id: 'user-id',
@@ -70,21 +69,24 @@ describe('account machines service', () => {
   it('projects descriptive machine metadata without persistent identifiers', async () => {
     const service = new MachineServiceStub(payload);
 
-    const result = await Effect.runPromise(loadAccountMachines(identity, environment(service)));
+    const result = await loadAccountMachinesState(identity, environment(service));
 
     expect(result).toEqual({
-      active: 1,
-      allowance: 5,
-      machines: [
-        {
-          hostname: 'workstation',
-          operatingSystem: 'linux',
-          architecture: 'x86_64',
-          version: '1.2.3',
-          firstSeenAt: '2026-08-01T00:00:00.000Z',
-          lastSeenAt: '2026-08-28T12:00:00.000Z',
-        },
-      ],
+      status: 'available',
+      machines: {
+        active: 1,
+        allowance: 5,
+        machines: [
+          {
+            hostname: 'workstation',
+            operatingSystem: 'linux',
+            architecture: 'x86_64',
+            version: '1.2.3',
+            firstSeenAt: '2026-08-01T00:00:00.000Z',
+            lastSeenAt: '2026-08-28T12:00:00.000Z',
+          },
+        ],
+      },
     });
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain('raw-license-key');
@@ -93,15 +95,15 @@ describe('account machines service', () => {
     expect(service.requests[1]?.headers.get('Authorization')).toBe('Bearer private-token');
   });
 
-  it('rejects inactive and malformed machine rows at the Worker boundary', async () => {
+  it('maps inactive and malformed machine rows to unavailable', async () => {
     const service = new MachineServiceStub({
       ...payload,
       machines: [{ ...machine, is_active: 0 }],
     });
 
-    const exit = await Effect.runPromiseExit(loadAccountMachines(identity, environment(service)));
+    const state = await loadAccountMachinesState(identity, environment(service));
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(state).toEqual({ status: 'unavailable' });
   });
 
   it('requires verified email before private access', async () => {

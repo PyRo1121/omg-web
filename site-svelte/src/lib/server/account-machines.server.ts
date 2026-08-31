@@ -33,7 +33,7 @@ const AccountMachinesResponseSchema = Schema.Struct({
   ),
 });
 
-export interface AccountMachines {
+interface AccountMachines {
   readonly active: number;
   readonly allowance: number;
   readonly machines: ReadonlyArray<{
@@ -46,13 +46,13 @@ export interface AccountMachines {
   }>;
 }
 
-export type AccountMachinesState =
+type AccountMachinesState =
   | { readonly status: 'available'; readonly machines: AccountMachines }
   | { readonly status: 'verification-required' }
   | { readonly status: 'unavailable' };
 
 /** Load descriptive active-machine metadata without persistent machine identifiers. */
-export function loadAccountMachines(
+function loadAccountMachines(
   identity: LicensingSummaryIdentity,
   env: LicensingSummaryEnvironment
 ): Effect.Effect<AccountMachines, LicensingSummaryError> {
