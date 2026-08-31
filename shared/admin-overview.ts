@@ -12,13 +12,13 @@ export interface AdminDailyActivity {
 }
 
 /** One day of account creation totals. */
-export interface AdminRecentSignup {
+interface AdminRecentSignup {
   readonly date: string;
   readonly count: number;
 }
 
 /** Browser-safe audit activity with customer, network, and resource identifiers removed. */
-export interface AdminActivitySummary {
+interface AdminActivitySummary {
   readonly action: string;
   readonly resourceType: string | null;
   readonly createdAt: string;

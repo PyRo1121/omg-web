@@ -1,4 +1,4 @@
-export type JsonLdValue =
+type JsonLdValue =
   | string
   | number
   | boolean

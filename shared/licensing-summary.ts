@@ -1,5 +1,5 @@
 /** Browser-safe licensing data projected from the private Worker dashboard. */
-export interface LicensingMachineSummary {
+interface LicensingMachineSummary {
   readonly hostname: string | null;
   readonly operatingSystem: string | null;
   readonly architecture: string | null;
@@ -8,7 +8,7 @@ export interface LicensingMachineSummary {
   readonly firstSeenAt: string;
 }
 
-export interface LicensingUsageSummary {
+interface LicensingUsageSummary {
   readonly totalCommands: number;
   readonly packagesInstalled: number;
   readonly runtimeSwitches: number;
@@ -18,7 +18,7 @@ export interface LicensingUsageSummary {
   readonly topRuntime: string | null;
 }
 
-export interface LicensingSubscriptionSummary {
+interface LicensingSubscriptionSummary {
   readonly status: string;
   readonly periodEnd: string | null;
   readonly cancelAtPeriodEnd: boolean;

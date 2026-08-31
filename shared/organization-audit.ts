@@ -7,8 +7,8 @@ export interface OrganizationAuditRequest {
 }
 
 export type OrganizationAuditFilter = 'all' | 'invitations' | 'members';
-export type OrganizationAuditRole = 'owner' | 'admin' | 'member';
-export type OrganizationAuditTier = 'free' | 'pro' | 'team' | 'enterprise' | null;
+type OrganizationAuditRole = 'owner' | 'admin' | 'member';
+type OrganizationAuditTier = 'free' | 'pro' | 'team' | 'enterprise' | null;
 export type OrganizationAuditAction =
   | 'organization.invitation.accepted'
   | 'organization.invitation.created'

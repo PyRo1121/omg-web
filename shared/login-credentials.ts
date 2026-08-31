@@ -3,7 +3,7 @@ import { EMAIL_PATTERN } from './email';
 export const MAX_LOGIN_EMAIL_CHARACTERS = 254;
 export const MAX_LOGIN_PASSWORD_CHARACTERS = 1024;
 
-export interface LoginCredentials {
+interface LoginCredentials {
   readonly email: string;
   readonly password: string;
 }

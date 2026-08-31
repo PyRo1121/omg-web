@@ -1,5 +1,5 @@
 /** Roles that can be assigned by an organization invitation. */
-export type OrganizationInvitationEmailRole = 'admin' | 'member';
+type OrganizationInvitationEmailRole = 'admin' | 'member';
 
 /** Payload sent from the Svelte BFF to the private invitation mail capability. */
 export interface OrganizationInvitationEmailRequest {

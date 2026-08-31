@@ -23,7 +23,7 @@ export type AdminCustomerTier = (typeof ADMIN_CUSTOMER_TIERS)[number];
 export type AdminCustomerStatus = (typeof ADMIN_CUSTOMER_STATUSES)[number];
 
 /** Browser-safe customer row for the private admin directory. */
-export interface AdminCustomerSummary {
+interface AdminCustomerSummary {
   readonly email: string;
   readonly company: string | null;
   readonly createdAt: string | null;
@@ -38,7 +38,7 @@ export interface AdminCustomerSummary {
 }
 
 /** Pagination metadata for a bounded customer directory page. */
-export interface AdminCustomerPagination {
+interface AdminCustomerPagination {
   readonly page: number;
   readonly pageSize: number;
   readonly total: number;
@@ -52,7 +52,7 @@ export interface AdminCustomerDirectory {
 }
 
 /** Descriptive machine metadata that is safe to show to an administrator. */
-export interface AdminCustomerMachine {
+interface AdminCustomerMachine {
   readonly hostname: string | null;
   readonly operatingSystem: string | null;
   readonly architecture: string | null;
@@ -63,7 +63,7 @@ export interface AdminCustomerMachine {
 }
 
 /** Exact daily usage without license or machine identifiers. */
-export interface AdminCustomerUsageDay {
+interface AdminCustomerUsageDay {
   readonly date: string;
   readonly commands: number;
   readonly packagesInstalled: number;

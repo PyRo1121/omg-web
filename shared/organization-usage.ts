@@ -7,7 +7,7 @@ export interface OrganizationUsageRequest {
 export type OrganizationUsageRole = 'owner' | 'admin' | 'member';
 export type OrganizationUsageTier = 'free' | 'pro' | 'team' | 'enterprise' | null;
 
-export interface OrganizationUsageTotals {
+interface OrganizationUsageTotals {
   readonly commands: number;
   readonly packagesInstalled: number;
   readonly runtimeSwitches: number;
