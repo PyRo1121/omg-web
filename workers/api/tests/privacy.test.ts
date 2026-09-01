@@ -22,6 +22,7 @@ const PrivacyPolicyResponseSchema = Schema.Struct({
   privacy_policy_version: Schema.String,
   data_retention: Schema.Unknown,
   your_rights: Schema.Array(Schema.String),
+  request_channel: Schema.String,
   available_globally: Schema.Boolean,
   user_status: Schema.optional(Schema.Union(PrivacyUserStatusSchema, Schema.Null)),
 });
@@ -255,9 +256,13 @@ describe('Privacy API', () => {
       });
       expect(body).toHaveProperty('your_rights');
       expect(body).toHaveProperty('available_globally', true);
-      expect(body.your_rights).toContain('Right to access (POST /api/privacy/export)');
-      expect(body.your_rights).toContain('Right to deletion (POST /api/privacy/delete)');
-      expect(body.your_rights).toContain('Right to opt-out (POST /api/privacy/opt-out)');
+      expect(body.your_rights).toEqual([
+        'Right to access and portability',
+        'Right to deletion',
+        'Right to telemetry opt-out',
+      ]);
+      expect(body.request_channel).toBe('support@latham.cloud');
+      expect(JSON.stringify(body)).not.toContain('/api/privacy/');
     });
 
     it('returns user status for an authenticated customer', async () => {

@@ -123,19 +123,12 @@
       <h2>Your rights</h2>
       <p class="policy-lead">These rights are available to all users regardless of location:</p>
       <ul>
+        <li><strong>Access and portability:</strong> request a portable copy from support.</li>
         <li>
-          <strong>Access and portability:</strong> request a portable copy from support. API-authenticated
-          customers can also use POST /api/privacy/export.
+          <strong>Deletion:</strong> request deletion from support. Deletion is irreversible; audit logs
+          are retained for 30 days for security purposes and payment records per Stripe requirements.
         </li>
-        <li>
-          <strong>Deletion:</strong> request deletion from support. API-authenticated customers can also
-          use POST /api/privacy/delete. Deletion is irreversible; audit logs are retained for 30 days
-          for security purposes and payment records per Stripe requirements.
-        </li>
-        <li>
-          <strong>Opt-out:</strong> request a telemetry opt-out from support. API-authenticated customers
-          can also use POST /api/privacy/opt-out.
-        </li>
+        <li><strong>Opt-out:</strong> request a telemetry opt-out from support.</li>
       </ul>
     </section>
 

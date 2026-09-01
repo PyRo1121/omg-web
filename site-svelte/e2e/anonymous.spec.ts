@@ -118,6 +118,7 @@ test.describe('Svelte public surfaces', () => {
     await expect(
       page.getByText('export your data as JSON from the dashboard settings')
     ).toHaveCount(0);
+    await expect(page.getByText('POST /api/privacy/')).toHaveCount(0);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       'href',
       'https://omg.latham.cloud/privacy/'

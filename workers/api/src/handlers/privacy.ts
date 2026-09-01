@@ -526,11 +526,11 @@ export async function handlePrivacyStatus(request: Request, env: Env): Promise<R
       website_analytics_events: '90 days',
     },
     your_rights: [
-      'Right to access (POST /api/privacy/export)',
-      'Right to deletion (POST /api/privacy/delete)',
-      'Right to opt-out (POST /api/privacy/opt-out)',
-      'Right to portability (data export in JSON format)',
+      'Right to access and portability',
+      'Right to deletion',
+      'Right to telemetry opt-out',
     ],
+    request_channel: 'support@latham.cloud',
     available_globally: true,
     jurisdiction_note: 'These rights are available to ALL users regardless of location.',
   };

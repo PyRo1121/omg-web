@@ -129,18 +129,16 @@ export default function PrivacyPage() {
               <ul class="list-disc space-y-2 pl-5">
                 <li>
                   <strong class="text-[var(--ink)]">Access and portability:</strong> request a
-                  portable copy from support. API-authenticated customers can also use POST
-                  /api/privacy/export.
+                  portable copy from support.
                 </li>
                 <li>
                   <strong class="text-[var(--ink)]">Deletion:</strong> request deletion from
-                  support. API-authenticated customers can also use POST /api/privacy/delete.
-                  Deletion is irreversible; audit logs are retained for 30 days for security
-                  purposes and payment records per Stripe requirements.
+                  support. Deletion is irreversible; audit logs are retained for 30 days for
+                  security purposes and payment records per Stripe requirements.
                 </li>
                 <li>
                   <strong class="text-[var(--ink)]">Opt-out:</strong> request a telemetry opt-out
-                  from support. API-authenticated customers can also use POST /api/privacy/opt-out.
+                  from support.
                 </li>
               </ul>
             </section>

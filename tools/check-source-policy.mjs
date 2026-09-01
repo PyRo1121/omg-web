@@ -297,7 +297,7 @@ const requiredPrivacyMarkers = [
   'Service providers',
   'Access and portability:',
 ];
-const obsoletePrivacyClaims = ['from the dashboard', 'dashboard settings'];
+const obsoletePrivacyClaims = ['from the dashboard', 'dashboard settings', 'POST /api/privacy/'];
 for (const path of privacyPagePaths) {
   const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
   for (const marker of requiredPrivacyMarkers) {
