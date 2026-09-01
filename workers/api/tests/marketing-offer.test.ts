@@ -245,6 +245,53 @@ describe('marketing introductory offer', () => {
     expect(stripeFetch).toHaveBeenCalledOnce();
   });
 
+  it('changes checkout idempotency when the resolved price changes', async () => {
+    const customerId = 'catalog-change-customer';
+    const token = 'catalog-change-token';
+    await env.DB.prepare(`INSERT OR REPLACE INTO customers (id, email) VALUES (?, ?)`)
+      .bind(customerId, 'catalog-change@example.com')
+      .run();
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO sessions (id, customer_id, token, expires_at)
+       VALUES (?, ?, ?, datetime('now', '+1 hour'))`
+    )
+      .bind('catalog-change-session', customerId, token)
+      .run();
+
+    const checkoutEnv = offerEnv();
+    checkoutEnv.STRIPE_PRO_PRICE_ID = 'price_pro_first';
+    const idempotencyKeys: Array<string | null> = [];
+    let requestCount = 0;
+    const stripeFetch = vi.fn<typeof fetch>(async (_input, init) => {
+      idempotencyKeys.push(new Headers(init?.headers).get('Idempotency-Key'));
+      requestCount += 1;
+      return Response.json({
+        id: `cs_catalog_${requestCount}`,
+        url: `https://checkout.stripe.com/c/pay/cs_catalog_${requestCount}`,
+      });
+    });
+    const checkoutRequest = () =>
+      new Request('https://omg-saas.internal/api/billing/checkout', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ offer: 'pro' }),
+      });
+
+    expect((await handleCreateCheckout(checkoutRequest(), checkoutEnv, stripeFetch)).status).toBe(
+      200
+    );
+    checkoutEnv.STRIPE_PRO_PRICE_ID = 'price_pro_second';
+    expect((await handleCreateCheckout(checkoutRequest(), checkoutEnv, stripeFetch)).status).toBe(
+      200
+    );
+
+    expect(idempotencyKeys).toHaveLength(2);
+    expect(idempotencyKeys[0]).not.toBe(idempotencyKeys[1]);
+  });
+
   it('records malformed Stripe responses separately from provider failures', async () => {
     const stripeFetch = vi.fn<typeof fetch>(async () => Response.json({ id: 42, active: true }));
 

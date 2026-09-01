@@ -441,13 +441,16 @@ async function verifyStripeSignature(
 async function checkoutIdentity(
   userId: string,
   offer: string,
+  priceId: string,
   promotionCode: string | undefined
 ): Promise<{ readonly idempotencyKey: string; readonly integrationIdentifier: string }> {
   const day = new Date().toISOString().slice(0, 10);
   const digest = new Uint8Array(
     await crypto.subtle.digest(
       'SHA-256',
-      new TextEncoder().encode(`checkout:${userId}:${offer}:${promotionCode ?? 'standard'}:${day}`)
+      new TextEncoder().encode(
+        `checkout:${userId}:${offer}:${priceId}:${promotionCode ?? 'standard'}:${day}`
+      )
     )
   );
   const idempotencyKey = Array.from(digest.slice(0, 16))
@@ -589,7 +592,7 @@ export async function handleCreateCheckout(
     stripePromotionCodeId = promotion.stripe_promotion_code_id;
   }
 
-  const identity = await checkoutIdentity(auth.user.id, offer, promotionCode);
+  const identity = await checkoutIdentity(auth.user.id, offer, priceId, promotionCode);
   const params = new URLSearchParams({
     mode: 'subscription',
     'line_items[0][price]': priceId,
