@@ -11,7 +11,7 @@ import {
 
 describe('public migration endpoints', () => {
   it.each([
-    ['install.sh', 'be63920bd56f0ce4a1587a868fba34b1fe2961a42e38a39b1b47dbec4f6dd4c7'],
+    ['install.sh', '3b19160870d75423fbeeb5435a5bb28b9885bd513947b852f79c0164d4169a68'],
     ['install.ps1', '34e184b210b701fb3bf96b53b32e9e3e48bee1bca7a742bbbf97193a4d675c3b'],
     [
       '.well-known/omg-license-ed25519-v1.pem',
