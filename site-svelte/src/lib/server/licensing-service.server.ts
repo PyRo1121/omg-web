@@ -321,7 +321,7 @@ function readBoundedJson(
         bytes.set(chunk, offset);
         offset += chunk.byteLength;
       }
-      return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+      return JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes));
     },
     catch: cause => {
       if (cause instanceof LicensingSummaryBodyTooLarge) {

@@ -36,9 +36,9 @@
 - [x] Map duplicate, mismatch, full-seat, ineligible-tier, forbidden, expired, rate-limited, delivery, and unavailable failures.
 - [x] Record bounded audit events without IDs, bodies, invitation URLs, or tokens.
 - [x] Add email-enumeration denial coverage for missing, foreign-recipient, and Better Auth mismatch paths.
-- [ ] Add Better Auth integration coverage for concurrent final-seat acceptance; the D1 final-seat race test passes.
+- [x] Better Auth integration coverage now runs two concurrent invitation accepts for one remaining paid seat. One acceptance succeeds, one fails, membership stays within the license limit, and the losing invitation stays pending.
 
-**Blocked by:** an approved organization and recipient for live invitation characterization, plus the final-seat Better Auth integration test.
+**Blocked by:** an approved organization and recipient for live invitation characterization.
 
 ## 4. Member operations
 
