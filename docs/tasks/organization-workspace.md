@@ -12,7 +12,7 @@
 - [x] Add the atomic D1 active-Team/Enterprise seat-limit trigger.
 - [x] Add last-owner integrity protection and a separate ownership-transfer operation.
 - [x] Update migration checksums and fresh-schema tests; no competing root schema mirror exists.
-- [ ] Add role, tier, seat-race, malformed-row, and cross-tenant tests.
+- [x] Add role, tier, seat-race, malformed-row, and cross-tenant tests.
 
 **Blocked by:** none.
 
@@ -25,7 +25,7 @@
 - [x] Preserve complete Free and Pro individual workspaces and render an honest upgrade boundary on direct access.
 - [ ] Complete authenticated desktop and compact-viewport characterization; action, render, and projection tests pass.
 
-**Blocked by:** 1.
+**Blocked by:** an approved persistent Team or Enterprise development organization and Owner identity.
 
 ## 3. Invitations
 
@@ -38,7 +38,7 @@
 - [x] Add email-enumeration denial coverage for missing, foreign-recipient, and Better Auth mismatch paths.
 - [ ] Add Better Auth integration coverage for concurrent final-seat acceptance; the D1 final-seat race test passes.
 
-**Blocked by:** 2.
+**Blocked by:** an approved organization and recipient for live invitation characterization, plus the final-seat Better Auth integration test.
 
 ## 4. Member operations
 
@@ -48,9 +48,9 @@
 - [x] Add recent-auth, exact-target, double-confirmed ownership transfer.
 - [x] Prevent Owner removal/demotion and self-lockout at the server action boundary.
 - [x] Keep Better Auth member/invitation IDs and all SaaS identifiers out of page data and DOM.
-- [ ] Add mutation, stale-state, forbidden-role, and cross-tenant tests.
+- [x] Add mutation, stale-state, forbidden-role, and cross-tenant tests.
 
-**Blocked by:** 3.
+**Blocked by:** live role and removal characterization after invitation setup.
 
 ## 5. Organization intelligence
 
@@ -59,9 +59,9 @@
 - [x] Add seven-day fleet recency and reported-version distribution using grounded machine telemetry.
 - [x] Add `/dashboard/organization/audit/` with bounded filtering and pagination.
 - [x] Preserve restricted read/removal behavior after downgrade or payment failure.
-- [ ] Add pure derivation, boundary, export, and degraded-state tests.
+- [x] Add pure derivation, boundary, export, and degraded-state tests.
 
-**Blocked by:** 4.
+**Blocked by:** populated-organization characterization; implementation and focused verification are complete.
 
 ## 6. Operator organization support
 
@@ -70,18 +70,18 @@
 - [x] Expose entitlement, seat, membership, invitation, usage, fleet, and audit state without raw identifiers.
 - [x] Keep operator organization support read-only; no support mutation has been explicitly approved.
 - [x] Add search, pagination, authorization, and render tests.
-- [ ] Complete authenticated compact-viewport characterization.
+- [x] Complete authenticated compact-viewport characterization for the empty directory and support entry boundary.
 
-**Blocked by:** 4. May proceed in parallel with 5.
+**Blocked by:** populated support characterization after an approved organization exists.
 
 ## 7. Legacy correction and release gate
 
-- [ ] Rename machine-as-member UI and contracts to fleet/machine vocabulary.
+- [x] Use fleet and machine vocabulary in retained browser UI and contracts; preserve the explicit `omg team members` CLI contract owned by the Rust stream.
 - [x] Inventory CLI and Solid callers of `/api/team/*`; no retained browser caller uses them, and the CLI uses explicit `/api/license/*` fleet contracts.
 - [x] Remove the five superseded `/api/team/*` runtime paths without a compatibility proxy.
-- [ ] Run strict checks, focused/full tests, lint, build, audit evidence, migration checks, and source policy.
-- [ ] Deploy shadow and require an all-noop Alchemy follow-up plan.
+- [x] Run strict checks, focused and full tests, lint, build, audit evidence, migration checks, and source policy.
+- [x] Deploy shadow and require an all-noop Alchemy follow-up plan.
 - [ ] Complete user-controlled authenticated desktop and compact characterization for Owner, Admin, Member, restricted, Free, and Pro states.
 - [ ] Record rollback, production migration, cutover, and observation evidence.
 
-**Blocked by:** 5 and 6.
+**Blocked by:** full organization-state characterization, rollback rehearsal, whole-host cutover, and observation.

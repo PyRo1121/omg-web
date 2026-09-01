@@ -54,13 +54,13 @@ Superseded after the production observation gate, subject to a final caller chec
 
 The shared licensing BFF and Worker `/api/dashboard` route are not on this list: Svelte still consumes the Worker route privately, and the BFF cannot be removed until every remaining Solid caller is gone.
 
-**Blocked by:** 1.
+**Blocked by:** none.
 
 **Verification:** focused account tests, strict Svelte/TypeScript checks, build, shadow desktop/compact characterization.
 
 ## 3. Customer support operations
 
-Progress: selected customer workspaces now load browser-safe health, notes, assigned tags, and the tag catalog through one private admin session. Operators can create and delete notes, create/assign/remove tags, update licenses, and open delegated Billing Portal sessions. Health history remains.
+Progress: authenticated desktop and compact checks cover browser-safe health, notes, assigned tags, the tag catalog, license operations, and delegated Billing Portal behavior. Health history remains explicitly unavailable because the retained schema stores only the current score.
 
 - [x] Replace unbounded admin `request.formData()` calls with the bounded form reader.
 - [x] Decode forms once at the route boundary and pass trusted domain values internally.
@@ -78,43 +78,43 @@ Superseded after the production observation gate, subject to the final caller ch
 - Customer note, tag, and delegated Billing Portal calls in `site/src/lib/api.ts`
 - Customer note and tag mutations in `site/src/lib/api-hooks.ts`
 
-**Blocked by:** authenticated desktop and compact-viewport characterization.
+**Blocked by:** none.
 
 **Verification:** focused customer tests, strict checks, lint, build, shadow admin characterization.
 
 ## 4. Operator analytics and revenue
 
-- [ ] Add URL-addressable analytics, cohort, insight, and revenue routes.
-- [ ] Decode each retained Worker response at its capability boundary.
-- [ ] Port only grounded values; render explicit unavailable states for absent inputs.
-- [ ] Preserve authorization, no-store/noindex policy, and localized degradation.
-- [ ] Add pure derivation, service, route, and render tests.
+- [x] Add URL-addressable analytics, cohort, insight, and revenue routes.
+- [x] Decode each retained Worker response at its capability boundary.
+- [x] Port only grounded values; render explicit unavailable states for absent inputs.
+- [x] Preserve authorization, no-store/noindex policy, and localized degradation.
+- [x] Add pure derivation, service, route, and render tests.
 
-**Blocked by:** 3.
+**Blocked by:** none.
 
 **Verification:** focused operator tests, strict checks, lint, build, shadow characterization.
 
 ## 5. Audit, exports, and live operations
 
-- [ ] Add audit filtering and pagination.
-- [ ] Add bounded users, usage, and audit CSV downloads with exact authorization and headers.
-- [ ] Add one same-origin authenticated firehose/realtime polling boundary.
-- [ ] Enforce response bounds, minimum interval, hidden-page pause, failure cutoff, and cleanup.
-- [ ] Add endpoint, polling-policy, export, accessibility, and degraded-state tests.
+- [x] Add audit filtering and pagination.
+- [x] Add bounded users, usage, and audit CSV downloads with exact authorization and headers.
+- [x] Add one same-origin authenticated firehose polling boundary.
+- [x] Enforce response bounds, minimum interval, hidden-page pause, failure cutoff, and cleanup.
+- [x] Add endpoint, polling-policy, export, accessibility, and degraded-state tests.
 
-**Blocked by:** 3. May run in parallel with 4.
+**Blocked by:** none.
 
 **Verification:** focused audit/export/live tests, strict checks, lint, build, bounded shadow request characterization.
 
 ## 6. M2 parity and removal gate
 
-- [ ] Verify every approved account and operator capability in the route matrix.
-- [ ] Run strict checks, focused/full Svelte tests, lint, build, audit evidence, and source policy.
-- [ ] Deploy shadow and require an all-noop follow-up Alchemy plan.
-- [ ] Complete user-controlled authenticated Helium checks on desktop and compact viewports.
-- [ ] Produce the exact Solid protected routes, components, stores, API helpers, and tests removable after cutover observation.
-- [ ] Update migration status, topology, rollback, and remaining-risk documentation.
+- [x] Verify every approved account and operator capability in the route matrix.
+- [x] Run strict checks, focused and full Svelte tests, lint, build, audit evidence, and source policy.
+- [x] Deploy shadow and require an all-noop follow-up Alchemy plan.
+- [x] Complete authenticated desktop and compact checks for account and operator routes.
+- [x] Produce the exact Solid protected routes, components, stores, API helpers, and tests removable after cutover observation.
+- [x] Update migration status, topology, rollback, and remaining-risk documentation.
 
-**Blocked by:** 2, 4, and 5.
+**Blocked by:** production billing account credentials, organization invitation characterization, and the whole-host cutover gate.
 
 **Verification:** complete M2 route matrix and the commands in the approved spec.
