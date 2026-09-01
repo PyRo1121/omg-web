@@ -112,9 +112,9 @@ Run every step from a clean tree that passes CI. Roll back immediately on any fa
 
 ### Preconditions (gate — abort if unmet)
 
-- [ ] Shadow live checks green on the current commit: deploy the reviewed pending `Website` update, then verify anonymous session lookup (`200 null`), invalid-password rejection (`401`), disabled signup (`400`, no user row written), full GitHub OAuth round-trip with verified session and clean sign-out, security headers, and a no-op follow-up plan.
-- [ ] `npm run check:migrations` green; remote migration inventory in the readiness doc is current.
-- [ ] `site` Playwright E2E green against production (`E2E_*` credentials provided per-run).
+- [x] Shadow live checks green on the current deployed source: anonymous session lookup, invalid-password rejection, disabled signup, full GitHub OAuth round-trip, verified account and admin rendering, clean sign-out, security headers, and the follow-up plan pass.
+- [x] `npm run check:migrations` green; remote migration inventory in the readiness doc is current.
+- [ ] `site-svelte` Playwright E2E green against the production hostname with `E2E_*` credentials provided per run. Production traffic still belongs to Solid, so this remains a post-route gate.
 
 ### Steps
 

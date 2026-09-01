@@ -123,10 +123,10 @@ Rejected. Forwarding unported paths or auth calls from Svelte to Solid adds a co
 - [x] Empty production telemetry initially broke operator analytics. Worker version `5d8b1813-77f5-4190-8349-0edc42848179` made empty aggregates concrete, corrected churn filtering, and grouped journey events through licenses with session fallback; the complete Worker suite passed before deployment and the repaired page rendered successfully.
 - [x] Operator insights then exposed an incomplete feature-adoption projection. Worker version `65860efe-5c7c-45f3-b03f-c5587a25b611` restored SBOM/vulnerability totals and SBOM adopters; focused authorization tests, Worker typecheck, lint, and formatting passed before deployment, and Insights, Revenue, and Audit rendered successfully afterward.
 - [x] Live activity returned `200`, resumed its bounded five-second polling when visible, and stopped issuing `/admin/live/events` requests while its tab was hidden. The fixed-name `omg-users.csv` export downloaded as a 409-byte `text/csv` file with the expected header and was deleted after validation.
-- [ ] Checkout account alignment is fixed. The installed restricted key, products, and prices belong to the OMG Stripe account, and authenticated Checkout reaches `omg-saas` with status `200`. The final gate remains open until Helium reaches `https://checkout.stripe.com` without payment and every unpaid characterization session is expired.
+- [ ] Checkout account alignment is fixed. The installed restricted key, products, and prices belong to the OMG Stripe account. Authenticated Checkout reaches `omg-saas` with status `200`, and headed Helium reached `https://checkout.stripe.com` without payment. The final gate remains open until the one unpaid characterization session is expired and live Stripe reports no open sessions.
 - [x] Production OAuth fails closed before planning unless stage-specific credentials exist. On 2026-08-31, dedicated `PRODUCTION_GITHUB_CLIENT_ID` and `PRODUCTION_GITHUB_CLIENT_SECRET` entries were confirmed present in Secret Service, the production and shadow client IDs were compared without printing either value and confirmed distinct, and the production deployment completed without printing secret values. Live production callback characterization remains a post-route gate.
 - [ ] The Alchemy OAuth profile currently has Worker Scripts access but no `workers_routes:write` or zone-read scope. Reauthorize it with only those additional permissions before reviewing the whole-host route plan; retain them through rollback/observation, then remove them after permanent hostname ownership is established.
-- [ ] Complete invitation-email and compact authenticated characterization before approving the hostname window.
+- [ ] Complete invitation-email characterization before approving the hostname window. Headed Helium passed compact account, operator, and eligible organization bootstrap checks on the current shadow deployment.
 
 ### M6 — Atomic whole-host cutover
 
@@ -170,7 +170,7 @@ A detached, cache-backed deletion rehearsal at revision `ba86d49` removed all 13
 - [x] Shadow deployment, post-deployment no-op plan, live offer creation, anonymous Checkout fail-closed behavior, and private-identifier projection checks. The reviewed 2026-08-31 source update is deployed and its follow-up plan is a no-op.
 - [x] Authenticated Checkout creation with exact offer parsing and an allowlisted Stripe redirect.
 - [x] Bounded post-checkout fulfillment status with no session id, email, license key, or provider identifier in page data/DOM.
-- [ ] User-controlled authenticated Checkout characterization has passed the application and Worker boundaries. Complete the external Stripe redirect in Helium without payment, then expire and verify the absence of every unpaid characterization session.
+- [ ] User-controlled authenticated Checkout characterization passed the application, Worker, and external Stripe redirect boundaries without payment. Expire the one unpaid characterization session and verify that live Stripe reports no open sessions.
 
 Do not attach production routes before the coordinated cutover. Do not enable Stripe Tax until registrations and liability jurisdictions are established. Automated implementation parity does not replace user-controlled authenticated characterization.
 

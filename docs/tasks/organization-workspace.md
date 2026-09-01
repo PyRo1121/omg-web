@@ -23,7 +23,7 @@
 - [x] Link the organization to the server-side billing customer without returning that key.
 - [x] Add the Organization entry point only to eligible Team/Enterprise account overviews.
 - [x] Preserve complete Free and Pro individual workspaces and render an honest upgrade boundary on direct access.
-- [ ] Complete authenticated desktop and compact-viewport characterization; action, render, and projection tests pass.
+- [x] Complete authenticated desktop and compact-viewport characterization; action, render, and projection tests pass.
 
 **Blocked by:** an approved persistent Team or Enterprise development organization and Owner identity.
 

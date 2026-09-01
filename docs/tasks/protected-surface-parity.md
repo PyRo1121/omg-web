@@ -115,6 +115,6 @@ Superseded after the production observation gate, subject to the final caller ch
 - [x] Produce the exact Solid protected routes, components, stores, API helpers, and tests removable after cutover observation.
 - [x] Update migration status, topology, rollback, and remaining-risk documentation.
 
-**Blocked by:** production billing account credentials, organization invitation characterization, and the whole-host cutover gate.
+**Blocked by:** unpaid Checkout Session cleanup, organization invitation characterization, and the whole-host cutover gate.
 
 **Verification:** complete M2 route matrix and the commands in the approved spec.
