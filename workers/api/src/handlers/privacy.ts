@@ -148,12 +148,6 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
           ).bind(customerId),
         },
         {
-          label: 'analytics_events',
-          statement: env.DB.prepare(
-            'DELETE FROM analytics_events WHERE license_key IN (SELECT license_key FROM licenses WHERE customer_id = ?)'
-          ).bind(customerId),
-        },
-        {
           label: 'analytics_active_users',
           statement: env.DB.prepare(
             `DELETE FROM analytics_active_users
@@ -162,7 +156,23 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
                FROM machines m
                JOIN licenses l ON l.id = m.license_id
                WHERE l.customer_id = ?
+               UNION
+               SELECT ae.machine_id
+               FROM analytics_events ae
+               JOIN licenses l ON l.license_key = ae.license_key
+               WHERE l.customer_id = ?
+               UNION
+               SELECT u.machine_id
+               FROM usage u
+               JOIN licenses l ON l.license_key = u.license_key
+               WHERE l.customer_id = ?
              )`
+          ).bind(customerId, customerId, customerId),
+        },
+        {
+          label: 'analytics_events',
+          statement: env.DB.prepare(
+            'DELETE FROM analytics_events WHERE license_key IN (SELECT license_key FROM licenses WHERE customer_id = ?)'
           ).bind(customerId),
         },
         {

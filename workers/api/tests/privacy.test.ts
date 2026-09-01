@@ -75,6 +75,7 @@ describe('Privacy API', () => {
   const TEST_CUSTOMER_ID = 'privacy-customer-id';
   const TEST_LICENSE_ID = 'privacy-license-id';
   const TEST_MACHINE_ID = 'privacy-machine-123';
+  const TEST_ANALYTICS_MACHINE_ID = 'privacy-analytics-machine';
   const TEST_SESSION_TOKEN = 'privacy-session-token';
   const VICTIM_CUSTOMER_ID = 'privacy-victim-customer';
   const VICTIM_LICENSE_ID = 'privacy-victim-license';
@@ -157,10 +158,10 @@ describe('Privacy API', () => {
         `INSERT INTO analytics_events
            (id, event_type, event_name, properties, timestamp, session_id, machine_id, license_key, version, platform)
            VALUES ('privacy-analytics-event', 'command', 'search', '{}', datetime('now'), 'private-session', ?, ?, '1.0.0', 'linux')`
-      ).bind(TEST_MACHINE_ID, TEST_LICENSE_SEED),
+      ).bind(TEST_ANALYTICS_MACHINE_ID, TEST_LICENSE_SEED),
       env.DB.prepare(
         `INSERT INTO analytics_active_users (date, machine_id) VALUES (date('now'), ?)`
-      ).bind(TEST_MACHINE_ID),
+      ).bind(TEST_ANALYTICS_MACHINE_ID),
       env.DB.prepare(
         `INSERT INTO usage (id, license_key, feature, machine_id)
            VALUES ('privacy-usage', ?, 'search', ?)`
@@ -199,8 +200,8 @@ describe('Privacy API', () => {
     await env.DB.prepare('DELETE FROM analytics_events WHERE license_key IN (?, ?)')
       .bind(TEST_LICENSE_SEED, VICTIM_LICENSE_KEY)
       .run();
-    await env.DB.prepare('DELETE FROM analytics_active_users WHERE machine_id = ?')
-      .bind(TEST_MACHINE_ID)
+    await env.DB.prepare('DELETE FROM analytics_active_users WHERE machine_id IN (?, ?)')
+      .bind(TEST_MACHINE_ID, TEST_ANALYTICS_MACHINE_ID)
       .run();
     await env.DB.prepare('DELETE FROM usage WHERE license_key = ?').bind(TEST_LICENSE_SEED).run();
     await env.DB.prepare('DELETE FROM usage_package_daily WHERE license_id = ?')
@@ -506,7 +507,7 @@ describe('Privacy API', () => {
           ),
           countRows(
             'SELECT COUNT(*) AS count FROM analytics_active_users WHERE machine_id = ?',
-            TEST_MACHINE_ID
+            TEST_ANALYTICS_MACHINE_ID
           ),
           countRows('SELECT COUNT(*) AS count FROM usage WHERE license_key = ?', TEST_LICENSE_SEED),
           countRows(
