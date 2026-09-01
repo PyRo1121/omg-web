@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "check": "npm run check:anti-slop && npm run check:audit-evidence && npm run check:migrations && npm run check:lockfiles && npm run check:source-policy && npm run typecheck && npm run lint && npm run format:check && npm run audit && npm run check:deploy && npm test",
+    "check": "npm run check:anti-slop && npm run check:audit-evidence && npm run check:migrations && npm run check:lockfiles && npm run check:source-policy && npm run check:unused-exports && npm run typecheck && npm run lint && npm run format:check && npm run audit && npm run check:deploy && npm test",
     "audit": "npm audit && npm audit --prefix site && npm audit --prefix site-svelte && npm audit --prefix workers/api",
     "check:anti-slop": "node tools/oxlint/sync-anti-slop.mjs --check",
     "check:audit-evidence": "node tools/check-audit-evidence.mjs",
@@ -17,6 +17,7 @@
     "check:migrations": "npm run check:migrations --prefix workers/api",
     "check:lockfiles": "node tools/check-lockfile-integrity.mjs",
     "check:source-policy": "node tools/check-source-policy.mjs",
+    "check:unused-exports": "node tools/check-unused-exports.mjs",
     "format": "prettier --write --ignore-unknown contracts docs/operations shared site/src site/tools site-svelte/e2e site-svelte/tools site-svelte/playwright.config.ts site-svelte/src site-svelte/alchemy.run.ts site-svelte/alchemy.environment.mjs site-svelte/vite.config.ts site-svelte/package.json site-svelte/tsconfig.json workers/api/src workers/api/tests workers/api/tools .github/workflows/ci.yml tools/check-*.mjs tools/oxlint/sync-anti-slop.mjs oxlint.config.ts prettier.config.js package.json site/package.json workers/api/package.json tsconfig.json site/tsconfig.json workers/api/tsconfig.json site/wrangler.toml workers/api/wrangler.toml workers/api/wrangler.test.toml",
     "format:check": "prettier --check --ignore-unknown contracts docs/operations shared site/src site/tools site-svelte/e2e site-svelte/tools site-svelte/playwright.config.ts site-svelte/src site-svelte/alchemy.run.ts site-svelte/alchemy.environment.mjs site-svelte/vite.config.ts site-svelte/package.json site-svelte/tsconfig.json workers/api/src workers/api/tests workers/api/tools .github/workflows/ci.yml tools/check-*.mjs tools/oxlint/sync-anti-slop.mjs oxlint.config.ts prettier.config.js package.json site/package.json workers/api/package.json tsconfig.json site/tsconfig.json workers/api/tsconfig.json site/wrangler.toml workers/api/wrangler.toml workers/api/wrangler.test.toml",
     "lint": "npm run lint:oxlint",
