@@ -164,6 +164,20 @@ if (
   );
   violations += 1;
 }
+const unapprovedDeployResult = spawnSync(
+  process.execPath,
+  [fileURLToPath(new URL(alchemyEnvironmentPath, workspaceRoot)), 'deploy', '--stage', 'shadow'],
+  { encoding: 'utf8' }
+);
+if (
+  unapprovedDeployResult.status !== 1 ||
+  unapprovedDeployResult.stderr.trim() !== '[alchemy-env] non-interactive deploy requires --yes'
+) {
+  process.stderr.write(
+    `[source-policy] ${alchemyEnvironmentPath}: non-interactive deployments must require explicit approval\n`
+  );
+  violations += 1;
+}
 
 const serviceContractPath = 'contracts/service-api-v1.json';
 const serviceContract = JSON.parse(

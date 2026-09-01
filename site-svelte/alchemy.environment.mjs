@@ -12,6 +12,14 @@ if (stage === undefined || !allowedStages.has(stage)) {
   process.stderr.write('[alchemy-env] --stage must be exactly shadow or prod\n');
   process.exit(1);
 }
+if (
+  alchemyArguments[0] === 'deploy' &&
+  !process.stdout.isTTY &&
+  !alchemyArguments.includes('--yes')
+) {
+  process.stderr.write('[alchemy-env] non-interactive deploy requires --yes\n');
+  process.exit(1);
+}
 const githubCredentialPrefix = stage === 'prod' ? 'PRODUCTION_' : '';
 const REQUIRED_ENVIRONMENT = [
   { binding: 'CLOUDFLARE_ACCOUNT_ID', source: 'CLOUDFLARE_ACCOUNT_ID' },
