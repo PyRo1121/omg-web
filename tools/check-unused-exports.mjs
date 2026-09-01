@@ -7,6 +7,7 @@ const requireFromSvelte = createRequire(new URL('../site-svelte/package.json', i
 const ts = requireFromSvelte('typescript');
 const productionRoots = ['shared', 'site/src', 'site-svelte/src', 'workers/api/src'];
 const consumerRoots = [...productionRoots, 'site-svelte/e2e', 'workers/api/tests'];
+const consumerEntryFiles = ['tools/check-source-policy.mjs'];
 const sourceExtensions = ['.js', '.jsx', '.mjs', '.svelte', '.ts', '.tsx'];
 const sourceExtensionSet = new Set(sourceExtensions);
 const frameworkEntries = new Set([
@@ -122,7 +123,10 @@ function isRuntimeEntry(path) {
   );
 }
 
-const files = new Set((await Promise.all(consumerRoots.map(sourceFiles))).flat());
+const files = new Set([
+  ...(await Promise.all(consumerRoots.map(sourceFiles))).flat(),
+  ...consumerEntryFiles,
+]);
 const productionFiles = new Set((await Promise.all(productionRoots.map(sourceFiles))).flat());
 const syntaxTrees = new Map();
 const exportsByFile = new Map();
