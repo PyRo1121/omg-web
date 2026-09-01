@@ -11,7 +11,7 @@ export const BillingCheckoutInputSchema = Schema.Struct({
 });
 
 const StripeCheckoutSessionIdSchema = Schema.String.check(
-  Schema.isPattern(/^cs_[A-Za-z0-9]{10,200}$/u)
+  Schema.isPattern(/^cs_(?:live|test)_[A-Za-z0-9]{10,200}$/u)
 );
 
 function trustedStripeUrlSchema(hostname: string) {

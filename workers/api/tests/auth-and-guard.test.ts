@@ -807,7 +807,7 @@ describe('POST /api/billing/portal email override', () => {
 
 describe('GET /api/billing/checkout-session account binding', () => {
   const token = 'checkout-owner-token';
-  const sessionId = 'cs_test123456789';
+  const sessionId = 'cs_live_1234567890';
 
   beforeEach(async () => {
     await ensureSchema();

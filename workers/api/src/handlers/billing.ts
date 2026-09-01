@@ -56,7 +56,7 @@ const MarketingPromotionRowSchema = Schema.Struct({
 });
 
 /** Checkout Session ids are high-entropy Stripe capabilities; bound the shape. */
-const CheckoutSessionIdPattern = /^cs_[A-Za-z0-9]{10,200}$/;
+const CheckoutSessionIdPattern = /^cs_(?:live|test)_[A-Za-z0-9]{10,200}$/;
 const MAX_STRIPE_API_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_STRIPE_WEBHOOK_BODY_BYTES = 512 * 1024;
 

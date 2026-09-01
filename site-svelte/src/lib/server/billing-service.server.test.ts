@@ -83,8 +83,8 @@ describe('Svelte billing service', () => {
   it('creates checkout through an authenticated private session', async () => {
     const service = new BillingServiceStub(() =>
       Response.json({
-        sessionId: 'cs_1234567890ABCDE',
-        url: 'https://checkout.stripe.com/c/pay/cs_test_safe',
+        sessionId: 'cs_live_1234567890ABCDE',
+        url: 'https://checkout.stripe.com/c/pay/cs_live_1234567890ABCDE',
       })
     );
 
@@ -95,7 +95,9 @@ describe('Svelte billing service', () => {
       })
     );
 
-    expect(result).toEqual({ url: 'https://checkout.stripe.com/c/pay/cs_test_safe' });
+    expect(result).toEqual({
+      url: 'https://checkout.stripe.com/c/pay/cs_live_1234567890ABCDE',
+    });
     expect(service.requests).toHaveLength(2);
     const checkoutRequest = service.requests[1];
     expect(checkoutRequest?.method).toBe('POST');
@@ -109,7 +111,7 @@ describe('Svelte billing service', () => {
   it('rejects untrusted Stripe redirects at the private response boundary', async () => {
     const service = new BillingServiceStub(() =>
       Response.json({
-        sessionId: 'cs_1234567890ABCDE',
+        sessionId: 'cs_test_1234567890ABCDE',
         url: 'https://attacker.example/checkout',
       })
     );
@@ -124,8 +126,8 @@ describe('Svelte billing service', () => {
   it('rejects a checkout redirect on a non-default HTTPS port', async () => {
     const service = new BillingServiceStub(() =>
       Response.json({
-        sessionId: 'cs_1234567890ABCDE',
-        url: 'https://checkout.stripe.com:8443/c/pay/cs_test_safe',
+        sessionId: 'cs_test_1234567890ABCDE',
+        url: 'https://checkout.stripe.com:8443/c/pay/cs_test_1234567890ABCDE',
       })
     );
 
@@ -146,14 +148,14 @@ describe('Svelte billing service', () => {
     );
 
     const result = await Effect.runPromise(
-      loadBillingFulfillment(identity, environment(service), 'cs_1234567890ABCDE')
+      loadBillingFulfillment(identity, environment(service), 'cs_test_1234567890ABCDE')
     );
 
     expect(result).toEqual({ kind: 'ready', tier: 'pro' });
     expect(JSON.stringify(result)).not.toContain('LICENSE');
     expect(JSON.stringify(result)).not.toContain('ada@example.com');
     expect(service.requests[1]?.url).toBe(
-      'https://omg-saas.internal/api/billing/checkout-session?id=cs_1234567890ABCDE'
+      'https://omg-saas.internal/api/billing/checkout-session?id=cs_test_1234567890ABCDE'
     );
   });
 
@@ -165,12 +167,12 @@ describe('Svelte billing service', () => {
 
     await expect(
       Effect.runPromise(
-        loadBillingFulfillment(identity, environment(processing), 'cs_1234567890ABCDE')
+        loadBillingFulfillment(identity, environment(processing), 'cs_test_1234567890ABCDE')
       )
     ).resolves.toEqual({ kind: 'processing' });
     await expect(
       Effect.runPromise(
-        loadBillingFulfillment(identity, environment(unverified), 'cs_1234567890ABCDE')
+        loadBillingFulfillment(identity, environment(unverified), 'cs_test_1234567890ABCDE')
       )
     ).resolves.toEqual({ kind: 'unverified' });
   });
