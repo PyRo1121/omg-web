@@ -60,8 +60,8 @@
         </li>
         <li>
           <strong>Telemetry (opt-out):</strong> anonymized CLI usage such as command counts, package names,
-          durations, and platform info, tied to your license. Customers can disable telemetry at any time
-          from the dashboard or via the API.
+          durations, and platform info, tied to your license. Customers can disable telemetry through
+          the authenticated API or by contacting support.
         </li>
       </ul>
     </section>
@@ -82,17 +82,17 @@
       <p class="policy-lead">These rights are available to all users regardless of location:</p>
       <ul>
         <li>
-          <strong>Access and portability:</strong> export your data as JSON from the dashboard settings
-          or via POST /api/privacy/export.
+          <strong>Access and portability:</strong> request a portable copy from support. API-authenticated
+          customers can also use POST /api/privacy/export.
         </li>
         <li>
-          <strong>Deletion:</strong> delete your telemetry and account data via POST /api/privacy/delete.
-          Deletion is irreversible; audit logs are retained for 30 days for security purposes and payment
-          records per Stripe requirements.
+          <strong>Deletion:</strong> request deletion from support. API-authenticated customers can also
+          use POST /api/privacy/delete. Deletion is irreversible; audit logs are retained for 30 days
+          for security purposes and payment records per Stripe requirements.
         </li>
         <li>
-          <strong>Opt-out:</strong> stop telemetry collection at any time via POST /api/privacy/opt-out
-          or the dashboard.
+          <strong>Opt-out:</strong> request a telemetry opt-out from support. API-authenticated customers
+          can also use POST /api/privacy/opt-out.
         </li>
       </ul>
     </section>
