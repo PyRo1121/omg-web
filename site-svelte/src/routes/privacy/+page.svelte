@@ -9,7 +9,31 @@
     name="description"
     content="How OMG Package Manager collects, uses, and protects your data: telemetry opt-out, data export, deletion, and retention periods."
   />
+  <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://omg.latham.cloud/privacy/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Privacy Policy - OMG Package Manager" />
+  <meta
+    property="og:description"
+    content="How OMG Package Manager collects, uses, and protects account, license, billing, and telemetry data."
+  />
+  <meta property="og:url" content="https://omg.latham.cloud/privacy/" />
+  <meta property="og:image" content="https://omg.latham.cloud/og/omg-og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:alt" content="OMG Package Manager product overview." />
+  <meta property="og:site_name" content="OMG Package Manager" />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Privacy Policy - OMG Package Manager" />
+  <meta
+    name="twitter:description"
+    content="How OMG Package Manager collects, uses, and protects account, license, billing, and telemetry data."
+  />
+  <meta name="twitter:image" content="https://omg.latham.cloud/og/omg-og.png" />
+  <meta name="twitter:image:alt" content="OMG Package Manager product overview." />
 </svelte:head>
 
 <main id="main-content" class="legal-shell">

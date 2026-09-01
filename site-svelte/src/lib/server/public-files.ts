@@ -3,19 +3,7 @@ import { applySecurityHeaders, SITE_ORIGIN } from '../../../../shared/security-h
 const SHADOW_ROBOTS_POLICY = 'noindex, nofollow';
 const DOCS_CACHE_POLICY = 'public, max-age=0, must-revalidate';
 
-interface PageEntry {
-  readonly changeFrequency: 'weekly' | 'yearly';
-  readonly lastModified: string;
-  readonly path: string;
-  readonly priority: number;
-}
-
-const STATIC_PAGES = [
-  { path: '/', priority: 1, changeFrequency: 'weekly', lastModified: '2026-08-25' },
-  { path: '/docs/', priority: 0.9, changeFrequency: 'weekly', lastModified: '2026-08-25' },
-  { path: '/privacy/', priority: 0.3, changeFrequency: 'yearly', lastModified: '2026-02-07' },
-  { path: '/terms/', priority: 0.3, changeFrequency: 'yearly', lastModified: '2026-02-07' },
-] as const satisfies readonly PageEntry[];
+const STATIC_PAGE_PATHS = ['/', '/docs/', '/privacy/', '/terms/'] as const;
 
 function escapeXml(value: string): string {
   return value
@@ -26,12 +14,9 @@ function escapeXml(value: string): string {
     .replaceAll("'", '&apos;');
 }
 
-function sitemapEntry(page: PageEntry): string {
+function sitemapEntry(path: (typeof STATIC_PAGE_PATHS)[number]): string {
   return `  <url>
-    <loc>${escapeXml(`${SITE_ORIGIN}${page.path}`)}</loc>
-    <lastmod>${page.lastModified}</lastmod>
-    <changefreq>${page.changeFrequency}</changefreq>
-    <priority>${page.priority.toFixed(1)}</priority>
+    <loc>${escapeXml(`${SITE_ORIGIN}${path}`)}</loc>
   </url>`;
 }
 
@@ -87,10 +72,8 @@ export function robotsResponse(): Response {
 
 User-agent: *
 Disallow: /api/
-Disallow: /dashboard
-Disallow: /admin
-Disallow: /_server/
-Allow: /_build/
+Disallow: /dashboard/
+Disallow: /admin/
 
 Sitemap: ${SITE_ORIGIN}/sitemap.xml
 `;
@@ -104,12 +87,9 @@ Sitemap: ${SITE_ORIGIN}/sitemap.xml
 }
 
 export function sitemapResponse(): Response {
-  const entries = STATIC_PAGES.map(sitemapEntry).join('\n');
+  const entries = STATIC_PAGE_PATHS.map(sitemapEntry).join('\n');
   const body = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-                            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entries}
 </urlset>`;
 

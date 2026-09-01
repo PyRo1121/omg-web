@@ -5,7 +5,31 @@
     name="description"
     content="Terms of Service for the OMG Package Manager website, CLI, licenses, and subscriptions."
   />
+  <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://omg.latham.cloud/terms/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Terms of Service - OMG Package Manager" />
+  <meta
+    property="og:description"
+    content="Terms for the OMG Package Manager website, CLI, accounts, licenses, subscriptions, and hosted services."
+  />
+  <meta property="og:url" content="https://omg.latham.cloud/terms/" />
+  <meta property="og:image" content="https://omg.latham.cloud/og/omg-og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:alt" content="OMG Package Manager product overview." />
+  <meta property="og:site_name" content="OMG Package Manager" />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Terms of Service - OMG Package Manager" />
+  <meta
+    name="twitter:description"
+    content="Terms for the OMG Package Manager website, CLI, accounts, licenses, subscriptions, and hosted services."
+  />
+  <meta name="twitter:image" content="https://omg.latham.cloud/og/omg-og.png" />
+  <meta name="twitter:image:alt" content="OMG Package Manager product overview." />
 </svelte:head>
 
 <main id="main-content" class="legal-shell">

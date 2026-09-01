@@ -1,7 +1,6 @@
 # OMG SEO Plan — verified against live site and primary sources
 
-Every claim below was either re-verified against the live site (`curl`, 2026-08-25) or checked
-against Google's official documentation. Agent reports with unverified or wrong claims are marked.
+The report table records the Solid production audit from 2026-08-25. The implementation sections now track the Svelte replacement. Re-check production after the whole-host cutover.
 
 ## Verification verdicts on the 10 research reports
 
@@ -26,23 +25,26 @@ Key external citations:
 
 ## Implementation plan (sequenced, code-only unless marked 🧑 human)
 
-### Slice 1 — Structured data correctness (P0, small)
+### Svelte status on 2026-09-01
 
-1. Delete the stale global JSON-LD from `site/src/entry-server.tsx`.
-2. Keep exactly one `SoftwareApplication` per page (homepage route already has the truthful one);
-   drop the "22x faster" superlative from schema (it stays as measured context in the visible
-   benchmarks section), normalize `url` to trailing slash.
-3. Add `Organization` node (`@id …/#org`, logo, `sameAs` GitHub) referenced as `publisher`.
-4. Add `BreadcrumbList` on `/docs/` (Home → Docs). No FAQPage (no visible FAQ; restricted anyway).
-   No HowTo as a rich-results play (deprecated); optional later as plain schema.
+The Svelte site now owns canonical metadata, crawl directives, and structured data for every public route. Its sitemap emits only canonical URLs. It omits `<priority>` and `<changefreq>` because Google ignores both fields. It also omits `<lastmod>` until the build can supply a consistently accurate content date.
 
-### Slice 2 — Crawlability fixes (P0, small)
+The homepage and documentation page include complete Open Graph and Twitter metadata. The privacy and terms pages now include the same sharing fields. The application icons now match the 192×192 and 512×512 dimensions declared by `manifest.json`.
 
-5. Canonicals on `/privacy/` and `/terms/` must point at the slash URLs that return 200.
-6. Sitemap lists final 200 URLs (`/docs/`, `/privacy/`, `/terms/`); add `<lastmod>`.
-7. Unknown routes return a real 404 page + status instead of the 200 SPA shell.
-8. Trailing-slash redirects 307 → 301/308 where we control them.
-9. robots.txt: add `Disallow: /dashboard` and `/admin` (keep meta noindex too).
+### Slice 1 — Structured data correctness (P0, complete)
+
+1. [x] Delete the stale global JSON-LD from `site/src/entry-server.tsx`.
+2. [x] Keep one truthful `SoftwareApplication` node on the homepage and use the canonical slash URL.
+3. [x] Add an `Organization` node and reference it as the publisher.
+4. [x] Add `BreadcrumbList` on `/docs/`. Do not add FAQPage or HowTo rich-result markup.
+
+### Slice 2 — Crawlability fixes (P0, complete)
+
+5. [x] Point `/privacy/` and `/terms/` canonicals at their final slash URLs.
+6. [x] List only final 200 URLs in the sitemap. Omit advisory fields unless the build can prove them.
+7. [x] Return a real 404 page and status for unknown routes.
+8. [x] Use permanent redirects for canonical trailing-slash routes.
+9. [x] Disallow the API and protected workspace prefixes. Keep route-level `noindex` metadata.
 
 ### Slice 3 — Performance (P1, medium)
 
@@ -62,10 +64,10 @@ Key external citations:
 17. Docs H2s: "Runtimes" → "Manage Node.js, Python, and Rust versions", etc.
 18. Remove the unused `keywords` meta tag.
 
-### Slice 5 — Social previews (P2, small)
+### Slice 5 — Social previews (P2, complete)
 
-19. Full OG/Twitter set on `/docs/` (and legal pages) — currently only `/` has them.
-20. Add `og:image:type`, sharpen `og:image:alt`, long cache for `/og/*`.
+19. [x] Add complete Open Graph and Twitter metadata to `/docs/` and both legal pages.
+20. [x] Publish a 1200×630 PNG with its type, dimensions, and alternative text.
 
 ### Slice 6 — Docs architecture (P2, medium, later)
 

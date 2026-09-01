@@ -46,7 +46,7 @@
         description:
           'A fast package and runtime manager for Linux system packages and reproducible development environments.',
         url: 'https://omg.latham.cloud/',
-        downloadUrl: 'https://omg.latham.cloud/#install',
+        downloadUrl: 'https://omg.latham.cloud/install.sh',
         softwareHelp: 'https://omg.latham.cloud/docs/',
         codeRepository: 'https://github.com/PyRo1121/omg',
         license: 'https://www.gnu.org/licenses/agpl-3.0.html',
@@ -61,7 +61,7 @@
   <title>OMG: One CLI for Packages, Runtimes, and Project Toolchains</title>
   <meta
     name="description"
-    content="OMG is a free, open-source CLI that installs apps and manages Node.js, Python, Go, and Rust versions on Linux and macOS — one command instead of apt, brew, nvm, pyenv, and rustup."
+    content="OMG is a free, open-source CLI that installs apps and manages Node.js, Python, Go, and Rust versions on Linux and macOS with one command instead of apt, brew, nvm, pyenv, and rustup."
   />
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <link rel="canonical" href="https://omg.latham.cloud/" />
@@ -82,6 +82,7 @@
     content="The OMG landing page headline beside a large orange 7→1 graphic representing seven package tools replaced by one command."
   />
   <meta property="og:site_name" content="OMG Package Manager" />
+  <meta property="og:locale" content="en_US" />
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="OMG: Stop Managing Package Managers" />

@@ -23,6 +23,17 @@ describe('public migration endpoints', () => {
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(expectedHash);
   });
 
+  it.each([
+    ['icon-192.png', 192],
+    ['icon-512.png', 512],
+  ])('publishes a square %s application icon', async (fileName, expectedSize) => {
+    const bytes = await readFile(new URL(`../../../static/icons/${fileName}`, import.meta.url));
+
+    expect(bytes.subarray(1, 4).toString('ascii')).toBe('PNG');
+    expect(bytes.readUInt32BE(16)).toBe(expectedSize);
+    expect(bytes.readUInt32BE(20)).toBe(expectedSize);
+  });
+
   it('preserves the production robots policy', async () => {
     const response = robotsResponse();
 
@@ -34,10 +45,8 @@ describe('public migration endpoints', () => {
 
 User-agent: *
 Disallow: /api/
-Disallow: /dashboard
-Disallow: /admin
-Disallow: /_server/
-Allow: /_build/
+Disallow: /dashboard/
+Disallow: /admin/
 
 Sitemap: https://omg.latham.cloud/sitemap.xml
 `);
@@ -55,6 +64,9 @@ Sitemap: https://omg.latham.cloud/sitemap.xml
     expect(body).toContain('<loc>https://omg.latham.cloud/docs/</loc>');
     expect(body).toContain('<loc>https://omg.latham.cloud/privacy/</loc>');
     expect(body).toContain('<loc>https://omg.latham.cloud/terms/</loc>');
+    expect(body).not.toContain('<lastmod>');
+    expect(body).not.toContain('<changefreq>');
+    expect(body).not.toContain('<priority>');
   });
 
   it('reports health without a fabricated timestamp', async () => {

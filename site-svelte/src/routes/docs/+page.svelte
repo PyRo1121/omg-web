@@ -84,7 +84,7 @@
     name="description"
     content="Install OMG, learn its package and runtime commands, capture reproducible environments, and open the complete CLI reference."
   />
-  <meta name="robots" content="index, follow" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
   <link rel="canonical" href="https://omg.latham.cloud/docs/" />
 
   <meta property="og:type" content="website" />
@@ -103,6 +103,7 @@
     content="The OMG landing page headline beside a large orange 7→1 graphic representing seven package tools replaced by one command."
   />
   <meta property="og:site_name" content="OMG Package Manager" />
+  <meta property="og:locale" content="en_US" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="OMG Documentation - Install, Commands, and Platforms" />
   <meta
@@ -110,6 +111,10 @@
     content="Install OMG, learn its package and runtime commands, capture reproducible environments, and open the complete CLI reference."
   />
   <meta name="twitter:image" content="https://omg.latham.cloud/og/omg-og.png" />
+  <meta
+    name="twitter:image:alt"
+    content="The OMG landing page headline beside a large orange 7→1 graphic representing seven package tools replaced by one command."
+  />
   <svelte:element this={"script"} type="application/ld+json">{breadcrumbData}</svelte:element>
 </svelte:head>
 

@@ -6,6 +6,35 @@ const externalBaseUrl = process.env['E2E_BASE_URL']?.trim();
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 test.describe('Svelte public surfaces', () => {
+  test('publishes canonical crawl and sharing metadata', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+    await expect(page).toHaveTitle('OMG: One CLI for Packages, Runtimes, and Project Toolchains');
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://omg.latham.cloud/'
+    );
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      'index, follow, max-image-preview:large'
+    );
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      'content',
+      'https://omg.latham.cloud/og/omg-og.png'
+    );
+    await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute('content', 'en_US');
+
+    const structuredDataText = await page
+      .locator('script[type="application/ld+json"]')
+      .evaluate(node => node.textContent ?? '');
+    expect(structuredDataText).toContain('https://omg.latham.cloud/install.sh');
+    expect(() => JSON.parse(structuredDataText)).not.toThrow();
+
+    const socialImage = await page.request.get('/og/omg-og.png');
+    expect(socialImage.ok()).toBe(true);
+    expect(socialImage.headers()['content-type']).toBe('image/png');
+  });
+
   test('keeps the complete pricing surface reachable on a compact viewport', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -58,7 +87,9 @@ test.describe('Svelte public surfaces', () => {
     const sitemapText = await sitemap.text();
     expect(sitemap.ok()).toBe(true);
     expect(sitemapText).toContain('<loc>https://omg.latham.cloud/docs/</loc>');
-    expect(sitemapText).toContain('<lastmod>');
+    expect(sitemapText).not.toContain('<lastmod>');
+    expect(sitemapText).not.toContain('<changefreq>');
+    expect(sitemapText).not.toContain('<priority>');
     expect(sitemapText).not.toContain('https://omg.latham.cloud/dashboard');
     expect(sitemapText).not.toContain('/docs/getting-started');
     await expect
@@ -75,11 +106,27 @@ test.describe('Svelte public surfaces', () => {
     expect(privacyResponse?.ok()).toBe(true);
     await expect(page.getByRole('heading', { name: 'Privacy policy' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Data retention' })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://omg.latham.cloud/privacy/'
+    );
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+      'content',
+      'Privacy Policy - OMG Package Manager'
+    );
 
     const termsResponse = await page.goto('/terms/', { waitUntil: 'domcontentloaded' });
     expect(termsResponse?.ok()).toBe(true);
     await expect(page.getByRole('heading', { name: 'Terms of service' })).toBeVisible();
     await expect(page.getByRole('heading', { name: '3. Acceptable use' })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://omg.latham.cloud/terms/'
+    );
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+      'content',
+      'Terms of Service - OMG Package Manager'
+    );
 
     const robotsResponse = await page.request.get('/robots.txt');
     expect(robotsResponse.ok()).toBe(true);
