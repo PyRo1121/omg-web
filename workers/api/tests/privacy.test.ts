@@ -242,8 +242,17 @@ describe('Privacy API', () => {
       expect(response.status).toBe(200);
       const body = await decodeResponse(response, PrivacyPolicyResponseSchema);
 
-      expect(body).toHaveProperty('privacy_policy_version');
-      expect(body).toHaveProperty('data_retention');
+      expect(body).toHaveProperty('privacy_policy_version', '2.1');
+      expect(body.data_retention).toEqual({
+        audit_logs: '30 days',
+        cli_telemetry_events: '90 days',
+        documentation_analytics_events: '7 days',
+        documentation_analytics_sessions: '30 days',
+        introductory_offer_requests: '12 months',
+        payment_records: 'As required by Stripe and applicable law',
+        usage_statistics: '12 months',
+        website_analytics_events: '90 days',
+      });
       expect(body).toHaveProperty('your_rights');
       expect(body).toHaveProperty('available_globally', true);
       expect(body.your_rights).toContain('Right to access (POST /api/privacy/export)');

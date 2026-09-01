@@ -1,6 +1,6 @@
 <!--
   Privacy policy. The canonical machine-readable summary is served by
-  GET /api/privacy/status (`privacy_policy_version` 2.0); keep this page in
+  GET /api/privacy/status (`privacy_policy_version` 2.1); keep this page in
   step with that contract when retention periods or rights change.
 -->
 <svelte:head>
@@ -39,7 +39,7 @@
 <main id="main-content" class="legal-shell">
   <p class="page-kicker">Privacy and data rights</p>
   <h1 class="legal-title">Privacy policy</h1>
-  <p class="legal-meta">Version 2.0 / Last updated February 7, 2026</p>
+  <p class="legal-meta">Version 2.1 / Last updated September 1, 2026</p>
 
   <div class="legal-body">
     <section>
@@ -59,21 +59,63 @@
           email.
         </li>
         <li>
-          <strong>Telemetry (opt-out):</strong> anonymized CLI usage such as command counts, package names,
-          durations, and platform info, tied to your license. Customers can disable telemetry through
-          the authenticated API or by contacting support.
+          <strong>CLI telemetry (opt-out):</strong> pseudonymous command usage, package and runtime names,
+          durations, errors, platform information, and performance measurements associated with your license.
+        </li>
+        <li>
+          <strong>Website analytics:</strong> page paths or documentation URLs, interactions, performance
+          measurements, referrer domains, campaign parameters, browser and device categories, and Cloudflare-provided
+          country and city. Documentation analytics may retain a truncated user-agent string. Application
+          analytics does not store your raw IP address.
+        </li>
+        <li>
+          <strong>Security records:</strong> session times, IP addresses, user agents, and authentication
+          or account-change audit events used to protect accounts and investigate abuse.
         </li>
       </ul>
     </section>
 
     <section>
+      <h2>How we use data</h2>
+      <p>
+        We use data to provide and secure accounts, licenses, organizations, billing, support, and
+        email; operate and improve OMG; measure reliability and feature adoption; prevent abuse; and
+        satisfy legal or payment-record obligations. We do not sell personal information or use it
+        for targeted advertising.
+      </p>
+    </section>
+
+    <section>
+      <h2>Cookies and identifiers</h2>
+      <p>
+        Sign-in uses an essential secure session cookie. Public website analytics uses no cookies,
+        local storage, or session storage. The analytics service derives a daily rotating
+        pseudonymous visitor identifier from the request IP address and user agent; raw IP addresses
+        may still appear in bounded security and authenticated-session records.
+      </p>
+    </section>
+
+    <section>
+      <h2>Service providers</h2>
+      <p>
+        Cloudflare provides hosting, database, network, security, and email infrastructure. GitHub
+        provides OAuth sign-in. Stripe processes billing and payment records. These providers
+        process data needed to deliver their services under their own terms and privacy commitments.
+      </p>
+    </section>
+
+    <section>
       <h2>Data retention</h2>
       <ul>
-        <li>Telemetry events: 90 days</li>
+        <li>Raw CLI and website analytics events: 90 days</li>
+        <li>Raw documentation analytics events: 7 days; documentation sessions: 30 days</li>
         <li>Audit logs: 30 days</li>
-        <li>Usage statistics: 12 months</li>
+        <li>Aggregate and per-license usage statistics: 12 months</li>
         <li>Introductory offer requests: 12 months</li>
-        <li>Payment records: retained per Stripe requirements</li>
+        <li>
+          Account, license, organization, and billing records: while needed to provide the service
+        </li>
+        <li>Payment records: as required by Stripe and applicable law</li>
       </ul>
     </section>
 

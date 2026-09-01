@@ -513,13 +513,17 @@ export async function cleanupExpiredAuditLogs(db: D1Database): Promise<void> {
  */
 export async function handlePrivacyStatus(request: Request, env: Env): Promise<Response> {
   const baseResponse = {
-    privacy_policy_version: '2.0',
-    last_updated: '2026-02-07',
+    privacy_policy_version: '2.1',
+    last_updated: '2026-09-01',
     data_retention: {
-      telemetry_events: '90 days',
       audit_logs: `${AUDIT_LOG_RETENTION_DAYS} days`,
-      payment_records: 'Per Stripe requirements',
+      cli_telemetry_events: '90 days',
+      documentation_analytics_events: '7 days',
+      documentation_analytics_sessions: '30 days',
+      introductory_offer_requests: '12 months',
+      payment_records: 'As required by Stripe and applicable law',
       usage_statistics: '12 months',
+      website_analytics_events: '90 days',
     },
     your_rights: [
       'Right to access (POST /api/privacy/export)',

@@ -286,6 +286,36 @@ if (!isDeepStrictEqual(relativeSolidPublicFiles, relativeSvelteStaticFiles)) {
   }
 }
 
+const privacyPagePaths = [
+  'site/src/routes/privacy.tsx',
+  'site-svelte/src/routes/privacy/+page.svelte',
+];
+const requiredPrivacyMarkers = [
+  'Version 2.1 / Last updated September 1, 2026',
+  'Website analytics:',
+  'Cookies and identifiers',
+  'Service providers',
+  'Access and portability:',
+];
+const obsoletePrivacyClaims = ['from the dashboard', 'dashboard settings'];
+for (const path of privacyPagePaths) {
+  const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
+  for (const marker of requiredPrivacyMarkers) {
+    if (!contents.includes(marker)) {
+      process.stderr.write(`[source-policy] ${path}: privacy policy is missing ${marker}\n`);
+      violations += 1;
+    }
+  }
+  for (const claim of obsoletePrivacyClaims) {
+    if (contents.includes(claim)) {
+      process.stderr.write(
+        `[source-policy] ${path}: privacy policy retains false ${claim} claim\n`
+      );
+      violations += 1;
+    }
+  }
+}
+
 for (const root of sourceRoots) {
   for (const path of await sourceFiles(root)) {
     const contents = await readFile(new URL(path, workspaceRoot), 'utf8');

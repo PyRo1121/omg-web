@@ -112,6 +112,8 @@ test.describe('Svelte public surfaces', () => {
     expect(privacyResponse?.ok()).toBe(true);
     await expect(page.getByRole('heading', { name: 'Privacy policy' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Data retention' })).toBeVisible();
+    await expect(page.getByText('Version 2.1 / Last updated September 1, 2026')).toBeVisible();
+    await expect(page.getByText('Website analytics:', { exact: true })).toBeVisible();
     await expect(page.getByText('request a portable copy from support')).toBeVisible();
     await expect(
       page.getByText('export your data as JSON from the dashboard settings')
