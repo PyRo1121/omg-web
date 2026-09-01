@@ -8,6 +8,7 @@ import * as Schema from 'effect/Schema';
 import { describe, it, expect, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import worker from '../src/worker';
+import { cleanupDocsAnalytics } from '../src/handlers/docs-analytics';
 import { handleGetAnalyticsOverview } from '../src/handlers/site-analytics';
 import type { TrackingBatch } from '../src/contracts/http-bodies';
 
@@ -35,6 +36,17 @@ const AnalyticsOverviewSchema = Schema.Struct({
 });
 
 const ServerTimestampRowSchema = Schema.Struct({ timestamp: Schema.String });
+const RetentionCountsSchema = Schema.Struct({
+  activeUsers: Schema.Number,
+  analyticsDaily: Schema.Number,
+  analyticsErrors: Schema.Number,
+  analyticsEvents: Schema.Number,
+  memberUsage: Schema.Number,
+  packageUsage: Schema.Number,
+  rawUsage: Schema.Number,
+  runtimeUsage: Schema.Number,
+  usageDaily: Schema.Number,
+});
 
 const TrackedPropertiesSchema = Schema.Struct({
   device: Schema.String,
@@ -110,6 +122,112 @@ afterEach(async () => {
   await env.DB.prepare('DELETE FROM site_analytics_hourly').run();
   await env.DB.prepare('DELETE FROM docs_analytics_events').run();
   await env.DB.prepare('DELETE FROM docs_analytics_sessions').run();
+  await env.DB.prepare(`DELETE FROM analytics_events WHERE id LIKE 'retention-%'`).run();
+  await env.DB.prepare(`DELETE FROM analytics_errors WHERE error_message LIKE 'retention-%'`).run();
+  await env.DB.prepare(
+    `DELETE FROM analytics_active_users WHERE machine_id LIKE 'retention-%'`
+  ).run();
+  await env.DB.prepare(`DELETE FROM analytics_daily WHERE dimension LIKE 'retention-%'`).run();
+  await env.DB.prepare(`DELETE FROM usage WHERE id LIKE 'retention-%'`).run();
+  await env.DB.prepare(`DELETE FROM licenses WHERE id = 'retention-license'`).run();
+  await env.DB.prepare(`DELETE FROM customers WHERE id = 'retention-customer'`).run();
+});
+
+describe('scheduled analytics retention', () => {
+  it('keeps only telemetry and usage rows inside the disclosed windows', async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO customers (id, email, tier) VALUES ('retention-customer', 'retention@example.com', 'pro')`
+      ),
+      env.DB.prepare(
+        `INSERT INTO licenses (id, customer_id, license_key, tier, status)
+         VALUES ('retention-license', 'retention-customer', 'retention-key', 'pro', 'active')`
+      ),
+      env.DB.prepare(
+        `INSERT INTO analytics_events
+         (id, event_type, event_name, timestamp, session_id, machine_id, license_key, version, platform, created_at)
+         VALUES
+           ('retention-event-old', 'command', 'old', datetime('now', '-13 months'), 'retention-session-old', 'retention-machine-old', 'retention-key', '1.0.0', 'linux', datetime('now', '-13 months')),
+           ('retention-event-current', 'command', 'current', datetime('now', '-1 month'), 'retention-session-current', 'retention-machine-current', 'retention-key', '1.0.0', 'linux', datetime('now', '-1 month'))`
+      ),
+      env.DB.prepare(
+        `INSERT INTO analytics_errors (error_message, occurrences, last_occurred_at)
+         VALUES
+           ('retention-error-old', 1, datetime('now', '-13 months')),
+           ('retention-error-current', 1, datetime('now', '-1 month'))`
+      ),
+      env.DB.prepare(
+        `INSERT INTO analytics_active_users (date, machine_id)
+         VALUES
+           (date('now', '-13 months'), 'retention-active-old'),
+           (date('now', '-11 months'), 'retention-active-current')`
+      ),
+      env.DB.prepare(
+        `INSERT INTO analytics_daily (date, metric, dimension, value)
+         VALUES
+           (date('now', '-13 months'), 'commands', 'retention-daily-old', 1),
+           (date('now', '-11 months'), 'commands', 'retention-daily-current', 1)`
+      ),
+      env.DB.prepare(
+        `INSERT INTO usage (id, license_key, feature, machine_id, timestamp)
+         VALUES
+           ('retention-raw-old', 'retention-key', 'search', 'retention-machine-old', datetime('now', '-13 months')),
+           ('retention-raw-current', 'retention-key', 'search', 'retention-machine-current', datetime('now', '-11 months'))`
+      ),
+      env.DB.prepare(
+        `INSERT INTO usage_daily (id, license_id, date, commands_run)
+         VALUES
+           ('retention-daily-old', 'retention-license', date('now', '-13 months'), 1),
+           ('retention-daily-current', 'retention-license', date('now', '-11 months'), 1)`
+      ),
+      env.DB.prepare(
+        `INSERT INTO usage_member_daily (id, license_id, machine_id, date, commands_run)
+         VALUES
+           ('retention-member-old', 'retention-license', 'retention-machine-old', date('now', '-13 months'), 1),
+           ('retention-member-current', 'retention-license', 'retention-machine-current', date('now', '-11 months'), 1)`
+      ),
+      env.DB.prepare(
+        `INSERT INTO usage_package_daily (license_id, date, package_name, usage_count)
+         VALUES
+           ('retention-license', date('now', '-13 months'), 'retention-package', 1),
+           ('retention-license', date('now', '-11 months'), 'retention-package', 1)`
+      ),
+      env.DB.prepare(
+        `INSERT INTO usage_runtime_daily (license_id, date, runtime, usage_count)
+         VALUES
+           ('retention-license', date('now', '-13 months'), 'retention-runtime', 1),
+           ('retention-license', date('now', '-11 months'), 'retention-runtime', 1)`
+      ),
+    ]);
+
+    await cleanupDocsAnalytics(env.DB);
+
+    const counts = Schema.decodeUnknownSync(RetentionCountsSchema)(
+      await env.DB.prepare(
+        `SELECT
+           (SELECT COUNT(*) FROM analytics_active_users WHERE machine_id LIKE 'retention-%') AS activeUsers,
+           (SELECT COUNT(*) FROM analytics_daily WHERE dimension LIKE 'retention-%') AS analyticsDaily,
+           (SELECT COUNT(*) FROM analytics_errors WHERE error_message LIKE 'retention-%') AS analyticsErrors,
+           (SELECT COUNT(*) FROM analytics_events WHERE id LIKE 'retention-%') AS analyticsEvents,
+           (SELECT COUNT(*) FROM usage_member_daily WHERE license_id = 'retention-license') AS memberUsage,
+           (SELECT COUNT(*) FROM usage_package_daily WHERE license_id = 'retention-license') AS packageUsage,
+           (SELECT COUNT(*) FROM usage WHERE id LIKE 'retention-%') AS rawUsage,
+           (SELECT COUNT(*) FROM usage_runtime_daily WHERE license_id = 'retention-license') AS runtimeUsage,
+           (SELECT COUNT(*) FROM usage_daily WHERE license_id = 'retention-license') AS usageDaily`
+      ).first()
+    );
+    expect(counts).toEqual({
+      activeUsers: 1,
+      analyticsDaily: 1,
+      analyticsErrors: 1,
+      analyticsEvents: 1,
+      memberUsage: 1,
+      packageUsage: 1,
+      rawUsage: 1,
+      runtimeUsage: 1,
+      usageDaily: 1,
+    });
+  });
 });
 
 describe('POST /api/docs/analytics', () => {

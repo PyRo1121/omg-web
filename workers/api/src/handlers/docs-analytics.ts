@@ -32,6 +32,8 @@ const MAX_DOCS_PAYLOAD_BYTES = 512 * 1024;
 const MAX_USER_AGENT_LENGTH = 256;
 /** CLI telemetry retention promised by the privacy disclosures (privacy.ts). */
 const TELEMETRY_RETENTION_DAYS = 90;
+/** Aggregate and per-license usage retention promised by the privacy disclosures. */
+const USAGE_RETENTION_MONTHS = 12;
 /** Stale realtime rows past this age can never re-enter the 5-minute live window. */
 const REALTIME_STALE_MS = 60 * 60 * 1000;
 
@@ -445,7 +447,8 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
  *
  * Prunes expired raw docs analytics rows (7 days), docs sessions (30 days),
  * CLI telemetry rows at the retention promised by the privacy disclosures
- * (90 days), raw site analytics (90 days), rotated visitor salts, and stale realtime presence rows.
+ * (90 days), raw site analytics (90 days), usage statistics (12 months), rotated visitor salts,
+ * and stale realtime presence rows.
  * This function owns all analytics retention because the scheduled handler
  * currently calls only this cleanup. Failures propagate to the caller so the
  * scheduled handler is the single failure path.
@@ -475,6 +478,42 @@ export async function cleanupDocsAnalytics(db: D1Database): Promise<void> {
       .run();
     reportInfo(`Cleaned up expired ${table} rows`);
   }
+
+  await db
+    .prepare(
+      `DELETE FROM analytics_events
+       WHERE created_at < datetime('now', '-${TELEMETRY_RETENTION_DAYS} days')`
+    )
+    .run();
+  await db
+    .prepare(
+      `DELETE FROM analytics_errors
+       WHERE last_occurred_at < datetime('now', '-${TELEMETRY_RETENTION_DAYS} days')`
+    )
+    .run();
+  reportInfo('Cleaned up expired CLI analytics rows');
+
+  for (const table of ['analytics_active_users', 'analytics_daily']) {
+    await db
+      .prepare(`DELETE FROM ${table} WHERE date < date('now', '-${USAGE_RETENTION_MONTHS} months')`)
+      .run();
+  }
+  await db
+    .prepare(
+      `DELETE FROM usage WHERE timestamp < datetime('now', '-${USAGE_RETENTION_MONTHS} months')`
+    )
+    .run();
+  for (const table of [
+    'usage_daily',
+    'usage_member_daily',
+    'usage_package_daily',
+    'usage_runtime_daily',
+  ]) {
+    await db
+      .prepare(`DELETE FROM ${table} WHERE date < date('now', '-${USAGE_RETENTION_MONTHS} months')`)
+      .run();
+  }
+  reportInfo('Cleaned up expired usage statistics');
 
   await db
     .prepare(
