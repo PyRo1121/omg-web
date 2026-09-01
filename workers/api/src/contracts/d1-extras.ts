@@ -465,7 +465,7 @@ export function isTeamOrEnterpriseTier(tier: string): boolean {
 }
 
 /** Admin flag selected from customers.admin. */
-export const AdminFlagRowSchema = Schema.Struct({ admin: Schema.Number });
+const AdminFlagRowSchema = Schema.Struct({ admin: Schema.Number });
 
 /** Admin user-detail customer row. */
 export const AdminCustomerDetailRowSchema = Schema.Struct({

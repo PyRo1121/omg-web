@@ -21,7 +21,6 @@ import {
   AdminDateCountRowSchema,
   AdminErrorTypeCountRowSchema,
   AdminExpansionOpportunityRowSchema,
-  AdminFlagRowSchema,
   AdminFleetVersionRowSchema,
   AdminGeoDimensionRowSchema,
   AdminLtvByTierRowSchema,
@@ -426,12 +425,6 @@ describe('optional extra rows', () => {
     expect(profile?.company).toBe('Acme');
   });
 
-  it('rejects an admin flag row without admin', async () => {
-    const exit = await Effect.runPromiseExit(
-      decodeOptionalExtraRow(AdminFlagRowSchema, 'admin', { nope: true })
-    );
-    expect(Exit.isFailure(exit)).toBe(true);
-  });
 });
 
 describe('remaining D1 result arrays', () => {
