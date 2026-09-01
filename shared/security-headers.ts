@@ -16,7 +16,7 @@ const NON_SCRIPT_DIRECTIVES = [
 ];
 
 /** Strict fallback policy for non-HTML responses and static resources. */
-export const CONTENT_SECURITY_POLICY = [
+const CONTENT_SECURITY_POLICY = [
   DEFAULT_SOURCE_POLICY,
   SCRIPT_SOURCE_POLICY,
   ...NON_SCRIPT_DIRECTIVES,
@@ -52,7 +52,7 @@ export function contentSecurityPolicyWithScriptHashes(hashes: ReadonlyArray<stri
 }
 
 /** Headers that must cover dynamic SSR as well as static asset responses. */
-export const SECURITY_HEADERS = {
+const SECURITY_HEADERS = {
   'Content-Security-Policy': CONTENT_SECURITY_POLICY,
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
