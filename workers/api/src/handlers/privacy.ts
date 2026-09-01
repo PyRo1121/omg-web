@@ -478,7 +478,7 @@ export async function handleOptOut(request: Request, env: Env): Promise<Response
 
 /**
  * Delete audit rows older than the retention window promised by the privacy
- * disclosures. Mirrors `cleanupDocsAnalytics`; must be invoked from the Worker's
+ * disclosures. Mirrors `cleanupAnalyticsRetention`; must be invoked from the Worker's
  * `scheduled` handler for the advertised retention to hold.
  */
 export async function cleanupExpiredAuditLogs(db: D1Database): Promise<void> {

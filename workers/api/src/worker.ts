@@ -75,7 +75,7 @@ import {
 import {
   handleDocsAnalytics,
   handleDocsAnalyticsDashboard,
-  cleanupDocsAnalytics,
+  cleanupAnalyticsRetention,
 } from './handlers/docs-analytics';
 import { handleGitHubProxy } from './handlers/github-proxy';
 import { handleGetDashboard } from './handlers/account-dashboard';
@@ -432,10 +432,10 @@ export default Sentry.withSentry(
       ctx: ExecutionContext
     ): Promise<void> {
       ctx.waitUntil(
-        cleanupDocsAnalytics(env.DB).catch(error => {
+        cleanupAnalyticsRetention(env.DB).catch(error => {
           // Structured log first: SENTRY_DSN is optional, and without it every
           // Sentry call is a no-op sink that hides cron failures entirely.
-          reportError('docs_analytics.cleanup_failed', error);
+          reportError('analytics_retention.cleanup_failed', error);
           Sentry.captureException(error);
         })
       );

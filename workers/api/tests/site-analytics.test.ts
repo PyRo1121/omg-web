@@ -8,7 +8,7 @@ import * as Schema from 'effect/Schema';
 import { describe, it, expect, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import worker from '../src/worker';
-import { cleanupDocsAnalytics } from '../src/handlers/docs-analytics';
+import { cleanupAnalyticsRetention } from '../src/handlers/docs-analytics';
 import { handleGetAnalyticsOverview } from '../src/handlers/site-analytics';
 import type { TrackingBatch } from '../src/contracts/http-bodies';
 
@@ -200,7 +200,7 @@ describe('scheduled analytics retention', () => {
       ),
     ]);
 
-    await cleanupDocsAnalytics(env.DB);
+    await cleanupAnalyticsRetention(env.DB);
 
     const counts = Schema.decodeUnknownSync(RetentionCountsSchema)(
       await env.DB.prepare(

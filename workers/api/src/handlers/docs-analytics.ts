@@ -455,7 +455,7 @@ export async function handleDocsAnalyticsDashboard(request: Request, env: Env): 
  *
  * @param db - The licensing D1 database.
  */
-export async function cleanupDocsAnalytics(db: D1Database): Promise<void> {
+export async function cleanupAnalyticsRetention(db: D1Database): Promise<void> {
   // Compare in the same format CURRENT_TIMESTAMP writes (YYYY-MM-DD HH:MM:SS);
   // an ISO string cutoff deletes up to a day early due to ' ' vs 'T' ordering.
   await db
