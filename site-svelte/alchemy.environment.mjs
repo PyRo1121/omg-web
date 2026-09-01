@@ -7,6 +7,11 @@ const inlineStage = alchemyArguments.find(argument => argument.startsWith('--sta
 const stage =
   inlineStage?.slice('--stage='.length) ??
   (stageFlagIndex >= 0 ? alchemyArguments[stageFlagIndex + 1] : undefined);
+const allowedStages = new Set(['shadow', 'prod']);
+if (stage === undefined || !allowedStages.has(stage)) {
+  process.stderr.write('[alchemy-env] --stage must be exactly shadow or prod\n');
+  process.exit(1);
+}
 const githubCredentialPrefix = stage === 'prod' ? 'PRODUCTION_' : '';
 const REQUIRED_ENVIRONMENT = [
   { binding: 'CLOUDFLARE_ACCOUNT_ID', source: 'CLOUDFLARE_ACCOUNT_ID' },

@@ -17,10 +17,12 @@ Both traffic-bearing runtimes mount Better Auth `1.7.1` against the retained `om
 ### Alchemy deployment input injection
 
 `site-svelte/.env` is not used. `npm run plan`, `deploy`, `dev`, and `destroy`
-run through `site-svelte/alchemy.environment.mjs`. Shadow and non-production
-stages require `CLOUDFLARE_ACCOUNT_ID`, `GITHUB_CLIENT_ID`,
-`GITHUB_CLIENT_SECRET`, and `SVELTE_BFF_SECRET`. The `prod` stage deliberately
-refuses those shadow GitHub keyring entries and instead requires
+run through `site-svelte/alchemy.environment.mjs`. The wrapper requires an
+explicit stage and accepts only `shadow` or `prod`; aliases such as `production`
+fail before credential lookup or Alchemy execution. The `shadow` stage requires
+`CLOUDFLARE_ACCOUNT_ID`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and
+`SVELTE_BFF_SECRET`. The `prod` stage deliberately refuses those shadow GitHub
+keyring entries and instead requires
 `PRODUCTION_GITHUB_CLIENT_ID` and `PRODUCTION_GITHUB_CLIENT_SECRET`; the wrapper
 maps those values to the Worker's `GITHUB_CLIENT_ID` and
 `GITHUB_CLIENT_SECRET` bindings. Inputs come from either:
