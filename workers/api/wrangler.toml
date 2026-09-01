@@ -68,8 +68,8 @@ persist = true
 mode = "smart"
 
 [vars]
-STRIPE_PRO_PRICE_ID = "price_1U7ub2PI6tkdUQScfVcPeLY9"
-STRIPE_TEAM_PRICE_ID = "price_1U7ub3PI6tkdUQScFqTRFgv8"
+STRIPE_PRO_PRICE_ID = "price_1UAvtYEFWzXv59QZgttvSlRI"
+STRIPE_TEAM_PRICE_ID = "price_1UAvtZEFWzXv59QZdkZdmcud"
 STRIPE_INTRO_COUPON_ID = "omg_intro_20_3mo_v1"
 
 [triggers]
