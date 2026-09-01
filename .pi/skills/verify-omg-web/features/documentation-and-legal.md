@@ -4,7 +4,7 @@
 
 - Documentation landing page and CLI reference link
 - Public sitemap
-- Privacy policy and data-retention section
+- Privacy policy, data-retention section, and truthful rights-request guidance
 - Terms of service and acceptable-use section
 - Crawler exclusions for protected workspaces
 
@@ -21,7 +21,7 @@ npm run test:e2e -- e2e/anonymous.spec.ts \
   --grep 'documentation entry surface|legal pages and the crawler policy'
 ```
 
-The docs proof includes the “Learn the parts you need.” and “Install OMG” headings, the real GitHub CLI-reference destination, and a sitemap containing `/docs/` but no protected or invented docs routes. Legal proof includes the expected headings. Robots must disallow `/dashboard` and `/admin` and advertise the canonical sitemap.
+The docs proof includes the “Learn the parts you need.” and “Install OMG” headings, the real GitHub CLI-reference destination, and a sitemap containing `/docs/` but no protected or invented docs routes. Legal proof includes the expected headings and directs access, deletion, and opt-out requests to support without claiming nonexistent Account settings controls. Robots must disallow `/dashboard` and `/admin` and advertise the canonical sitemap.
 
 ## Gotchas
 
