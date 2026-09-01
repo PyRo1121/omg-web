@@ -46,14 +46,15 @@ The homepage and documentation page include complete Open Graph and Twitter meta
 8. [x] Use permanent redirects for canonical trailing-slash routes.
 9. [x] Disallow the API and protected workspace prefixes. Keep route-level `noindex` metadata.
 
-### Slice 3 — Performance (P1, medium)
+### Slice 3 — Performance (P1, audited complete)
 
-10. Preload the latin Archivo woff2 (+ mono 400 if above fold) with `crossorigin`.
-11. Add a size-adjusted Archivo fallback `@font-face` to kill swap shift.
-12. Reduce `modulepreload` set to entry + immediate deps (17 → ~4).
-13. Move `.webmcp/bridge.js` out of the critical head path.
-14. Fix hashed-asset cache-control to a single `public, max-age=31536000, immutable`
-    (HTML stays `max-age=0, must-revalidate`).
+10. [x] Keep font loading under the generated stylesheet rather than adding manual preloads without measured savings.
+11. [x] Keep the current fallback stack; the deployed shadow recorded zero layout shift.
+12. [x] Keep SvelteKit's generated module preloads. The deployed shadow transferred 74,188 bytes across 15 scripts and reached a 1,000 ms unthrottled LCP, so overriding framework dependency discovery is not justified.
+13. [x] Confirm no `.webmcp/bridge.js` request or reference exists in the Svelte artifact.
+14. [x] Confirm hashed scripts and fonts return `public, immutable, max-age=31536000` as one cache policy.
+
+The 2026-09-01 shadow sample used managed Chrome without throttling. It recorded a 549 ms TTFB, 1,000 ms FCP and LCP, zero CLS, 198,205 transferred bytes, and no critical image request. These are deployment diagnostics rather than field Core Web Vitals.
 
 ### Slice 4 — On-page copy (P1, complete)
 
