@@ -21,7 +21,7 @@ npm run test:e2e -- e2e/anonymous.spec.ts \
   --grep 'documentation entry surface|legal pages and the crawler policy'
 ```
 
-The docs proof includes the “Learn the parts you need.” and “Install OMG” headings, the real GitHub CLI-reference destination, and a sitemap containing `/docs/` but no protected or invented docs routes. Legal proof includes policy version 2.1, website-analytics disclosure, the expected headings, and support-based access, deletion, and opt-out guidance without claiming nonexistent Account settings controls. Robots must disallow `/dashboard` and `/admin` and advertise the canonical sitemap.
+The docs proof includes the “Learn the parts you need.” and “Install OMG” headings, the real GitHub CLI-reference destination, and a sitemap containing `/docs/` but no protected or invented docs routes. Legal proof includes policy version 2.1, website-analytics disclosure, Global Privacy Control and Do Not Track suppression, the expected headings, and support-based access, deletion, and opt-out guidance without claiming nonexistent Account settings controls. Robots must disallow `/dashboard` and `/admin` and advertise the canonical sitemap.
 
 ## Gotchas
 

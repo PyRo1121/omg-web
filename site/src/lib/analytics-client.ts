@@ -10,6 +10,7 @@
  * - Geo derived from edge/CDN headers on server
  */
 
+import { browserPrivacySignalEnabled } from '../../../shared/browser-privacy';
 import { LICENSING_API_ORIGIN } from '../../../shared/licensing-routes';
 import {
   inputDelayMs,
@@ -165,6 +166,9 @@ function getUtmParams(): UtmParams {
  * Queue an analytics event
  */
 function queueEvent(type: EventType, name: string, properties: AnalyticsProperties = {}): void {
+  if (browserPrivacySignalEnabled()) {
+    return;
+  }
   const event: AnalyticsEvent = {
     event_type: type,
     event_name: name,
@@ -208,6 +212,10 @@ function scheduleFlush(): void {
  * declares the JSON contract, and omits credentials at the API origin.
  */
 function flushEvents(): void {
+  if (browserPrivacySignalEnabled()) {
+    eventQueue = [];
+    return;
+  }
   if (eventQueue.length === 0) {
     return;
   }
@@ -632,6 +640,9 @@ export function initAnalytics(): void {
     return;
   }
   isInitialized = true;
+  if (browserPrivacySignalEnabled()) {
+    return;
+  }
 
   // Track initial page view
   trackPageView();

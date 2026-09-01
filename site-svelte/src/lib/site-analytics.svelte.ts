@@ -10,6 +10,7 @@
  * - Geo derived from edge/CDN headers on server
  */
 
+import { browserPrivacySignalEnabled } from '../../../shared/browser-privacy';
 import {
   inputDelayMs,
   interactionMs,
@@ -169,6 +170,9 @@ function getUtmParams(): UtmParams {
  * Queue an analytics event
  */
 function queueEvent(type: EventType, name: string, properties: AnalyticsProperties = {}): void {
+  if (browserPrivacySignalEnabled()) {
+    return;
+  }
   const event: AnalyticsEvent = {
     event_type: type,
     event_name: name,
@@ -210,6 +214,10 @@ function scheduleFlush(): void {
  * bounds and decodes the batch before forwarding it over the private Service Binding.
  */
 function flushEvents(): void {
+  if (browserPrivacySignalEnabled()) {
+    eventQueue = [];
+    return;
+  }
   if (eventQueue.length === 0) {
     return;
   }
@@ -616,6 +624,9 @@ export function initAnalytics(): void {
     return;
   }
   isInitialized = true;
+  if (browserPrivacySignalEnabled()) {
+    return;
+  }
 
   // Initialize all trackers
   initScrollTracking();

@@ -107,6 +107,52 @@ test.describe('Svelte public surfaces', () => {
       .toBe(true);
   });
 
+  test('emits one anonymous analytics batch without a browser privacy signal', async ({ page }) => {
+    let analyticsRequests = 0;
+    page.on('request', request => {
+      if (new URL(request.url()).pathname === '/api/analytics/site/') {
+        analyticsRequests += 1;
+      }
+    });
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(500);
+    await page
+      .getByRole('navigation', { name: 'Homepage introduction' })
+      .getByRole('link', { name: 'Install OMG', exact: true })
+      .click();
+    await page.waitForTimeout(3_500);
+
+    expect(analyticsRequests).toBeGreaterThan(0);
+  });
+
+  for (const preference of ['globalPrivacyControl', 'doNotTrack'] as const) {
+    test(`honors ${preference} before analytics begins`, async ({ page }) => {
+      let analyticsRequests = 0;
+      page.on('request', request => {
+        if (new URL(request.url()).pathname === '/api/analytics/site/') {
+          analyticsRequests += 1;
+        }
+      });
+      await page.addInitScript(
+        ({ key, value }) => {
+          Object.defineProperty(globalThis.navigator, key, { configurable: true, value });
+        },
+        { key: preference, value: preference === 'globalPrivacyControl' ? true : '1' }
+      );
+
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(500);
+      await page
+        .getByRole('navigation', { name: 'Homepage introduction' })
+        .getByRole('link', { name: 'Install OMG', exact: true })
+        .click();
+      await page.waitForTimeout(3_500);
+
+      expect(analyticsRequests).toBe(0);
+    });
+  }
+
   test('renders legal pages and the crawler policy', async ({ page }) => {
     const privacyResponse = await page.goto('/privacy/', { waitUntil: 'domcontentloaded' });
     expect(privacyResponse?.ok()).toBe(true);
@@ -114,6 +160,9 @@ test.describe('Svelte public surfaces', () => {
     await expect(page.getByRole('heading', { name: 'Data retention' })).toBeVisible();
     await expect(page.getByText('Version 2.1 / Last updated September 1, 2026')).toBeVisible();
     await expect(page.getByText('Website analytics:', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Global Privacy Control and browser Do Not Track prevent public analytics')
+    ).toBeVisible();
     await expect(page.getByText('request a portable copy from support')).toBeVisible();
     await expect(
       page.getByText('export your data as JSON from the dashboard settings')

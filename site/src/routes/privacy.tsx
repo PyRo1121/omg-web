@@ -87,7 +87,8 @@ export default function PrivacyPage() {
                 cookies, local storage, or session storage. The analytics service derives a daily
                 rotating pseudonymous visitor identifier from the request IP address and user agent;
                 raw IP addresses may still appear in bounded security and authenticated-session
-                records.
+                records. Global Privacy Control and browser Do Not Track prevent public analytics
+                from starting.
               </p>
             </section>
 

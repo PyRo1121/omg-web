@@ -294,20 +294,22 @@ const requiredPrivacyMarkers = [
   'Version 2.1 / Last updated September 1, 2026',
   'Website analytics:',
   'Cookies and identifiers',
+  'Global Privacy Control',
   'Service providers',
   'Access and portability:',
 ];
 const obsoletePrivacyClaims = ['from the dashboard', 'dashboard settings', 'POST /api/privacy/'];
 for (const path of privacyPagePaths) {
   const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
+  const normalizedContents = contents.replace(/\s+/gu, ' ');
   for (const marker of requiredPrivacyMarkers) {
-    if (!contents.includes(marker)) {
+    if (!normalizedContents.includes(marker)) {
       process.stderr.write(`[source-policy] ${path}: privacy policy is missing ${marker}\n`);
       violations += 1;
     }
   }
   for (const claim of obsoletePrivacyClaims) {
-    if (contents.includes(claim)) {
+    if (normalizedContents.includes(claim)) {
       process.stderr.write(
         `[source-policy] ${path}: privacy policy retains false ${claim} claim\n`
       );
