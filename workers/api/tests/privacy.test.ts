@@ -50,6 +50,12 @@ const PrivacyPreferenceResponseSchema = Schema.Struct({
   telemetry_opt_out: Schema.Boolean,
   message: Schema.String,
 });
+const CountRowSchema = Schema.Struct({ count: Schema.Number });
+
+async function countRows(sql: string, value: string): Promise<number> {
+  return Schema.decodeUnknownSync(CountRowSchema)(await env.DB.prepare(sql).bind(value).first())
+    .count;
+}
 
 async function decodeResponse<S extends Schema.Schema.AnyNoContext>(
   response: Response,
@@ -141,6 +147,41 @@ describe('Privacy API', () => {
     )
       .bind('feat-1', TEST_LICENSE_ID, TEST_MACHINE_ID, 'sbom', 1)
       .run();
+
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO machines (id, license_id, machine_id, hostname)
+           VALUES ('privacy-machine-row', ?, ?, 'private-host')`
+      ).bind(TEST_LICENSE_ID, TEST_MACHINE_ID),
+      env.DB.prepare(
+        `INSERT INTO analytics_events
+           (id, event_type, event_name, properties, timestamp, session_id, machine_id, license_key, version, platform)
+           VALUES ('privacy-analytics-event', 'command', 'search', '{}', datetime('now'), 'private-session', ?, ?, '1.0.0', 'linux')`
+      ).bind(TEST_MACHINE_ID, TEST_LICENSE_SEED),
+      env.DB.prepare(
+        `INSERT INTO analytics_active_users (date, machine_id) VALUES (date('now'), ?)`
+      ).bind(TEST_MACHINE_ID),
+      env.DB.prepare(
+        `INSERT INTO usage (id, license_key, feature, machine_id)
+           VALUES ('privacy-usage', ?, 'search', ?)`
+      ).bind(TEST_LICENSE_SEED, TEST_MACHINE_ID),
+      env.DB.prepare(
+        `INSERT INTO usage_daily (id, license_id, date, commands_run)
+           VALUES ('privacy-usage-daily', ?, date('now'), 1)`
+      ).bind(TEST_LICENSE_ID),
+      env.DB.prepare(
+        `INSERT INTO usage_member_daily (id, license_id, machine_id, date, commands_run)
+           VALUES ('privacy-member-usage', ?, ?, date('now'), 1)`
+      ).bind(TEST_LICENSE_ID, TEST_MACHINE_ID),
+      env.DB.prepare(
+        `INSERT INTO usage_package_daily (license_id, date, package_name, usage_count)
+           VALUES (?, date('now'), 'private-package', 1)`
+      ).bind(TEST_LICENSE_ID),
+      env.DB.prepare(
+        `INSERT INTO usage_runtime_daily (license_id, date, runtime, usage_count)
+           VALUES (?, date('now'), 'private-runtime', 1)`
+      ).bind(TEST_LICENSE_ID),
+    ]);
   });
 
   afterEach(async () => {
@@ -155,6 +196,26 @@ describe('Privacy API', () => {
     await env.DB.prepare('DELETE FROM feature_usage WHERE license_id = ?')
       .bind(TEST_LICENSE_ID)
       .run();
+    await env.DB.prepare('DELETE FROM analytics_events WHERE license_key IN (?, ?)')
+      .bind(TEST_LICENSE_SEED, VICTIM_LICENSE_KEY)
+      .run();
+    await env.DB.prepare('DELETE FROM analytics_active_users WHERE machine_id = ?')
+      .bind(TEST_MACHINE_ID)
+      .run();
+    await env.DB.prepare('DELETE FROM usage WHERE license_key = ?').bind(TEST_LICENSE_SEED).run();
+    await env.DB.prepare('DELETE FROM usage_package_daily WHERE license_id = ?')
+      .bind(TEST_LICENSE_ID)
+      .run();
+    await env.DB.prepare('DELETE FROM usage_runtime_daily WHERE license_id = ?')
+      .bind(TEST_LICENSE_ID)
+      .run();
+    await env.DB.prepare('DELETE FROM usage_member_daily WHERE license_id = ?')
+      .bind(TEST_LICENSE_ID)
+      .run();
+    await env.DB.prepare('DELETE FROM usage_daily WHERE license_id = ?')
+      .bind(TEST_LICENSE_ID)
+      .run();
+    await env.DB.prepare('DELETE FROM machines WHERE license_id = ?').bind(TEST_LICENSE_ID).run();
     await env.DB.prepare('DELETE FROM audit_log WHERE resource_id = ?')
       .bind(TEST_CUSTOMER_ID)
       .run();
@@ -436,6 +497,36 @@ describe('Privacy API', () => {
         .bind(TEST_LICENSE_ID)
         .first();
       expect(features?.count).toBe(0);
+
+      await expect(
+        Promise.all([
+          countRows(
+            'SELECT COUNT(*) AS count FROM analytics_events WHERE license_key = ?',
+            TEST_LICENSE_SEED
+          ),
+          countRows(
+            'SELECT COUNT(*) AS count FROM analytics_active_users WHERE machine_id = ?',
+            TEST_MACHINE_ID
+          ),
+          countRows('SELECT COUNT(*) AS count FROM usage WHERE license_key = ?', TEST_LICENSE_SEED),
+          countRows(
+            'SELECT COUNT(*) AS count FROM usage_daily WHERE license_id = ?',
+            TEST_LICENSE_ID
+          ),
+          countRows(
+            'SELECT COUNT(*) AS count FROM usage_member_daily WHERE license_id = ?',
+            TEST_LICENSE_ID
+          ),
+          countRows(
+            'SELECT COUNT(*) AS count FROM usage_package_daily WHERE license_id = ?',
+            TEST_LICENSE_ID
+          ),
+          countRows(
+            'SELECT COUNT(*) AS count FROM usage_runtime_daily WHERE license_id = ?',
+            TEST_LICENSE_ID
+          ),
+        ])
+      ).resolves.toEqual([0, 0, 0, 0, 0, 0, 0]);
     });
 
     it('cannot redirect deletion to another tenant with caller-supplied identifiers', async () => {
@@ -451,12 +542,21 @@ describe('Privacy API', () => {
       )
         .bind(VICTIM_LICENSE_ID, VICTIM_CUSTOMER_ID, VICTIM_LICENSE_KEY)
         .run();
-      await env.DB.prepare(
-        `INSERT INTO command_event (id, license_id, machine_id, command, success, timestamp)
-         VALUES ('victim-command', ?, ?, 'search', 1, datetime('now'))`
-      )
-        .bind(VICTIM_LICENSE_ID, VICTIM_MACHINE_ID)
-        .run();
+      await env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO command_event (id, license_id, machine_id, command, success, timestamp)
+             VALUES ('victim-command', ?, ?, 'search', 1, datetime('now'))`
+        ).bind(VICTIM_LICENSE_ID, VICTIM_MACHINE_ID),
+        env.DB.prepare(
+          `INSERT INTO analytics_events
+             (id, event_type, event_name, properties, timestamp, session_id, machine_id, license_key, version, platform)
+             VALUES ('victim-analytics-event', 'command', 'search', '{}', datetime('now'), 'victim-session', ?, ?, '1.0.0', 'linux')`
+        ).bind(VICTIM_MACHINE_ID, VICTIM_LICENSE_KEY),
+        env.DB.prepare(
+          `INSERT INTO usage_daily (id, license_id, date, commands_run)
+             VALUES ('victim-usage-daily', ?, date('now'), 1)`
+        ).bind(VICTIM_LICENSE_ID),
+      ]);
 
       const request = new Request('http://localhost/api/privacy/delete', {
         method: 'POST',
@@ -487,6 +587,18 @@ describe('Privacy API', () => {
         .first();
       expect(victimCommand).toBeTruthy();
       expect(victimLicense?.status).toBe('active');
+      await expect(
+        Promise.all([
+          countRows(
+            'SELECT COUNT(*) AS count FROM analytics_events WHERE license_key = ?',
+            VICTIM_LICENSE_KEY
+          ),
+          countRows(
+            'SELECT COUNT(*) AS count FROM usage_daily WHERE license_id = ?',
+            VICTIM_LICENSE_ID
+          ),
+        ])
+      ).resolves.toEqual([1, 1]);
     });
 
     it('creates an audit receipt in the same deletion transaction', async () => {

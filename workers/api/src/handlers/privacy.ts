@@ -88,7 +88,8 @@ async function loadPrivacyRows<S extends Schema.Schema.AnyNoContext>(
  * that session and cannot be selected by caller-provided identifiers.
  *
  * Deletes:
- * - Telemetry events (command_event, session, performance_metric, feature_usage)
+ * - Telemetry events (command_event, session, performance_metric, feature_usage, analytics_events)
+ * - Per-license usage rows and active-machine analytics
  * - Registered machines
  * - Install pings (install_stats)
  * - Customer notes (customer_notes)
@@ -144,6 +145,54 @@ export async function handleDeleteMyData(request: Request, env: Env): Promise<Re
           label: 'feature_usage',
           statement: env.DB.prepare(
             'DELETE FROM feature_usage WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'analytics_events',
+          statement: env.DB.prepare(
+            'DELETE FROM analytics_events WHERE license_key IN (SELECT license_key FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'analytics_active_users',
+          statement: env.DB.prepare(
+            `DELETE FROM analytics_active_users
+             WHERE machine_id IN (
+               SELECT m.machine_id
+               FROM machines m
+               JOIN licenses l ON l.id = m.license_id
+               WHERE l.customer_id = ?
+             )`
+          ).bind(customerId),
+        },
+        {
+          label: 'usage',
+          statement: env.DB.prepare(
+            'DELETE FROM usage WHERE license_key IN (SELECT license_key FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'usage_daily',
+          statement: env.DB.prepare(
+            'DELETE FROM usage_daily WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'usage_member_daily',
+          statement: env.DB.prepare(
+            'DELETE FROM usage_member_daily WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'usage_package_daily',
+          statement: env.DB.prepare(
+            'DELETE FROM usage_package_daily WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
+          ).bind(customerId),
+        },
+        {
+          label: 'usage_runtime_daily',
+          statement: env.DB.prepare(
+            'DELETE FROM usage_runtime_daily WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)'
           ).bind(customerId),
         },
         {
