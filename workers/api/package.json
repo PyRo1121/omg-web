@@ -26,14 +26,14 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "1.1.1",
+    "@cloudflare/vitest-plugin": "1.0.0",
     "prettier": "3.9.6",
     "typescript": "7.0.2",
     "vitest": "4.1.11",
-    "wrangler": "4.127.0"
+    "wrangler": "4.125.0"
   },
   "dependencies": {
-    "@sentry/cloudflare": "10.71.0",
+    "@sentry/cloudflare": "10.70.0",
     "effect": "3.22.1"
   },
   "allowScripts": {
