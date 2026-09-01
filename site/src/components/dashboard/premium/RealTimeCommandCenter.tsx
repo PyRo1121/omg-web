@@ -262,5 +262,3 @@ export const RealTimeCommandCenter: Component<RealTimeCommandCenterProps> = prop
     </section>
   );
 };
-
-export default RealTimeCommandCenter;

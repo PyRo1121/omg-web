@@ -619,5 +619,3 @@ export const CustomerDetailDrawer: Component<CustomerDetailDrawerProps> = props 
     </Show>
   );
 };
-
-export default CustomerDetailDrawer;

@@ -498,5 +498,3 @@ export const CohortRetentionHeatmap: Component<CohortRetentionHeatmapProps> = pr
     </div>
   );
 };
-
-export default CohortRetentionHeatmap;

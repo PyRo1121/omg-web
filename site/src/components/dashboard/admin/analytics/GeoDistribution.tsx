@@ -451,5 +451,3 @@ export const GeoDistribution: Component<GeoDistributionProps> = props => {
     </div>
   );
 };
-
-export default GeoDistribution;
