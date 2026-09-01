@@ -1,6 +1,8 @@
+import { spawnSync } from 'node:child_process';
 import { readFile, readdir } from 'node:fs/promises';
-import { isDeepStrictEqual } from 'node:util';
 import { posix } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import { CLI_SERVICE_API_CONTRACT } from '../shared/licensing-routes.ts';
 
 const workspaceRoot = new URL('../', import.meta.url);
@@ -147,6 +149,22 @@ async function unreachableRuntimeFiles() {
 }
 
 let violations = 0;
+const alchemyEnvironmentPath = 'site-svelte/alchemy.environment.mjs';
+const invalidStageResult = spawnSync(
+  process.execPath,
+  [fileURLToPath(new URL(alchemyEnvironmentPath, workspaceRoot)), 'plan', '--stage', 'production'],
+  { encoding: 'utf8' }
+);
+if (
+  invalidStageResult.status !== 1 ||
+  invalidStageResult.stderr.trim() !== '[alchemy-env] --stage must be exactly shadow or prod'
+) {
+  process.stderr.write(
+    `[source-policy] ${alchemyEnvironmentPath}: deployment stages must fail closed to exact shadow and prod names\n`
+  );
+  violations += 1;
+}
+
 const serviceContractPath = 'contracts/service-api-v1.json';
 const serviceContract = JSON.parse(
   await readFile(new URL(serviceContractPath, workspaceRoot), 'utf8')
