@@ -8,7 +8,7 @@ import {
   type PersistedDashboardState,
 } from '~/lib/contracts/dashboard-store';
 
-export interface DashboardState {
+interface DashboardState {
   navigation: {
     activeTab: AdminTab;
   };

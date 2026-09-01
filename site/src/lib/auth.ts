@@ -64,5 +64,3 @@ export function createAuth(env: CloudflareEnv) {
     socialProviders,
   });
 }
-
-export type Auth = ReturnType<typeof createAuth>;

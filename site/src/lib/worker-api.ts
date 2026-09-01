@@ -5,7 +5,7 @@ import { parseApiError } from './dashboard-contract';
 import { decodeWorkerHttp, type WorkerHttpParseError } from './contracts/worker-http';
 
 /** The Worker HTTP response was not 2xx. */
-export class WorkerApiHttpError extends Error {
+class WorkerApiHttpError extends Error {
   readonly _tag = 'WorkerApiHttpError';
   constructor(
     readonly status: number,

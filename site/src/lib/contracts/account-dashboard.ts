@@ -25,7 +25,7 @@ export interface DashboardData {
   }>;
 }
 
-export class DashboardDataParseError extends Error {
+class DashboardDataParseError extends Error {
   readonly _tag = 'DashboardDataParseError';
   constructor(
     readonly reason: string,
