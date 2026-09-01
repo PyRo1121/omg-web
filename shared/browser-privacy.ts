@@ -4,11 +4,11 @@ declare global {
   }
 }
 
-export function browserPrivacySignalEnabled(): boolean {
-  if (!('navigator' in globalThis)) {
-    return false;
-  }
-  return (
-    globalThis.navigator.globalPrivacyControl === true || globalThis.navigator.doNotTrack === '1'
-  );
+interface BrowserPrivacySignals {
+  readonly globalPrivacyControl?: boolean;
+  readonly doNotTrack?: string | null;
+}
+
+export function browserPrivacySignalEnabled(signals: BrowserPrivacySignals | undefined): boolean {
+  return signals?.globalPrivacyControl === true || signals?.doNotTrack === '1';
 }

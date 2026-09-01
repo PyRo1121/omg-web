@@ -166,7 +166,7 @@ function getUtmParams(): UtmParams {
  * Queue an analytics event
  */
 function queueEvent(type: EventType, name: string, properties: AnalyticsProperties = {}): void {
-  if (browserPrivacySignalEnabled()) {
+  if (browserPrivacySignalEnabled(globalThis.navigator)) {
     return;
   }
   const event: AnalyticsEvent = {
@@ -212,7 +212,7 @@ function scheduleFlush(): void {
  * declares the JSON contract, and omits credentials at the API origin.
  */
 function flushEvents(): void {
-  if (browserPrivacySignalEnabled()) {
+  if (browserPrivacySignalEnabled(globalThis.navigator)) {
     eventQueue = [];
     return;
   }
@@ -640,7 +640,7 @@ export function initAnalytics(): void {
     return;
   }
   isInitialized = true;
-  if (browserPrivacySignalEnabled()) {
+  if (browserPrivacySignalEnabled(globalThis.navigator)) {
     return;
   }
 
