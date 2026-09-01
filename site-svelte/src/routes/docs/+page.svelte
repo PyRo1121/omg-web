@@ -23,20 +23,20 @@
   const commandGroups = [
     {
       number: '01',
-      title: 'Packages',
+      title: 'Install and manage system packages',
       description:
         'Search, inspect, install, update, and remove packages through the native backend.',
       commands: ['omg search ripgrep', 'omg info ripgrep', 'omg install ripgrep', 'omg update'],
     },
     {
       number: '02',
-      title: 'Runtimes',
+      title: 'Manage Node.js, Python, Go, and Rust versions',
       description: 'Install and select language versions without learning another version manager.',
       commands: ['omg use node 22', 'omg use python 3.12', 'omg use rust stable'],
     },
     {
       number: '03',
-      title: 'Environments',
+      title: 'Capture reproducible project environments',
       description: 'Capture the machine state, check drift, and restore a shared environment.',
       commands: ['omg env capture', 'omg env check', 'omg env sync <share-url>'],
     },

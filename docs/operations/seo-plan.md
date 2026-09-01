@@ -55,14 +55,12 @@ The homepage and documentation page include complete Open Graph and Twitter meta
 14. Fix hashed-asset cache-control to a single `public, max-age=31536000, immutable`
     (HTML stays `max-age=0, must-revalidate`).
 
-### Slice 4 — On-page copy (P1, small, truthful)
+### Slice 4 — On-page copy (P1, complete)
 
-15. Meta description: include literal phrases — "Node.js, Python, Go, Rust", "Linux and macOS",
-    "alternative to nvm, pyenv, rustup, and Homebrew".
-16. Workflow H3s become query-bearing: "Install Node.js, Python, or Rust — no nvm or pyenv needed",
-    etc. Keep voice; no keyword stuffing.
-17. Docs H2s: "Runtimes" → "Manage Node.js, Python, and Rust versions", etc.
-18. Remove the unused `keywords` meta tag.
+15. [x] Name Node.js, Python, Go, Rust, Linux, macOS, and the replaced tools in the homepage description.
+16. [x] Use specific package, runtime, and machine setup headings on the homepage.
+17. [x] Use specific package, runtime, and reproducible environment headings in the documentation page.
+18. [x] Do not publish a `keywords` meta tag.
 
 ### Slice 5 — Social previews (P2, complete)
 

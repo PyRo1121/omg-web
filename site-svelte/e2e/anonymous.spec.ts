@@ -78,6 +78,12 @@ test.describe('Svelte public surfaces', () => {
 
     await expect(page.getByRole('heading', { name: 'Learn the parts you need.' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Install OMG' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Manage Node.js, Python, Go, and Rust versions' })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Capture reproducible project environments' })
+    ).toBeVisible();
     await expect(page.getByRole('link', { name: /CLI reference/ })).toHaveAttribute(
       'href',
       /github\.com\/PyRo1121\/omg\/blob\/main\/docs\/cli\.md/
