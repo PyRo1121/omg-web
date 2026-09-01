@@ -424,7 +424,6 @@ describe('optional extra rows', () => {
     );
     expect(profile?.company).toBe('Acme');
   });
-
 });
 
 describe('remaining D1 result arrays', () => {
