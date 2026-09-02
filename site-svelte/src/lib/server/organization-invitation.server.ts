@@ -74,10 +74,10 @@ type InvitationBoundaryInput = Schema.Top['Encoded'];
 export type OrganizationInvitationRole = Schema.Schema.Type<typeof InvitationRoleSchema>;
 
 /** Parsed form for a new or replacement organization invitation. */
-export type OrganizationInvitationForm = Schema.Schema.Type<typeof InvitationFormSchema>;
+type OrganizationInvitationForm = Schema.Schema.Type<typeof InvitationFormSchema>;
 
 /** Parsed form used to resend or revoke an existing invitation. */
-export type OrganizationInvitationEmailForm = Schema.Schema.Type<typeof InvitationEmailFormSchema>;
+type OrganizationInvitationEmailForm = Schema.Schema.Type<typeof InvitationEmailFormSchema>;
 
 /** A bounded invitation reference kept on the server for lifecycle actions. */
 interface PendingOrganizationInvitation {
