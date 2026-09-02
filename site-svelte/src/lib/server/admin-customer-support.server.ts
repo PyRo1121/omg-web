@@ -26,7 +26,7 @@ import { normalizedOptionalText } from './optional-text.server';
 
 const SUPPORT_RESPONSE_LIMIT = 128 * 1024;
 const ShortText = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256));
-const NoteContent = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(4096));
+const NoteContent = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(4000));
 const Timestamp = ShortText.check(Schema.makeFilter(value => Number.isFinite(Date.parse(value))));
 const OptionalTimestamp = Schema.NullOr(Timestamp);
 const OptionalText = Schema.NullOr(ShortText);

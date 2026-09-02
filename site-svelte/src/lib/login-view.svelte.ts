@@ -1,4 +1,5 @@
 import { validateLoginCredentials } from '../../../shared/login-credentials';
+import { githubSignInError } from './github-sign-in';
 import { signIn } from './auth-client';
 
 export class LoginView {
@@ -35,17 +36,8 @@ export class LoginView {
   async github(): Promise<void> {
     this.pending = true;
     this.error = '';
-    try {
-      const result = await signIn.social({
-        provider: 'github',
-        callbackURL: this.destination(),
-      });
-      if (result?.error) {
-        this.error = result.error.message ?? 'GitHub sign-in failed';
-        this.pending = false;
-      }
-    } catch {
-      this.error = 'GitHub sign-in failed';
+    this.error = await githubSignInError(this.destination, 'GitHub sign-in failed');
+    if (this.error !== '') {
       this.pending = false;
     }
   }

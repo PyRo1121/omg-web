@@ -1,11 +1,14 @@
 import * as Schema from 'effect/Schema';
 import { EMAIL_PATTERN } from '../../../../shared/email';
 
+/** Email length accepted by the offer form, mirrored by the Worker contract. */
+export const OFFER_EMAIL_MAX_LENGTH = 254;
+
 export const MarketingOfferRequestSchema = Schema.Struct({
   email: Schema.String.check(
     Schema.isTrimmed(),
     Schema.isLowercased(),
-    Schema.isMaxLength(254),
+    Schema.isMaxLength(OFFER_EMAIL_MAX_LENGTH),
     Schema.isPattern(EMAIL_PATTERN)
   ),
 });

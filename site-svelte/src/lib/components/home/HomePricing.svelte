@@ -5,8 +5,7 @@
     PRO_MONTHLY_PRICE_LABEL,
     TEAM_MONTHLY_PRICE_LABEL,
   } from '../../contracts/marketing-offer';
-  import { MAX_LOGIN_EMAIL_CHARACTERS } from '../../../../../shared/login-credentials';
-  import type { MarketingOffer } from '../../contracts/marketing-offer';
+  import { OFFER_EMAIL_MAX_LENGTH, type MarketingOffer } from '../../contracts/marketing-offer';
 
   let {
     offer = null,
@@ -83,7 +82,7 @@
             name="email"
             type="email"
             autocomplete="email"
-            maxlength={MAX_LOGIN_EMAIL_CHARACTERS}
+            maxlength={OFFER_EMAIL_MAX_LENGTH}
             required
             placeholder="developer@example.com"
           />

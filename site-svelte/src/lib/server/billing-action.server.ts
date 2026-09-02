@@ -1,5 +1,8 @@
 import { fail, redirect, type ActionFailure } from '@sveltejs/kit';
 import { Cause, Effect, Exit, Option } from 'effect';
+import * as Schema from 'effect/Schema';
+import { BillingOfferSchema } from '../contracts/billing';
+import { MarketingPromotionCodeSchema } from '../contracts/marketing-offer';
 import type { BillingOffer } from '../contracts/billing';
 import { loadAccountIdentity, type AccountDashboardIdentity } from './account-dashboard.server';
 import type { AuthEnvironment } from './auth.server';
@@ -82,13 +85,19 @@ function checkoutInput(
 }
 
 function safeOffer(input: RawCheckoutInput | null): BillingOffer | null {
-  return input?.offer === 'pro' || input?.offer === 'team' ? input.offer : null;
+  if (input?.offer === undefined) {
+    return null;
+  }
+  const decoded = Schema.decodeUnknownExit(BillingOfferSchema)(input.offer);
+  return Exit.isSuccess(decoded) ? decoded.value : null;
 }
 
 function safePromotionCode(input: RawCheckoutInput | null): string | null {
-  return input?.promotionCode !== undefined && /^OMG20-[A-Z0-9]{8}$/u.test(input.promotionCode)
-    ? input.promotionCode
-    : null;
+  if (input?.promotionCode === undefined) {
+    return null;
+  }
+  const decoded = Schema.decodeUnknownExit(MarketingPromotionCodeSchema)(input.promotionCode);
+  return Exit.isSuccess(decoded) ? decoded.value : null;
 }
 
 /** Open authenticated Billing Portal and redirect only to its exact Stripe origin. */
