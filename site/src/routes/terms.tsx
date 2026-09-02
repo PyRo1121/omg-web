@@ -3,14 +3,14 @@ import { A } from '@solidjs/router';
 import Footer from '~/components/Footer';
 import Header from '~/components/Header';
 
-/** Terms of service for the OMG Package Manager site, CLI, and licensing API. */
+/** Terms of service for the OMG Package Manager site, CLI, and hosted services. */
 export default function TermsPage() {
   return (
     <>
       <Title>Terms of Service - OMG Package Manager</Title>
       <Meta
         name="description"
-        content="Terms of Service for the OMG Package Manager website, CLI, licenses, and subscriptions."
+        content="Terms of Service for the OMG Package Manager website, CLI, and hosted services."
       />
       <Link rel="canonical" href="https://omg.latham.cloud/terms/" />
 
@@ -20,7 +20,7 @@ export default function TermsPage() {
           <p class="font-mono text-xs text-[var(--signal)]">Service agreement</p>
           <h1 class="mt-6 text-6xl font-medium tracking-[-0.06em] sm:text-8xl">Terms of service</h1>
           <p class="mt-6 border-b border-[var(--rule)] pb-8 font-mono text-xs text-[var(--ink-muted)]">
-            Last updated February 7, 2026
+            Last updated September 2, 2026
           </p>
 
           <div class="max-w-3xl space-y-10 pt-10 text-sm leading-relaxed text-[var(--ink-muted)]">
@@ -29,26 +29,24 @@ export default function TermsPage() {
                 1. The service
               </h2>
               <p>
-                OMG Package Manager ("OMG") is a unified package manager CLI for Linux with an
-                optional licensing platform providing telemetry, dashboards, and team features. The
-                CLI is open source under its repository license; hosted services (accounts,
-                licensing, dashboards) are provided under these terms.
+                OMG Package Manager ("OMG") is a free and open-source unified package manager CLI
+                for Linux and macOS under the MIT License, with optional hosted account services
+                providing telemetry and dashboards. Hosted services are provided under these terms.
               </p>
             </section>
 
             <section>
               <h2 class="mb-3 text-2xl font-bold tracking-[-0.03em] text-[var(--ink)]">
-                2. Accounts and licenses
+                2. Accounts and dashboard access
               </h2>
               <ul class="list-disc space-y-2 pl-5">
-                <li>You are responsible for activity performed through your account and keys.</li>
                 <li>
-                  License keys are scoped to your tier's machine limits. Do not share keys beyond
-                  your license's seat count or attempt to circumvent machine limits.
+                  You are responsible for activity performed through your account and linked machine
+                  tokens.
                 </li>
                 <li>
-                  Free-tier features may change; paid tiers keep their advertised feature set for
-                  the duration of a paid period.
+                  Account linking is optional. All CLI package and runtime features are free and
+                  fully functional locally without an account.
                 </li>
               </ul>
             </section>
@@ -69,18 +67,7 @@ export default function TermsPage() {
 
             <section>
               <h2 class="mb-3 text-2xl font-bold tracking-[-0.03em] text-[var(--ink)]">
-                4. Billing
-              </h2>
-              <p>
-                Paid tiers are billed through Stripe. Subscriptions renew until canceled and can be
-                managed via the billing portal in your dashboard. Refunds and chargebacks may result
-                in immediate downgrade or suspension of the associated license.
-              </p>
-            </section>
-
-            <section>
-              <h2 class="mb-3 text-2xl font-bold tracking-[-0.03em] text-[var(--ink)]">
-                5. Disclaimer and liability
+                4. Disclaimer and liability
               </h2>
               <p>
                 The service is provided "as is" without warranties of any kind. To the maximum
@@ -91,7 +78,7 @@ export default function TermsPage() {
 
             <section>
               <h2 class="mb-3 text-2xl font-bold tracking-[-0.03em] text-[var(--ink)]">
-                6. Changes and contact
+                5. Changes and contact
               </h2>
               <p>
                 These terms may be updated; material changes will be announced on the site.

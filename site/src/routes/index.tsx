@@ -5,9 +5,7 @@ import Footer from '../components/Footer';
 import Header from '../components/Header';
 import Hero from '../components/Hero';
 import Installation from '../components/Installation';
-import { LicenseSuccessModal } from '../components/landing/LicenseSuccessModal';
 import FeatureGrid from '../components/landing/FeatureGrid';
-import Pricing from '../components/Pricing';
 
 const structuredData = serializeJsonLd({
   '@context': 'https://schema.org',
@@ -38,14 +36,14 @@ const structuredData = serializeJsonLd({
       downloadUrl: 'https://omg.latham.cloud/#install',
       softwareHelp: 'https://omg.latham.cloud/docs/',
       codeRepository: 'https://github.com/PyRo1121/omg',
-      license: 'https://www.gnu.org/licenses/agpl-3.0.html',
+      license: 'https://opensource.org/licenses/MIT',
       publisher: { '@id': 'https://omg.latham.cloud/#org' },
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     },
   ],
 });
 
-/** Marketing page with static search metadata and post-checkout fulfillment. */
+/** Marketing page with static search metadata. */
 export default function Home() {
   return (
     <>
@@ -89,11 +87,9 @@ export default function Home() {
         <Hero />
         <FeatureGrid />
         <Benchmarks />
-        <Pricing />
         <Installation />
       </main>
       <Footer />
-      <LicenseSuccessModal />
     </>
   );
 }

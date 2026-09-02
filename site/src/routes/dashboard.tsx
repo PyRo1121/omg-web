@@ -62,7 +62,7 @@ export default function Dashboard() {
       <Title>Dashboard - OMG Package Manager</Title>
       <Meta
         name="description"
-        content="OMG Package Manager admin dashboard - manage licenses, analytics, and team settings."
+        content="OMG Package Manager dashboard - manage machines, analytics, and team settings."
       />
       <Meta name="robots" content="noindex, nofollow" />
 

@@ -50,17 +50,12 @@
           when you sign in.
         </li>
         <li>
-          <strong>License and billing data:</strong> license keys, tier, seat assignments, machine registrations,
-          and Stripe payment records.
-        </li>
-        <li>
-          <strong>Introductory offers:</strong> the email address submitted to request a promotion, the
-          issued code, and its expiration. Requesting a code does not subscribe the address to marketing
-          email.
+          <strong>Machine registrations:</strong> machine names, platforms, and activity timestamps linked
+          to your account.
         </li>
         <li>
           <strong>CLI telemetry (opt-out):</strong> pseudonymous command usage, package and runtime names,
-          durations, errors, platform information, and performance measurements associated with your license.
+          durations, errors, platform information, and performance measurements.
         </li>
         <li>
           <strong>Website analytics:</strong> page paths or documentation URLs, interactions, performance
@@ -78,10 +73,9 @@
     <section>
       <h2>How we use data</h2>
       <p>
-        We use data to provide and secure accounts, licenses, organizations, billing, support, and
-        email; operate and improve OMG; measure reliability and feature adoption; prevent abuse; and
-        satisfy legal or payment-record obligations. We do not sell personal information or use it
-        for targeted advertising.
+        We use data to provide and secure accounts, dashboards, support, and email; operate and
+        improve OMG; measure reliability and feature adoption; prevent abuse; and satisfy legal
+        obligations. We do not sell personal information or use it for targeted advertising.
       </p>
     </section>
 
@@ -100,8 +94,8 @@
       <h2>Service providers</h2>
       <p>
         Cloudflare provides hosting, database, network, security, and email infrastructure. GitHub
-        provides OAuth sign-in. Stripe processes billing and payment records. These providers
-        process data needed to deliver their services under their own terms and privacy commitments.
+        provides OAuth sign-in. These providers process data needed to deliver their services under
+        their own terms and privacy commitments.
       </p>
     </section>
 
@@ -111,12 +105,8 @@
         <li>Raw CLI and website analytics events: 90 days</li>
         <li>Raw documentation analytics events: 7 days; documentation sessions: 30 days</li>
         <li>Audit logs: 30 days</li>
-        <li>Aggregate and per-license usage statistics: 12 months</li>
-        <li>Introductory offer requests: 12 months</li>
-        <li>
-          Account, license, organization, and billing records: while needed to provide the service
-        </li>
-        <li>Payment records: as required by Stripe and applicable law</li>
+        <li>Aggregate and per-machine usage statistics: 12 months</li>
+        <li>Account and organization records: while needed to provide the service</li>
       </ul>
     </section>
 
@@ -127,7 +117,7 @@
         <li><strong>Access and portability:</strong> request a portable copy from support.</li>
         <li>
           <strong>Deletion:</strong> request deletion from support. Deletion is irreversible; audit logs
-          are retained for 30 days for security purposes and payment records per Stripe requirements.
+          are retained for 30 days for security purposes.
         </li>
         <li><strong>Opt-out:</strong> request a telemetry opt-out from support.</li>
       </ul>

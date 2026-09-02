@@ -40,7 +40,7 @@
           Your analytics, achievements, machine fleet, and settings remain available. Employee
           membership starts with Team.
         </p>
-        <a class="text-link" href="/#pricing">Compare Team plans</a>
+        <a class="text-link" href="/#workflow">Explore features</a>
       </section>
     {:else if data.organization.status === 'eligible'}
       <section class="organization-state" aria-labelledby="create-title">

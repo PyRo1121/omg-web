@@ -38,18 +38,13 @@ export default function PrivacyPage() {
                   display name, and OAuth provider identifiers when you sign in.
                 </li>
                 <li>
-                  <strong class="text-[var(--ink)]">License and billing data:</strong> license keys,
-                  tier, seat assignments, machine registrations, and Stripe payment records.
-                </li>
-                <li>
-                  <strong class="text-[var(--ink)]">Introductory offers:</strong> the email address
-                  submitted to request a promotion, the issued code, and its expiration. Requesting
-                  a code does not subscribe the address to marketing email.
+                  <strong class="text-[var(--ink)]">Machine registrations:</strong> machine names,
+                  platforms, and activity timestamps linked to your account.
                 </li>
                 <li>
                   <strong class="text-[var(--ink)]">CLI telemetry (opt-out):</strong> pseudonymous
                   command usage, package and runtime names, durations, errors, platform information,
-                  and performance measurements associated with your license.
+                  and performance measurements.
                 </li>
                 <li>
                   <strong class="text-[var(--ink)]">Website analytics:</strong> page paths or
@@ -71,10 +66,10 @@ export default function PrivacyPage() {
                 How we use data
               </h2>
               <p>
-                We use data to provide and secure accounts, licenses, organizations, billing,
-                support, and email; operate and improve OMG; measure reliability and feature
-                adoption; prevent abuse; and satisfy legal or payment-record obligations. We do not
-                sell personal information or use it for targeted advertising.
+                We use data to provide and secure accounts, dashboards, support, and email; operate
+                and improve OMG; measure reliability and feature adoption; prevent abuse; and
+                satisfy legal obligations. We do not sell personal information or use it for
+                targeted advertising.
               </p>
             </section>
 
@@ -98,9 +93,8 @@ export default function PrivacyPage() {
               </h2>
               <p>
                 Cloudflare provides hosting, database, network, security, and email infrastructure.
-                GitHub provides OAuth sign-in. Stripe processes billing and payment records. These
-                providers process data needed to deliver their services under their own terms and
-                privacy commitments.
+                GitHub provides OAuth sign-in. These providers process data needed to deliver their
+                services under their own terms and privacy commitments.
               </p>
             </section>
 
@@ -112,13 +106,8 @@ export default function PrivacyPage() {
                 <li>Raw CLI and website analytics events: 90 days</li>
                 <li>Raw documentation analytics events: 7 days; documentation sessions: 30 days</li>
                 <li>Audit logs: 30 days</li>
-                <li>Aggregate and per-license usage statistics: 12 months</li>
-                <li>Introductory offer requests: 12 months</li>
-                <li>
-                  Account, license, organization, and billing records: while needed to provide the
-                  service
-                </li>
-                <li>Payment records: as required by Stripe and applicable law</li>
+                <li>Aggregate and per-machine usage statistics: 12 months</li>
+                <li>Account and organization records: while needed to provide the service</li>
               </ul>
             </section>
 
@@ -135,7 +124,7 @@ export default function PrivacyPage() {
                 <li>
                   <strong class="text-[var(--ink)]">Deletion:</strong> request deletion from
                   support. Deletion is irreversible; audit logs are retained for 30 days for
-                  security purposes and payment records per Stripe requirements.
+                  security purposes.
                 </li>
                 <li>
                   <strong class="text-[var(--ink)]">Opt-out:</strong> request a telemetry opt-out

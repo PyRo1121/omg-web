@@ -33,7 +33,7 @@ describe('organization workspace page', () => {
     });
 
     expect(result.body).toContain('Your analytics, achievements, machine fleet, and settings');
-    expect(result.body).toContain('Compare Team plans');
+    expect(result.body).toContain('Explore features');
     expect(result.body).not.toContain('Create organization');
     expect(result.body).not.toContain('Invite');
   });

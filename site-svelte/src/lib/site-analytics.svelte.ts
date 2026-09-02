@@ -567,7 +567,6 @@ function initCtaTracking(): void {
 function ctaTypeForLink(link: Element): CtaType | undefined {
   const href = link.getAttribute('href') || '';
   if (href.startsWith('/#install')) return 'install';
-  if (href.startsWith('/#pricing')) return 'pricing';
   if (href.startsWith('/login/')) return 'signup';
   if (href.startsWith('/docs')) return 'docs';
   if (href.startsWith('https://github.com/')) return 'github';

@@ -3,7 +3,7 @@
   <title>Terms of Service - OMG Package Manager</title>
   <meta
     name="description"
-    content="Terms of Service for the OMG Package Manager website, CLI, licenses, and subscriptions."
+    content="Terms of Service for the OMG Package Manager website, CLI, and hosted services."
   />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://omg.latham.cloud/terms/" />
@@ -12,7 +12,7 @@
   <meta property="og:title" content="Terms of Service - OMG Package Manager" />
   <meta
     property="og:description"
-    content="Terms for the OMG Package Manager website, CLI, accounts, licenses, subscriptions, and hosted services."
+    content="Terms for the OMG Package Manager website, CLI, accounts, and hosted services."
   />
   <meta property="og:url" content="https://omg.latham.cloud/terms/" />
   <meta property="og:image" content="https://omg.latham.cloud/og/omg-og.png" />
@@ -26,7 +26,7 @@
   <meta name="twitter:title" content="Terms of Service - OMG Package Manager" />
   <meta
     name="twitter:description"
-    content="Terms for the OMG Package Manager website, CLI, accounts, licenses, subscriptions, and hosted services."
+    content="Terms for the OMG Package Manager website, CLI, accounts, and hosted services."
   />
   <meta name="twitter:image" content="https://omg.latham.cloud/og/omg-og.png" />
   <meta name="twitter:image:alt" content="OMG Package Manager product overview." />
@@ -35,30 +35,27 @@
 <main id="main-content" class="legal-shell">
   <p class="page-kicker">Service agreement</p>
   <h1 class="legal-title">Terms of service</h1>
-  <p class="legal-meta">Last updated February 7, 2026</p>
+  <p class="legal-meta">Last updated September 2, 2026</p>
 
   <div class="legal-body">
     <section>
       <h2>1. The service</h2>
       <p>
-        OMG Package Manager ("OMG") is a unified package manager CLI for Linux with an optional
-        licensing platform providing telemetry, dashboards, and team features. The CLI is open
-        source under its repository license; hosted services (accounts, licensing, dashboards) are
-        provided under these terms.
+        OMG Package Manager ("OMG") is a free and open-source unified package manager CLI for Linux
+        and macOS under the MIT License, with optional hosted account services providing telemetry
+        and dashboards. Hosted services are provided under these terms.
       </p>
     </section>
 
     <section>
-      <h2>2. Accounts and licenses</h2>
+      <h2>2. Accounts and dashboard access</h2>
       <ul>
-        <li>You are responsible for activity performed through your account and keys.</li>
         <li>
-          License keys are scoped to your tier's machine limits. Do not share keys beyond your
-          license's seat count or attempt to circumvent machine limits.
+          You are responsible for activity performed through your account and linked machine tokens.
         </li>
         <li>
-          Free-tier features may change; paid tiers keep their advertised feature set for the
-          duration of a paid period.
+          Account linking is optional. All CLI package and runtime features are free and fully
+          functional locally without an account.
         </li>
       </ul>
     </section>
@@ -76,16 +73,7 @@
     </section>
 
     <section>
-      <h2>4. Billing</h2>
-      <p>
-        Paid tiers are billed through Stripe. Subscriptions renew until canceled and can be managed
-        via the billing portal in your dashboard. Refunds and chargebacks may result in immediate
-        downgrade or suspension of the associated license.
-      </p>
-    </section>
-
-    <section>
-      <h2>5. Disclaimer and liability</h2>
+      <h2>4. Disclaimer and liability</h2>
       <p>
         The service is provided "as is" without warranties of any kind. To the maximum extent
         permitted by law, OMG's operators are not liable for indirect, incidental, or consequential
@@ -94,7 +82,7 @@
     </section>
 
     <section>
-      <h2>6. Changes and contact</h2>
+      <h2>5. Changes and contact</h2>
       <p>
         These terms may be updated; material changes will be announced on the site. Continued use
         after changes constitutes acceptance. Questions:

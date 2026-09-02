@@ -35,34 +35,17 @@ test.describe('Svelte public surfaces', () => {
     expect(socialImage.headers()['content-type']).toBe('image/png');
   });
 
-  test('keeps the complete pricing surface reachable on a compact viewport', async ({ page }) => {
+  test('keeps the complete home surface reachable on a compact viewport', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(
       page.getByRole('heading', { name: 'Stop managing package managers.' })
     ).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'The core stays free.' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Choose Pro' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Choose Team' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Create offer' })).toBeVisible();
-    await expect
-      .poll(() =>
-        page.evaluate(
-          () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
-        )
-      )
-      .toBe(true);
-  });
-
-  test('renders a bounded checkout verification state on a compact viewport', async ({ page }) => {
-    await page.setViewportSize({ width: 320, height: 568 });
-    await page.goto('/?success=true&session_id=invalid', { waitUntil: 'domcontentloaded' });
-
+    await expect(page.getByRole('heading', { name: 'One interface. Three jobs.' })).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: 'We could not verify this checkout.' })
+      page.getByRole('heading', { name: 'Install once. Start simplifying.' })
     ).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login/');
     await expect
       .poll(() =>
         page.evaluate(

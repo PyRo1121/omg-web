@@ -50,7 +50,7 @@
     {#if data.licensing.status === 'available' && data.licensing.summary.isAdmin}
       <a class="dashboard-admin-link" href="/admin/">
         <span>Admin overview</span>
-        <small>Users, activity, fleet, and billing state</small>
+        <small>Users, activity, and fleet state</small>
       </a>
     {/if}
 
@@ -62,15 +62,11 @@
     {/if}
 
     <section class="dashboard-section" aria-labelledby="license-title">
-      <h2 id="license-title">License</h2>
+      <h2 id="license-title">Account details</h2>
       {#if data.licensing.status === 'available'}
         <dl class="dashboard-facts licensing-facts">
           <div class="dashboard-fact">
-            <dt>Plan</dt>
-            <dd>{formatProductLabel(data.licensing.summary.tier)}</dd>
-          </div>
-          <div class="dashboard-fact">
-            <dt>License status</dt>
+            <dt>Account status</dt>
             <dd>{formatProductLabel(data.licensing.summary.status)}</dd>
           </div>
           <div class="dashboard-fact">
@@ -82,34 +78,12 @@
               )}
             </dd>
           </div>
-          <div class="dashboard-fact">
-            <dt>License expires</dt>
-            <dd>{formatTimestamp(data.licensing.summary.expiresAt)}</dd>
-          </div>
-          {#if data.licensing.summary.subscription !== null}
-            <div class="dashboard-fact">
-              <dt>Subscription</dt>
-              <dd>{formatProductLabel(data.licensing.summary.subscription.status)}</dd>
-            </div>
-            <div class="dashboard-fact">
-              <dt>Current period ends</dt>
-              <dd>{formatTimestamp(data.licensing.summary.subscription.periodEnd)}</dd>
-            </div>
-            <div class="dashboard-fact">
-              <dt>Renewal</dt>
-              <dd>
-                {data.licensing.summary.subscription.cancelAtPeriodEnd
-                  ? 'Ends after current period'
-                  : 'Continues'}
-              </dd>
-            </div>
-          {/if}
         </dl>
       {:else if data.licensing.status === 'verification-required'}
-        <p class="dashboard-empty">Verify your email to access licensing data.</p>
+        <p class="dashboard-empty">Verify your email to access account data.</p>
       {:else}
         <p class="dashboard-empty">
-          Licensing data is temporarily unavailable. Your account overview remains available.
+          Account data is temporarily unavailable. Your overview remains available.
         </p>
       {/if}
     </section>

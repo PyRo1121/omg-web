@@ -24,7 +24,7 @@
     "test": "vitest run --exclude 'e2e/**'",
     "test:e2e": "playwright test",
     "test:e2e:external": "playwright test",
-    "test:e2e:public": "playwright test e2e/anonymous.spec.ts e2e/billing-unconfigured.spec.ts",
+    "test:e2e:public": "playwright test e2e/anonymous.spec.ts",
     "typecheck:e2e": "tsc --project e2e/tsconfig.json --noEmit"
   },
   "dependencies": {

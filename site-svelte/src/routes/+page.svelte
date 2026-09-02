@@ -1,25 +1,9 @@
 <script lang="ts">
   import { serializeJsonLd } from '../../../shared/public-site';
-  import type { PageProps } from './$types';
-  import CheckoutStatus from '../lib/components/home/CheckoutStatus.svelte';
   import HomeBenchmarks from '../lib/components/home/HomeBenchmarks.svelte';
   import HomeFeatureGrid from '../lib/components/home/HomeFeatureGrid.svelte';
   import HomeHero from '../lib/components/home/HomeHero.svelte';
   import HomeInstallation from '../lib/components/home/HomeInstallation.svelte';
-  import HomePricing from '../lib/components/home/HomePricing.svelte';
-
-  let { data, form }: PageProps = $props();
-  const claimedOffer = $derived(form?.kind === 'offer' ? form.offer : null);
-  const offerError = $derived(form?.kind === 'offer-error' ? form.message : null);
-  const checkoutError = $derived(form?.kind === 'checkout-error' ? form.message : null);
-  const checkoutRecovery = $derived(form?.kind === 'checkout-error' ? form.recovery : null);
-  const promotionCode = $derived(
-    form?.kind === 'offer'
-      ? form.offer.code
-      : form?.kind === 'checkout-error'
-        ? form.promotionCode
-        : null
-  );
 
   const structuredData = serializeJsonLd({
     '@context': 'https://schema.org',
@@ -50,7 +34,7 @@
         downloadUrl: 'https://omg.latham.cloud/install.sh',
         softwareHelp: 'https://omg.latham.cloud/docs/',
         codeRepository: 'https://github.com/PyRo1121/omg',
-        license: 'https://www.gnu.org/licenses/agpl-3.0.html',
+        license: 'https://opensource.org/licenses/MIT',
         publisher: { '@id': 'https://omg.latham.cloud/#org' },
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
       },
@@ -97,19 +81,9 @@
 </svelte:head>
 
 <main id="main-content" class="home">
-  {#if data.fulfillment !== null}
-    <CheckoutStatus fulfillment={data.fulfillment} />
-  {/if}
   <HomeHero />
   <HomeFeatureGrid />
   <HomeBenchmarks />
-  <HomePricing
-    offer={claimedOffer}
-    {offerError}
-    {checkoutError}
-    {checkoutRecovery}
-    {promotionCode}
-  />
   <HomeInstallation />
 </main>
 

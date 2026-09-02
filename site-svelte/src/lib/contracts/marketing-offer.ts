@@ -1,8 +1,7 @@
 import * as Schema from 'effect/Schema';
 import { EMAIL_PATTERN } from '../../../../shared/email';
 
-/** Email length accepted by the offer form, mirrored by the Worker contract. */
-export const OFFER_EMAIL_MAX_LENGTH = 254;
+const OFFER_EMAIL_MAX_LENGTH = 254;
 
 export const MarketingOfferRequestSchema = Schema.Struct({
   email: Schema.String.check(
@@ -17,13 +16,8 @@ export const MarketingPromotionCodeSchema = Schema.String.check(
   Schema.isPattern(/^OMG20-[A-Z0-9]{8}$/u)
 );
 
-/** Offer terms the landing copy must display. The schemas pin the same values. */
-export const MARKETING_OFFER_PERCENT_OFF = 20;
-export const MARKETING_OFFER_DURATION_MONTHS = 3;
-
-/** Landing-page price labels mirroring the Worker's Stripe catalog identity. */
-export const PRO_MONTHLY_PRICE_LABEL = '$9';
-export const TEAM_MONTHLY_PRICE_LABEL = '$200';
+const MARKETING_OFFER_PERCENT_OFF = 20;
+const MARKETING_OFFER_DURATION_MONTHS = 3;
 
 export const MarketingOfferResponseSchema = Schema.Struct({
   code: MarketingPromotionCodeSchema,

@@ -9,7 +9,7 @@ const Footer: Component = () => (
           One command. Your whole machine.
         </h2>
         <p class="mt-7 max-w-lg text-lg leading-relaxed text-[var(--ink-muted)]">
-          Free to install. No account required until you want Pro.
+          Free and open source under the MIT license. No account required.
         </p>
       </div>
       <a

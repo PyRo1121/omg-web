@@ -7,7 +7,7 @@
     <div>
       <p class="callout-label">OMG Package Manager</p>
       <h2 id="footer-callout-title">One command. Your whole machine.</h2>
-      <p class="callout-copy">Free to install. No account required until you want Pro.</p>
+      <p class="callout-copy">Free and open source under the MIT license. No account required.</p>
     </div>
     <a class="footer-action" href="/#install">
       Install OMG

@@ -7,7 +7,6 @@ import { useSession } from '~/lib/auth-client';
 const NAV_ITEMS = [
   { href: '/#workflow', label: 'Workflow' },
   { href: '/#benchmarks', label: 'Speed' },
-  { href: '/#pricing', label: 'Plans' },
   { href: '/docs/', label: 'Docs' },
   { href: 'https://github.com/PyRo1121/omg/', label: 'GitHub' },
 ] as const;

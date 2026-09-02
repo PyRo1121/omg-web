@@ -218,9 +218,6 @@ site/src/components/Footer.tsx
 site/src/components/Header.tsx
 site/src/components/Hero.tsx
 site/src/components/Installation.tsx
-site/src/components/MarketingOfferDialog.tsx
-site/src/components/Pricing.tsx
-site/src/components/UpgradeModal.tsx
 site/src/components/dashboard/AdminDashboard.tsx
 site/src/components/dashboard/admin/AuditLogTab.tsx
 site/src/components/dashboard/admin/CohortAnalysis.tsx
@@ -247,7 +244,6 @@ site/src/components/dashboard/premium/RealTimeCommandCenter.tsx
 site/src/components/dashboard/premium/index.ts
 site/src/components/dashboard/premium/types.ts
 site/src/components/landing/FeatureGrid.tsx
-site/src/components/landing/LicenseSuccessModal.tsx
 site/src/components/ui/BrandIcons.tsx
 site/src/components/ui/Icons.tsx
 site/src/components/ui/Skeleton.tsx

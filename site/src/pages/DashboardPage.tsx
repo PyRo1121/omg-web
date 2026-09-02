@@ -353,11 +353,13 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                     <Show when={telemetryData()?.license}>
                       {license => (
                         <div class="mt-6 border-t border-white/10 pt-6">
-                          <h3 class="mb-4 text-sm font-medium text-slate-400">License</h3>
+                          <h3 class="mb-4 text-sm font-medium text-slate-400">Linked Account</h3>
                           <div class="rounded-lg border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-4">
                             <div class="mb-3 flex items-center gap-2">
                               <Award class="h-5 w-5 text-yellow-400" />
-                              <span class="font-bold text-white uppercase">{license().tier}</span>
+                              <span class="font-bold text-white capitalize">
+                                {license().status}
+                              </span>
                             </div>
                             <div class="mb-2 flex items-center justify-between gap-2">
                               <p class="flex-1 truncate font-mono text-xs text-slate-400">
@@ -367,7 +369,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                 type="button"
                                 onClick={copyLicenseKey}
                                 class="rounded-lg p-2 transition-colors hover:bg-white/10"
-                                title="Copy license key"
+                                title="Copy account token"
                               >
                                 <Show
                                   when={copiedLicense()}
@@ -1013,16 +1015,10 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                     <div class={`${glassPanel} p-6`}>
                       <h3 class="mb-4 flex items-center gap-2 text-lg font-bold">
                         <Award class="h-5 w-5 text-yellow-400" />
-                        <span class="gradient-text">License Details</span>
+                        <span class="gradient-text">Account Token</span>
                       </h3>
                       <div class="rounded-lg border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-6">
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                          <div>
-                            <div class="mb-2 text-sm text-slate-400">Tier</div>
-                            <div class="text-2xl font-bold text-white uppercase">
-                              {license().tier}
-                            </div>
-                          </div>
                           <div>
                             <div class="mb-2 text-sm text-slate-400">Status</div>
                             <div class="text-2xl font-bold text-emerald-400 capitalize">
@@ -1030,13 +1026,13 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                             </div>
                           </div>
                           <div>
-                            <div class="mb-2 text-sm text-slate-400">Max Machines</div>
+                            <div class="mb-2 text-sm text-slate-400">Active Machines</div>
                             <div class="text-2xl font-bold text-white">
-                              {license().max_machines}
+                              {telemetryData()?.machines.length ?? 0}
                             </div>
                           </div>
-                          <div>
-                            <div class="mb-2 text-sm text-slate-400">License Key</div>
+                          <div class="md:col-span-2">
+                            <div class="mb-2 text-sm text-slate-400">Account Token</div>
                             <div class="flex items-center gap-2">
                               <code class="rounded bg-black/30 px-3 py-1.5 font-mono text-sm text-slate-300">
                                 {license().license_key}
@@ -1045,7 +1041,7 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                 type="button"
                                 onClick={copyLicenseKey}
                                 class="rounded-lg p-2 transition-colors hover:bg-white/10"
-                                title="Copy license key"
+                                title="Copy account token"
                               >
                                 <Show
                                   when={copiedLicense()}
@@ -1055,19 +1051,6 @@ const DashboardPage: Component<DashboardPageProps> = props => {
                                 </Show>
                               </button>
                             </div>
-                          </div>
-                        </div>
-                        <div class="mt-6 border-t border-white/10 pt-6">
-                          <div class="mb-3 text-sm text-slate-400">Enabled Features</div>
-                          <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-                            <For each={license().features}>
-                              {feature => (
-                                <div class="flex items-center gap-2">
-                                  <CircleCheckBig class="h-4 w-4 text-emerald-400" />
-                                  <span class="text-sm text-slate-300">{feature}</span>
-                                </div>
-                              )}
-                            </For>
                           </div>
                         </div>
                       </div>

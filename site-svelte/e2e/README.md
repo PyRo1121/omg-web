@@ -4,7 +4,7 @@ Playwright owns browser-level characterization for the SvelteKit public, account
 
 ## Local public checks
 
-The CI-safe suite starts plain Vite without Cloudflare bindings and verifies the current Svelte source: compact home and pricing layout, fail-closed Checkout behavior, checkout-status rendering, documentation, legal pages, sitemap, and crawler policy.
+The CI-safe suite starts plain Vite without Cloudflare bindings and verifies the current Svelte source: compact home layout, documentation, legal pages, sitemap, and crawler policy.
 
 ```bash
 npm run test:e2e:public
