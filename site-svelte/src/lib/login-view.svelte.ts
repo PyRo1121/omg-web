@@ -1,9 +1,12 @@
 import { validateLoginCredentials } from '../../../shared/login-credentials';
-import { githubSignInError } from './github-sign-in';
+import { githubSignInError, type GitHubSocialSignIn } from './github-sign-in';
 import { signIn } from './auth-client';
 
 export class LoginView {
-  constructor(private readonly destination: () => string = () => '/dashboard/') {}
+  constructor(
+    private readonly destination: () => string = () => '/dashboard/',
+    private readonly socialSignIn: GitHubSocialSignIn = signIn.social
+  ) {}
 
   email = $state('');
   password = $state('');
@@ -36,7 +39,11 @@ export class LoginView {
   async github(): Promise<void> {
     this.pending = true;
     this.error = '';
-    this.error = await githubSignInError(this.destination, 'GitHub sign-in failed');
+    this.error = await githubSignInError(
+      this.destination,
+      'GitHub sign-in failed',
+      this.socialSignIn
+    );
     if (this.error !== '') {
       this.pending = false;
     }
