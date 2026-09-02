@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import type { PageProps } from './$types';
   import { formatCount, formatProductLabel, formatTimestamp } from '../../dashboard/dashboard-view';
   import { adminAuditNavigation } from './admin-audit-view';
 
-  let { data }: { data: PageData } = $props();
+  let { data }: PageProps = $props();
   const navigation = $derived(
     adminAuditNavigation(data.audit.pagination.page, data.audit.pagination.pages, data.action)
   );

@@ -6,6 +6,7 @@ describe('operator audit page', () => {
   it('renders the privacy-reduced audit projection and audited exports', () => {
     const result = render(AuditPage, {
       props: {
+        params: {},
         data: {
           action: 'auth.login',
           audit: {
@@ -20,6 +21,7 @@ describe('operator audit page', () => {
             pagination: { page: 1, limit: 25, total: 1, pages: 1 },
           },
         },
+        form: null,
       },
     });
 

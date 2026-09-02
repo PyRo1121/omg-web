@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ActionData, PageData } from './$types';
+  import type { PageProps } from './$types';
   import {
     formatCount,
     formatDuration,
@@ -7,7 +7,7 @@
     formatTimestamp,
   } from '../../dashboard/dashboard-view';
 
-  let { data, form }: { data: PageData; form: ActionData } = $props();
+  let { data, form }: PageProps = $props();
   let selectedCustomer = $derived(form?.detail);
   let selectedSupport = $derived(form?.support);
 </script>

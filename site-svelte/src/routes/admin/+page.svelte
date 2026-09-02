@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import type { PageProps } from './$types';
   import {
     formatCount,
     formatDuration,
@@ -15,7 +15,7 @@
     recentSignupCount,
   } from './admin-view';
 
-  let { data }: { data: PageData } = $props();
+  let { data }: PageProps = $props();
   let attention = $derived(attentionItems(data.overview));
   let bars = $derived(activityBars(data.overview));
   let commandHealth = $derived(commandHealthSummary(data.overview));

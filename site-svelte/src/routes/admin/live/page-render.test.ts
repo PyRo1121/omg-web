@@ -45,6 +45,7 @@ describe('operator live page', () => {
   it('renders only privacy-reduced command fields', () => {
     const result = render(LivePage, {
       props: {
+        params: {},
         data: {
           live: {
             events: [
@@ -62,6 +63,7 @@ describe('operator live page', () => {
             refreshedAt: '2026-08-30T12:00:01.000Z',
           },
         },
+        form: null,
       },
     });
 

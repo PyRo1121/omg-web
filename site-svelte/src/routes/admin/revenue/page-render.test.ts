@@ -6,6 +6,7 @@ describe('operator revenue page', () => {
   it('labels ARR as run-rate and renders paid invoice aggregates', () => {
     const result = render(RevenuePage, {
       props: {
+        params: {},
         data: {
           revenue: {
             mrr: 500,
@@ -14,6 +15,7 @@ describe('operator revenue page', () => {
             byTier: [{ tier: 'team', totalRevenue: 300, customers: 3 }],
           },
         },
+        form: null,
       },
     });
 

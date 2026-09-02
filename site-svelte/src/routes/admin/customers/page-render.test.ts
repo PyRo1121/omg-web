@@ -52,7 +52,7 @@ describe('customer directory query boundary', () => {
 
 describe('customer directory SSR', () => {
   it('renders a live-shaped directory page without an action response', () => {
-    const result = render(Page, { props: { data, form: null } });
+    const result = render(Page, { props: { params: {}, data, form: null } });
 
     expect(result.body).toContain('Customer intelligence');
     expect(result.body).toContain('customer@example.com');
@@ -62,6 +62,7 @@ describe('customer directory SSR', () => {
   it('renders localized support intelligence without private identifiers', () => {
     const result = render(Page, {
       props: {
+        params: {},
         data,
         form: {
           kind: 'detail',

@@ -35,6 +35,7 @@ describe('operator analytics page', () => {
   it('renders site, product, cohort, geography, and docs aggregates', () => {
     const result = render(AnalyticsPage, {
       props: {
+        params: {},
         data: {
           days: 30,
           analytics: {
@@ -79,6 +80,7 @@ describe('operator analytics page', () => {
             },
           },
         },
+        form: null,
       },
     });
 

@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import type { PageProps } from './$types';
   import { untrack } from 'svelte';
   import { formatCount, formatProductLabel } from '../../dashboard/dashboard-view';
   import { AdminLiveFeed } from './admin-live.svelte';
 
-  let { data }: { data: PageData } = $props();
+  let { data }: PageProps = $props();
   const feed = new AdminLiveFeed(untrack(() => data.live));
   const statusLabel = $derived(
     feed.state === 'refreshing'

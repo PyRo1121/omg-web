@@ -6,6 +6,7 @@ describe('operator insights page', () => {
   it('renders grounded adoption, risk, retention, and expansion signals', () => {
     const result = render(InsightsPage, {
       props: {
+        params: {},
         data: {
           insights: {
             engagement: {
@@ -45,6 +46,7 @@ describe('operator insights page', () => {
             revenue: { current_mrr: 500, projected_arr: 6000, expansion_mrr_12m: 100 },
           },
         },
+        form: null,
       },
     });
 
