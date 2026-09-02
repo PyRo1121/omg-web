@@ -3,7 +3,6 @@ import type { OrganizationAuditResponse } from '../../../../shared/organization-
 import type { AuthEnvironment } from './auth.server';
 import {
   loadOrganizationAuditState,
-  OrganizationAuditQueryInvalid,
   readOrganizationAuditQuery,
 } from './organization-audit.server';
 
@@ -78,9 +77,7 @@ describe('organization audit server boundary', () => {
       page: 40,
     });
     for (const query of ['filter=unknown', 'page=0', 'page=41', 'page=1.5', 'page=1&page=2']) {
-      expect(() => readOrganizationAuditQuery(new URLSearchParams(query))).toThrow(
-        OrganizationAuditQueryInvalid
-      );
+      expect(readOrganizationAuditQuery(new URLSearchParams(query))).toBeNull();
     }
   });
 

@@ -70,14 +70,6 @@ type OrganizationAuditState =
   | { readonly status: 'no-organization' }
   | { readonly status: 'unavailable' };
 
-export class OrganizationAuditQueryInvalid extends Error {
-  readonly _tag = 'OrganizationAuditQueryInvalid';
-
-  constructor() {
-    super('Organization audit query is invalid');
-  }
-}
-
 class OrganizationAuditUnavailable extends Error {
   readonly _tag = 'OrganizationAuditUnavailable';
 
@@ -87,20 +79,22 @@ class OrganizationAuditUnavailable extends Error {
 }
 
 /** Decode a bounded audit filter and page from browser query parameters. */
-export function readOrganizationAuditQuery(searchParams: URLSearchParams): OrganizationAuditQuery {
+export function readOrganizationAuditQuery(
+  searchParams: URLSearchParams
+): OrganizationAuditQuery | null {
   const filters = searchParams.getAll('filter');
   const pages = searchParams.getAll('page');
   if (filters.length > 1 || pages.length > 1) {
-    throw new OrganizationAuditQueryInvalid();
+    return null;
   }
   const filterExit = Schema.decodeUnknownExit(Filter)(filters[0] ?? 'all');
   const rawPage = pages[0] ?? '1';
   if (!/^\d{1,2}$/u.test(rawPage)) {
-    throw new OrganizationAuditQueryInvalid();
+    return null;
   }
   const pageExit = Schema.decodeUnknownExit(Page)(Number(rawPage));
   if (Exit.isFailure(filterExit) || Exit.isFailure(pageExit)) {
-    throw new OrganizationAuditQueryInvalid();
+    return null;
   }
   return { filter: filterExit.value, page: pageExit.value };
 }

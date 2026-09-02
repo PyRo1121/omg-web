@@ -2,7 +2,6 @@ import { error, redirect } from '@sveltejs/kit';
 import { loadAccountIdentity } from '../../../../lib/server/account-dashboard.server';
 import {
   loadOrganizationAuditState,
-  OrganizationAuditQueryInvalid,
   readOrganizationAuditQuery,
 } from '../../../../lib/server/organization-audit.server';
 import type { PageServerLoad } from './$types';
@@ -12,14 +11,9 @@ export const load: PageServerLoad = async event => {
     error(503, 'Organization audit service unavailable');
   }
   event.setHeaders({ 'Cache-Control': 'private, no-store' });
-  let query;
-  try {
-    query = readOrganizationAuditQuery(event.url.searchParams);
-  } catch (cause) {
-    if (cause instanceof OrganizationAuditQueryInvalid) {
-      error(400, 'Organization audit query is invalid');
-    }
-    throw cause;
+  const query = readOrganizationAuditQuery(event.url.searchParams);
+  if (query === null) {
+    error(400, 'Organization audit query is invalid');
   }
   const identity = await loadAccountIdentity(event);
   if (identity === null) {
