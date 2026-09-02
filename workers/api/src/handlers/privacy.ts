@@ -14,6 +14,14 @@ import {
   logAudit,
 } from '../api';
 import { reportError, reportInfo } from '../observability';
+import {
+  AUDIT_LOG_RETENTION_DAYS,
+  CLI_TELEMETRY_RETENTION_DAYS,
+  DOCS_EVENT_RETENTION_DAYS,
+  DOCS_SESSION_RETENTION_DAYS,
+  SITE_ANALYTICS_RETENTION_DAYS,
+  USAGE_RETENTION_MONTHS,
+} from '../retention';
 import { enforceIpRateLimit } from './auth';
 import {
   decodeExtraRow,
@@ -42,7 +50,6 @@ const OptOutRequestSchema = Schema.Struct({
 });
 
 /** Days security audit logs are retained, as promised by the privacy disclosures. */
-const AUDIT_LOG_RETENTION_DAYS = 30;
 
 /** Run a handler behind customer session validation. */
 async function withPrivacyPrincipal(
@@ -517,13 +524,13 @@ export async function handlePrivacyStatus(request: Request, env: Env): Promise<R
     last_updated: '2026-09-01',
     data_retention: {
       audit_logs: `${AUDIT_LOG_RETENTION_DAYS} days`,
-      cli_telemetry_events: '90 days',
-      documentation_analytics_events: '7 days',
-      documentation_analytics_sessions: '30 days',
-      introductory_offer_requests: '12 months',
+      cli_telemetry_events: `${CLI_TELEMETRY_RETENTION_DAYS} days`,
+      documentation_analytics_events: `${DOCS_EVENT_RETENTION_DAYS} days`,
+      documentation_analytics_sessions: `${DOCS_SESSION_RETENTION_DAYS} days`,
+      introductory_offer_requests: `${USAGE_RETENTION_MONTHS} months`,
       payment_records: 'As required by Stripe and applicable law',
-      usage_statistics: '12 months',
-      website_analytics_events: '90 days',
+      usage_statistics: `${USAGE_RETENTION_MONTHS} months`,
+      website_analytics_events: `${SITE_ANALYTICS_RETENTION_DAYS} days`,
     },
     your_rights: [
       'Right to access and portability',

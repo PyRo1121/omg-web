@@ -1,5 +1,6 @@
 import { reportError, reportInfo, reportWarning } from '../observability';
 import { type Env, jsonResponse, errorResponse, enforceRateLimit, logAudit } from '../api';
+import { STRIPE_EVENT_RETENTION_DAYS } from '../retention';
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import { decodeBoundedJsonResponse, decodeJsonBody, readBoundedBodyText } from '../body';
@@ -331,7 +332,6 @@ async function failedStripeEventResponse(
 }
 
 /** Retention window for processed Stripe webhook inbox rows. */
-const STRIPE_EVENT_RETENTION_DAYS = 90;
 
 /**
  * Prune processed Stripe webhook inbox rows past the retention window.

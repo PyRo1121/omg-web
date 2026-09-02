@@ -4,6 +4,7 @@ import { type Env, enforceRateLimit, errorResponse, jsonResponse, rateLimitClien
 import { AdminUnauthorizedError, requireInternalSecret } from '../admin-secret';
 import { decodeBoundedJsonResponse, decodeJsonBody, type InvalidJsonBodyError } from '../body';
 import { reportError, reportInfo } from '../observability';
+import { USAGE_RETENTION_MONTHS } from '../retention';
 import {
   MarketingOfferRequestSchema,
   type MarketingOfferResponse,
@@ -332,7 +333,9 @@ function claimOffer(
 /** Remove expired lead records after the documented 12-month retention window. */
 export async function cleanupMarketingOfferLeads(db: D1Database): Promise<void> {
   await db
-    .prepare(`DELETE FROM marketing_offer_leads WHERE created_at < datetime('now', '-12 months')`)
+    .prepare(
+      `DELETE FROM marketing_offer_leads WHERE created_at < datetime('now', '-${USAGE_RETENTION_MONTHS} months')`
+    )
     .run();
   reportInfo('Cleaned up expired marketing offer leads');
 }

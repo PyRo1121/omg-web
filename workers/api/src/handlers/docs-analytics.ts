@@ -1,4 +1,10 @@
 import { reportError, reportInfo } from '../observability';
+import {
+  CLI_TELEMETRY_RETENTION_DAYS,
+  DOCS_EVENT_RETENTION_DAYS,
+  DOCS_SESSION_RETENTION_DAYS,
+  USAGE_RETENTION_MONTHS,
+} from '../retention';
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * DOCS ANALYTICS HANDLER - World-Class Web Telemetry
@@ -30,10 +36,6 @@ const MAX_EVENTS_PER_BATCH = 50;
 const MAX_DOCS_PAYLOAD_BYTES = 512 * 1024;
 /** User agents are stored per event row; clamp header noise before persistence. */
 const MAX_USER_AGENT_LENGTH = 256;
-/** CLI telemetry retention promised by the privacy disclosures (privacy.ts). */
-const TELEMETRY_RETENTION_DAYS = 90;
-/** Aggregate and per-license usage retention promised by the privacy disclosures. */
-const USAGE_RETENTION_MONTHS = 12;
 /** Stale realtime rows past this age can never re-enter the 5-minute live window. */
 const REALTIME_STALE_MS = 60 * 60 * 1000;
 
@@ -453,13 +455,15 @@ export async function cleanupAnalyticsRetention(db: D1Database): Promise<void> {
   // Compare in the same format CURRENT_TIMESTAMP writes (YYYY-MM-DD HH:MM:SS);
   // an ISO string cutoff deletes up to a day early due to ' ' vs 'T' ordering.
   await db
-    .prepare(`DELETE FROM docs_analytics_events WHERE created_at < datetime('now', '-7 days')`)
+    .prepare(
+      `DELETE FROM docs_analytics_events WHERE created_at < datetime('now', '-${DOCS_EVENT_RETENTION_DAYS} days')`
+    )
     .run();
   reportInfo('Cleaned up old docs analytics events');
 
   await db
     .prepare(
-      `DELETE FROM docs_analytics_sessions WHERE first_seen_at < datetime('now', '-30 days')`
+      `DELETE FROM docs_analytics_sessions WHERE first_seen_at < datetime('now', '-${DOCS_SESSION_RETENTION_DAYS} days')`
     )
     .run();
   reportInfo('Cleaned up old docs analytics sessions');
@@ -467,7 +471,7 @@ export async function cleanupAnalyticsRetention(db: D1Database): Promise<void> {
   for (const table of ['command_event', 'session', 'performance_metric', 'feature_usage']) {
     await db
       .prepare(
-        `DELETE FROM ${table} WHERE timestamp < datetime('now', '-${TELEMETRY_RETENTION_DAYS} days')`
+        `DELETE FROM ${table} WHERE timestamp < datetime('now', '-${CLI_TELEMETRY_RETENTION_DAYS} days')`
       )
       .run();
     reportInfo(`Cleaned up expired ${table} rows`);
@@ -476,13 +480,13 @@ export async function cleanupAnalyticsRetention(db: D1Database): Promise<void> {
   await db
     .prepare(
       `DELETE FROM analytics_events
-       WHERE created_at < datetime('now', '-${TELEMETRY_RETENTION_DAYS} days')`
+       WHERE created_at < datetime('now', '-${CLI_TELEMETRY_RETENTION_DAYS} days')`
     )
     .run();
   await db
     .prepare(
       `DELETE FROM analytics_errors
-       WHERE last_occurred_at < datetime('now', '-${TELEMETRY_RETENTION_DAYS} days')`
+       WHERE last_occurred_at < datetime('now', '-${CLI_TELEMETRY_RETENTION_DAYS} days')`
     )
     .run();
   reportInfo('Cleaned up expired CLI analytics rows');
@@ -512,7 +516,7 @@ export async function cleanupAnalyticsRetention(db: D1Database): Promise<void> {
   await db
     .prepare(
       `DELETE FROM site_analytics_events
-       WHERE created_at < (unixepoch() - ${TELEMETRY_RETENTION_DAYS * 24 * 60 * 60}) * 1000`
+       WHERE created_at < (unixepoch() - ${CLI_TELEMETRY_RETENTION_DAYS * 24 * 60 * 60}) * 1000`
     )
     .run();
   reportInfo('Cleaned up expired site analytics rows');
