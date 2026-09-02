@@ -1,9 +1,13 @@
 import '../src/cloudflare-test.d.ts';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
+import { env } from 'cloudflare:test';
 import * as Schema from 'effect/Schema';
-import worker from '../src/worker';
-import { createTestCustomer, deleteTestCustomer, type TestCustomer } from './test-utils';
+import {
+  createTestCustomer,
+  deleteTestCustomer,
+  fetchWorker,
+  type TestCustomer,
+} from './test-utils';
 
 const TeamMemberSchema = Schema.Struct({
   machine_id: Schema.String,
@@ -81,13 +85,7 @@ afterEach(async () => {
 
 describe('CLI license API', () => {
   it('returns bounded team members for an active team license key', async () => {
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
-      licensedGet('/api/license/members', customer.licenseKey),
-      env,
-      ctx
-    );
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(licensedGet('/api/license/members', customer.licenseKey));
 
     expect(response.status).toBe(200);
     const members = Schema.decodeUnknownSync(Schema.Array(TeamMemberSchema))(await response.json());
@@ -103,13 +101,7 @@ describe('CLI license API', () => {
     await env.DB.prepare(`UPDATE licenses SET tier = 'enterprise' WHERE id = ?`)
       .bind(customer.licenseId)
       .run();
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
-      licensedGet('/api/license/policies', customer.licenseKey),
-      env,
-      ctx
-    );
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(licensedGet('/api/license/policies', customer.licenseKey));
 
     expect(response.status).toBe(200);
     const policies = Schema.decodeUnknownSync(Schema.Array(PolicySchema))(await response.json());
@@ -117,13 +109,7 @@ describe('CLI license API', () => {
   });
 
   it('returns a bounded customer audit trail for a team license', async () => {
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
-      licensedGet('/api/license/audit', customer.licenseKey),
-      env,
-      ctx
-    );
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(licensedGet('/api/license/audit', customer.licenseKey));
 
     expect(response.status).toBe(200);
     const entries = Schema.decodeUnknownSync(Schema.Array(AuditEntrySchema))(await response.json());
@@ -135,13 +121,7 @@ describe('CLI license API', () => {
   });
 
   it('rejects an invalid license key before reading team data', async () => {
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
-      licensedGet('/api/license/members', 'invalid-key'),
-      env,
-      ctx
-    );
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(licensedGet('/api/license/members', 'invalid-key'));
 
     expect(response.status).toBe(401);
   });

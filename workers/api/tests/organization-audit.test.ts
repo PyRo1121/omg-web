@@ -1,10 +1,10 @@
 import '../src/cloudflare-test.d.ts';
-import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
+import { env } from 'cloudflare:test';
 import * as Schema from 'effect/Schema';
 import { describe, expect, it } from 'vitest';
 import type { OrganizationAuditRequest } from '../../../shared/organization-audit';
 import { OrganizationAuditResponseSchema } from '../src/contracts/organization-audit';
-import worker from '../src/worker';
+import { fetchWorker } from './test-utils';
 
 function organizationAuditRequest(
   body: OrganizationAuditRequest,
@@ -99,26 +99,19 @@ async function createOrganizationAuditFixture(): Promise<{
 }
 
 async function fetchAudit(input: OrganizationAuditRequest) {
-  const ctx = createExecutionContext();
-  const response = await worker.fetch(organizationAuditRequest(input), env, ctx);
-  await waitOnExecutionContext(ctx);
-  return response;
+  return fetchWorker(organizationAuditRequest(input));
 }
 
 describe('POST /api/internal/organization-audit', () => {
   it('requires the private service-binding boundary', async () => {
     env.SVELTE_BFF_SECRET = 'organization-audit-test-secret';
     env.API_RATE_LIMITER = { limit: async () => ({ success: true }) };
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
+    const response = await fetchWorker(
       organizationAuditRequest(
         { organizationId: 'organization', userId: 'user', filter: 'all', page: 1 },
         false
-      ),
-      env,
-      ctx
+      )
     );
-    await waitOnExecutionContext(ctx);
 
     expect(response.status).toBe(404);
   });

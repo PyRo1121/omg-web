@@ -1,9 +1,9 @@
 import '../src/cloudflare-test.d.ts';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
+import { env } from 'cloudflare:test';
 import * as Schema from 'effect/Schema';
-import worker from '../src/worker';
+import { fetchWorker } from './test-utils';
 
 const CUSTOMER_ID = 'opt-out-customer';
 const LICENSE_ID = 'opt-out-license';
@@ -25,13 +25,6 @@ function postJson(path: string, body: JsonValue): Request {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-}
-
-async function fetchWorker(request: Request): Promise<Response> {
-  const context = createExecutionContext();
-  const response = await worker.fetch(request, env, context);
-  await waitOnExecutionContext(context);
-  return response;
 }
 
 async function createIngestionTables(): Promise<void> {

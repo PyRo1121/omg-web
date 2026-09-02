@@ -1,7 +1,16 @@
 import '../src/cloudflare-test.d.ts';
+import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
 import type { Env } from '../src/api';
+import worker from '../src/worker';
 
 type TestDatabase = Env['DB'];
+
+export async function fetchWorker(request: Request, environment: Env = env): Promise<Response> {
+  const context = createExecutionContext();
+  const response = await worker.fetch(request, environment, context);
+  await waitOnExecutionContext(context);
+  return response;
+}
 
 /** Test data helpers for the migrated licensing schema. */
 

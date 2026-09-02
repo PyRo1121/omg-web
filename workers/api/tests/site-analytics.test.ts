@@ -6,8 +6,8 @@ import '../src/cloudflare-test.d.ts';
 
 import * as Schema from 'effect/Schema';
 import { describe, it, expect, afterEach } from 'vitest';
-import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
-import worker from '../src/worker';
+import { env } from 'cloudflare:test';
+import { fetchWorker } from './test-utils';
 import { cleanupAnalyticsRetention } from '../src/handlers/docs-analytics';
 import { handleGetAnalyticsOverview } from '../src/handlers/site-analytics';
 import type { TrackingBatch } from '../src/contracts/http-bodies';
@@ -73,17 +73,11 @@ function trackRawRequest(raw: string): Request {
 }
 
 async function track(payload: TrackingBatch): Promise<Response> {
-  const ctx = createExecutionContext();
-  const response = await worker.fetch(trackRequest(payload), env, ctx);
-  await waitOnExecutionContext(ctx);
-  return response;
+  return fetchWorker(trackRequest(payload));
 }
 
 async function trackRaw(raw: string): Promise<Response> {
-  const ctx = createExecutionContext();
-  const response = await worker.fetch(trackRawRequest(raw), env, ctx);
-  await waitOnExecutionContext(ctx);
-  return response;
+  return fetchWorker(trackRawRequest(raw));
 }
 
 function event(overrides: Partial<TrackingEvent> = {}): TrackingEvent {
@@ -232,8 +226,7 @@ describe('scheduled analytics retention', () => {
 
 describe('POST /api/docs/analytics', () => {
   it('uses server time as the canonical event and session timestamp', async () => {
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
+    const response = await fetchWorker(
       new Request('https://internal.test/api/docs/analytics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -248,11 +241,8 @@ describe('POST /api/docs/analytics', () => {
             },
           ],
         }),
-      }),
-      env,
-      ctx
+      })
     );
-    await waitOnExecutionContext(ctx);
 
     expect(response.status).toBe(200);
     const eventRow = Schema.decodeUnknownSync(ServerTimestampRowSchema)(

@@ -1,7 +1,6 @@
 import '../src/cloudflare-test.d.ts';
 import { describe, it, expect } from 'vitest';
-import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
-import worker from '../src/worker';
+import { fetchWorker } from './test-utils';
 
 const STATS_URL = 'https://omg-api.latham.cloud/api/github-stats';
 const ALLOWED_ORIGIN = 'https://omg.latham.cloud';
@@ -33,13 +32,6 @@ function getStatsRequest(origin: string | null): Request {
   return new Request(STATS_URL, { method: 'GET', headers });
 }
 
-async function dispatch(request: Request): Promise<Response> {
-  const ctx = createExecutionContext();
-  const response = await worker.fetch(request, env, ctx);
-  await waitOnExecutionContext(ctx);
-  return response;
-}
-
 async function seedStatsCache(): Promise<void> {
   await caches.default.delete(new Request(STATS_URL));
   await caches.default.put(new Request(STATS_URL), cachedStatsResponse());
@@ -49,7 +41,7 @@ describe('GET /api/github-stats CORS', () => {
   it('serves a cache MISS-stored entry as a HIT with exactly one allowed origin', async () => {
     await seedStatsCache();
 
-    const response = await dispatch(getStatsRequest(ALLOWED_ORIGIN));
+    const response = await fetchWorker(getStatsRequest(ALLOWED_ORIGIN));
 
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Cache')).toBe('HIT');
@@ -61,7 +53,7 @@ describe('GET /api/github-stats CORS', () => {
   it('keeps exactly one Access-Control-Allow-Origin when the caller omits Origin', async () => {
     await seedStatsCache();
 
-    const response = await dispatch(getStatsRequest(null));
+    const response = await fetchWorker(getStatsRequest(null));
 
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Cache')).toBe('HIT');
@@ -69,7 +61,7 @@ describe('GET /api/github-stats CORS', () => {
   });
 
   it('answers preflight requests with exactly one allowed origin', async () => {
-    const response = await dispatch(
+    const response = await fetchWorker(
       new Request(STATS_URL, {
         method: 'OPTIONS',
         headers: { Origin: ALLOWED_ORIGIN, 'Access-Control-Request-Method': 'GET' },

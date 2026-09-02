@@ -1,8 +1,8 @@
 import '../src/cloudflare-test.d.ts';
-import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
+import { env } from 'cloudflare:test';
 import * as Schema from 'effect/Schema';
 import { describe, expect, it } from 'vitest';
-import worker from '../src/worker';
+import { fetchWorker } from './test-utils';
 
 const DirectorySchema = Schema.Struct({
   organizations: Schema.Array(Schema.Struct({ name: Schema.String, slug: Schema.String })),
@@ -79,16 +79,13 @@ interface SupportFixture {
 }
 
 async function request(path: string, token?: string): Promise<Response> {
-  const ctx = createExecutionContext();
   const outboundRequest =
     token === undefined
       ? new Request(`http://localhost${path}`)
       : new Request(`http://localhost${path}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-  const response = await worker.fetch(outboundRequest, env, ctx);
-  await waitOnExecutionContext(ctx);
-  return response;
+  return fetchWorker(outboundRequest);
 }
 
 async function createSupportFixture(): Promise<SupportFixture> {

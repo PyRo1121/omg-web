@@ -1,10 +1,10 @@
 import '../src/cloudflare-test.d.ts';
-import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
+import { env } from 'cloudflare:test';
 import * as Schema from 'effect/Schema';
 import { describe, expect, it } from 'vitest';
 import type { OrganizationUsageRequest } from '../../../shared/organization-usage';
 import { OrganizationUsageResponseSchema } from '../src/contracts/organization-usage';
-import worker from '../src/worker';
+import { fetchWorker } from './test-utils';
 
 const ErrorPayloadSchema = Schema.Struct({ error: Schema.String });
 
@@ -122,13 +122,9 @@ describe('POST /api/internal/organization-usage', () => {
   it('requires the private service-binding boundary', async () => {
     env.SVELTE_BFF_SECRET = 'organization-usage-test-secret';
     env.API_RATE_LIMITER = { limit: async () => ({ success: true }) };
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
-      organizationUsageRequest({ organizationId: 'org', userId: 'user' }, false),
-      env,
-      ctx
+    const response = await fetchWorker(
+      organizationUsageRequest({ organizationId: 'org', userId: 'user' }, false)
     );
-    await waitOnExecutionContext(ctx);
 
     expect(response.status).toBe(404);
   });
@@ -137,9 +133,7 @@ describe('POST /api/internal/organization-usage', () => {
     env.SVELTE_BFF_SECRET = 'organization-usage-test-secret';
     env.API_RATE_LIMITER = { limit: async () => ({ success: true }) };
     const fixture = await createOrganizationUsageFixture();
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(organizationUsageRequest(fixture), env, ctx);
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(organizationUsageRequest(fixture));
 
     expect(response.status).toBe(200);
     const raw = await response.json();
@@ -193,13 +187,9 @@ describe('POST /api/internal/organization-usage', () => {
     env.SVELTE_BFF_SECRET = 'organization-usage-test-secret';
     env.API_RATE_LIMITER = { limit: async () => ({ success: true }) };
     const fixture = await createOrganizationUsageFixture();
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
-      organizationUsageRequest({ ...fixture, userId: `foreign-${crypto.randomUUID()}` }),
-      env,
-      ctx
+    const response = await fetchWorker(
+      organizationUsageRequest({ ...fixture, userId: `foreign-${crypto.randomUUID()}` })
     );
-    await waitOnExecutionContext(ctx);
 
     expect(response.status).toBe(404);
     expect(Schema.decodeUnknownSync(ErrorPayloadSchema)(await response.json())).toEqual({

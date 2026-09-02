@@ -1,8 +1,8 @@
 import '../src/cloudflare-test.d.ts';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
+import { env } from 'cloudflare:test';
 import * as Schema from 'effect/Schema';
-import worker from '../src/worker';
+import { fetchWorker } from './test-utils';
 
 const ErrorPayloadSchema = Schema.Struct({ error: Schema.String });
 const DashboardStatsPayloadSchema = Schema.Struct({
@@ -59,9 +59,7 @@ describe('GET /api/dashboard', () => {
 
   it('rate limits session routes before reading D1', async () => {
     env.API_RATE_LIMITER = { limit: async () => ({ success: false }) };
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(getDashboard('untrusted-session-token'), env, ctx);
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(getDashboard('untrusted-session-token'));
 
     expect(response.status).toBe(429);
   });
@@ -74,9 +72,7 @@ describe('GET /api/dashboard', () => {
         return { success: true };
       },
     };
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(getDashboard('untrusted-session-token'), env, ctx);
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(getDashboard('untrusted-session-token'));
 
     expect(response.status).toBe(401);
     expect(limiterKeys).toHaveLength(1);
@@ -85,18 +81,14 @@ describe('GET /api/dashboard', () => {
   });
 
   it('returns 401 when the Authorization header is missing', async () => {
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(getDashboard(null), env, ctx);
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(getDashboard(null));
     expect(response.status).toBe(401);
     const payload = await decodeError(response);
     expect(payload.error).toBe('Authorization required');
   });
 
   it('returns 401 for an unknown session token', async () => {
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(getDashboard('not-a-session'), env, ctx);
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(getDashboard('not-a-session'));
     expect(response.status).toBe(401);
     const payload = await decodeError(response);
     expect(payload.error).toBe('Invalid or expired session');
@@ -114,8 +106,7 @@ describe('GET /api/dashboard', () => {
       .bind('dash-sess', 'dash-cust', TEST_TOKEN, new Date(Date.now() + 60_000).toISOString())
       .run();
 
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(
+    const response = await fetchWorker(
       new Request('http://localhost/api/user/profile', {
         method: 'PUT',
         headers: {
@@ -123,11 +114,8 @@ describe('GET /api/dashboard', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ company: 'After' }),
-      }),
-      env,
-      ctx
+      })
     );
-    await waitOnExecutionContext(ctx);
 
     expect(response.status).toBe(200);
     const customer = await env.DB.prepare(`SELECT company FROM customers WHERE id = ?`)
@@ -154,9 +142,7 @@ describe('GET /api/dashboard', () => {
       .bind('dash-license', 'dash-cust', 'OMG-DASH-TEST')
       .run();
 
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(getDashboard(TEST_TOKEN), env, ctx);
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(getDashboard(TEST_TOKEN));
 
     expect(response.status).toBe(200);
     const payload = Schema.decodeUnknownSync(DashboardStatsPayloadSchema)(await response.json());
@@ -180,9 +166,7 @@ describe('GET /api/dashboard', () => {
       .bind('dash-sess', 'dash-cust', TEST_TOKEN, expiresAt)
       .run();
 
-    const ctx = createExecutionContext();
-    const response = await worker.fetch(getDashboard(TEST_TOKEN), env, ctx);
-    await waitOnExecutionContext(ctx);
+    const response = await fetchWorker(getDashboard(TEST_TOKEN));
     expect(response.status).toBe(404);
     const payload = await decodeError(response);
     expect(payload.error).toBe('License not found');
