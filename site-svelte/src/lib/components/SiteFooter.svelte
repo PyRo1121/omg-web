@@ -1,4 +1,6 @@
-<script lang="ts"></script>
+<script lang="ts">
+  import BrandMark from './BrandMark.svelte';
+</script>
 
 <footer class="site-footer">
   <section class="footer-callout" aria-labelledby="footer-callout-title">
@@ -15,7 +17,7 @@
 
   <div class="footer-bar">
     <a class="footer-brand" href="/" aria-label="OMG Package Manager home">
-      OMG<span aria-hidden="true">/</span>
+      <BrandMark />
     </a>
 
     <nav aria-label="Footer navigation">
@@ -114,15 +116,7 @@
 
   .footer-brand {
     color: var(--ink);
-    font-family: var(--font-display);
-    font-size: 1.125rem;
-    font-weight: 750;
-    letter-spacing: -0.055em;
     text-decoration: none;
-  }
-
-  .footer-brand span {
-    color: var(--signal);
   }
 
   .footer-links {

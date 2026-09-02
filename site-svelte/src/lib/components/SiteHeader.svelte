@@ -1,9 +1,11 @@
-<script lang="ts"></script>
+<script lang="ts">
+  import BrandMark from './BrandMark.svelte';
+</script>
 
 <header class="site-header">
   <nav class="header-shell" aria-label="Primary navigation">
     <a class="brand" href="/" aria-label="OMG Package Manager home">
-      OMG<span aria-hidden="true">/</span>
+      <BrandMark />
     </a>
 
     <div class="primary-nav">
@@ -58,14 +60,6 @@
     align-self: center;
     padding-right: clamp(1.25rem, 3vw, 3rem);
     color: var(--ink);
-    font-family: var(--font-display);
-    font-size: 1.125rem;
-    font-weight: 750;
-    letter-spacing: -0.06em;
-  }
-
-  .brand span {
-    color: var(--signal);
   }
 
   .primary-nav {
