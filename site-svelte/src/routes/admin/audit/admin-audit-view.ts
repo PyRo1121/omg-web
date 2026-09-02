@@ -1,4 +1,4 @@
-export interface AdminAuditNavigation {
+interface AdminAuditNavigation {
   readonly currentPage: number;
   readonly nextHref: string;
   readonly previousHref: string;

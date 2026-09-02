@@ -19,7 +19,6 @@ export interface Env extends Pick<Cloudflare.Env, 'DB'> {
   JWT_SECRET: string;
   JWT_PRIVATE_KEY: string;
   EMAIL: SendEmail;
-  ADMIN_USER_ID?: string;
   STRIPE_PRO_PRICE_ID?: string;
   STRIPE_TEAM_PRICE_ID?: string;
   STRIPE_ENT_PRICE_ID?: string;
@@ -47,8 +46,6 @@ export interface User {
 // Session from database
 export interface Session {
   id: string;
-  user_id: string;
-  token: string;
   expires_at: string;
 }
 
@@ -342,8 +339,6 @@ export async function validateSession(
     },
     session: {
       id: session.id,
-      user_id: session.customer_id,
-      token,
       expires_at: session.expires_at,
     },
   };

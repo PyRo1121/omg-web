@@ -1,10 +1,10 @@
 import type { AdminDailyActivity, AdminOverview } from '../../../../shared/admin-overview';
 
 /** Operator attention severity used only for presentation ordering and color. */
-export type AdminAttentionTone = 'urgent' | 'watch' | 'clear';
+type AdminAttentionTone = 'urgent' | 'watch' | 'clear';
 
 /** One exact, evidence-backed operator attention item. */
-export interface AdminAttentionItem {
+interface AdminAttentionItem {
   readonly label: string;
   readonly value: string;
   readonly detail: string;
@@ -12,7 +12,7 @@ export interface AdminAttentionItem {
 }
 
 /** One activity day plus its relative visual width. Exact counts remain unchanged. */
-export interface AdminActivityBar extends AdminDailyActivity {
+interface AdminActivityBar extends AdminDailyActivity {
   readonly widthPercent: number;
 }
 
