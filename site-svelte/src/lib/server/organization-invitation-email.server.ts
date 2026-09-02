@@ -106,6 +106,3 @@ export function sendOrganizationInvitationEmail(
 
   return Effect.runPromise(effect);
 }
-
-/** Wire-level request schema used by focused tests and response consumers. */
-export const organizationInvitationEmailRequestSchema = InvitationEmailRequestSchema;

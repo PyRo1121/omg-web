@@ -15,7 +15,6 @@ import { reportEffectFailure } from './observability.server';
 import type { OrganizationWorkspaceIdentity } from './organization-workspace.server';
 
 const ORGANIZATION_AUDIT_RESPONSE_LIMIT = 128 * 1024;
-const PrivateReference = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256));
 const DisplayText = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256));
 const Filter = Schema.Literals(['all', 'invitations', 'members']);
 const Role = Schema.Literals(['owner', 'admin', 'member']);
@@ -40,12 +39,6 @@ const OccurredAt = Schema.String.check(
   Schema.isMaxLength(32),
   Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u)
 );
-export const OrganizationAuditRequestSchema = Schema.Struct({
-  organizationId: PrivateReference,
-  userId: PrivateReference,
-  filter: Filter,
-  page: Page,
-});
 const OrganizationAuditResponseSchema = Schema.Struct({
   organization: Schema.Struct({
     name: DisplayText,

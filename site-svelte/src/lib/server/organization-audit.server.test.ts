@@ -1,11 +1,9 @@
-import * as Schema from 'effect/Schema';
 import { describe, expect, it } from 'vitest';
 import type { OrganizationAuditResponse } from '../../../../shared/organization-audit';
 import type { AuthEnvironment } from './auth.server';
 import {
   loadOrganizationAuditState,
   OrganizationAuditQueryInvalid,
-  OrganizationAuditRequestSchema,
   readOrganizationAuditQuery,
 } from './organization-audit.server';
 
@@ -94,9 +92,7 @@ describe('organization audit server boundary', () => {
         expect(request.url).toBe('https://omg-saas.internal/api/internal/organization-audit');
         expect(request.headers.get('X-Admin-Secret')).toBe('private-bff-secret');
         expect(request.headers.get('X-Internal-Call')).toBe('service-binding');
-        const input = Schema.decodeUnknownSync(OrganizationAuditRequestSchema)(
-          await request.json()
-        );
+        const input = await request.json();
         expect(input).toEqual({
           organizationId: 'private-organization-id',
           userId: 'private-user-id',

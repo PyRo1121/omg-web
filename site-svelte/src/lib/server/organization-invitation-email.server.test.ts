@@ -3,7 +3,6 @@ import { Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
 import {
-  organizationInvitationEmailRequestSchema,
   OrganizationInvitationDeliveryFailed,
   sendOrganizationInvitationEmail,
 } from './organization-invitation-email.server';
@@ -53,21 +52,24 @@ describe('organization invitation email transport', () => {
       )
     ).resolves.toBeUndefined();
 
-    const parsedJson = Schema.decodeUnknownExit(Schema.fromJsonString(Schema.Unknown))(requestBody);
-    if (Exit.isFailure(parsedJson)) {
-      throw new Error(`Email request JSON was invalid: ${String(parsedJson.cause)}`);
+    const expected = Schema.decodeUnknownExit(
+      Schema.fromJsonString(
+        Schema.Struct({
+          email: Schema.String,
+          organizationName: Schema.String,
+          role: Schema.String,
+          invitationUrl: Schema.String,
+        })
+      )
+    )(requestBody);
+    if (Exit.isFailure(expected)) {
+      throw new Error(`Email request was invalid: ${String(expected.cause)}`);
     }
-    const decoded = Schema.decodeUnknownExit(organizationInvitationEmailRequestSchema)(
-      parsedJson.value
-    );
-    if (Exit.isFailure(decoded)) {
-      throw new Error(`Email request was invalid: ${String(decoded.cause)}`);
-    }
-    expect(decoded.value.email).toBe('employee@example.com');
-    expect(decoded.value.invitationUrl).toMatch(
+    expect(expected.value.email).toBe('employee@example.com');
+    expect(expected.value.invitationUrl).toMatch(
       /^https:\/\/shadow\.example\/dashboard\/organization\/invitations\/accept\/\?token=v1\./u
     );
-    expect(decoded.value.invitationUrl).not.toContain('better-auth-private-id');
+    expect(expected.value.invitationUrl).not.toContain('better-auth-private-id');
   });
 
   it('keeps delivery failure explicit when the private Worker rejects the request', async () => {

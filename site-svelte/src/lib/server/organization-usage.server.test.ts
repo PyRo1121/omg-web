@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import * as Schema from 'effect/Schema';
 import type { OrganizationUsageResponse } from '../../../../shared/organization-usage';
 import type { AuthEnvironment } from './auth.server';
-import {
-  loadOrganizationUsageState,
-  OrganizationUsageRequestSchema,
-} from './organization-usage.server';
+import { loadOrganizationUsageState } from './organization-usage.server';
 
 const IDENTITY = {
   id: 'private-user-id',
@@ -91,9 +87,7 @@ describe('organization usage server boundary', () => {
         expect(request.url).toBe('https://omg-saas.internal/api/internal/organization-usage');
         expect(request.headers.get('X-Admin-Secret')).toBe('private-bff-secret');
         expect(request.headers.get('X-Internal-Call')).toBe('service-binding');
-        const input = Schema.decodeUnknownSync(OrganizationUsageRequestSchema)(
-          await request.json()
-        );
+        const input = await request.json();
         expect(input).toEqual({
           organizationId: 'private-organization-id',
           userId: 'private-user-id',
