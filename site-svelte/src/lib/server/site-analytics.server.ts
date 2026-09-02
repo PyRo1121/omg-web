@@ -1,5 +1,6 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import { BoundedBodyTooLarge, BoundedBodyUnavailable, readBoundedBody } from '../bounded-body';
 const ShortText = Schema.String.check(Schema.isMaxLength(512));
 const EventName = Schema.String.check(Schema.isMaxLength(128));
 const SessionId = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(64));
@@ -109,34 +110,22 @@ async function readBoundedText(
   tooLargeStatus: 413 | 503,
   invalidStatus: 400 | 503
 ): Promise<string> {
-  const declaredLength = Number(response.headers.get('Content-Length') ?? '0');
-  if (Number.isFinite(declaredLength) && declaredLength > limit) {
-    throw new SiteAnalyticsRejected(tooLargeStatus);
-  }
-  const reader = response.body?.getReader();
-  if (reader === undefined) throw new SiteAnalyticsRejected(invalidStatus);
-  const chunks: Array<Uint8Array> = [];
-  let total = 0;
-  for (;;) {
-    const next = await reader.read();
-    if (next.done) break;
-    total += next.value.byteLength;
-    if (total > limit) {
-      await reader.cancel().catch(() => undefined);
+  try {
+    const buffer = await readBoundedBody(response, limit);
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(buffer));
+    } catch (cause: unknown) {
+      throw new SiteAnalyticsRejected(invalidStatus, cause);
+    }
+  } catch (cause: unknown) {
+    if (cause instanceof BoundedBodyTooLarge) {
       throw new SiteAnalyticsRejected(tooLargeStatus);
     }
-    chunks.push(next.value);
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-  } catch (cause: unknown) {
-    throw new SiteAnalyticsRejected(invalidStatus, cause);
+    if (cause instanceof BoundedBodyUnavailable) {
+      throw new SiteAnalyticsRejected(invalidStatus);
+    }
+    if (cause instanceof SiteAnalyticsRejected) throw cause;
+    throw cause;
   }
 }
 

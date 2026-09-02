@@ -1,5 +1,6 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import { BoundedBodyTooLarge, BoundedBodyUnavailable, readBoundedBody } from '../bounded-body';
 import {
   AdminOverviewForbidden,
   LicensingSummaryBodyTooLarge,
@@ -200,38 +201,24 @@ async function readBoundedExport(
   response: Response,
   operation: LicensingServiceOperation
 ): Promise<ArrayBuffer> {
-  const declaredLength = Number(response.headers.get('Content-Length') ?? '0');
-  if (Number.isFinite(declaredLength) && declaredLength > EXPORT_LIMIT) {
-    await response.body?.cancel().catch(() => undefined);
-    throw new LicensingSummaryBodyTooLarge(operation);
-  }
   if (response.headers.get('Content-Type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'text/csv') {
     await response.body?.cancel().catch(() => undefined);
     throw new LicensingSummaryInvalidPayload(operation);
   }
-  const reader = response.body?.getReader();
-  if (reader === undefined) throw new LicensingSummaryInvalidPayload(operation);
-  const chunks: Array<Uint8Array> = [];
-  let total = 0;
-  for (;;) {
-    const next = await reader.read();
-    if (next.done) break;
-    total += next.value.byteLength;
-    if (total > EXPORT_LIMIT) {
-      await reader.cancel().catch(() => undefined);
+  let buffer: ArrayBuffer;
+  try {
+    buffer = await readBoundedBody(response, EXPORT_LIMIT);
+  } catch (cause: unknown) {
+    if (cause instanceof BoundedBodyUnavailable) {
+      throw new LicensingSummaryInvalidPayload(operation);
+    }
+    if (cause instanceof BoundedBodyTooLarge) {
       throw new LicensingSummaryBodyTooLarge(operation);
     }
-    chunks.push(next.value);
-  }
-  const buffer = new ArrayBuffer(total);
-  const bytes = new Uint8Array(buffer);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
+    throw cause;
   }
   try {
-    new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(buffer));
   } catch (cause: unknown) {
     throw new LicensingSummaryInvalidPayload(operation, cause);
   }

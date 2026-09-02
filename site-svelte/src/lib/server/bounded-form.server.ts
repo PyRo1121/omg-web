@@ -1,4 +1,5 @@
 import { Effect } from 'effect';
+import { BoundedBodyTooLarge, BoundedBodyUnavailable, readBoundedBody } from '../bounded-body';
 
 export class BoundedFormRejected extends Error {
   readonly _tag = 'BoundedFormRejected';
@@ -28,39 +29,12 @@ export function readBoundedUrlEncodedForm(
   request: Request,
   limit: number
 ): Effect.Effect<URLSearchParams, BoundedFormRejected | BoundedFormUnavailable> {
-  const declaredLength = Number(request.headers.get('Content-Length') ?? '0');
-  if (Number.isFinite(declaredLength) && declaredLength > limit) {
-    return Effect.fail(new BoundedFormRejected(413, 'too-large'));
-  }
   if (!request.headers.get('Content-Type')?.startsWith('application/x-www-form-urlencoded')) {
     return Effect.fail(new BoundedFormRejected(400, 'invalid'));
   }
   return Effect.tryPromise({
     try: async () => {
-      const reader = request.body?.getReader();
-      if (reader === undefined) {
-        throw new BoundedFormRejected(400, 'invalid');
-      }
-      const chunks: Array<Uint8Array> = [];
-      let total = 0;
-      for (;;) {
-        const next = await reader.read();
-        if (next.done) {
-          break;
-        }
-        total += next.value.byteLength;
-        if (total > limit) {
-          await reader.cancel().catch(() => undefined);
-          throw new BoundedFormRejected(413, 'too-large');
-        }
-        chunks.push(next.value);
-      }
-      const bytes = new Uint8Array(total);
-      let offset = 0;
-      for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
+      const bytes = new Uint8Array(await readBoundedBody(request, limit));
       try {
         return new URLSearchParams(
           new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes)
@@ -69,7 +43,15 @@ export function readBoundedUrlEncodedForm(
         throw new BoundedFormRejected(400, 'invalid');
       }
     },
-    catch: cause =>
-      cause instanceof BoundedFormRejected ? cause : new BoundedFormUnavailable(cause),
+    catch: cause => {
+      if (cause instanceof BoundedFormRejected) return cause;
+      if (cause instanceof BoundedBodyTooLarge) {
+        return new BoundedFormRejected(413, 'too-large');
+      }
+      if (cause instanceof BoundedBodyUnavailable) {
+        return new BoundedFormRejected(400, 'invalid');
+      }
+      return new BoundedFormUnavailable(cause);
+    },
   });
 }

@@ -11,6 +11,7 @@ import {
 import type { LicensingSummary, LicensingSummaryState } from '../../../../shared/licensing-summary';
 import { reportEffectFailure } from './observability.server';
 import { normalizedOptionalText } from './optional-text.server';
+import { BoundedBodyTooLarge, BoundedBodyUnavailable, readBoundedBody } from '../bounded-body';
 
 const INTERNAL_ORIGIN = 'https://omg-saas.internal';
 const SESSION_BODY_LIMIT = 16 * 1024;
@@ -284,45 +285,19 @@ function readBoundedJson(
   LicensingBoundaryInput,
   LicensingSummaryBodyTooLarge | LicensingSummaryInvalidPayload
 > {
-  const declaredLength = Number(response.headers.get('Content-Length'));
-  if (Number.isFinite(declaredLength) && declaredLength > limit) {
-    return Effect.fail(new LicensingSummaryBodyTooLarge(operation));
-  }
   return Effect.tryPromise({
     try: async () => {
-      const reader = response.body?.getReader();
-      if (reader === undefined) {
-        throw new LicensingSummaryInvalidPayload(operation);
-      }
-      const chunks: Array<Uint8Array> = [];
-      let total = 0;
-      while (true) {
-        const next = await reader.read();
-        if (next.done) {
-          break;
-        }
-        total += next.value.byteLength;
-        if (total > limit) {
-          await reader.cancel().catch(() => undefined);
-          throw new LicensingSummaryBodyTooLarge(operation);
-        }
-        chunks.push(next.value);
-      }
-      const bytes = new Uint8Array(total);
-      let offset = 0;
-      for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
+      const bytes = new Uint8Array(await readBoundedBody(response, limit));
       return JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes));
     },
     catch: cause => {
-      if (cause instanceof LicensingSummaryBodyTooLarge) {
-        return cause;
+      if (cause instanceof BoundedBodyTooLarge) {
+        return new LicensingSummaryBodyTooLarge(operation);
       }
-      return cause instanceof LicensingSummaryInvalidPayload
-        ? cause
-        : new LicensingSummaryInvalidPayload(operation, cause);
+      if (cause instanceof BoundedBodyUnavailable) {
+        return new LicensingSummaryInvalidPayload(operation);
+      }
+      return new LicensingSummaryInvalidPayload(operation, cause);
     },
   });
 }

@@ -1,5 +1,6 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import { readBoundedBody } from '../../../lib/bounded-body';
 
 const POLL_INTERVAL_MS = 5_000;
 const EVENT_LIMIT = 100;
@@ -52,27 +53,8 @@ export function decodeLivePayloadResponse(
 
   return Effect.tryPromise({
     try: async () => {
-      const reader = response.body?.getReader();
-      if (reader === undefined) throw new LiveResponseInvalid();
-      const chunks: Array<Uint8Array> = [];
-      let total = 0;
-      for (;;) {
-        const next = await reader.read();
-        if (next.done) break;
-        total += next.value.byteLength;
-        if (total > LIVE_RESPONSE_LIMIT) {
-          await reader.cancel().catch(() => undefined);
-          throw new LiveResponseInvalid();
-        }
-        chunks.push(next.value);
-      }
-      const bytes = new Uint8Array(total);
-      let offset = 0;
-      for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
-      return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+      const buffer = await readBoundedBody(response, LIVE_RESPONSE_LIMIT);
+      return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(buffer)));
     },
     catch: cause => (cause instanceof LiveResponseInvalid ? cause : new LiveResponseInvalid(cause)),
   }).pipe(
