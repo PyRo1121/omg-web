@@ -10,6 +10,7 @@ import {
 } from '../contracts/marketing-offer';
 import type { LicensingSummary, LicensingSummaryState } from '../../../../shared/licensing-summary';
 import { reportEffectFailure } from './observability.server';
+import { compactLabelRows } from './compact-rows.server';
 import { normalizedOptionalText } from './optional-text.server';
 import { BoundedBodyTooLarge, BoundedBodyUnavailable, readBoundedBody } from '../bounded-body';
 
@@ -664,15 +665,12 @@ type NullableAdminBreakdownItem = Omit<AdminBreakdownItem, 'label'> & {
 
 function compactBreakdown(
   rows: ReadonlyArray<NullableAdminBreakdownItem>
-): Array<AdminBreakdownItem> {
-  const result: Array<AdminBreakdownItem> = [];
-  for (const row of rows) {
-    const label = normalizedOptionalText(row.label);
-    if (label !== null) {
-      result.push({ label, count: row.count });
-    }
-  }
-  return result;
+): ReadonlyArray<AdminBreakdownItem> {
+  return compactLabelRows(
+    rows,
+    row => row.label,
+    (row, label) => ({ label, count: row.count })
+  );
 }
 
 /** Load the private, browser-safe operator overview for one verified admin. */

@@ -9,6 +9,7 @@ import {
   type LicensingSummaryError,
   type LicensingSummaryIdentity,
 } from './licensing-service.server';
+import { compactLabelRows } from './compact-rows.server';
 import { normalizedOptionalText } from './optional-text.server';
 
 const RESPONSE_LIMIT = 512 * 1024;
@@ -211,19 +212,6 @@ export function parseAdminAnalyticsDays(url: URL): 7 | 30 | 90 | null {
 }
 type AdminInsights = ReturnType<typeof projectInsights>;
 type AdminRevenue = ReturnType<typeof projectRevenue>;
-
-function compactLabelRows<T extends object, P>(
-  rows: ReadonlyArray<T>,
-  labelOf: (row: T) => string | null,
-  project: (row: T, label: string) => P
-): ReadonlyArray<P> {
-  const result: Array<P> = [];
-  for (const row of rows) {
-    const label = normalizedOptionalText(labelOf(row));
-    if (label !== null) result.push(project(row, label));
-  }
-  return result;
-}
 
 function projectAnalytics(
   product: Schema.Schema.Type<typeof ProductAnalyticsSchema>,
