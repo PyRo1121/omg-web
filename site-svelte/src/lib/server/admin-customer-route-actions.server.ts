@@ -19,7 +19,7 @@ import {
 } from './admin-customer-mutations.server';
 import { loadAdminCustomerWorkspace } from './admin-customer-support.server';
 import { updateAdminCustomerLicense } from './admin-customers.server';
-import { loadAccountIdentity } from './account-dashboard.server';
+import { requireAdminPageContext } from './admin-page.server';
 import { BoundedFormRejected } from './bounded-form.server';
 import {
   AdminOverviewForbidden,
@@ -29,22 +29,7 @@ import {
   type LicensingSummaryIdentity,
 } from './licensing-service.server';
 
-interface AdminCustomerRequestEvent {
-  readonly platform: App.Platform | undefined;
-  readonly request: Request;
-  readonly url: URL;
-}
-
-export async function requireAdminCustomerIdentity(event: AdminCustomerRequestEvent) {
-  if (event.platform === undefined) {
-    error(503, 'Admin service unavailable');
-  }
-  const identity = await loadAccountIdentity(event);
-  if (identity === null) {
-    redirect(302, '/login/');
-  }
-  return { env: event.platform.env, identity: identity.user };
-}
+type AdminCustomerRequestEvent = Parameters<typeof requireAdminPageContext>[0];
 
 export async function inspectAdminCustomer(event: AdminCustomerRequestEvent) {
   const emailExit = await Effect.runPromiseExit(readAdminCustomerSelection(event.request));
@@ -55,7 +40,7 @@ export async function inspectAdminCustomer(event: AdminCustomerRequestEvent) {
       message: 'Select a valid customer.',
     });
   }
-  const { env, identity } = await requireAdminCustomerIdentity(event);
+  const { env, identity } = await requireAdminPageContext(event);
   const exit = await Effect.runPromiseExit(
     loadAdminCustomerWorkspace(identity, env, emailExit.value)
   );
@@ -100,7 +85,7 @@ async function runAdminCustomerMutation<I>(
       message: messages.invalid,
     });
   }
-  const { env, identity } = await requireAdminCustomerIdentity(event);
+  const { env, identity } = await requireAdminPageContext(event);
   const mutationExit = await Effect.runPromiseExit(mutate(identity, env, inputExit.value));
   if (Exit.isFailure(mutationExit)) {
     const failure = Option.getOrNull(Cause.findErrorOption(mutationExit.cause));
@@ -164,7 +149,7 @@ export async function updateAdminCustomerLicenseAction(event: AdminCustomerReque
       message: 'Choose valid license values and confirm the change.',
     });
   }
-  const { env, identity } = await requireAdminCustomerIdentity(event);
+  const { env, identity } = await requireAdminPageContext(event);
   const updateExit = await Effect.runPromiseExit(
     updateAdminCustomerLicense(identity, env, inputExit.value)
   );
@@ -257,7 +242,7 @@ export async function openAdminCustomerBillingPortalAction(event: AdminCustomerR
       message: 'Confirm the delegated billing request.',
     });
   }
-  const { env, identity } = await requireAdminCustomerIdentity(event);
+  const { env, identity } = await requireAdminPageContext(event);
   const portalExit = await Effect.runPromiseExit(
     createAdminCustomerBillingPortal(identity, env, inputExit.value)
   );

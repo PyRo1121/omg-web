@@ -7,13 +7,13 @@ import {
   deleteAdminCustomerNoteAction,
   inspectAdminCustomer,
   openAdminCustomerBillingPortalAction,
-  requireAdminCustomerIdentity,
   updateAdminCustomerLicenseAction,
 } from '../../../lib/server/admin-customer-route-actions.server';
 import {
   loadAdminCustomers,
   parseAdminCustomerDirectoryQuery,
 } from '../../../lib/server/admin-customers.server';
+import { requireAdminPageContext } from '../../../lib/server/admin-page.server';
 import { AdminOverviewForbidden } from '../../../lib/server/licensing-service.server';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -26,8 +26,7 @@ function rejectAdminFailure(exit: Exit.Exit<unknown, unknown>, message: string):
 }
 
 export const load: PageServerLoad = async event => {
-  event.setHeaders({ 'Cache-Control': 'private, no-store' });
-  const { env, identity } = await requireAdminCustomerIdentity(event);
+  const { env, identity } = await requireAdminPageContext(event);
   const query = parseAdminCustomerDirectoryQuery(event.url);
   if (query === null) {
     error(400, 'Invalid customer directory query');

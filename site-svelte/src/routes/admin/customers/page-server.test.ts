@@ -4,9 +4,9 @@ import {
   deleteAdminCustomerNoteAction,
   inspectAdminCustomer,
   openAdminCustomerBillingPortalAction,
-  requireAdminCustomerIdentity,
   updateAdminCustomerLicenseAction,
 } from '../../../lib/server/admin-customer-route-actions.server';
+import { requireAdminPageContext } from '../../../lib/server/admin-page.server';
 
 function event(body: string) {
   return {
@@ -17,12 +17,13 @@ function event(body: string) {
       body,
     }),
     url: new URL('https://shadow.example/admin/customers/'),
+    setHeaders: () => undefined,
   };
 }
 
 describe('admin customer route actions', () => {
   it('fails closed when the platform is unavailable', async () => {
-    await expect(requireAdminCustomerIdentity(event(''))).rejects.toMatchObject({ status: 503 });
+    await expect(requireAdminPageContext(event(''))).rejects.toMatchObject({ status: 503 });
   });
 
   it('rejects an oversized inspect body before authentication', async () => {

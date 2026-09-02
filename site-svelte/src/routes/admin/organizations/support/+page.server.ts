@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { Cause, Effect, Exit, Option } from 'effect';
-import { requireAdminCustomerIdentity } from '../../../../lib/server/admin-customer-route-actions.server';
+import { requireAdminPageContext } from '../../../../lib/server/admin-page.server';
 import {
   loadAdminOrganizationSupport,
   parseAdminOrganizationSupportQuery,
@@ -12,8 +12,7 @@ import {
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async event => {
-  event.setHeaders({ 'Cache-Control': 'private, no-store' });
-  const { env, identity } = await requireAdminCustomerIdentity(event);
+  const { env, identity } = await requireAdminPageContext(event);
   const slug = parseAdminOrganizationSupportQuery(event.url);
   if (slug === null) {
     error(400, 'Invalid organization support query');
