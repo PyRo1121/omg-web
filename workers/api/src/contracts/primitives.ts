@@ -1,16 +1,10 @@
 import * as Schema from 'effect/Schema';
 
 /** Private identifier accepted from Better Auth or internal callers. */
-export const PrivateReference = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.maxLength(256)
-);
+export const PrivateReference = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
 
 /** Human-readable label bounded against oversized D1 values. */
-export const DisplayText = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.maxLength(256)
-);
+export const DisplayText = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
 
 /** Normalized email accepted at Worker ingestion boundaries. */
 export const NormalizedEmail = Schema.String.pipe(
