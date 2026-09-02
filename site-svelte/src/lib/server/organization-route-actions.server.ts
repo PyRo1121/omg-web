@@ -1,9 +1,10 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, fail, redirect, type ActionFailure } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
 import { Cause, Effect, Exit, Option } from 'effect';
 import { loadAccountIdentity, type AccountDashboardIdentity } from './account-dashboard.server';
 import { createShadowAuth, type AuthEnvironment } from './auth.server';
 import { OrganizationInvitationDeliveryFailed } from './organization-invitation-email.server';
+import type { OrganizationWorkspaceIdentity } from './organization-workspace.server';
 import {
   findPendingOrganizationInvitation,
   parseInvitationAcceptedResult,
@@ -62,7 +63,9 @@ export interface OrganizationInvitationAcceptanceEvent extends OrganizationActio
   readonly cookies: OrganizationInvitationCookies;
 }
 
-type IdentityLoader = (event: OrganizationActionEvent) => Promise<AccountDashboardIdentity | null>;
+export type IdentityLoader = (
+  event: OrganizationActionEvent
+) => Promise<AccountDashboardIdentity | null>;
 
 type OrganizationActionGatewayFactory = (
   event: OrganizationActionEvent
@@ -250,19 +253,15 @@ export async function inviteOrganizationMemberAction(
   if (input instanceof OrganizationInvitationFormInvalid) {
     return organizationInvitationFailure(input, 'invite');
   }
-  if (event.platform === undefined) {
-    error(503, 'Organization service unavailable');
+  const guard = await requireVerifiedOrganizationIdentity(
+    event,
+    identityLoader,
+    'organization-invitation-error'
+  );
+  if (!('identity' in guard)) {
+    return guard;
   }
-  const identity = await identityLoader(event);
-  if (identity === null) {
-    redirect(302, '/login/');
-  }
-  if (!identity.user.emailVerified) {
-    return fail(403, {
-      kind: 'organization-invitation-error' as const,
-      message: 'Verify your email before changing organization membership.',
-    });
-  }
+  const { identity, serverIdentity, env } = guard;
   const activeState = await requireActiveOrganizationForGrowth(identity, event);
   if (activeState === 'restricted') {
     return fail(403, {
@@ -284,10 +283,7 @@ export async function inviteOrganizationMemberAction(
   }
   let organizationId: string | null;
   try {
-    organizationId = await loadActiveOrganizationId(
-      { ...identity.user, sessionToken: identity.sessionToken },
-      event.platform.env.DB
-    );
+    organizationId = await loadActiveOrganizationId(serverIdentity, env.DB);
   } catch (cause) {
     return organizationInvitationFailure(cause, 'invite');
   }
@@ -297,21 +293,14 @@ export async function inviteOrganizationMemberAction(
       message: 'Create an organization before inviting employees.',
     });
   }
-  const rateLimit = await organizationMutationRateLimit(
+  const limited = await guardOrganizationMutationRate(
     event,
-    `${organizationId}:${identity.user.id}`
+    organizationId,
+    identity.user.id,
+    'organization-invitation-error'
   );
-  if (rateLimit === 'limited') {
-    return fail(429, {
-      kind: 'organization-invitation-error' as const,
-      message: 'Too many membership changes. Try again shortly.',
-    });
-  }
-  if (rateLimit === 'unavailable') {
-    return fail(503, {
-      kind: 'organization-invitation-error' as const,
-      message: 'Organization membership is temporarily unavailable.',
-    });
+  if (limited !== undefined) {
+    return limited;
   }
   try {
     const authGateway = gateway ?? organizationInvitationGateway(event);
@@ -322,7 +311,7 @@ export async function inviteOrganizationMemberAction(
   } catch (cause) {
     if (cause instanceof OrganizationInvitationDeliveryFailed) {
       await recordOrganizationAudit(
-        event.platform.env.DB,
+        env.DB,
         event.request,
         organizationId,
         'organization.invitation.delivery_failed',
@@ -332,13 +321,74 @@ export async function inviteOrganizationMemberAction(
     return organizationInvitationFailure(cause, 'invite');
   }
   await recordOrganizationAudit(
-    event.platform.env.DB,
+    env.DB,
     event.request,
     organizationId,
     'organization.invitation.created',
     input.role
   );
   redirect(303, '/dashboard/organization/members/');
+}
+
+/** Shared preamble for organization membership mutations. */
+type OrganizationActionFailureKind = 'organization-invitation-error' | 'organization-member-error';
+
+interface OrganizationMutationIdentity {
+  readonly identity: AccountDashboardIdentity;
+  readonly serverIdentity: OrganizationWorkspaceIdentity;
+  readonly env: AuthEnvironment;
+}
+
+/** Reject unverified or absent identities before any organization mutation. */
+export async function requireVerifiedOrganizationIdentity<K extends OrganizationActionFailureKind>(
+  event: OrganizationActionEvent,
+  identityLoader: IdentityLoader,
+  failureKind: K
+): Promise<
+  OrganizationMutationIdentity | ActionFailure<{ readonly kind: K; readonly message: string }>
+> {
+  const platform = event.platform;
+  if (platform === undefined) {
+    error(503, 'Organization service unavailable');
+  }
+  const identity = await identityLoader(event);
+  if (identity === null) {
+    redirect(302, '/login/');
+  }
+  if (!identity.user.emailVerified) {
+    return fail(403, {
+      kind: failureKind,
+      message: 'Verify your email before changing organization membership.',
+    });
+  }
+  return {
+    identity,
+    serverIdentity: { ...identity.user, sessionToken: identity.sessionToken },
+    env: platform.env,
+  };
+}
+
+/** Reject membership mutations above the per-organization rate limit. */
+export async function guardOrganizationMutationRate<K extends OrganizationActionFailureKind>(
+  event: OrganizationActionEvent,
+  organizationId: string,
+  userId: string,
+  failureKind: K
+): Promise<ActionFailure<{ readonly kind: K; readonly message: string }> | undefined> {
+  const rateLimit = await organizationMutationRateLimit(event, `${organizationId}:${userId}`);
+  if (rateLimit === 'limited') {
+    return fail(429, {
+      kind: failureKind,
+      message: 'Too many membership changes. Try again shortly.',
+    });
+  }
+  if (rateLimit === 'unavailable') {
+    return fail(503, {
+      kind: failureKind,
+      message: 'Organization membership is temporarily unavailable.',
+    });
+  }
+  return undefined;
 }
 
 /** Resend the pending invitation for one normalized employee email. */
@@ -351,19 +401,15 @@ export async function resendOrganizationInvitationAction(
   if (input instanceof OrganizationInvitationFormInvalid) {
     return organizationInvitationFailure(input, 'resend');
   }
-  if (event.platform === undefined) {
-    error(503, 'Organization service unavailable');
+  const guard = await requireVerifiedOrganizationIdentity(
+    event,
+    identityLoader,
+    'organization-invitation-error'
+  );
+  if (!('identity' in guard)) {
+    return guard;
   }
-  const identity = await identityLoader(event);
-  if (identity === null) {
-    redirect(302, '/login/');
-  }
-  if (!identity.user.emailVerified) {
-    return fail(403, {
-      kind: 'organization-invitation-error' as const,
-      message: 'Verify your email before changing organization membership.',
-    });
-  }
+  const { identity, serverIdentity, env } = guard;
   const activeState = await requireActiveOrganizationForGrowth(identity, event);
   if (activeState === 'restricted') {
     return fail(403, {
@@ -380,14 +426,9 @@ export async function resendOrganizationInvitationAction(
           : 'That pending invitation is no longer available.',
     });
   }
-  const serverIdentity = { ...identity.user, sessionToken: identity.sessionToken };
   let pending: Awaited<ReturnType<typeof findPendingOrganizationInvitation>>;
   try {
-    pending = await findPendingOrganizationInvitation(
-      serverIdentity,
-      input.email,
-      event.platform.env.DB
-    );
+    pending = await findPendingOrganizationInvitation(serverIdentity, input.email, env.DB);
   } catch (cause) {
     return organizationInvitationFailure(cause, 'resend');
   }
@@ -396,7 +437,7 @@ export async function resendOrganizationInvitationAction(
   }
   let organizationId: string | null;
   try {
-    organizationId = await loadActiveOrganizationId(serverIdentity, event.platform.env.DB);
+    organizationId = await loadActiveOrganizationId(serverIdentity, env.DB);
   } catch (cause) {
     return organizationInvitationFailure(cause, 'resend');
   }
@@ -428,7 +469,7 @@ export async function resendOrganizationInvitationAction(
   } catch (cause) {
     if (cause instanceof OrganizationInvitationDeliveryFailed) {
       await recordOrganizationAudit(
-        event.platform.env.DB,
+        env.DB,
         event.request,
         organizationId,
         'organization.invitation.delivery_failed',
@@ -438,7 +479,7 @@ export async function resendOrganizationInvitationAction(
     return organizationInvitationFailure(cause, 'resend');
   }
   await recordOrganizationAudit(
-    event.platform.env.DB,
+    env.DB,
     event.request,
     organizationId,
     'organization.invitation.resent',
@@ -457,27 +498,18 @@ export async function revokeOrganizationInvitationAction(
   if (input instanceof OrganizationInvitationFormInvalid) {
     return organizationInvitationFailure(input, 'revoke');
   }
-  if (event.platform === undefined) {
-    error(503, 'Organization service unavailable');
+  const guard = await requireVerifiedOrganizationIdentity(
+    event,
+    identityLoader,
+    'organization-invitation-error'
+  );
+  if (!('identity' in guard)) {
+    return guard;
   }
-  const identity = await identityLoader(event);
-  if (identity === null) {
-    redirect(302, '/login/');
-  }
-  if (!identity.user.emailVerified) {
-    return fail(403, {
-      kind: 'organization-invitation-error' as const,
-      message: 'Verify your email before changing organization membership.',
-    });
-  }
-  const serverIdentity = { ...identity.user, sessionToken: identity.sessionToken };
+  const { identity, serverIdentity, env } = guard;
   let pending: Awaited<ReturnType<typeof findPendingOrganizationInvitation>>;
   try {
-    pending = await findPendingOrganizationInvitation(
-      serverIdentity,
-      input.email,
-      event.platform.env.DB
-    );
+    pending = await findPendingOrganizationInvitation(serverIdentity, input.email, env.DB);
   } catch (cause) {
     return organizationInvitationFailure(cause, 'revoke');
   }
@@ -486,28 +518,21 @@ export async function revokeOrganizationInvitationAction(
   }
   let organizationId: string | null;
   try {
-    organizationId = await loadActiveOrganizationId(serverIdentity, event.platform.env.DB);
+    organizationId = await loadActiveOrganizationId(serverIdentity, env.DB);
   } catch (cause) {
     return organizationInvitationFailure(cause, 'revoke');
   }
   if (organizationId === null) {
     return organizationInvitationFailure(new OrganizationInvitationNotFound(), 'revoke');
   }
-  const rateLimit = await organizationMutationRateLimit(
+  const limited = await guardOrganizationMutationRate(
     event,
-    `${organizationId}:${identity.user.id}`
+    organizationId,
+    identity.user.id,
+    'organization-invitation-error'
   );
-  if (rateLimit === 'limited') {
-    return fail(429, {
-      kind: 'organization-invitation-error' as const,
-      message: 'Too many membership changes. Try again shortly.',
-    });
-  }
-  if (rateLimit === 'unavailable') {
-    return fail(503, {
-      kind: 'organization-invitation-error' as const,
-      message: 'Organization membership is temporarily unavailable.',
-    });
+  if (limited !== undefined) {
+    return limited;
   }
   try {
     const authGateway = gateway ?? organizationInvitationGateway(event);
@@ -519,7 +544,7 @@ export async function revokeOrganizationInvitationAction(
     return organizationInvitationFailure(cause, 'revoke');
   }
   await recordOrganizationAudit(
-    event.platform.env.DB,
+    env.DB,
     event.request,
     organizationId,
     'organization.invitation.revoked',

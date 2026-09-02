@@ -14,6 +14,11 @@ import {
   type OrganizationActionEvent,
 } from './organization-route-actions.server';
 import {
+  guardOrganizationMutationRate,
+  requireVerifiedOrganizationIdentity,
+  type IdentityLoader,
+} from './organization-route-actions.server';
+import {
   findOrganizationMemberTarget,
   hasRecentOrganizationAuthentication,
   parseRemovedMemberResult,
@@ -33,8 +38,6 @@ import {
   readOrganizationInvitationForm,
 } from './organization-invitation.server';
 import { loadOrganizationMembersState } from './organization-workspace.server';
-
-type IdentityLoader = (event: OrganizationActionEvent) => Promise<AccountDashboardIdentity | null>;
 
 type OrganizationMemberGatewayFactory = (
   event: OrganizationActionEvent
@@ -189,19 +192,15 @@ async function prepareMemberMutation(
     }
   | OrganizationMemberActionFailureResult
 > {
-  if (event.platform === undefined) {
-    error(503, 'Organization service unavailable');
+  const guard = await requireVerifiedOrganizationIdentity(
+    event,
+    identityLoader,
+    'organization-member-error'
+  );
+  if (!('identity' in guard)) {
+    return guard;
   }
-  const identity = await identityLoader(event);
-  if (identity === null) {
-    redirect(302, '/login/');
-  }
-  if (!identity.user.emailVerified) {
-    return fail(403, {
-      kind: 'organization-member-error' as const,
-      message: 'Verify your email before changing organization membership.',
-    });
-  }
+  const { identity, serverIdentity, env } = guard;
   const state = await loadMemberMutationState(identity, event);
   if (state === 'restricted' && !allowRestricted) {
     return fail(403, {
@@ -223,10 +222,7 @@ async function prepareMemberMutation(
   }
   let organizationId: string | null;
   try {
-    organizationId = await loadActiveOrganizationId(
-      { ...identity.user, sessionToken: identity.sessionToken },
-      event.platform.env.DB
-    );
+    organizationId = await loadActiveOrganizationId(serverIdentity, env.DB);
   } catch (cause) {
     return organizationMemberFailure(cause, operation);
   }
@@ -236,23 +232,16 @@ async function prepareMemberMutation(
       message: 'Create an organization before changing members.',
     });
   }
-  const rateLimit = await organizationMemberRateLimit(
+  const limited = await guardOrganizationMutationRate(
     event,
-    `${organizationId}:${identity.user.id}`
+    organizationId,
+    identity.user.id,
+    'organization-member-error'
   );
-  if (rateLimit === 'limited') {
-    return fail(429, {
-      kind: 'organization-member-error' as const,
-      message: 'Too many membership changes. Try again shortly.',
-    });
+  if (limited !== undefined) {
+    return limited;
   }
-  if (rateLimit === 'unavailable') {
-    return fail(503, {
-      kind: 'organization-member-error' as const,
-      message: 'Organization membership is temporarily unavailable.',
-    });
-  }
-  return { database: event.platform.env.DB, identity, organizationId };
+  return { database: env.DB, identity, organizationId };
 }
 
 /** Change one non-owner member between the fixed Admin and Member roles. */
