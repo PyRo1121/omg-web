@@ -46,6 +46,15 @@ const maskKey = (key: string) => {
   return `${key.slice(0, 4)}••••${key.slice(-4)}`;
 };
 
+/** License keys travel in CI and shells; the CLI display name must not leak PII. */
+const maskOwner = (customerName: string | null, email: string | null): string | null => {
+  const source = customerName ?? email;
+  if (source === null) return null;
+  const at = source.indexOf('@');
+  if (at <= 0) return source.slice(0, 1) + '•••';
+  return `${source.slice(0, 1)}•••@${source.slice(at + 1)}`;
+};
+
 class LicenseHandlerError extends Error {
   constructor(
     readonly _tag:
@@ -78,7 +87,7 @@ type ValidateLicensePayload =
       readonly tier: string;
       readonly max_machines: number;
       readonly features: ReadonlyArray<string>;
-      readonly customer: string;
+      readonly customer: string | null;
       readonly expires_at: string | null;
       readonly token: string;
       readonly machines: ReadonlyArray<ActiveMachineRow>;
@@ -349,7 +358,7 @@ function validateLicense(
       tier: license.tier,
       max_machines: maxMachinesFor(license),
       features: [...featuresForTier(license.tier)],
-      customer: license.customer_name || license.email,
+      customer: maskOwner(license.customer_name, license.email),
       expires_at: license.expires_at,
       token,
       machines,

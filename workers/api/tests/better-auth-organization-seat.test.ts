@@ -2,7 +2,6 @@ import '../src/cloudflare-test.d.ts';
 import { env } from 'cloudflare:test';
 import * as Schema from 'effect/Schema';
 import { describe, expect, it } from 'vitest';
-import { makeSignature } from '../../../site-svelte/node_modules/better-auth/dist/crypto/index.mjs';
 import {
   createShadowAuth,
   type AuthEnvironment,
@@ -25,6 +24,19 @@ function authEnvironment(): AuthEnvironment {
     },
     SVELTE_BFF_SECRET: 'test-svelte-bff-secret',
   };
+}
+
+/** Reproduce Better Auth's cookie signature (HMAC-SHA256, base64) for the real session format. */
+async function makeSignature(value: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value));
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
 }
 
 async function sessionCookie(token: string): Promise<string> {

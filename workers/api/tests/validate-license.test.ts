@@ -13,7 +13,7 @@ const ValidLicensePayloadSchema = Schema.Struct({
   valid: Schema.Boolean,
   tier: Schema.String,
   token: Schema.String,
-  customer: Schema.String,
+  customer: Schema.Union(Schema.String, Schema.Null),
   max_machines: Schema.Number,
 });
 const ValidPayloadSchema = Schema.Struct({ valid: Schema.Boolean });
@@ -221,7 +221,7 @@ describe('POST /api/validate-license', () => {
     const payload = await decodeResponse(response, ValidLicensePayloadSchema);
     expect(payload.valid).toBe(true);
     expect(payload.tier).toBe('free');
-    expect(payload.customer).toBe('Ada');
+    expect(payload.customer).toBe('A\u2022\u2022\u2022');
     expect(payload.max_machines).toBe(1);
     expect(payload.token.length).toBeGreaterThan(0);
     expect(decodeJwtSegment(payload.token, 0, LicenseJwtHeaderSchema)).toEqual({

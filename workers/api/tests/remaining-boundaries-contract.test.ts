@@ -103,9 +103,8 @@ describe('Stripe JSON decode', () => {
         },
       })
     );
-    expect(Exit.isSuccess(exit)).toBe(true);
     if (Exit.isFailure(exit)) {
-      return;
+      throw new Error(`Stripe payload was invalid: ${String(exit.cause)}`);
     }
     expect(exit.value.error).toEqual({
       message: 'Permission denied',
@@ -129,10 +128,10 @@ describe('bounded provider JSON responses', () => {
       decodeBoundedJsonResponse(Response.json({ success: true }), 64)
     );
 
-    expect(Exit.isSuccess(exit)).toBe(true);
-    if (Exit.isSuccess(exit)) {
-      expect(exit.value).toEqual({ success: true });
+    if (Exit.isFailure(exit)) {
+      throw new Error(`Bounded payload was invalid: ${String(exit.cause)}`);
     }
+    expect(exit.value).toEqual({ success: true });
   });
 
   it('rejects declared and streamed response bodies above the byte ceiling', async () => {

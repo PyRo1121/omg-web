@@ -6,6 +6,14 @@ import type { WebsiteEnv } from '../../../alchemy.run';
 import { sendOrganizationInvitationEmail } from './organization-invitation-email.server';
 import { loadOrganizationMembershipLimit } from './organization-workspace.server';
 
+function dashboardDate(timestamp: Date | number | string): Date {
+  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    error(500, 'Session unavailable');
+  }
+  return date;
+}
+
 export type AuthEnvironment = Pick<
   WebsiteEnv,
   | 'BETTER_AUTH_SECRET'
@@ -109,7 +117,7 @@ export async function getRequestSession(
 
   return {
     session: {
-      expiresAt: session.session.expiresAt.toISOString(),
+      expiresAt: dashboardDate(session.session.expiresAt).toISOString(),
     },
     user: {
       email: session.user.email,

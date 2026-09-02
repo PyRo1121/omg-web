@@ -48,7 +48,7 @@ const TelemetryEnvelopeSchema = Schema.Struct({
   machine_id: Schema.String,
   version: Schema.String,
   platform: Schema.String,
-  license_key: Schema.optional(Schema.String),
+  license_key: Schema.optional(Schema.String.pipe(Schema.maxLength(256))),
   retries: OptionalRetries,
 });
 

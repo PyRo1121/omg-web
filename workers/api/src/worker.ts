@@ -10,6 +10,7 @@ import {
   rateLimitClientIp,
 } from './api';
 import { InstallsBadgeRowSchema, readOptionalExtraRow } from './contracts/d1-extras';
+import { casesHandled } from './prelude';
 import { hashSessionToken } from './session-token';
 import {
   handleSendCode,
@@ -419,6 +420,8 @@ export default Sentry.withSentry(
             return handleAdminStripeMetrics(request, env);
           case '/api/badge/installs':
             return handleInstallsBadge(env);
+          default:
+            return casesHandled(route);
         }
       } catch (error: unknown) {
         Sentry.captureException(error);

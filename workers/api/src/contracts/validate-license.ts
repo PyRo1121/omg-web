@@ -26,7 +26,7 @@ const NullableEmail = Schema.NullOr(
 
 export const ValidateLicenseFieldsSchema = Schema.Struct({
   key: Schema.optional(Capped(128)),
-  license_key: Schema.optional(Capped(64)),
+  license_key: Schema.optional(Capped(128)),
   machine_id: Schema.optional(Capped(128)),
   user_name: Schema.optional(Capped(128)),
   user_email: Schema.optional(NullableEmail),

@@ -54,21 +54,20 @@ describe('organization invitation email transport', () => {
     ).resolves.toBeUndefined();
 
     const parsedJson = Schema.decodeUnknownExit(Schema.fromJsonString(Schema.Unknown))(requestBody);
-    expect(Exit.isSuccess(parsedJson)).toBe(true);
     if (Exit.isFailure(parsedJson)) {
-      return;
+      throw new Error(`Email request JSON was invalid: ${String(parsedJson.cause)}`);
     }
     const decoded = Schema.decodeUnknownExit(organizationInvitationEmailRequestSchema)(
       parsedJson.value
     );
-    expect(Exit.isSuccess(decoded)).toBe(true);
-    if (Exit.isSuccess(decoded)) {
-      expect(decoded.value.email).toBe('employee@example.com');
-      expect(decoded.value.invitationUrl).toMatch(
-        /^https:\/\/shadow\.example\/dashboard\/organization\/invitations\/accept\/\?token=v1\./u
-      );
-      expect(decoded.value.invitationUrl).not.toContain('better-auth-private-id');
+    if (Exit.isFailure(decoded)) {
+      throw new Error(`Email request was invalid: ${String(decoded.cause)}`);
     }
+    expect(decoded.value.email).toBe('employee@example.com');
+    expect(decoded.value.invitationUrl).toMatch(
+      /^https:\/\/shadow\.example\/dashboard\/organization\/invitations\/accept\/\?token=v1\./u
+    );
+    expect(decoded.value.invitationUrl).not.toContain('better-auth-private-id');
   });
 
   it('keeps delivery failure explicit when the private Worker rejects the request', async () => {

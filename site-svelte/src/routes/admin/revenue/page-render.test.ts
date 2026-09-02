@@ -21,5 +21,9 @@ describe('operator revenue page', () => {
     expect(result.body).toContain('Annual run rate');
     expect(result.body).toContain('ARR is the current MRR multiplied by twelve');
     expect(result.body).toContain('Stripe Tax remains disabled');
+    expect(result.body).toContain('$500');
+    expect(result.body).toContain('$6,000');
+    expect(result.body).toContain('$450');
+    expect(result.body).toContain('$300');
   });
 });
