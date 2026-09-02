@@ -9,10 +9,6 @@ import {
 import {
   OrganizationInvitationEmailSchema,
   OrganizationInvitationFormInvalid,
-  readOrganizationInvitationEmailForm,
-  readOrganizationInvitationForm,
-  type OrganizationInvitationEmailForm,
-  type OrganizationInvitationForm,
   type OrganizationInvitationRole,
 } from './organization-invitation.server';
 import type { OrganizationWorkspaceIdentity } from './organization-workspace.server';
@@ -101,10 +97,8 @@ interface OrganizationMemberTarget {
 }
 
 /** Parsed role-change form for an existing organization member. */
-type OrganizationMemberRoleForm = OrganizationInvitationForm;
 
 /** Parsed removal form for an existing organization member. */
-type OrganizationMemberEmailForm = OrganizationInvitationEmailForm;
 
 /** The requested member is not in the actor's active organization. */
 export class OrganizationMemberNotFound extends Error {
@@ -158,20 +152,6 @@ export class OrganizationMemberResponseInvalid extends Error {
   constructor() {
     super('Organization member response is invalid');
   }
-}
-
-/** Parse one bounded member role-change form. */
-export function readOrganizationMemberRoleForm(
-  request: Request
-): Effect.Effect<OrganizationMemberRoleForm, OrganizationInvitationFormInvalid> {
-  return readOrganizationInvitationForm(request);
-}
-
-/** Parse one bounded member-removal form. */
-export function readOrganizationMemberEmailForm(
-  request: Request
-): Effect.Effect<OrganizationMemberEmailForm, OrganizationInvitationFormInvalid> {
-  return readOrganizationInvitationEmailForm(request);
 }
 
 /** Parse the exact target and second confirmation required for ownership transfer. */

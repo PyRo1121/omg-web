@@ -24,12 +24,14 @@ import {
   OrganizationMemberResponseInvalid,
   OrganizationMemberStoreUnavailable,
   OrganizationMemberTransferConflict,
-  readOrganizationMemberEmailForm,
-  readOrganizationMemberRoleForm,
   readOrganizationOwnershipTransferForm,
   transferOrganizationOwnership,
   type OrganizationMemberAuthGateway,
 } from './organization-member.server';
+import {
+  readOrganizationInvitationEmailForm,
+  readOrganizationInvitationForm,
+} from './organization-invitation.server';
 import { loadOrganizationMembersState } from './organization-workspace.server';
 
 type IdentityLoader = (event: OrganizationActionEvent) => Promise<AccountDashboardIdentity | null>;
@@ -259,7 +261,7 @@ export async function changeOrganizationMemberRoleAction(
   gateway: OrganizationMemberAuthGateway | undefined = undefined,
   identityLoader: IdentityLoader = defaultIdentityLoader
 ) {
-  const input = await readActionInput(readOrganizationMemberRoleForm(event.request));
+  const input = await readActionInput(readOrganizationInvitationForm(event.request));
   if (input instanceof OrganizationInvitationFormInvalid) {
     return organizationMemberFailure(input, 'role');
   }
@@ -306,7 +308,7 @@ export async function removeOrganizationMemberAction(
   gateway: OrganizationMemberAuthGateway | undefined = undefined,
   identityLoader: IdentityLoader = defaultIdentityLoader
 ) {
-  const input = await readActionInput(readOrganizationMemberEmailForm(event.request));
+  const input = await readActionInput(readOrganizationInvitationEmailForm(event.request));
   if (input instanceof OrganizationInvitationFormInvalid) {
     return organizationMemberFailure(input, 'remove');
   }
