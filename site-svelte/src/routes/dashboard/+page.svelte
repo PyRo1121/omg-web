@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { authClient } from '../../lib/auth-client';
   import AccountWorkspaceNav from '../../lib/components/AccountWorkspaceNav.svelte';
+  import { SignOutView } from '../../lib/sign-out.svelte';
   import type { PageProps } from './$types';
   import {
     formatCount,
@@ -13,16 +13,7 @@
   } from './dashboard-view';
 
   let { data }: PageProps = $props();
-  let pending = $state(false);
-
-  async function signOut(): Promise<void> {
-    pending = true;
-    try {
-      await authClient.signOut();
-    } finally {
-      window.location.assign('/');
-    }
-  }
+  const signOutView = new SignOutView();
 </script>
 
 <svelte:head>
@@ -169,10 +160,10 @@
     <button
       type="button"
       class="dashboard-signout"
-      onclick={() => void signOut()}
-      disabled={pending}
+      onclick={() => void signOutView.signOut()}
+      disabled={signOutView.pending}
     >
-      {pending ? 'Signing out…' : 'Sign out'}
+      {signOutView.pending ? 'Signing out…' : 'Sign out'}
     </button>
   </section>
 </main>
