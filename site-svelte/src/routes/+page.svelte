@@ -12,6 +12,7 @@
   const claimedOffer = $derived(form?.kind === 'offer' ? form.offer : null);
   const offerError = $derived(form?.kind === 'offer-error' ? form.message : null);
   const checkoutError = $derived(form?.kind === 'checkout-error' ? form.message : null);
+  const checkoutRecovery = $derived(form?.kind === 'checkout-error' ? form.recovery : null);
   const promotionCode = $derived(
     form?.kind === 'offer'
       ? form.offer.code
@@ -102,7 +103,13 @@
   <HomeHero />
   <HomeFeatureGrid />
   <HomeBenchmarks />
-  <HomePricing offer={claimedOffer} {offerError} {checkoutError} {promotionCode} />
+  <HomePricing
+    offer={claimedOffer}
+    {offerError}
+    {checkoutError}
+    {checkoutRecovery}
+    {promotionCode}
+  />
   <HomeInstallation />
 </main>
 

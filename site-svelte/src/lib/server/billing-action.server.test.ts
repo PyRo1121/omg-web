@@ -145,6 +145,7 @@ describe('billing checkout action', () => {
       message: 'Sign in before starting checkout.',
       offer: 'pro',
       promotionCode: null,
+      recovery: 'sign-in',
     });
     expect(billingCalled).toBe(false);
   });

@@ -41,6 +41,7 @@ describe('home pricing offer', () => {
       props: {
         promotionCode: 'OMG20-ABCD2345',
         checkoutError: 'Sign in before starting checkout.',
+        checkoutRecovery: 'sign-in',
       },
     });
 

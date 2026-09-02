@@ -134,8 +134,8 @@ export const TrackingBatchSchema = Schema.Struct({
 export type TrackingBatch = Schema.Schema.Type<typeof TrackingBatchSchema>;
 
 const DocsAnalyticsEventSchema = Schema.Struct({
-  event_type: Schema.String.pipe(Schema.maxLength(64)),
-  event_name: Schema.String.pipe(Schema.maxLength(128)),
+  event_type: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
+  event_name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(128)),
   properties: JsonObject,
   timestamp: Schema.String.pipe(Schema.maxLength(40)),
   session_id: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),

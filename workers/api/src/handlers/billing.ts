@@ -637,7 +637,7 @@ export async function handleCreateCheckout(
 
   if (session.error) {
     reportStripeRejection('Stripe checkout session rejected', session.error);
-    return errorResponse(session.error.message, 502);
+    return errorResponse('Failed to create checkout session', 502);
   }
 
   if (!session.url) {
@@ -792,7 +792,7 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
 
   if (session.error) {
     reportStripeRejection('Stripe portal session rejected', session.error);
-    return errorResponse(session.error.message, 502);
+    return errorResponse('Failed to create portal session', 502);
   }
   if (!session.url) {
     return errorResponse('Failed to create portal session', 502);

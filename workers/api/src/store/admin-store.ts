@@ -480,7 +480,7 @@ export const updateUser = (
       'Admin updated license row has an invalid shape',
       updatedRow
     ).pipe(Effect.mapError(cause => new AdminStoreError('updateUser', cause)));
-    return updated === null
+    return updated === undefined
       ? ({ _tag: 'customer-not-found' } as const)
       : ({ _tag: 'updated' } as const);
   });

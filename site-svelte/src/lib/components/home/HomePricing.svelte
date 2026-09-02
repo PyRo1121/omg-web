@@ -6,11 +6,13 @@
     offer = null,
     offerError = null,
     checkoutError = null,
+    checkoutRecovery = null,
     promotionCode = null,
   }: {
     offer?: MarketingOffer | null;
     offerError?: string | null;
     checkoutError?: string | null;
+    checkoutRecovery?: 'sign-in' | null;
     promotionCode?: string | null;
   } = $props();
 
@@ -93,7 +95,7 @@
     {#if checkoutError !== null}
       <p class="checkout-error" role="alert">
         {checkoutError}
-        {#if checkoutError.startsWith('Sign in')}
+        {#if checkoutRecovery === 'sign-in'}
           <a href="/login/">Sign in</a>
         {/if}
       </p>

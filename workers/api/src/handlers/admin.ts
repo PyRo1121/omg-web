@@ -208,7 +208,10 @@ async function withAdminBody<S extends Schema.Schema.AnyNoContext>(
     const decoded = await Effect.runPromise(
       decodeJsonBody(request, schema).pipe(
         Effect.match({
-          onFailure: () => undefined,
+          onFailure: failure => {
+            reportError('Admin request body rejected', failure);
+            return undefined;
+          },
           onSuccess: value => value,
         })
       )

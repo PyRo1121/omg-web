@@ -16,6 +16,7 @@ import {
   isInvalidExtraRow,
   readOptionalExtraRow,
 } from '../contracts/d1-extras';
+import { reportError } from '../observability';
 
 const CLI_RESULT_LIMIT = 100;
 const TEAM_TIERS = new Set(['team', 'enterprise']);
@@ -77,7 +78,8 @@ async function loadCliLicense(
       customerId: license.value.customer_id,
       licenseId: license.value.id,
     };
-  } catch {
+  } catch (cause: unknown) {
+    reportError('CLI license service failure', cause);
     return errorResponse('License service unavailable', 503);
   }
 }
@@ -123,7 +125,8 @@ export async function handleCliTeamMembers(request: Request, env: Env): Promise<
         is_active: member.is_active === 1,
       }))
     );
-  } catch {
+  } catch (cause: unknown) {
+    reportError('CLI license service failure', cause);
     return errorResponse('License service unavailable', 503);
   }
 }
@@ -159,7 +162,8 @@ export async function handleCliPolicies(request: Request, env: Env): Promise<Res
         enforced: policy.enforced === 1,
       }))
     );
-  } catch {
+  } catch (cause: unknown) {
+    reportError('CLI license service failure', cause);
     return errorResponse('License service unavailable', 503);
   }
 }
@@ -201,7 +205,8 @@ export async function handleCliAuditLog(request: Request, env: Env): Promise<Res
         created_at: entry.created_at,
       }))
     );
-  } catch {
+  } catch (cause: unknown) {
+    reportError('CLI license service failure', cause);
     return errorResponse('License service unavailable', 503);
   }
 }

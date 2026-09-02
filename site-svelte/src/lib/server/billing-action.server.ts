@@ -36,6 +36,7 @@ interface BillingActionFailure {
   readonly message: string;
   readonly offer: BillingOffer | null;
   readonly promotionCode: string | null;
+  readonly recovery: 'sign-in' | null;
 }
 
 interface BillingPortalActionFailure {
@@ -200,6 +201,7 @@ export async function startBillingCheckoutAction(
           : 'Choose a valid billing plan.',
       offer,
       promotionCode,
+      recovery: null,
     });
   }
   if (failure instanceof BillingAuthenticationRequired) {
@@ -208,6 +210,7 @@ export async function startBillingCheckoutAction(
       message: 'Sign in before starting checkout.',
       offer,
       promotionCode,
+      recovery: 'sign-in',
     });
   }
   if (failure instanceof LicensingSummaryInvalidInput) {
@@ -219,6 +222,7 @@ export async function startBillingCheckoutAction(
           : 'This offer must be used with the account that requested it.',
       offer,
       promotionCode,
+      recovery: null,
     });
   }
   if (failure instanceof LicensingSummaryWorkerRejected) {
@@ -228,6 +232,7 @@ export async function startBillingCheckoutAction(
         message: 'This offer must be used with the account that requested it.',
         offer,
         promotionCode,
+        recovery: null,
       });
     }
     if (failure.status === 401 || failure.status === 403) {
@@ -236,6 +241,7 @@ export async function startBillingCheckoutAction(
         message: 'Sign in again before starting checkout.',
         offer,
         promotionCode,
+        recovery: 'sign-in',
       });
     }
     if (failure.status === 429) {
@@ -244,6 +250,7 @@ export async function startBillingCheckoutAction(
         message: 'Too many checkout attempts. Try again later.',
         offer,
         promotionCode,
+        recovery: null,
       });
     }
   }
@@ -252,6 +259,7 @@ export async function startBillingCheckoutAction(
     message: 'Checkout is temporarily unavailable.',
     offer,
     promotionCode,
+    recovery: null,
   });
 }
 

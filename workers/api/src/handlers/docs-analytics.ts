@@ -87,14 +87,8 @@ export async function handleDocsAnalytics(
     const statements: D1PreparedStatement[] = [];
 
     for (const event of body.events) {
-      if (
-        !event.event_type ||
-        !event.event_name ||
-        !event.properties ||
-        !event.timestamp ||
-        !event.session_id
-      ) {
-        continue; // Skip malformed events
+      if (!event.event_type || !event.event_name || !event.timestamp || !event.session_id) {
+        continue;
       }
 
       const eventId = crypto.randomUUID();
