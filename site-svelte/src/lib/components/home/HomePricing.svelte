@@ -4,7 +4,7 @@
     MARKETING_OFFER_PERCENT_OFF,
     PRO_MONTHLY_PRICE_LABEL,
     TEAM_MONTHLY_PRICE_LABEL,
-  } from '../../../../../shared/marketing-offer';
+  } from '../../contracts/marketing-offer';
   import { MAX_LOGIN_EMAIL_CHARACTERS } from '../../../../../shared/login-credentials';
   import type { MarketingOffer } from '../../contracts/marketing-offer';
 
