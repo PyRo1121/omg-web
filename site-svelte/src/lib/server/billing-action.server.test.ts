@@ -5,6 +5,7 @@ import {
   LicensingSummaryInvalidPayload,
   LicensingSummaryWorkerRejected,
 } from './licensing-service.server';
+import { failClosedDatabase } from '../../../tests/test-utils';
 
 const identity = {
   sessionToken: 'browser-session-token',
@@ -22,9 +23,7 @@ const env = {
   BETTER_AUTH_SECRET: 'test-auth-secret-test-auth-secret',
   GITHUB_CLIENT_ID: 'github-client',
   GITHUB_CLIENT_SECRET: 'github-secret',
-  DB: {
-    prepare: () => ({ bind: () => ({ first: async () => ({ role: 'user' }) }) }),
-  },
+  DB: failClosedDatabase(),
   LICENSING_API: { fetch: async () => Response.json({}) },
   SVELTE_BFF_SECRET: 'private-bff-secret',
 };

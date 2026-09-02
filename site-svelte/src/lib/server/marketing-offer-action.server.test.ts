@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
 import { claimMarketingOfferAction } from './marketing-offer-action.server';
+import { failClosedDatabase } from '../../../tests/test-utils';
 
 class OfferServiceStub {
   readonly requests: Array<Request> = [];
@@ -15,11 +16,7 @@ class OfferServiceStub {
 
 function environment(service: OfferServiceStub): LicensingSummaryEnvironment {
   return {
-    DB: {
-      prepare: () => {
-        throw new Error('Offer action must not access D1');
-      },
-    },
+    DB: failClosedDatabase(),
     LICENSING_API: service,
     SVELTE_BFF_SECRET: 'private-bff-secret',
   };

@@ -11,3 +11,11 @@ export function siteSessionResponse(options: SiteSessionResponseOptions = {}): R
     customerId: options.customerId ?? 'customer-id',
   });
 }
+
+export function failClosedDatabase(): { prepare(): never } {
+  return {
+    prepare() {
+      throw new Error('Test must not access D1');
+    },
+  };
+}
