@@ -34,7 +34,6 @@ const Score = Schema.Number.check(
   Schema.makeFilter(value => Number.isFinite(value) && value >= 0 && value <= 100)
 );
 
-
 const HealthResponseSchema = Schema.Struct({
   health: Schema.Struct({
     overall_score: Score,
