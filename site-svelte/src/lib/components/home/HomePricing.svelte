@@ -1,4 +1,10 @@
 <script lang="ts">
+  import {
+    MARKETING_OFFER_DURATION_MONTHS,
+    MARKETING_OFFER_PERCENT_OFF,
+    PRO_MONTHLY_PRICE_LABEL,
+    TEAM_MONTHLY_PRICE_LABEL,
+  } from '../../../../../shared/marketing-offer';
   import { MAX_LOGIN_EMAIL_CHARACTERS } from '../../../../../shared/login-credentials';
   import type { MarketingOffer } from '../../contracts/marketing-offer';
 
@@ -30,7 +36,7 @@
     {
       id: 'pro',
       name: 'Pro',
-      price: '$9',
+      price: PRO_MONTHLY_PRICE_LABEL,
       cadence: 'per month',
       description: 'Add SBOMs, vulnerability scanning, and secret detection.',
       href: '/signup/',
@@ -40,7 +46,7 @@
     {
       id: 'team',
       name: 'Team',
-      price: '$200',
+      price: TEAM_MONTHLY_PRICE_LABEL,
       cadence: 'per month',
       description: 'Environment sync, audit history, and controls for up to 10 people.',
       href: '/signup/',
@@ -64,7 +70,9 @@
     <div class="offer-panel">
       <div>
         <p class="offer-kicker">Introductory offer</p>
-        <h3>Take 20% off your first three months.</h3>
+        <h3>
+          Take {MARKETING_OFFER_PERCENT_OFF}% off your first {MARKETING_OFFER_DURATION_MONTHS} months.
+        </h3>
         <p>Claim one email-bound code, then continue to Stripe with the same signed-in account.</p>
       </div>
       <form method="POST" action="?/claimOffer" class="offer-form">

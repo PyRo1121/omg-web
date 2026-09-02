@@ -1,8 +1,8 @@
 <script lang="ts">
-  const benchmarks = [
-    { operation: 'Package search', omg: '6 ms', baseline: 'vs 133 ms' },
-    { operation: 'Package info', omg: '6.5 ms', baseline: 'vs 138 ms' },
-    { operation: 'Explicit packages', omg: '2 ms', baseline: 'vs 601 ms' },
+  const comparisons = [
+    { operation: 'Package search', omg: '5-11 ms', baseline: 'vs 133 ms with pacman/yay' },
+    { operation: 'Search advantage', omg: '12-24×', baseline: 'faster than pacman/yay' },
+    { operation: 'On Debian/Ubuntu', omg: '59-483×', baseline: 'faster than apt-cache/Nala' },
   ] as const;
 </script>
 
@@ -14,7 +14,8 @@
   <header class="benchmark-copy">
     <h2 id="benchmark-title" class="home-section-title">Speed you do not wait for.</h2>
     <p class="home-section-intro">
-      Real command latency, measured on an Intel i9-14900K. Lower is better.
+      Published search benchmarks from the OMG repository, kept honest by CI hyperfine runs. Lower
+      is better.
     </p>
   </header>
 
@@ -22,12 +23,12 @@
     <div class="benchmark-lead">
       <p>Package search</p>
       <p>
-        <strong>22×</strong>
+        <strong>12-24×</strong>
         <span>faster than pacman</span>
       </p>
     </div>
     <dl>
-      {#each benchmarks as benchmark (benchmark.operation)}
+      {#each comparisons as benchmark (benchmark.operation)}
         <div>
           <dt>{benchmark.operation}</dt>
           <dd><code>{benchmark.omg}</code><span>{benchmark.baseline}</span></dd>

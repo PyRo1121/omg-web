@@ -1,13 +1,6 @@
 /**
- * Privacy-first analytics client for OMG website
- *
- * Design principles:
- * - No cookies, localStorage, or sessionStorage
- * - No fingerprinting (no canvas, font, or device fingerprints)
- * - No PII collection
- * - GDPR compliant by default
- * - Uses credentialless keepalive fetches for reliable data sending
- * - Geo derived from edge/CDN headers on server
+ * Privacy-first analytics client. No cookies, storage, fingerprinting, or PII;
+ * geo is derived from edge headers server-side.
  */
 
 import { browserPrivacySignalEnabled } from '../../../shared/browser-privacy';
@@ -71,9 +64,9 @@ interface WebVitalsMetrics {
 let eventQueue: AnalyticsEvent[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let pageLoadTime = 0;
+let timeOnPageEmitted = false;
 
-// Random per-page-load session id; no storage is used, by design. Generated
-// lazily because global scope in Workers disallows random values at startup.
+// Random per-page-load session id; no storage is used, by design.
 let sessionId: string | null = null;
 
 function getSessionId(): string {
@@ -262,6 +255,7 @@ function trackPageView(): void {
   pageLoadTime = Date.now();
   maxScrollDepth = 0;
   vitalsReported = false;
+  timeOnPageEmitted = false;
   clsValue = 0;
 
   const viewport = {
@@ -281,9 +275,7 @@ function trackPageView(): void {
  * Track scroll depth (call on scroll events, deduplicated internally)
  */
 function trackScrollDepth(depth: number): void {
-  // Only track at specific thresholds: 25%, 50%, 75%, 90%, 100%
   const thresholds = [25, 50, 75, 90, 100];
-  // The find predicate already guarantees the threshold exceeds maxScrollDepth.
   const roundedDepth = thresholds.find(t => depth >= t && maxScrollDepth < t);
 
   if (roundedDepth !== undefined) {
@@ -295,18 +287,19 @@ function trackScrollDepth(depth: number): void {
 }
 
 /**
- * Track time spent on page (call on page unload)
+ * Track time spent on page. Fires once per pageview; navigation restarts the
+ * window so tab hides do not re-emit cumulative duration.
  */
 function trackTimeOnPage(): void {
-  if (pageLoadTime === 0) {
+  if (pageLoadTime === 0 || timeOnPageEmitted) {
     return;
   }
 
   const timeSpentMs = Date.now() - pageLoadTime;
   const timeSpentSec = Math.round(timeSpentMs / 1000);
 
-  // Only track if user spent meaningful time (> 5 seconds)
   if (timeSpentSec >= 5) {
+    timeOnPageEmitted = true;
     queueEvent('time_on_page', 'time_spent', {
       duration_seconds: timeSpentSec,
       max_scroll_depth: maxScrollDepth,
@@ -320,7 +313,7 @@ function trackTimeOnPage(): void {
 function trackCtaClick(ctaType: CtaType, ctaLabel?: string): void {
   queueEvent('cta_click', 'cta_interaction', {
     cta_type: ctaType,
-    cta_label: (ctaLabel || ctaType).slice(0, 512),
+    cta_label: boundedAnalyticsText(ctaLabel || ctaType),
   });
 }
 
@@ -549,20 +542,6 @@ function onPageExit(callback: PageExitCallback): void {
   window.addEventListener('beforeunload', runPageExitCallbacks);
 }
 
-function parseCtaType(value: string): CtaType | undefined {
-  switch (value) {
-    case 'download':
-    case 'signup':
-    case 'pricing':
-    case 'docs':
-    case 'github':
-    case 'install':
-      return value;
-    default:
-      return undefined;
-  }
-}
-
 /** Initialize delegated CTA click tracking. */
 function initCtaTracking(): void {
   document.addEventListener(
@@ -586,17 +565,12 @@ function initCtaTracking(): void {
 }
 
 function ctaTypeForLink(link: Element): CtaType | undefined {
-  const explicitType = link.getAttribute('data-track-cta');
-  if (explicitType !== null) {
-    return parseCtaType(explicitType);
-  }
   const href = link.getAttribute('href') || '';
-  if (href.includes('install')) return 'install';
-  if (href.includes('signup') || href.includes('login')) return 'signup';
-  if (href.includes('pricing')) return 'pricing';
-  if (href.includes('/docs')) return 'docs';
-  if (href.includes('github.com')) return 'github';
-  if (href.includes('download') || link.classList.contains('download-btn')) return 'download';
+  if (href.startsWith('/#install')) return 'install';
+  if (href.startsWith('/#pricing')) return 'pricing';
+  if (href.startsWith('/login/')) return 'signup';
+  if (href.startsWith('/docs')) return 'docs';
+  if (href.startsWith('https://github.com/')) return 'github';
   return undefined;
 }
 
