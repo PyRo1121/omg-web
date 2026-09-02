@@ -2,6 +2,7 @@
 
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import { JsonAtom } from './primitives';
 
 import { CountRowSchema, D1Number, IdRowSchema } from '../../../../shared/d1-rows';
 
@@ -20,7 +21,6 @@ export class ExtraRowParseError extends Error {
 
 const NullableNumber = Schema.Union(Schema.Number, Schema.Null);
 const NullableString = Schema.Union(Schema.Null, Schema.String);
-const JsonAtom = Schema.Union(Schema.String, Schema.Number, Schema.Boolean, Schema.Null);
 const JsonObject = Schema.Record({ key: Schema.String, value: JsonAtom });
 
 const OptNullNum = Schema.optional(NullableNumber);
@@ -460,7 +460,7 @@ export const TeamMemberMachineRowSchema = Schema.Struct({
  * @param tier - Decoded license tier.
  * @returns True for team and enterprise.
  */
-export function isTeamOrEnterpriseTier(tier: string): boolean {
+export function isTeamOrEnterpriseTier(tier: string | null): boolean {
   return tier === 'team' || tier === 'enterprise';
 }
 

@@ -1,20 +1,14 @@
 // Boundary parser internals decode CLI telemetry JSON.
 
 import * as Schema from 'effect/Schema';
+import { JsonAtom, OptionalCount, OptionalDurationMs } from './primitives';
 
 const OptionalBoolean = Schema.optional(Schema.Boolean);
-const OptionalCount = Schema.optional(
-  Schema.Number.pipe(Schema.int(), Schema.between(0, 1_000_000_000))
-);
-const OptionalDurationMs = Schema.optional(
-  Schema.Number.pipe(Schema.int(), Schema.between(0, 31 * 24 * 60 * 60 * 1000))
-);
 const OptionalDurationSecs = Schema.optional(
   Schema.Number.pipe(Schema.int(), Schema.between(0, 31 * 24 * 60 * 60))
 );
 const OptionalRetries = Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(0, 100)));
 const OptionalString = Schema.optional(Schema.Union(Schema.Null, Schema.String));
-const JsonAtom = Schema.Union(Schema.String, Schema.Number, Schema.Boolean, Schema.Null);
 
 /** One CLI telemetry event. Type is checked after decode so invalid types keep the existing 400 message. */
 const TelemetryEventSchema = Schema.Struct({

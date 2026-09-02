@@ -1,6 +1,7 @@
 // Boundary parser internals decode remaining Worker HTTP JSON bodies.
 
 import * as Schema from 'effect/Schema';
+import { OptionalDurationMs } from './primitives';
 import {
   ADMIN_CUSTOMER_NOTE_TYPES,
   ADMIN_CUSTOMER_STATUSES,
@@ -9,9 +10,6 @@ import {
 const OptionalBoolean = Schema.optional(Schema.Boolean);
 const OptionalEpochMs = Schema.optional(
   Schema.Number.pipe(Schema.int(), Schema.between(0, 9_999_999_999_999))
-);
-const OptionalDurationMs = Schema.optional(
-  Schema.Number.pipe(Schema.int(), Schema.between(0, 31 * 24 * 60 * 60 * 1000))
 );
 
 /** Non-empty caller-supplied identifier, capped against oversized D1 keys. */

@@ -1,9 +1,8 @@
 import * as Schema from 'effect/Schema';
+import { DisplayText, PrivateReference, Role } from './primitives';
 
-const PrivateReference = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
-const DisplayText = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
 const OrganizationAuditFilterSchema = Schema.Literal('all', 'invitations', 'members');
-const OrganizationAuditRoleSchema = Schema.Literal('owner', 'admin', 'member');
+const OrganizationAuditRoleSchema = Role;
 const OrganizationAuditActionSchema = Schema.Literal(
   'organization.invitation.accepted',
   'organization.invitation.created',

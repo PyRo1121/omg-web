@@ -7,6 +7,7 @@ import { D1Number } from '../../../../shared/d1-rows';
 import type { Env } from '../api';
 import { reportError } from '../observability';
 import { secureJsonResponse, withAdminQuery } from './admin';
+import { isTeamOrEnterpriseTier } from '../contracts/d1-extras';
 
 const PAGE_SIZE = 25;
 const MAX_MEMBER_ROWS = 100;
@@ -429,7 +430,7 @@ export async function handleAdminOrganizationSupport(
         context.maxSeats !== null && Number.isSafeInteger(context.maxSeats) && context.maxSeats >= 1
           ? context.maxSeats
           : null;
-      const paidTier = context.tier === 'team' || context.tier === 'enterprise';
+      const paidTier = isTeamOrEnterpriseTier(context.tier);
       const access =
         context.licenseStatus === 'active' &&
         paidTier &&

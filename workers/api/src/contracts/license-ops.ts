@@ -2,6 +2,7 @@
 
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import { OptionalCount, OptionalDurationMs } from './primitives';
 import { LicenseKey } from './license-key';
 
 /** A failure decoding a license-ops payload or D1 row. */
@@ -16,10 +17,6 @@ export class LicenseOpsParseError extends Error {
 }
 
 const UsageCount = Schema.Number.pipe(Schema.int(), Schema.between(0, 1_000_000_000));
-const OptionalCount = Schema.optional(UsageCount);
-const OptionalDurationMs = Schema.optional(
-  Schema.Number.pipe(Schema.int(), Schema.between(0, 31 * 24 * 60 * 60 * 1000))
-);
 const OptionalString = Schema.optional(
   Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256))
 );

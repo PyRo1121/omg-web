@@ -1,18 +1,9 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import { D1Number } from '../../../../shared/d1-rows';
+import { DisplayText, NormalizedEmail, PrivateReference, Role, Tier } from './primitives';
 
-const PrivateReference = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
-const DisplayText = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
-const NormalizedEmail = Schema.String.pipe(
-  Schema.minLength(3),
-  Schema.maxLength(320),
-  Schema.pattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/u),
-  Schema.filter(value => value === value.trim() && value === value.toLowerCase())
-);
 const NonNegativeInteger = Schema.NonNegativeInt;
-const Role = Schema.Literal('owner', 'admin', 'member');
-const Tier = Schema.NullOr(Schema.Literal('free', 'pro', 'team', 'enterprise'));
 const NullableNumber = Schema.NullOr(Schema.Number);
 const UsageTotals = Schema.Struct({
   commands: NonNegativeInteger,

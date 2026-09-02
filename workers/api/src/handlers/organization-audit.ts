@@ -5,6 +5,7 @@ import type {
   OrganizationAuditResponse,
 } from '../../../../shared/organization-audit';
 import { AdminUnauthorizedError, requireInternalSecret } from '../admin-secret';
+import { isTeamOrEnterpriseTier } from '../contracts/d1-extras';
 import {
   type Env,
   enforceRateLimit,
@@ -213,7 +214,7 @@ LIMIT ? OFFSET ?`,
       context.maxSeats !== null && Number.isInteger(context.maxSeats) && context.maxSeats >= 1
         ? context.maxSeats
         : null;
-    const isPaidTier = context.tier === 'team' || context.tier === 'enterprise';
+    const isPaidTier = isTeamOrEnterpriseTier(context.tier);
     const status =
       context.licenseStatus === 'active' &&
       isPaidTier &&
