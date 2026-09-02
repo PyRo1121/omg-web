@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
 import { loadAccountAchievementsState } from './account-achievements.server';
-import { siteSessionResponse } from './test-utils';
+import { siteSessionResponse } from '../../../tests/test-utils';
 
 const identity = {
   id: 'user-id',

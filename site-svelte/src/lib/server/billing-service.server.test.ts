@@ -6,7 +6,7 @@ import {
   loadBillingFulfillment,
 } from './billing-service.server';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
-import { siteSessionResponse } from './test-utils';
+import { siteSessionResponse } from '../../../tests/test-utils';
 
 const identity = {
   id: 'better-auth-user-1',

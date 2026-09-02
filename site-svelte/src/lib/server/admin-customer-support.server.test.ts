@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { loadAdminCustomerWorkspace } from './admin-customer-support.server';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
-import { siteSessionResponse } from './test-utils';
+import { siteSessionResponse } from '../../../tests/test-utils';
 
 const identity = {
   id: 'better-auth-admin',

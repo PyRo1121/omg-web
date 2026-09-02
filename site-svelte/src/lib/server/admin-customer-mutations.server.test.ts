@@ -8,7 +8,7 @@ import {
   deleteAdminCustomerNote,
 } from './admin-customer-mutations.server';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
-import { siteSessionResponse } from './test-utils';
+import { siteSessionResponse } from '../../../tests/test-utils';
 
 const identity = {
   id: 'better-auth-admin',
