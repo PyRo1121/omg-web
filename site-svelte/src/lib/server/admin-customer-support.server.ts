@@ -1,5 +1,6 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import { TagColor } from './shared-schemas.server';
 import type {
   AdminCustomerCatalogTag,
   AdminCustomerCollectionState,
@@ -32,7 +33,7 @@ const OptionalText = Schema.NullOr(ShortText);
 const Score = Schema.Number.check(
   Schema.makeFilter(value => Number.isFinite(value) && value >= 0 && value <= 100)
 );
-const TagColor = Schema.String.check(Schema.isPattern(/^#[0-9a-fA-F]{6}$/u));
+
 
 const HealthResponseSchema = Schema.Struct({
   health: Schema.Struct({

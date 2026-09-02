@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { EMAIL_PATTERN } from '../../../../shared/email';
+import { NormalizedEmail } from './shared-schemas.server';
 import type { OrganizationInvitationEmailRequest } from '../../../../shared/organization-invitation-email';
 import {
   sendInternalWorkerPayload,
@@ -12,13 +12,7 @@ import {
 } from './organization-invitation-token.server';
 
 const EMAIL_BODY_LIMIT = 4 * 1024;
-const NormalizedEmail = Schema.String.check(
-  Schema.isMinLength(3),
-  Schema.isMaxLength(320),
-  Schema.isTrimmed(),
-  Schema.isLowercased(),
-  Schema.isPattern(EMAIL_PATTERN)
-);
+
 const OrganizationName = Schema.String.check(
   Schema.isMinLength(2),
   Schema.isMaxLength(80),

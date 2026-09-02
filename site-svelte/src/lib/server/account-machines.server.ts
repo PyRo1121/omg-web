@@ -1,5 +1,6 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import { MachineText } from './shared-schemas.server';
 import {
   loadPrivateWorkerPayload,
   loadUserServiceSession,
@@ -11,7 +12,7 @@ import { normalizedOptionalText } from './optional-text.server';
 import { reportEffectFailure } from './observability.server';
 
 const MACHINES_RESPONSE_LIMIT = 256 * 1024;
-const MachineText = Schema.String.check(Schema.isMaxLength(256));
+
 const Timestamp = Schema.String.check(
   Schema.isMaxLength(64),
   Schema.makeFilter(value => Number.isFinite(Date.parse(value)))

@@ -1,5 +1,6 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
+import { NormalizedEmail } from './shared-schemas.server';
 import { ADMIN_CUSTOMER_NOTE_TYPES } from '../../../../shared/admin-customers';
 import { BillingPortalResponseSchema, type BillingPortalRedirect } from '../contracts/billing';
 import type {
@@ -21,7 +22,6 @@ import {
   type LicensingSummaryError,
   type LicensingSummaryIdentity,
 } from './licensing-service.server';
-import { EMAIL_PATTERN } from '../../../../shared/email';
 
 const MUTATION_RESPONSE_LIMIT = 16 * 1024;
 const SuccessResponseSchema = Schema.Struct({ success: Schema.Literal(true) });
@@ -30,11 +30,7 @@ const NoteIdentifierRowSchema = Schema.Struct({
   id: Schema.NullOr(Schema.String.check(Schema.isMinLength(1))),
   match_count: Schema.Number.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0)),
 });
-const NormalizedEmail = Schema.String.check(
-  Schema.isTrimmed(),
-  Schema.isLowercased(),
-  Schema.isPattern(EMAIL_PATTERN)
-);
+
 const NoteCreateSchema = Schema.Struct({
   email: NormalizedEmail,
   content: Schema.String.check(Schema.isTrimmed(), Schema.isMinLength(1), Schema.isMaxLength(4000)),

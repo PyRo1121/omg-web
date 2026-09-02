@@ -1,5 +1,6 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import { NormalizedEmail, OrganizationSlug } from './shared-schemas.server';
 import { BoundedFormRejected, readBoundedUrlEncodedForm } from './bounded-form.server';
 import type { AuthEnvironment } from './auth.server';
 
@@ -90,11 +91,7 @@ const OrganizationName = Schema.String.check(
   Schema.isMinLength(2),
   Schema.isMaxLength(80)
 );
-const OrganizationSlug = Schema.String.check(
-  Schema.isMinLength(3),
-  Schema.isMaxLength(48),
-  Schema.isPattern(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u)
-);
+
 const Tier = Schema.Literals(['free', 'pro', 'team', 'enterprise']);
 const PaidTier = Schema.Literals(['team', 'enterprise']);
 const Role = Schema.Literals(['owner', 'admin', 'member']);
@@ -114,13 +111,7 @@ const OrganizationIdRowSchema = Schema.Struct({
     Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256))
   ),
 });
-const NormalizedEmail = Schema.String.check(
-  Schema.isMinLength(3),
-  Schema.isMaxLength(320),
-  Schema.isTrimmed(),
-  Schema.isLowercased(),
-  Schema.isPattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/u)
-);
+
 const OrganizationMemberRowSchema = Schema.Struct({
   id: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256)),
   userId: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256)),

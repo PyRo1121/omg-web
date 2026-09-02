@@ -1,7 +1,7 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import { NormalizedEmail } from './shared-schemas.server';
 import { ADMIN_CUSTOMER_STATUSES, ADMIN_CUSTOMER_TIERS } from '../../../../shared/admin-customers';
-import { EMAIL_PATTERN } from '../../../../shared/email';
 import type {
   AdminCustomerDetail,
   AdminCustomerDirectory,
@@ -42,11 +42,7 @@ const DirectoryQuerySchema = Schema.Struct({
 const NonEmptyText = Schema.String.check(Schema.isMinLength(1));
 const ShortText = NonEmptyText.check(Schema.isMaxLength(256));
 const NullableText = Schema.NullOr(ShortText);
-const NormalizedEmail = ShortText.check(
-  Schema.isTrimmed(),
-  Schema.isLowercased(),
-  Schema.isPattern(EMAIL_PATTERN)
-);
+
 const NonNegativeNumber = Schema.Number.check(
   Schema.makeFilter(value => Number.isFinite(value) && value >= 0)
 );

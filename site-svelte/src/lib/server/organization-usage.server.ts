@@ -1,5 +1,6 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import { NormalizedEmail } from './shared-schemas.server';
 import type {
   OrganizationUsageRequest,
   OrganizationUsageResponse,
@@ -16,13 +17,7 @@ import type { OrganizationWorkspaceIdentity } from './organization-workspace.ser
 const ORGANIZATION_USAGE_RESPONSE_LIMIT = 256 * 1024;
 const PrivateReference = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256));
 const DisplayText = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256));
-const NormalizedEmail = Schema.String.check(
-  Schema.isMinLength(3),
-  Schema.isMaxLength(320),
-  Schema.isTrimmed(),
-  Schema.isLowercased(),
-  Schema.isPattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/u)
-);
+
 const Role = Schema.Literals(['owner', 'admin', 'member']);
 const UsageTotalsSchema = Schema.Struct({
   commands: Schema.Natural,

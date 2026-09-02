@@ -1,5 +1,6 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import { NormalizedEmail, OrganizationSlug } from './shared-schemas.server';
 import type {
   AdminOrganizationDirectory,
   AdminOrganizationSupport,
@@ -23,20 +24,10 @@ const QuerySchema = Schema.Struct({
   ),
   search: Schema.String.check(Schema.isMaxLength(100)),
 });
-const OrganizationSlug = Schema.String.check(
-  Schema.isMinLength(3),
-  Schema.isMaxLength(48),
-  Schema.isPattern(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u)
-);
+
 const SupportQuerySchema = Schema.Struct({ slug: OrganizationSlug });
 const ShortText = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(256));
-const NormalizedEmail = Schema.String.check(
-  Schema.isMinLength(3),
-  Schema.isMaxLength(320),
-  Schema.isTrimmed(),
-  Schema.isLowercased(),
-  Schema.isPattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/u)
-);
+
 const Timestamp = Schema.String.check(
   Schema.isMinLength(20),
   Schema.isMaxLength(32),

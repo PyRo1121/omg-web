@@ -1,7 +1,7 @@
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
+import { MachineText, NormalizedEmail } from './shared-schemas.server';
 import type { AdminBreakdownItem, AdminOverview } from '../../../../shared/admin-overview';
-import { EMAIL_PATTERN } from '../../../../shared/email';
 import type { SiteSessionRole } from '../../../../shared/site-session';
 import {
   MarketingOfferRequestSchema,
@@ -21,7 +21,6 @@ const ROLE_QUERY = 'SELECT role FROM auth_user WHERE id = ?';
 const NonEmptyString = Schema.String.check(Schema.isMinLength(1));
 const ShortText = NonEmptyString.check(Schema.isMaxLength(64));
 const DimensionText = NonEmptyString.check(Schema.isMaxLength(256));
-const MachineText = Schema.String.check(Schema.isMaxLength(256));
 const TimestampText = ShortText.check(
   Schema.makeFilter(value => Number.isFinite(Date.parse(value)))
 );
@@ -31,12 +30,6 @@ const DayText = ShortText.check(
   Schema.makeFilter(value => Number.isFinite(Date.parse(`${value}T00:00:00Z`)))
 );
 const ClientAddress = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(64));
-const NormalizedEmail = Schema.String.check(
-  Schema.isMinLength(1),
-  Schema.isTrimmed(),
-  Schema.isLowercased(),
-  Schema.isPattern(EMAIL_PATTERN)
-);
 
 const IdentitySchema = Schema.Struct({
   id: NonEmptyString,
