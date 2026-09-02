@@ -6,6 +6,7 @@ import {
   loadAccountAnalytics,
   loadAccountAnalyticsState,
 } from './account-analytics.server';
+import { siteSessionResponse } from './test-utils';
 
 const identity = {
   id: 'better-auth-user-1',
@@ -42,11 +43,7 @@ class AnalyticsServiceStub {
   async fetch(request: Request): Promise<Response> {
     this.requests.push(request.clone());
     if (request.url.endsWith('/api/internal/site-session')) {
-      return Response.json({
-        token: 'server-only-token',
-        expiresAt: '2026-08-28T13:00:00.000Z',
-        customerId: 'customer-id',
-      });
+      return siteSessionResponse({ expiresAt: '2026-08-28T13:00:00.000Z' });
     }
     return this.dashboardResponse();
   }

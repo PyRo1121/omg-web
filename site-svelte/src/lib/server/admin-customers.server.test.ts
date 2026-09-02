@@ -10,6 +10,7 @@ import {
   LicensingSummaryInvalidPayload,
   type LicensingSummaryEnvironment,
 } from './licensing-service.server';
+import { siteSessionResponse } from './test-utils';
 
 const identity = {
   id: 'better-auth-user-1',
@@ -45,11 +46,7 @@ class CustomerServiceStub {
 }
 
 function sessionResponse(): Response {
-  return Response.json({
-    token: 'server-only-token',
-    expiresAt: '2026-09-01T00:00:00.000Z',
-    customerId: 'operator-customer-id',
-  });
+  return siteSessionResponse({ customerId: 'operator-customer-id' });
 }
 
 function environment(

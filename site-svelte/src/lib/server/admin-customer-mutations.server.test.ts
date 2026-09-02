@@ -8,6 +8,7 @@ import {
   deleteAdminCustomerNote,
 } from './admin-customer-mutations.server';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
+import { siteSessionResponse } from './test-utils';
 
 const identity = {
   id: 'better-auth-admin',
@@ -36,11 +37,7 @@ class MutationServiceStub {
       body,
     });
     if (url.pathname === '/api/internal/site-session') {
-      return Response.json({
-        token: 'server-only-token',
-        expiresAt: '2026-09-01T00:00:00.000Z',
-        customerId: 'operator-customer-id',
-      });
+      return siteSessionResponse({ customerId: 'operator-customer-id' });
     }
     if (url.pathname === '/api/billing/portal') {
       return Response.json({ success: true, url: 'https://billing.stripe.com/p/session' });

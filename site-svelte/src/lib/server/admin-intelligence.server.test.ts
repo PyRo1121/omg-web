@@ -6,6 +6,7 @@ import {
   loadAdminRevenue,
 } from './admin-intelligence.server';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
+import { siteSessionResponse } from './test-utils';
 
 const identity = {
   id: 'better-auth-admin',
@@ -90,11 +91,7 @@ class IntelligenceServiceStub {
     this.paths.push(`${url.pathname}${url.search}`);
     switch (url.pathname) {
       case '/api/internal/site-session':
-        return Response.json({
-          token: 'server-only-token',
-          expiresAt: '2026-09-01T00:00:00.000Z',
-          customerId: 'operator-id',
-        });
+        return siteSessionResponse({ customerId: 'operator-id' });
       case '/api/admin/analytics':
         return Response.json(product);
       case '/api/admin/cohorts':

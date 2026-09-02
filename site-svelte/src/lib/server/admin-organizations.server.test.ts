@@ -9,6 +9,7 @@ import {
   AdminOverviewForbidden,
   type LicensingSummaryEnvironment,
 } from './licensing-service.server';
+import { siteSessionResponse } from './test-utils';
 
 const identity = {
   id: 'better-auth-operator',
@@ -30,11 +31,7 @@ class OrganizationServiceStub {
       url: new URL(request.url),
     });
     if (new URL(request.url).pathname === '/api/internal/site-session') {
-      return Response.json({
-        token: 'server-only-token',
-        expiresAt: '2026-09-01T00:00:00.000Z',
-        customerId: 'private-operator-customer',
-      });
+      return siteSessionResponse({ customerId: 'private-operator-customer' });
     }
     return Response.json(this.supportResponse);
   }

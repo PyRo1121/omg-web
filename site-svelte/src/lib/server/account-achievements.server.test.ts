@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
 import { loadAccountAchievementsState } from './account-achievements.server';
+import { siteSessionResponse } from './test-utils';
 
 const identity = {
   id: 'user-id',
@@ -28,10 +29,9 @@ class AchievementServiceStub {
   async fetch(request: Request): Promise<Response> {
     this.requests.push(request.clone());
     return request.url.endsWith('/api/internal/site-session')
-      ? Response.json({
+      ? siteSessionResponse({
           token: 'private-token',
           expiresAt: '2026-08-28T14:00:00Z',
-          customerId: 'customer-id',
         })
       : Response.json(this.payload);
   }

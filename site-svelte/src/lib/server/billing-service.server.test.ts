@@ -6,6 +6,7 @@ import {
   loadBillingFulfillment,
 } from './billing-service.server';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
+import { siteSessionResponse } from './test-utils';
 
 const identity = {
   id: 'better-auth-user-1',
@@ -22,11 +23,7 @@ class BillingServiceStub {
   async fetch(request: Request): Promise<Response> {
     this.requests.push(request.clone());
     if (new URL(request.url).pathname === '/api/internal/site-session') {
-      return Response.json({
-        token: 'server-only-token',
-        expiresAt: '2026-09-01T00:00:00.000Z',
-        customerId: 'customer-1',
-      });
+      return siteSessionResponse({ customerId: 'customer-1' });
     }
     return this.response(request);
   }

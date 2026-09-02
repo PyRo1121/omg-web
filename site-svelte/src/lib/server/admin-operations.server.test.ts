@@ -9,6 +9,7 @@ import {
   parseFirehoseSince,
 } from './admin-operations.server';
 import type { LicensingSummaryEnvironment } from './licensing-service.server';
+import { siteSessionResponse } from './test-utils';
 
 const identity = {
   id: 'better-auth-admin',
@@ -33,11 +34,7 @@ class OperationsServiceStub {
     this.paths.push(`${url.pathname}${url.search}`);
     this.internalSecrets.push(request.headers.get('X-Admin-Secret'));
     if (url.pathname === '/api/internal/site-session') {
-      return Response.json({
-        token: 'server-token',
-        expiresAt: '2026-09-01T00:00:00.000Z',
-        customerId: 'operator-id',
-      });
+      return siteSessionResponse({ token: 'server-token', customerId: 'operator-id' });
     }
     if (url.pathname === '/api/admin/audit-log') {
       return Response.json({

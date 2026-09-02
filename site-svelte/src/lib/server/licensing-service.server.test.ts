@@ -14,6 +14,7 @@ import {
   type LicensingSummaryEnvironment,
   type LicensingSummaryError,
 } from './licensing-service.server';
+import { siteSessionResponse } from './test-utils';
 
 const VALID_ROLES: ReadonlyArray<'user' | 'admin'> = ['user', 'admin'];
 
@@ -130,12 +131,7 @@ function environment(
 }
 
 function serviceWith(
-  session: () => Response = () =>
-    Response.json({
-      token: 'server-only-token',
-      expiresAt: '2026-09-01T00:00:00.000Z',
-      customerId: 'customer-1',
-    }),
+  session: () => Response = () => siteSessionResponse({ customerId: 'customer-1' }),
   dashboard: () => Response = () => Response.json(dashboardPayload())
 ): LicensingServiceStub {
   return new LicensingServiceStub(session, dashboard);
@@ -221,11 +217,7 @@ describe('loadAdminOverview', () => {
       });
       const pathname = new URL(request.url).pathname;
       if (pathname === '/api/internal/site-session') {
-        return Response.json({
-          token: 'server-only-token',
-          expiresAt: '2026-09-01T00:00:00.000Z',
-          customerId: 'customer-1',
-        });
+        return siteSessionResponse({ customerId: 'customer-1' });
       }
       if (pathname === '/api/admin/activity') {
         return Response.json({
@@ -414,11 +406,7 @@ describe('loadLicensingSummary', () => {
     service.fetch = async request => {
       if (new URL(request.url).pathname === '/api/internal/site-session') {
         mintBody = JSON.parse(await request.text());
-        return Response.json({
-          token: 'server-only-token',
-          expiresAt: '2026-09-01T00:00:00.000Z',
-          customerId: 'customer-1',
-        });
+        return siteSessionResponse({ customerId: 'customer-1' });
       }
       return Response.json(dashboardPayload());
     };
