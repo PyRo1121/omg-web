@@ -1,5 +1,6 @@
 <script lang="ts">
   import { serializeJsonLd } from '../../../../shared/public-site';
+  import { DOCS_TOPICS, docsTopicHref } from '../../lib/docs/topics';
 
   const breadcrumbData = serializeJsonLd({
     '@context': 'https://schema.org',
@@ -41,48 +42,13 @@
       commands: ['omg env capture', 'omg env check', 'omg env sync <share-url>'],
     },
   ] as const;
-
-  const referenceLinks = [
-    {
-      label: 'Installation',
-      href: 'https://github.com/PyRo1121/omg/blob/main/docs/installation.md',
-    },
-    {
-      label: 'CLI reference',
-      href: 'https://github.com/PyRo1121/omg/blob/main/docs/cli.md',
-    },
-    {
-      label: 'Configuration',
-      href: 'https://github.com/PyRo1121/omg/blob/main/docs/configuration.md',
-    },
-    {
-      label: 'Runtime management',
-      href: 'https://github.com/PyRo1121/omg/blob/main/docs/runtimes.md',
-    },
-    {
-      label: 'Environment workflows',
-      href: 'https://github.com/PyRo1121/omg/blob/main/docs/workflows.md',
-    },
-    {
-      label: 'Security model',
-      href: 'https://github.com/PyRo1121/omg/blob/main/docs/security.md',
-    },
-    {
-      label: 'Troubleshooting',
-      href: 'https://github.com/PyRo1121/omg/blob/main/docs/troubleshooting.md',
-    },
-    {
-      label: 'Architecture',
-      href: 'https://github.com/PyRo1121/omg/blob/main/docs/architecture.md',
-    },
-  ] as const;
 </script>
 
 <svelte:head>
   <title>OMG Documentation - Install, Commands, and Platforms</title>
   <meta
     name="description"
-    content="Install OMG, learn its package and runtime commands, capture reproducible environments, and open the complete CLI reference."
+    content="Install OMG, learn its package and runtime commands, capture reproducible environments, and browse the curated handbook."
   />
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <link rel="canonical" href="https://omg.latham.cloud/docs/" />
@@ -91,7 +57,7 @@
   <meta property="og:title" content="OMG Documentation - Install, Commands, and Platforms" />
   <meta
     property="og:description"
-    content="Install OMG, learn its package and runtime commands, capture reproducible environments, and open the complete CLI reference."
+    content="Install OMG, learn its package and runtime commands, capture reproducible environments, and browse the curated handbook."
   />
   <meta property="og:url" content="https://omg.latham.cloud/docs/" />
   <meta property="og:image" content="https://omg.latham.cloud/og/omg-og.png" />
@@ -108,7 +74,7 @@
   <meta name="twitter:title" content="OMG Documentation - Install, Commands, and Platforms" />
   <meta
     name="twitter:description"
-    content="Install OMG, learn its package and runtime commands, capture reproducible environments, and open the complete CLI reference."
+    content="Install OMG, learn its package and runtime commands, capture reproducible environments, and browse the curated handbook."
   />
   <meta name="twitter:image" content="https://omg.latham.cloud/og/omg-og.png" />
   <meta
@@ -125,7 +91,7 @@
       <h1>Learn the parts you need.</h1>
     </div>
     <p class="hero-copy">
-      Start with four commands. Open the full reference when your workflow needs more control.
+      Start with four commands. Open a handbook topic when your workflow needs more control.
     </p>
   </header>
 
@@ -137,7 +103,7 @@
           <li><a href="#install">Install</a></li>
           <li><a href="#quick-start">Quick start</a></li>
           <li><a href="#platforms">Platforms</a></li>
-          <li><a href="#reference">Full reference</a></li>
+          <li><a href="#reference">Handbook</a></li>
         </ul>
       </nav>
     </aside>
@@ -153,8 +119,9 @@
             ><span>$ </span>curl -fsSL https://omg.latham.cloud/install.sh | bash</code
           ></pre>
         <p class="install-note">
-          Arch users can run <code>yay -S omg-bin</code>. Building from source requires Rust 1.93 or
-          newer and uses <code>cargo install omg --locked</code>.
+          Arch users can run <code>yay -S omg-bin</code>. Building from source requires Rust 1.93.1
+          and uses
+          <code>cargo install omg --git https://github.com/PyRo1121/omg --locked</code>.
         </p>
       </section>
 
@@ -186,7 +153,7 @@
           </div>
           <div>
             <dt>macOS</dt>
-            <dd>Apple Silicon with Homebrew integration.</dd>
+            <dd>Apple Silicon through the universal installer.</dd>
           </div>
           <div>
             <dt>Windows</dt>
@@ -200,17 +167,18 @@
       </section>
 
       <section id="reference" class="docs-section reference-section">
-        <h2>OMG CLI reference</h2>
+        <h2>Handbook</h2>
         <p class="section-copy">
-          The CLI repository owns the versioned technical reference. These links open the source
-          documentation for the current main branch.
+          Eight concise topics answer common tasks on this site. Each topic links to its pinned
+          upstream reference. The pages were checked against the CLI code and documentation at that
+          commit.
         </p>
         <ul class="reference-list">
-          {#each referenceLinks as link (link.href)}
+          {#each DOCS_TOPICS as topic (topic.slug)}
             <li>
-              <a href={link.href} target="_blank" rel="noopener noreferrer">
-                {link.label}
-                <span aria-hidden="true">↗</span>
+              <a href={docsTopicHref(topic.slug)}>
+                <span class="reference-label">{topic.navLabel}</span>
+                <span class="reference-summary">{topic.summary}</span>
               </a>
             </li>
           {/each}
@@ -298,8 +266,7 @@
     text-decoration: none;
   }
 
-  .section-nav a:hover,
-  .reference-list a:hover {
+  .section-nav a:hover {
     color: var(--signal);
   }
 
@@ -440,13 +407,26 @@
   }
 
   .reference-list a {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    gap: 0.375rem;
     padding-block: 1.25rem;
+    text-decoration: none;
+  }
+
+  .reference-label {
     font-size: 0.875rem;
     font-weight: 600;
-    text-decoration: none;
+  }
+
+  .reference-summary {
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+
+  .reference-list a:hover,
+  .reference-list a:hover .reference-label {
+    color: var(--signal);
   }
 
   @media (min-width: 40rem) {

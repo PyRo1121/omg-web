@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
+import { DOCS_TOPICS } from '../docs/topics';
 import {
   healthResponse,
   robotsResponse,
@@ -52,18 +53,21 @@ Sitemap: https://omg.latham.cloud/sitemap.xml
 `);
   });
 
-  it('publishes only the four canonical public pages', async () => {
+  it('publishes the canonical public pages and every curated docs topic', async () => {
     const response = sitemapResponse();
     const body = await response.text();
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('application/xml; charset=utf-8');
     expect(response.headers.get('x-robots-tag')).toBe('noindex');
-    expect(body.match(/<url>/g)).toHaveLength(4);
+    expect(body.match(/<url>/g)).toHaveLength(4 + DOCS_TOPICS.length);
     expect(body).toContain('<loc>https://omg.latham.cloud/</loc>');
     expect(body).toContain('<loc>https://omg.latham.cloud/docs/</loc>');
     expect(body).toContain('<loc>https://omg.latham.cloud/privacy/</loc>');
     expect(body).toContain('<loc>https://omg.latham.cloud/terms/</loc>');
+    for (const topic of DOCS_TOPICS) {
+      expect(body).toContain(`<loc>https://omg.latham.cloud/docs/${topic.slug}/</loc>`);
+    }
     expect(body).not.toContain('<lastmod>');
     expect(body).not.toContain('<changefreq>');
     expect(body).not.toContain('<priority>');
@@ -126,9 +130,18 @@ Sitemap: https://omg.latham.cloud/sitemap.xml
     expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
   });
 
+  it.each(['GET', 'HEAD'])('requires revalidation for successful %s docs topic pages', method => {
+    const response = withDocsRouteCache(new Response('topic'), method, '/docs/cli/');
+
+    expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
+  });
+
   it.each([
     { method: 'GET', pathname: '/docs/', status: 404 },
     { method: 'POST', pathname: '/docs/', status: 200 },
+    { method: 'GET', pathname: '/docs/cli/', status: 500 },
+    { method: 'GET', pathname: '/docsx/', status: 200 },
+    { method: 'HEAD', pathname: '/documentation/', status: 200 },
     { method: 'GET', pathname: '/', status: 200 },
     { method: 'GET', pathname: '/api/auth/session', status: 200 },
   ])(

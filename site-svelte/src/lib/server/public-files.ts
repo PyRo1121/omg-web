@@ -1,9 +1,13 @@
 import { applySecurityHeaders, SITE_ORIGIN } from '../../../../shared/security-headers';
+import { DOCS_TOPICS, docsTopicHref } from '../docs/topics';
 
 const SHADOW_ROBOTS_POLICY = 'noindex, nofollow';
 const DOCS_CACHE_POLICY = 'public, max-age=0, must-revalidate';
 
 const STATIC_PAGE_PATHS = ['/', '/docs/', '/privacy/', '/terms/'] as const;
+const DOCS_TOPIC_PATHS = DOCS_TOPICS.map(topic => docsTopicHref(topic.slug));
+
+type SitemapPath = (typeof STATIC_PAGE_PATHS)[number] | ReturnType<typeof docsTopicHref>;
 
 function escapeXml(value: string): string {
   return value
@@ -14,7 +18,7 @@ function escapeXml(value: string): string {
     .replaceAll("'", '&apos;');
 }
 
-function sitemapEntry(path: (typeof STATIC_PAGE_PATHS)[number]): string {
+function sitemapEntry(path: SitemapPath): string {
   return `  <url>
     <loc>${escapeXml(`${SITE_ORIGIN}${path}`)}</loc>
   </url>`;
@@ -49,11 +53,13 @@ export function withSiteHeaders(response: Response, deploymentStage: string | un
 
 /**
  * Apply the production cache policy only to successful, read-only docs responses.
+ * The policy covers the docs index and every curated topic page under /docs/.
  */
 export function withDocsRouteCache(response: Response, method: string, pathname: string): Response {
   const isRead = method === 'GET' || method === 'HEAD';
+  const isDocsPath = pathname.startsWith('/docs/');
   const isSuccessful = response.status >= 200 && response.status < 300;
-  if (!isRead || pathname !== '/docs/' || !isSuccessful) {
+  if (!isRead || !isDocsPath || !isSuccessful) {
     return response;
   }
 
@@ -87,7 +93,7 @@ Sitemap: ${SITE_ORIGIN}/sitemap.xml
 }
 
 export function sitemapResponse(): Response {
-  const entries = STATIC_PAGE_PATHS.map(sitemapEntry).join('\n');
+  const entries = [...STATIC_PAGE_PATHS, ...DOCS_TOPIC_PATHS].map(sitemapEntry).join('\n');
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entries}

@@ -68,10 +68,18 @@ The 2026-09-01 shadow sample used managed Chrome without throttling. It recorded
 19. [x] Add complete Open Graph and Twitter metadata to `/docs/` and both legal pages.
 20. [x] Publish a 1200×630 PNG with its type, dimensions, and alternative text.
 
-### Slice 6 — Docs architecture (P2, medium, later)
+### Slice 6 — Docs architecture (P2, in progress)
 
-21. Render the 8 GitHub `docs/*.md` files as real `/docs/<topic>/` pages (SSG from repo),
-    internal links replace GitHub blobs; per-page titles/descriptions; sidebar + breadcrumbs.
+21. [x] Publish eight native `/docs/<topic>/` pages with internal links, per-page metadata,
+        a sidebar, and breadcrumbs. The Svelte site ships a curated, typed handbook under
+        `src/lib/docs` instead of mirroring upstream Markdown. Each topic pins an upstream reference
+        file and reviewed commit (`PyRo1121/omg` at `2bb9103`, reviewed 2026-09-03). Pages are static
+        route directories prerendered through `src/routes/docs/+layout.ts`. Svelte escapes all
+        authored content. There is no raw HTML, Markdown parser, or runtime GitHub request.
+        `tools/check-docs-freshness.mjs` keeps registry slugs, content modules, and static route
+        directories aligned. With `--clone`, it requires the selected upstream revision to equal the
+        reviewed commit. Any CLI code or documentation commit
+        therefore requires human review before the provenance pin advances.
 22. Comparison page: "Version managers compared: nvm, pyenv, asdf, mise, omg" — factual table only.
 
 ### Slice 7 — Off-page (mostly 🧑 human / repo work, not site code)

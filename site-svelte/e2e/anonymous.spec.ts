@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { Schema } from 'effect';
 import { AUTH_FIELDS } from './helpers';
 
+const BreadcrumbListSchema = Schema.Struct({
+  '@type': Schema.String,
+  itemListElement: Schema.Array(Schema.Struct({ name: Schema.String, position: Schema.Number })),
+});
+const decodeBreadcrumbList = Schema.decodeUnknownSync(Schema.fromJsonString(BreadcrumbListSchema));
 const externalBaseUrl = process.env['E2E_BASE_URL']?.trim();
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
@@ -67,20 +73,93 @@ test.describe('Svelte public surfaces', () => {
     await expect(
       page.getByRole('heading', { name: 'Capture reproducible project environments' })
     ).toBeVisible();
+    for (const topicSlug of [
+      'installation',
+      'cli',
+      'configuration',
+      'runtimes',
+      'workflows',
+      'security',
+      'troubleshooting',
+      'architecture',
+    ]) {
+      await expect(page.locator(`a[href="/docs/${topicSlug}/"]`).first()).toBeVisible();
+    }
     await expect(page.getByRole('link', { name: /CLI reference/ })).toHaveAttribute(
       'href',
-      /github\.com\/PyRo1121\/omg\/blob\/main\/docs\/cli\.md/
+      '/docs/cli/'
     );
+    await expect(
+      page.getByText('cargo install omg --git https://github.com/PyRo1121/omg --locked', {
+        exact: true,
+      })
+    ).toBeVisible();
 
     const sitemap = await page.request.get('/sitemap.xml');
     const sitemapText = await sitemap.text();
     expect(sitemap.ok()).toBe(true);
     expect(sitemapText).toContain('<loc>https://omg.latham.cloud/docs/</loc>');
+    for (const topicSlug of ['installation', 'cli', 'architecture']) {
+      expect(sitemapText).toContain(`<loc>https://omg.latham.cloud/docs/${topicSlug}/</loc>`);
+    }
     expect(sitemapText).not.toContain('<lastmod>');
     expect(sitemapText).not.toContain('<changefreq>');
     expect(sitemapText).not.toContain('<priority>');
     expect(sitemapText).not.toContain('https://omg.latham.cloud/dashboard');
     expect(sitemapText).not.toContain('/docs/getting-started');
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+        )
+      )
+      .toBe(true);
+  });
+
+  test('renders the native CLI reference topic with valid provenance metadata', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto('/docs/cli/', { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByRole('heading', { name: 'CLI reference', level: 1 })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://omg.latham.cloud/docs/cli/'
+    );
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+      'content',
+      'CLI reference - OMG Package Manager'
+    );
+    await expect(
+      page.getByRole('navigation', { name: 'Documentation topics' }).locator('a[href="/docs/cli/"]')
+    ).toHaveAttribute('aria-current', 'page');
+
+    const breadcrumbText = await page
+      .locator('script[type="application/ld+json"]')
+      .evaluate(node => node.textContent ?? '');
+    const breadcrumb = decodeBreadcrumbList(breadcrumbText);
+    expect(breadcrumb['@type']).toBe('BreadcrumbList');
+    expect(breadcrumb.itemListElement.map(item => item.name)).toEqual([
+      'Home',
+      'Docs',
+      'CLI reference',
+    ]);
+
+    await expect(page.getByRole('link', { name: /PyRo1121\/omg\/docs\/cli\.md/ })).toHaveAttribute(
+      'href',
+      'https://github.com/PyRo1121/omg/blob/2bb910395ed5f7bd1a40cbf431fde032e876140e/docs/cli.md'
+    );
+
+    await page
+      .getByRole('navigation', { name: 'Documentation topics' })
+      .getByRole('link', { name: 'Installation' })
+      .click();
+    await expect(page).toHaveURL(/\/docs\/installation\/?$/);
+    await expect(page.getByRole('heading', { name: 'Installing OMG', level: 1 })).toBeVisible();
+    await expect(page.locator('main')).not.toContainText('Rosetta 2');
+    await expect(page.getByText('omg completions zsh', { exact: true })).toBeVisible();
+
     await expect
       .poll(() =>
         page.evaluate(
