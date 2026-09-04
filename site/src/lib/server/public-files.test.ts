@@ -10,9 +10,9 @@ import {
   withSiteHeaders,
 } from './public-files';
 
-describe('public migration endpoints', () => {
+describe('public file endpoints', () => {
   it.each([
-    ['install.sh', '3b19160870d75423fbeeb5435a5bb28b9885bd513947b852f79c0164d4169a68'],
+    ['install.sh', '7abae9abfd3eb15fd3dd4233670dee9bad7f2e56ef65823b35482a2c3e3b1b81'],
     ['install.ps1', 'f80cdf38824bd5505b6f341366adc836cb6680361242a8483a5616a2c2e1f24a'],
     [
       '.well-known/omg-license-ed25519-v1.pem',

@@ -12,6 +12,10 @@
 #   OMG_SKIP_SHELL=1    - Skip shell integration
 #   OMG_VERSION=v0.1.0  - Install specific version
 #
+# Uninstall:
+#   curl -fsSL https://... | bash -s -- --uninstall
+# (removes binaries and shell integration; rc files are backed up first)
+#
 # Example with no telemetry:
 #   curl -fsSL https://... | OMG_NO_TELEMETRY=1 bash
 #
@@ -170,22 +174,30 @@ detect_os() {
 }
 
 detect_distro() {
+  local os_release_file="${1:-/etc/os-release}"
   local distro="unknown"
+  local id_like=""
+  local ID=""
+  local ID_LIKE=""
 
-  if [[ -f /etc/os-release ]]; then
-    # Source the file and extract ID
-    # shellcheck disable=SC1091
-    . /etc/os-release
+  if [[ -f "$os_release_file" ]]; then
+    # shellcheck disable=SC1090
+    . "$os_release_file"
     distro="${ID:-unknown}"
+    id_like=" ${ID_LIKE:-} "
 
-    # Normalize common distro names
     case "$distro" in
-    ubuntu) distro="ubuntu" ;;
-    debian) distro="debian" ;;
-    arch) distro="arch" ;;
-    fedora) distro="fedora" ;;
-    rhel | centos) distro="fedora" ;; # Use Fedora binary for RHEL/CentOS
-    *) distro="unknown" ;;
+    ubuntu | debian | arch | fedora) ;;
+    rhel | centos) distro="fedora" ;;
+    *)
+      case "$id_like" in
+      *" arch "*) distro="arch" ;;
+      *" ubuntu "*) distro="ubuntu" ;;
+      *" debian "*) distro="debian" ;;
+      *" fedora "* | *" rhel "* | *" centos "*) distro="fedora" ;;
+      *) distro="unknown" ;;
+      esac
+      ;;
     esac
   fi
 
@@ -262,6 +274,10 @@ install_from_release() {
   detected_distro=$(detect_distro)
   detected_arch=$(detect_arch)
 
+  if [[ "$detected_os" == "darwin" && "$detected_arch" == "x86_64" ]]; then
+    error "Intel macOS is unsupported. OMG supports macOS releases on Apple Silicon (aarch64)."
+  fi
+
   # Use GitHub releases (always up-to-date)
   local release_json
   if ! release_json=$(fetch_release_json 2>/dev/null); then
@@ -331,7 +347,10 @@ install_from_release() {
   fi
 
   # Verify against the release's .sha256 sidecar without trusting the
-  # sidecar's filename field as a filesystem path.
+  # sidecar's filename field as a filesystem path. Note the trust limit:
+  # sidecar and artifact share one origin, so this proves integrity
+  # against a corrupted download, not against a compromised release.
+  # Sigstore attestation is checked by `omg self-update`, not here.
   start_spinner "Verifying checksum"
   if curl -fsSL "${asset_url}.sha256" -o "${download_file}.sha256" >/dev/null 2>&1; then
     local expected_checksum
@@ -416,11 +435,11 @@ success() {
 }
 
 warn() {
-  printf "${YELLOW}${BOLD}warn${RESET} %s\n" "$1"
+  printf "${YELLOW}${BOLD}warn${RESET} %s\n" "$1" >&2
 }
 
 error() {
-  printf "${RED}${BOLD}error${RESET} %s\n" "$1"
+  printf "${RED}${BOLD}error${RESET} %s\n" "$1" >&2
   exit 1
 }
 
@@ -818,6 +837,43 @@ setup_shell() {
   "$INSTALL_DIR/omg" completions "$shell_type" >/dev/null 2>&1 || true
 }
 
+uninstall_omg() {
+  header "Uninstall OMG"
+
+  for bin in omg omgd; do
+    if [[ -f "$INSTALL_DIR/$bin" ]]; then
+      rm -f "$INSTALL_DIR/$bin"
+      success "Removed $INSTALL_DIR/$bin"
+    else
+      info "$bin not present in $INSTALL_DIR"
+    fi
+  done
+
+  # Remove the exact lines setup_shell appends. Each rc file is backed up
+  # first; only OMG's own marker, hook, and PATH lines are deleted.
+  for rc_file in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.config/fish/config.fish"; do
+    [[ -f "$rc_file" ]] || continue
+    if grep -qE "# OMG Package Manager|omg hook" "$rc_file"; then
+      cp "$rc_file" "$rc_file.omg-backup"
+      sed -i \
+        -e "/# OMG Package Manager/d" \
+        -e '/^eval "$(omg hook \(bash\|zsh\))"$/d' \
+        -e '/^omg hook fish | source$/d' \
+        -e "\|^export PATH=\"$INSTALL_DIR:|d" \
+        -e "\|^fish_add_path $INSTALL_DIR$|d" \
+        "$rc_file"
+      success "Removed OMG integration from $rc_file (backup at $rc_file.omg-backup)"
+    fi
+  done
+
+  printf "\n"
+  printf "${GREEN}${BOLD}Uninstall Complete!${RESET}\n"
+  printf "\n"
+  printf "  Config and caches were left in place.\n"
+  printf "  Remove them manually if desired.\n"
+  printf "\n"
+}
+
 finish() {
   printf "\n"
   printf "${GREEN}${BOLD}Installation Complete! 🚀${RESET}\n"
@@ -830,6 +886,11 @@ finish() {
 }
 
 # Run
+if [[ "${1:-}" == "--uninstall" || "${OMG_UNINSTALL:-0}" == "1" ]]; then
+  uninstall_omg
+  exit 0
+fi
+
 main() {
   print_banner
   if ! install_from_release; then
