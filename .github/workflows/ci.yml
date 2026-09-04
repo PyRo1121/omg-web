@@ -32,9 +32,9 @@ jobs:
             workers/api/package-lock.json
       # Honor the packageManager pin from package.json instead of the runner's stock npm.
       - run: corepack enable npm && npm --version
-      - run: npm ci
-      - run: npm ci --prefix site
-      - run: npm ci --prefix workers/api
+      - run: npm ci --audit=false
+      - run: npm ci --audit=false --prefix site
+      - run: npm ci --audit=false --prefix workers/api
       # The deploy dry-run inside check builds the site after cheap deterministic gates.
       - run: npm run check
 
@@ -50,7 +50,7 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: site/package-lock.json
-      - run: npm ci
+      - run: npm ci --audit=false
         working-directory: site
       - run: corepack enable npm && npm --version
         working-directory: site
