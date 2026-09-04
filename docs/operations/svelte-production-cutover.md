@@ -1,10 +1,29 @@
 # Launch the SvelteKit website on `getomg.xyz`
 
-- **Status:** local candidate verification in progress
+- **Status:** production website deployed on 2026-09-04. API origin cutover and legacy-host retirement remain pending.
 - **Canonical hostname:** `getomg.xyz`
 - **Redirect hostnames:** `www.getomg.xyz`, then `omg.latham.cloud`
 - **Target Worker:** `omgsveltesite-website-prod-dlaqgfttmir2ky5x`
 - **Rollback Worker:** `omg-site`
+
+## Production launch record
+
+The website runs source commit `ac94eee8a83a6bf45f7a84aaeaffefbb7858340e`, merged through PR #81. Production Worker version `ff4f26b1-cef9-4685-a402-76a5a7503dcc` was uploaded at `2026-09-04T19:41:15Z`.
+
+- Alchemy attached `getomg.xyz` and `www.getomg.xyz` to the production website Worker.
+- The `www` rule returns HTTP 301 and preserves paths and query strings.
+- The separate GitHub OAuth application uses client ID `Ov23lim96hwzllDXL6Dm`. The sign-in button reaches GitHub with the production callback.
+- The deployment credential gained Dynamic URL Redirects Write for the `getomg.xyz` zone only. Existing permissions were preserved.
+- Alchemy's local default profile now uses environment authentication, matching Wrangler's saved API-token environment. Its previous OAuth profile could not resolve the zone.
+- The follow-up Alchemy plan reports two no-ops.
+- All 13 deployed anonymous and authentication-entry Playwright tests passed. Desktop and mobile homepage rendering were inspected.
+- Health, public pages, canonical metadata, sitemap, robots, protected redirects, a real 404, and both installer hashes passed.
+- Public checks remained healthy through `2026-09-04T19:56:18Z`, more than 15 minutes after deployment. A three-minute error-filtered Wrangler tail captured no error events. This does not verify unexercised authenticated workflows.
+- Cloudflare and Google public DNS return the new records. The local resolver retained a negative apex answer during verification. Playwright used an isolated process-local hosts override. HTTP observation used Cloudflare DNS over HTTPS with normal TLS verification.
+- Authenticated user, admin, and billing workflows remain unverified without controlled credentials.
+- No API Worker deployment, D1 change, legacy hostname change, or old Worker deletion occurred.
+
+The next production step is a separately authorized API origin deployment. Keep the legacy website available until that deployment and authenticated checks pass.
 
 ## Keep ownership separate
 
