@@ -23,6 +23,10 @@ export const Website = Cloudflare.Website.SvelteKit(
       assets: {
         runWorkerFirst: true,
       },
+      cache: {
+        enabled: true,
+        crossVersionCache: false,
+      },
       domain:
         stage === 'prod'
           ? {
