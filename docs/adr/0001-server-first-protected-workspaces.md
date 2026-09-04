@@ -5,13 +5,13 @@
 
 ## Context
 
-The Solid account and admin workspaces are client-heavy single-page surfaces with browser API clients, query caches, stores, and broad infrastructure-shaped payloads. The Svelte migration requires full functional parity before Solid removal while preserving strict boundary parsing, free-tier efficiency, private Service Binding access, and the prohibition on browser-visible secrets and internal identifiers.
+The replaced account and admin workspaces were client-heavy single-page surfaces with browser API clients, query caches, stores, and broad infrastructure-shaped payloads. The SvelteKit application required full functional parity while preserving strict boundary parsing, free-tier efficiency, private Service Binding access, and the prohibition on browser-visible secrets and internal identifiers.
 
 Three designs were considered:
 
 1. URL-addressable Svelte capability routes with server loads and named actions.
 2. One aggregate server load with client-side tabs.
-3. Recreation of the Solid browser BFF and client query architecture.
+3. Recreation of the previous browser BFF and client query architecture.
 
 ## Decision
 
@@ -33,7 +33,7 @@ Protected Svelte workspaces use URL-addressable, server-first capability routes.
 - Failures remain local instead of degrading the whole workspace.
 - URLs preserve navigation and support route-level authorization and verification.
 - Svelte components remain thin and transport details stay server-side.
-- Solid browser BFF and query/store compatibility layers can be deleted after cutover.
+- The previous browser BFF and query/store compatibility layers are absent.
 
 ### Costs
 
@@ -44,9 +44,7 @@ Protected Svelte workspaces use URL-addressable, server-first capability routes.
 ## Rejected alternatives
 
 - **Aggregate server load:** rejected because it amplifies reads, payload size, coupling, and disclosure risk.
-- **Recreated browser BFF/query layer:** rejected because it creates a temporary architecture that conflicts with eventual Solid removal.
+- **Recreated browser BFF/query layer:** rejected because it creates a temporary architecture with no permanent owner.
 - **Literal sensitive-field parity:** rejected because it violates the approved security invariant.
 
-## Implementation reference
-
-See `docs/specs/protected-surface-parity.md` for capability scope, delivery sequence, trust boundaries, testing seams, and removal gates.
+The accepted design is implemented under `site/src/routes/dashboard/`, `site/src/routes/admin/`, and `site/src/lib/server/`.

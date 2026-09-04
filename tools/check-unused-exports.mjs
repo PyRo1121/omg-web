@@ -3,21 +3,14 @@ import { createRequire } from 'node:module';
 import { posix } from 'node:path';
 
 const workspaceRoot = new URL('../', import.meta.url);
-const requireFromSvelte = createRequire(new URL('../site-svelte/package.json', import.meta.url));
-const ts = requireFromSvelte('typescript');
-const productionRoots = ['shared', 'site/src', 'site-svelte/src', 'workers/api/src'];
-const consumerRoots = [...productionRoots, 'site-svelte/e2e', 'workers/api/tests'];
-const consumerEntryFiles = ['tools/check-source-policy.mjs'];
-const sourceExtensions = ['.js', '.jsx', '.mjs', '.svelte', '.ts', '.tsx'];
+const requireFromSite = createRequire(new URL('../site/package.json', import.meta.url));
+const ts = requireFromSite('typescript');
+const productionRoots = ['shared', 'site/src', 'workers/api/src'];
+const consumerRoots = [...productionRoots, 'site/e2e', 'workers/api/tests'];
+const consumerEntryFiles = ['site/alchemy.run.ts', 'tools/check-source-policy.mjs'];
+const sourceExtensions = ['.js', '.mjs', '.svelte', '.ts'];
 const sourceExtensionSet = new Set(sourceExtensions);
-const frameworkEntries = new Set([
-  'site/src/app.tsx',
-  'site/src/entry-client.tsx',
-  'site/src/entry-server.tsx',
-  'site/src/middleware.ts',
-  'site-svelte/src/hooks.server.ts',
-  'workers/api/src/worker.ts',
-]);
+const frameworkEntries = new Set(['site/src/hooks.server.ts', 'workers/api/src/worker.ts']);
 
 async function sourceFiles(directory) {
   const entries = await readdir(new URL(`${directory}/`, workspaceRoot), { withFileTypes: true });
@@ -45,18 +38,14 @@ function scriptSource(path, source) {
 }
 
 function scriptKind(path) {
-  if (path.endsWith('.tsx')) return ts.ScriptKind.TSX;
-  if (path.endsWith('.jsx')) return ts.ScriptKind.JSX;
   if (path.endsWith('.js') || path.endsWith('.mjs')) return ts.ScriptKind.JS;
   return ts.ScriptKind.TS;
 }
 
 function resolveImport(importer, specifier, files) {
   let unresolved;
-  if (specifier.startsWith('~/')) {
-    unresolved = `site/src/${specifier.slice(2)}`;
-  } else if (specifier.startsWith('$lib/')) {
-    unresolved = `site-svelte/src/lib/${specifier.slice(5)}`;
+  if (specifier.startsWith('$lib/')) {
+    unresolved = `site/src/lib/${specifier.slice(5)}`;
   } else if (specifier.startsWith('.')) {
     unresolved = posix.normalize(posix.join(posix.dirname(importer), specifier));
   } else {
@@ -116,11 +105,7 @@ function exportedNames(sourceFile) {
 }
 
 function isRuntimeEntry(path) {
-  return (
-    frameworkEntries.has(path) ||
-    path.startsWith('site/src/routes/') ||
-    path.startsWith('site-svelte/src/routes/')
-  );
+  return frameworkEntries.has(path) || path.startsWith('site/src/routes/');
 }
 
 const files = new Set([

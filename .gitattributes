@@ -1,7 +1,6 @@
 # Wrangler-generated declarations preserve upstream whitespace verbatim.
-site/worker-configuration.d.ts whitespace=-blank-at-eol
 workers/api/worker-configuration.d.ts whitespace=-blank-at-eol
 
 # Release installers are byte-for-byte mirrors; preserve their intentional banner spacing.
-site-svelte/static/install.ps1 whitespace=-blank-at-eol
-site-svelte/static/install.sh whitespace=-blank-at-eol
+site/static/install.ps1 whitespace=-blank-at-eol
+site/static/install.sh whitespace=-blank-at-eol

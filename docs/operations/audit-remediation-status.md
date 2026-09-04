@@ -4,6 +4,8 @@ This ledger tracks the 15 web and cross-repository reports in
 `/home/pyro1121/Documents/.pi/omg-audit-2026-08-27/reports/`. Report severities
 reflect the source tree at audit time; current status is based on the remediated
 source, tests, deployed Cloudflare resources, and explicit architecture decisions.
+Framework-specific entries and paths are historical evidence. The maintained website
+is now SvelteKit under `site/`, with ownership enforced by `tools/check-source-policy.mjs`.
 
 Status meanings:
 
