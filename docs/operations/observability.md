@@ -1,12 +1,12 @@
 # Production observability policy
 
-This repository treats Wrangler configuration as the source of truth for Cloudflare Workers observability. Deployments must not rely on dashboard-only logging settings.
+This repository treats version-controlled Alchemy and Wrangler configuration as the source of truth for Cloudflare Workers observability. Deployments must not rely on dashboard-only logging settings.
 
 ## Coverage
 
 The following deployed applications enable persistent Workers Logs and traces:
 
-- `site/wrangler.toml` — SolidStart site served through Workers Static Assets (`omg-site`)
+- `site/alchemy.run.ts` — SvelteKit website (`omgsveltesite-website-prod-dlaqgfttmir2ky5x`)
 - `workers/api/wrangler.toml` — licensing and telemetry API (`omg-saas`)
 
 Local Worker tests use `workers/api/wrangler.test.toml` and intentionally omit production observability and Workers AI bindings.
@@ -35,9 +35,9 @@ Browser failures are sent through Sentry only when the server-owned `SENTRY_DSN`
 
 Workers Logs free-tier retention is roughly 3 days, so log-only monitoring detects nothing outside a 72-hour human attention window. The following minimum alert surface is required and is NOT yet provisioned (tracked as an open production-hardening step in [`cloudflare-environment-readiness.md`](./cloudflare-environment-readiness.md)):
 
-1. A Cloudflare Notification (Webhooks/Email destination) on Workers **exception count > 0** and on elevated 5xx response rate for `omg-site` and `omg-saas`.
+1. A Cloudflare Notification (Webhooks/Email destination) on Workers **exception count > 0** and on elevated 5xx response rate for the production SvelteKit Worker and `omg-saas`.
 2. A daily scheduled probe that asserts (a) both cron invocations succeeded and (b) zero rows in `stripe_events` with `status != 'processed'`, alerting through the same destination. A silent billing inbox is otherwise undetectable until a customer complains.
-3. Include the site's `*.workers.dev` fallback hostname in any domain-scoped alert review, or disable that hostname so it cannot serve traffic outside monitored domains.
+3. Keep the production website's stable `workers.dev` hostname disabled and include version preview traffic in deployment review.
 
 Configure notifications in the Cloudflare dashboard under Notifications > Alert Policies; keep thresholds in this document once chosen.
 
@@ -59,7 +59,7 @@ Before deploying an observability change:
 1. Run repository checks and Worker tests.
 2. Run `wrangler types --check` for Workers with generated bindings.
 3. Run `wrangler deploy --dry-run` for each standalone Worker.
-4. Build the current Solid rollback origin and the Svelte application, then run the Svelte-owned production client bundle budget.
+4. Build the SvelteKit application and run its production client bundle budget.
 5. After an approved deployment, confirm invocation logs, one structured application event, and sampled traces in the Cloudflare dashboard.
 
 Never mutate production bindings or sampling settings during an audit-only task.

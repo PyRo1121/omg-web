@@ -4,6 +4,7 @@
 import * as Sentry from '@sentry/cloudflare';
 import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
+import { SITE_ORIGIN } from '../../../shared/public-site';
 import {
   ExtraRowParseError,
   readOptionalExtraRow,
@@ -196,7 +197,7 @@ export const TIER_FEATURES = {
 // Fixed-origin CORS headers. Same-origin requests are the primary consumer,
 // so credentials are not granted cross-origin.
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://omg.latham.cloud',
+  'Access-Control-Allow-Origin': SITE_ORIGIN,
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };

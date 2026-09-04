@@ -4,18 +4,21 @@ All dependency versions and overrides are exact. Renovate must not automerge cha
 
 ## Root `package.json`
 
-- `effect` `3.22.1` owns the schema/runtime imports used by the top-level `shared/` contracts. Keeping this dependency at the repository root lets Solid, Svelte, and `omg-saas` compile one canonical contract source without tying it to any application directory. Remove it only after every retained shared module stops importing Effect.
+- `effect` `3.22.1` owns schema and runtime imports used by top-level `shared/` contracts. Remove it only after every retained shared module stops importing Effect.
+- `oxlint` and the checked-in anti-slop plugin enforce the repository TypeScript policy across shared, website, Worker, test, and tool sources.
 
 ## `site/package.json`
 
-- `dax-sh -> npm:dax@0.44.2`: compatibility alias for Vinxi's `dax-sh` request. Remove when the retained Vinxi toolchain no longer requests `dax-sh`; verify `npm ci`, the production build, and deployment dry-run first.
-- `follow-redirects`, `h3`, `minimatch`, `nitropack`, `node-forge`, `picomatch`, `serialize-javascript`, and `tar`: transitive security floors retained for the SolidStart/Vinxi production tree. Remove an override only when the parent dependency resolves to an equal or newer audited version without it and `npm audit --prefix site` remains clean.
+- `effect` `4.0.0-rc.112` is the application boundary and expected-failure runtime. Changes require strict Svelte diagnostics, TypeScript checks, focused boundary tests, browser verification, and a successful shadow deployment.
+- `@sveltejs/kit` under `better-auth` is a package-scoped peer override for the exact-tested SvelteKit 3 prerelease. Remove it when Better Auth declares compatibility with the installed SvelteKit release.
+- `@hono/node-server`, `hono`, `lodash`, and `valibot` are security floors for Alchemy's non-optional Prisma development dependency chain. Remove them when Alchemy makes that chain optional or resolves audited versions itself.
 
-## `site-svelte/package.json`
+## `workers/api/package.json`
 
-- `@sveltejs/kit` under `better-auth`: package-scoped peer override for the exact-tested SvelteKit 3 prerelease. Remove when Better Auth declares compatibility with the installed SvelteKit release.
-- `@hono/node-server`, `hono`, `lodash`, and `valibot`: security floors for Alchemy's non-optional Prisma development dependency chain. Remove when Alchemy makes that chain optional or resolves audited versions itself.
+Worker dependency changes require the exact generated binding declarations, strict source and test typechecks, the Worker integration suite, a Wrangler dry run, and a clean audit.
 
 ## Install-script trust
 
-Every package with an allowed lifecycle script is version-qualified in each workspace's `allowScripts` block. Version upgrades must update both the lockfile and the corresponding trust entry in the same reviewed change. `tools/check-lockfile-integrity.mjs` separately rejects registry packages without a locked tarball URL and integrity digest; dependencies bundled inside an integrity-pinned parent tarball are the only exception.
+Every package with an allowed lifecycle script is version-qualified in each workspace's `allowScripts` block. Version upgrades must update both the lockfile and the corresponding trust entry in the same reviewed change.
+
+`tools/check-lockfile-integrity.mjs` rejects registry packages without a locked tarball URL and integrity digest. Dependencies bundled inside an integrity-pinned parent tarball are the only exception.

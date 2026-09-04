@@ -1,5 +1,6 @@
 import { reportError } from '../observability';
 import { Effect, Exit } from 'effect';
+import { SITE_HOSTNAME } from '../../../../shared/public-site';
 import { type Env, jsonResponse, errorResponse, enforceRateLimit, rateLimitClientIp } from '../api';
 import { validateContentLength } from './telemetry';
 import { decodeJsonBody } from '../body';
@@ -37,7 +38,7 @@ const MAX_EVENTS_PER_BATCH = 50;
 /** Declared-body cap for marketing-site tracking batches. */
 const MAX_TRACK_PAYLOAD_BYTES = 512 * 1024;
 /** Domain mixed into the visitor HMAC so hashes are site-scoped. */
-const VISITOR_HASH_DOMAIN = 'omg.latham.cloud';
+const VISITOR_HASH_DOMAIN = SITE_HOSTNAME;
 /** Weight applied to CLI installs when blending engagement across surfaces. */
 const CLI_ENGAGEMENT_WEIGHT = 10;
 /** Persist semantic browser events through the legacy constrained D1 categories. */
