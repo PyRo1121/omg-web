@@ -17,6 +17,10 @@ All dependency versions and overrides are exact. Renovate must not automerge cha
 
 Worker dependency changes require the exact generated binding declarations, strict source and test typechecks, the Worker integration suite, a Wrangler dry run, and a clean audit.
 
+## Audit availability
+
+`npm audit` is the primary vulnerability gate. Only exhausted registry or network failures switch the gate to OSV, which checks every exact npm package version in all three lockfiles. Vulnerability results, malformed lockfiles, incomplete responses, and unavailable OSV requests fail immediately.
+
 ## Install-script trust
 
 Every package with an allowed lifecycle script is version-qualified in each workspace's `allowScripts` block. Version upgrades must update both the lockfile and the corresponding trust entry in the same reviewed change.

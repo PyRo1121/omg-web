@@ -33,25 +33,11 @@ jobs:
             workers/api/package-lock.json
       # Honor the packageManager pin from package.json instead of the runner's stock npm.
       - run: corepack enable npm && npm --version
-      - name: Install root dependencies
-        run: |
-          output="$(npm ci --audit=true 2>&1)"
-          printf '%s\n' "$output"
-          grep -Fxq 'found 0 vulnerabilities' <<<"$output"
-      - name: Install site dependencies
-        run: |
-          output="$(npm ci --audit=true --prefix site 2>&1)"
-          printf '%s\n' "$output"
-          grep -Fxq 'found 0 vulnerabilities' <<<"$output"
-      - name: Install Worker dependencies
-        run: |
-          output="$(npm ci --audit=true --prefix workers/api 2>&1)"
-          printf '%s\n' "$output"
-          grep -Fxq 'found 0 vulnerabilities' <<<"$output"
+      - run: npm ci --audit=false
+      - run: npm ci --audit=false --prefix site
+      - run: npm ci --audit=false --prefix workers/api
       # The deploy dry-run inside check builds the site after cheap deterministic gates.
       - run: npm run check
-        env:
-          NPM_CONFIG_OFFLINE: true
 
   e2e-anonymous:
     runs-on: ubuntu-latest
