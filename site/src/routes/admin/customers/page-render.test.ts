@@ -123,6 +123,12 @@ describe('customer directory SSR', () => {
       },
     });
 
+    expect(result.body.match(/<details(?:\s[^>]*)?>/gu)).toHaveLength(2);
+    expect(result.body).not.toMatch(/<details[^>]*\sopen(?:\s|=|>)/u);
+    expect(result.body).toContain('Machine fleet');
+    expect(result.body).toContain('Recorded days: 0');
+    expect(result.body).toContain('No machines recorded.');
+    expect(result.body).toContain('No usage recorded.');
     expect(result.body).toContain('Customer health');
     expect(result.body).toContain('Historical health snapshots are unavailable');
     expect(result.body).toContain('Expansion review scheduled.');
