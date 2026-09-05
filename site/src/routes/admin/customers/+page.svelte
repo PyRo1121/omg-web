@@ -409,75 +409,112 @@
         </section>
 
         <section aria-labelledby="machines-title">
-          <header class="subpanel-header">
-            <h3 id="machines-title">Machine fleet</h3>
-            <span>{formatCount(selectedCustomer.machines.length)} recorded</span>
-          </header>
-          {#if selectedCustomer.machines.length === 0}
-            <div class="empty-state"><strong>No machines recorded.</strong></div>
-          {:else}
-            <ul class="machine-list">
-              {#each selectedCustomer.machines as machine, index (`${machine.hostname}:${machine.firstSeenAt}:${index}`)}
-                <li>
-                  <span class={`machine-state${machine.active ? ' active-machine' : ''}`}></span>
-                  <div>
-                    <strong>{machine.hostname ?? 'Unnamed machine'}</strong>
-                    <small>
-                      {machine.operatingSystem ?? 'Unknown OS'} / {machine.architecture ??
-                        'Unknown architecture'} / OMG {machine.omgVersion ?? 'unknown'}
-                    </small>
-                  </div>
-                  <time datetime={machine.lastSeenAt ?? undefined}>
-                    {machine.lastSeenAt === null
-                      ? 'Never seen'
-                      : formatTimestamp(machine.lastSeenAt)}
-                  </time>
-                </li>
-              {/each}
-            </ul>
-          {/if}
+          <details>
+            <summary class="disclosure-summary">
+              <h3 id="machines-title">
+                Machine fleet <small>{formatCount(selectedCustomer.machines.length)} recorded</small
+                >
+              </h3>
+            </summary>
+            {#if selectedCustomer.machines.length === 0}
+              <div class="empty-state"><strong>No machines recorded.</strong></div>
+            {:else}
+              <ul class="machine-list">
+                {#each selectedCustomer.machines as machine, index (`${machine.hostname}:${machine.firstSeenAt}:${index}`)}
+                  <li>
+                    <span class={`machine-state${machine.active ? ' active-machine' : ''}`}></span>
+                    <div>
+                      <strong>{machine.hostname ?? 'Unnamed machine'}</strong>
+                      <small>
+                        {machine.operatingSystem ?? 'Unknown OS'} / {machine.architecture ??
+                          'Unknown architecture'} / OMG {machine.omgVersion ?? 'unknown'}
+                      </small>
+                    </div>
+                    <time datetime={machine.lastSeenAt ?? undefined}>
+                      {machine.lastSeenAt === null
+                        ? 'Never seen'
+                        : formatTimestamp(machine.lastSeenAt)}
+                    </time>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </details>
         </section>
       </div>
 
       <section class="usage-panel" aria-labelledby="customer-usage-title">
-        <header class="subpanel-header">
-          <h3 id="customer-usage-title">Daily usage</h3>
-          <span>Newest 30 recorded days</span>
-        </header>
-        {#if selectedCustomer.usage.length === 0}
-          <div class="empty-state"><strong>No usage recorded.</strong></div>
-        {:else}
-          <div class="table-scroll">
-            <table>
-              <thead
-                ><tr
-                  ><th>Date</th><th>Commands</th><th>Installed</th><th>Searched</th><th>Runtimes</th
-                  ><th>SBOMs</th><th>Vulnerabilities</th><th>Time saved</th></tr
-                ></thead
-              >
-              <tbody>
-                {#each selectedCustomer.usage as day (day.date)}
-                  <tr>
-                    <td><time datetime={day.date}>{day.date}</time></td>
-                    <td>{formatCount(day.commands)}</td>
-                    <td>{formatCount(day.packagesInstalled)}</td>
-                    <td>{formatCount(day.packagesSearched)}</td>
-                    <td>{formatCount(day.runtimesSwitched)}</td>
-                    <td>{formatCount(day.sbomsGenerated)}</td>
-                    <td>{formatCount(day.vulnerabilitiesFound)}</td>
-                    <td>{formatDuration(day.timeSavedMs)}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        {/if}
+        <details>
+          <summary class="disclosure-summary">
+            <h3 id="customer-usage-title">
+              Daily usage <small>Recorded days: {formatCount(selectedCustomer.usage.length)}</small>
+            </h3>
+          </summary>
+          {#if selectedCustomer.usage.length === 0}
+            <div class="empty-state"><strong>No usage recorded.</strong></div>
+          {:else}
+            <div class="table-scroll">
+              <table>
+                <thead
+                  ><tr
+                    ><th>Date</th><th>Commands</th><th>Installed</th><th>Searched</th><th
+                      >Runtimes</th
+                    ><th>SBOMs</th><th>Vulnerabilities</th><th>Time saved</th></tr
+                  ></thead
+                >
+                <tbody>
+                  {#each selectedCustomer.usage as day (day.date)}
+                    <tr>
+                      <td><time datetime={day.date}>{day.date}</time></td>
+                      <td>{formatCount(day.commands)}</td>
+                      <td>{formatCount(day.packagesInstalled)}</td>
+                      <td>{formatCount(day.packagesSearched)}</td>
+                      <td>{formatCount(day.runtimesSwitched)}</td>
+                      <td>{formatCount(day.sbomsGenerated)}</td>
+                      <td>{formatCount(day.vulnerabilitiesFound)}</td>
+                      <td>{formatDuration(day.timeSavedMs)}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        </details>
       </section>
     </section>
   {/if}
 </main>
 
 <style>
+  .disclosure-summary {
+    padding: 1.1rem 1.25rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  .disclosure-summary::marker {
+    color: var(--signal);
+  }
+
+  .disclosure-summary:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: -4px;
+  }
+
+  .disclosure-summary h3 {
+    display: inline;
+    font-family: var(--font-display);
+    font-size: 1rem;
+  }
+
+  .disclosure-summary small {
+    margin-left: 0.75rem;
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+
   .customer-workspace {
     width: min(calc(100% - clamp(2rem, 4vw, 5rem)), 112rem);
     margin-inline: auto;
@@ -844,13 +881,11 @@
     gap: 0.6rem;
     align-items: end;
   }
-  .create-tag-form {
-    grid-template-columns: minmax(8rem, 1fr) auto minmax(10rem, 1.4fr) auto;
-  }
   .support-forms label,
   .note-form label,
   .billing-form label,
   .note-delete-form label {
+    min-width: 0;
     display: grid;
     gap: 0.35rem;
     color: var(--ink-muted);
