@@ -13,6 +13,55 @@ const externalBaseUrl = process.env['E2E_BASE_URL']?.trim();
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 test.describe('Svelte public surfaces', () => {
+  test('copies the complete installer command without the shell prompt', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.goto('/#install', { waitUntil: 'networkidle' });
+    const linuxCopy = page.getByRole('button', { name: 'Copy Linux / macOS command', exact: true });
+    await linuxCopy.focus();
+    await linuxCopy.press('Enter');
+    await expect(page.getByRole('status', { name: 'Linux / macOS', exact: true })).toHaveText(
+      'Linux / macOS command copied.'
+    );
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      `curl -fsSL ${SITE_ORIGIN}/install.sh -o omg-install.sh\nless omg-install.sh && bash omg-install.sh`
+    );
+    await page.getByRole('button', { name: 'Copy Arch / AUR command', exact: true }).click();
+    await expect(page.getByRole('status', { name: 'Arch / AUR', exact: true })).toHaveText(
+      'Arch / AUR command copied.'
+    );
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('yay -S omg-bin');
+  });
+
+  for (const failure of ['unavailable', 'denied'] as const) {
+    test(`keeps installation commands available when the clipboard is ${failure}`, async ({
+      page,
+    }) => {
+      await page.addInitScript(mode => {
+        Object.defineProperty(navigator, 'clipboard', {
+          value:
+            mode === 'unavailable'
+              ? undefined
+              : {
+                  writeText: () =>
+                    Promise.reject(new DOMException('Clipboard denied', 'NotAllowedError')),
+                },
+          configurable: true,
+        });
+      }, failure);
+      await page.goto('/#install', { waitUntil: 'networkidle' });
+      const copy = page.getByRole('button', { name: 'Copy Linux / macOS command', exact: true });
+      await copy.click();
+      await expect(page.getByRole('status', { name: 'Linux / macOS', exact: true })).toHaveText(
+        'Could not copy. Select and copy the Linux / macOS command above.'
+      );
+      await expect(page.locator('#install code').first()).toContainText('less omg-install.sh');
+      await expect(copy).toBeEnabled();
+    });
+  }
+
   test('publishes canonical crawl and sharing metadata', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
