@@ -58,6 +58,20 @@ test.describe('deployed Svelte admin', () => {
     await expect(page).toHaveURL(/\/admin\/?$/);
     await expect(page.getByRole('heading', { name: 'Today at OMG' })).toBeVisible();
 
+    const actionLink = page
+      .getByRole('region', { name: 'Latest events' })
+      .getByRole('link')
+      .first();
+    const href = await actionLink.getAttribute('href');
+    if (href === null) throw new Error('Audit action link is missing its destination');
+    const destination = new URL(href, page.url());
+    const action = destination.searchParams.get('action');
+    if (action === null) throw new Error('Audit drill-down is missing its action filter');
+    await actionLink.click();
+    await expect(page).toHaveURL(destination.href);
+    await expect(page.getByRole('heading', { name: 'Operator audit log' })).toBeVisible();
+    await expect(page.getByLabel('Exact action')).toHaveValue(action);
+
     await page
       .getByRole('navigation', { name: 'Admin console' })
       .getByRole('link', {
