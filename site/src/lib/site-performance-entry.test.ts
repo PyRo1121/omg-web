@@ -33,8 +33,25 @@ describe('layoutShiftDelta', () => {
 });
 
 describe('navigationTtfbMs', () => {
-  it('reads TTFB from the first navigation entry', () => {
-    expect(navigationTtfbMs([{ requestStart: 5, responseStart: 21 }])).toBe(16);
+  it('includes connection time from navigation start', () => {
+    expect(navigationTtfbMs([{ startTime: 0, responseStart: 21 }])).toBe(21);
+  });
+
+  it('reads inherited browser timing getters', () => {
+    class NavigationEntry {
+      get startTime(): number {
+        return 0;
+      }
+      get responseStart(): number {
+        return 42;
+      }
+    }
+    expect(navigationTtfbMs([new NavigationEntry()])).toBe(42);
+  });
+
+  it('rejects missing or non-finite timing fields', () => {
+    expect(navigationTtfbMs([{ startTime: 0 }])).toBeUndefined();
+    expect(navigationTtfbMs([{ startTime: 0, responseStart: Infinity }])).toBeUndefined();
   });
 
   it('returns undefined for an empty list', () => {
