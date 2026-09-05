@@ -16,11 +16,11 @@
   <p class="error-copy">
     {page.status === 404
       ? 'The address may be mistyped or the page moved.'
-      : 'Try the request again. If the problem continues, use the production site.'}
+      : 'Try again in a moment.'}
   </p>
   <nav class="error-links" aria-label="Recovery links">
-    <a href="/">Back to shadow home</a>
-    <a href="/docs/">Read production docs</a>
+    <a href="/">Back to home</a>
+    <a href="/docs/">Read the docs</a>
   </nav>
 </main>
 

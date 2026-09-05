@@ -213,6 +213,22 @@ test.describe('Svelte public surfaces', () => {
     });
   }
 
+  test('recovers from a missing page through clear same-site links', async ({ page }) => {
+    const response = await page.goto('/this-page-does-not-exist', {
+      waitUntil: 'domcontentloaded',
+    });
+    expect(response?.status()).toBe(404);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
+    const recovery = page.getByRole('navigation', { name: 'Recovery links' });
+    await expect(recovery.getByRole('link', { name: 'Back to home', exact: true })).toHaveAttribute(
+      'href',
+      '/'
+    );
+    await recovery.getByRole('link', { name: 'Read the docs', exact: true }).click();
+    await expect(page).toHaveURL(/\/docs\/$/);
+    await expect(page.getByRole('heading', { name: 'Learn the parts you need.' })).toBeVisible();
+  });
+
   test('renders legal pages and the crawler policy', async ({ page }) => {
     const privacyResponse = await page.goto('/privacy/', { waitUntil: 'domcontentloaded' });
     expect(privacyResponse?.ok()).toBe(true);
