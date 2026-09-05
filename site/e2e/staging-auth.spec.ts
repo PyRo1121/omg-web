@@ -33,9 +33,25 @@ test.describe('deployed Svelte authenticated user', () => {
     await page.goto('/admin/', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/dashboard\/?$/);
 
-    const signOutButton = page.getByRole('button', { name: 'Sign out' });
-    await expect(signOutButton).toBeEnabled();
-    await signOutButton.click();
+    for (const path of ['/dashboard/', '/dashboard/settings/']) {
+      await page.goto(path, { waitUntil: 'networkidle' });
+      await page.route(
+        '**/api/auth/sign-out*',
+        route =>
+          route.fulfill({
+            status: 503,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'Service unavailable' }),
+          }),
+        { times: 1 }
+      );
+      const signOutButton = page.getByRole('button', { name: 'Sign out', exact: true });
+      await signOutButton.click();
+      await expect(page.getByRole('alert')).toHaveText('Could not sign out. Please try again.');
+      await expect(page).toHaveURL(new URL(path, baseUrl).href);
+      await expect(signOutButton).toBeEnabled();
+    }
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
     await expect(page).toHaveURL(new URL('/', page.url()).href);
 
     await page.goto('/dashboard/', { waitUntil: 'domcontentloaded' });

@@ -100,6 +100,9 @@
 
     <section class="settings-section" aria-labelledby="signout-title">
       <h2 id="signout-title">Browser session</h2>
+      {#if signOutView.error}
+        <p class="settings-error" role="alert">{signOutView.error}</p>
+      {/if}
       <button
         type="button"
         class="primary-action"

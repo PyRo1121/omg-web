@@ -131,6 +131,9 @@
       </section>
     {/if}
 
+    {#if signOutView.error}
+      <p role="alert">{signOutView.error}</p>
+    {/if}
     <button
       type="button"
       class="dashboard-signout"
