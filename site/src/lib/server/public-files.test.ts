@@ -60,7 +60,7 @@ Sitemap: https://getomg.xyz/sitemap.xml
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('application/xml; charset=utf-8');
     expect(response.headers.get('x-robots-tag')).toBe('noindex');
-    expect(body.match(/<url>/g)).toHaveLength(4 + DOCS_TOPICS.length);
+    expect(body.match(/<url>/g)).toHaveLength(5 + DOCS_TOPICS.length);
     expect(body).toContain('<loc>https://getomg.xyz/</loc>');
     expect(body).toContain('<loc>https://getomg.xyz/docs/</loc>');
     expect(body).toContain('<loc>https://getomg.xyz/privacy/</loc>');

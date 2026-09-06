@@ -75,6 +75,36 @@ test.describe('Svelte public surfaces', () => {
     });
   }
 
+  test('opens reviewed release notes from the docs without overwhelming the page', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto('/docs/', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('link', { name: 'Read release notes and updates.' }).click();
+    await expect(page).toHaveURL(/\/updates\/$/);
+    await expect(page.getByRole('heading', { name: 'What changed.' })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      `${SITE_ORIGIN}/updates/`
+    );
+    await expect(page.locator('details').first()).toHaveAttribute('open', '');
+    const olderRelease = page.locator('details').nth(1);
+    const notesLink = olderRelease.getByRole('link', { name: 'Full v0.1.217 release notes' });
+    await expect(notesLink).not.toBeVisible();
+    await olderRelease.locator('summary').focus();
+    await olderRelease.locator('summary').press('Enter');
+    await expect(notesLink).toBeVisible();
+    await expect(notesLink).toHaveAttribute(
+      'href',
+      'https://github.com/PyRo1121/omg/releases/tag/v0.1.217'
+    );
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true
+    );
+    const sitemap = await page.request.get('/sitemap.xml');
+    expect(await sitemap.text()).toContain(`${SITE_ORIGIN}/updates/`);
+  });
+
   test('publishes canonical crawl and sharing metadata', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
