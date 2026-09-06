@@ -32,20 +32,19 @@ test.describe('Svelte public surfaces', () => {
   }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.goto('/#install', { waitUntil: 'networkidle' });
-    const linuxCopy = page.getByRole('button', { name: 'Copy Linux / macOS command', exact: true });
+    const linuxCopy = page.getByRole('button', { name: 'Copy install command', exact: true });
     await linuxCopy.focus();
     await linuxCopy.press('Enter');
-    await expect(page.getByRole('status', { name: 'Linux / macOS', exact: true })).toHaveText(
-      'Linux / macOS command copied.'
-    );
+    await expect(page.getByRole('status')).toHaveText('Install command copied.');
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
       `curl -fsSL ${SITE_ORIGIN}/install.sh -o omg-install.sh\nless omg-install.sh && bash omg-install.sh`
     );
-    await page.getByRole('button', { name: 'Copy Arch / AUR command', exact: true }).click();
-    await expect(page.getByRole('status', { name: 'Arch / AUR', exact: true })).toHaveText(
-      'Arch / AUR command copied.'
+    await expect(page.getByRole('link', { name: 'Download from GitHub' })).toHaveAttribute(
+      'href',
+      'https://github.com/PyRo1121/omg/releases'
     );
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('yay -S omg-bin');
+    await expect(page.locator('#install')).not.toContainText('yay -S');
+    await expect(page.locator('#install')).not.toContainText('cargo install');
   });
 
   for (const failure of ['unavailable', 'denied'] as const) {
@@ -65,10 +64,10 @@ test.describe('Svelte public surfaces', () => {
         });
       }, failure);
       await page.goto('/#install', { waitUntil: 'networkidle' });
-      const copy = page.getByRole('button', { name: 'Copy Linux / macOS command', exact: true });
+      const copy = page.getByRole('button', { name: 'Copy install command', exact: true });
       await copy.click();
-      await expect(page.getByRole('status', { name: 'Linux / macOS', exact: true })).toHaveText(
-        'Could not copy. Select and copy the Linux / macOS command above.'
+      await expect(page.getByRole('status')).toHaveText(
+        'Could not copy. Select and copy the install command above.'
       );
       await expect(page.locator('#install code').first()).toContainText('less omg-install.sh');
       await expect(copy).toBeEnabled();
@@ -204,10 +203,10 @@ test.describe('Svelte public surfaces', () => {
       '/docs/cli/'
     );
     await expect(
-      page.getByText('cargo install omg --git https://github.com/PyRo1121/omg --locked', {
-        exact: true,
-      })
-    ).toBeVisible();
+      page.getByRole('link', { name: 'Download release binaries on GitHub' })
+    ).toHaveAttribute('href', 'https://github.com/PyRo1121/omg/releases');
+    await expect(page.locator('main')).not.toContainText('yay -S');
+    await expect(page.locator('main')).not.toContainText('cargo install');
 
     const sitemap = await page.request.get('/sitemap.xml');
     const sitemapText = await sitemap.text();
