@@ -1,5 +1,6 @@
 {
-  "extends": "./.svelte-kit/tsconfig.json",
+  "extends": "$app/tsconfig",
+  "include": ["src/**/*.ts", "src/**/*.svelte", "alchemy.run.ts", "vite.config.ts"],
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "allowSyntheticDefaultImports": true,
