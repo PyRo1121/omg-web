@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { render } from 'svelte/server';
+import AdminOverviewPage from './+page.svelte';
 import type { AdminOverview } from '../../../../shared/admin-overview';
 import {
   activityBars,
@@ -39,6 +41,43 @@ function overview(overrides: Partial<AdminOverview> = {}): AdminOverview {
 }
 
 describe('admin overview decisions', () => {
+  it('renders audit drill-downs using action keys rather than presentation labels', () => {
+    const result = render(AdminOverviewPage, {
+      props: {
+        params: {},
+        form: null,
+        data: {
+          operatorName: 'Test operator',
+          overview: overview({
+            activity: [
+              {
+                action: 'billing.checkout_created',
+                resourceType: 'subscription',
+                createdAt: '2026-09-04T12:00:00Z',
+              },
+              {
+                action: 'data_export_request',
+                resourceType: null,
+                createdAt: '2026-09-04T11:00:00Z',
+              },
+              {
+                action: 'data_deletion_request',
+                resourceType: null,
+                createdAt: '2026-09-04T10:00:00Z',
+              },
+            ],
+          }),
+        },
+      },
+    });
+    expect(result.body).toContain('/admin/audit/?page=1&amp;action=billing.checkout_created');
+    expect(result.body).toContain('Billing checkout created</a>');
+    expect(result.body).toContain('Data export request</strong>');
+    expect(result.body).toContain('Data deletion request</strong>');
+    expect(result.body).not.toContain('action=data_export_request');
+    expect(result.body).not.toContain('action=data_deletion_request');
+  });
+
   it('keeps healthy state separate from actionable exceptions', () => {
     expect(attentionItems(overview())).toEqual([]);
     expect(commandHealthSummary(overview())).toEqual({

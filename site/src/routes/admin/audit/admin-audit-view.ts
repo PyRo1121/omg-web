@@ -1,3 +1,5 @@
+import { isAdminAuditFilterAction } from '../../../../../shared/admin-overview';
+
 interface AdminAuditNavigation {
   readonly currentPage: number;
   readonly nextHref: string;
@@ -11,6 +13,11 @@ function auditHref(page: number, action: string): string {
   const parameters = new URLSearchParams({ page: String(page) });
   if (action !== '') parameters.set('action', action);
   return `?${parameters.toString()}`;
+}
+
+/** Open the first audit page for one action from the operator overview. */
+export function adminAuditActionHref(action: string): string | null {
+  return isAdminAuditFilterAction(action) ? `/admin/audit/${auditHref(1, action)}` : null;
 }
 
 export function adminAuditNavigation(
