@@ -1,68 +1,71 @@
 <script lang="ts"></script>
 
 <section class="hero home-shell" aria-labelledby="hero-title">
-  <header class="hero-copy">
-    <h1 id="hero-title">Stop managing package managers.</h1>
+  <p class="hero-eyebrow">Open source. Built in Rust. Made for your terminal.</p>
+  <h1 id="hero-title">Your machine.<br /><span>One command.</span></h1>
+  <div class="hero-introduction">
     <p>
-      One open-source command installs apps and programming languages on Linux and macOS, replacing
-      apt, brew, nvm, pyenv, and friends.
+      Install packages. Choose your runtimes. Share your environment. OMG brings the everyday work
+      of a development machine into one CLI.
     </p>
     <nav class="hero-actions" aria-label="Homepage introduction">
       <a class="primary-link" href="#install">Install OMG <span aria-hidden="true">↓</span></a>
       <a class="text-link" href="#workflow">See how it works <span aria-hidden="true">→</span></a>
     </nav>
-  </header>
-
-  <aside class="hero-motif" aria-label="Seven package tools replaced by one command">
-    <p>Seven tools you won’t open again.</p>
-    <strong>7<span aria-hidden="true">→</span>1</strong>
+  </div>
+  <div class="command-line" aria-label="Example package installation command">
+    <span class="command-label">Start with a package</span>
     <code><span aria-hidden="true">$ </span>omg install ripgrep</code>
-  </aside>
+    <span class="platforms">Linux / macOS</span>
+  </div>
 </section>
 
 <style>
   .hero {
-    display: grid;
-    min-height: calc(100dvh - 4.5rem);
-    padding-top: clamp(2rem, 7vh, 5rem);
+    padding-block: clamp(3rem, 8vw, 7rem) 0;
   }
 
-  .hero-copy {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    padding: 0 0 clamp(3.5rem, 8vw, 6rem);
-  }
-
-  h1,
-  p {
-    margin: 0;
+  .hero-eyebrow {
+    margin: 0 0 clamp(2rem, 4vw, 4rem);
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.7;
   }
 
   h1 {
-    max-width: 12ch;
+    margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(3.5rem, 8.25vw, 7.8rem);
+    font-size: clamp(3.2rem, 10.7vw, 10rem);
     font-weight: 650;
-    letter-spacing: -0.08em;
-    line-height: 0.84;
-    text-wrap: balance;
+    letter-spacing: -0.075em;
+    line-height: 0.95;
   }
 
-  .hero-copy > p {
-    max-width: 39rem;
-    margin-top: 2rem;
+  h1 > span {
+    color: var(--signal);
+  }
+
+  .hero-introduction {
+    display: grid;
+    gap: 2rem;
+    margin-block: clamp(2rem, 5vw, 4rem) clamp(3rem, 6vw, 5rem);
+  }
+
+  .hero-introduction > p {
+    max-width: 38rem;
+    margin: 0;
     color: var(--ink-muted);
-    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    font-size: clamp(1rem, 1.5vw, 1.25rem);
     line-height: 1.7;
+    text-wrap: pretty;
   }
 
   .hero-actions {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 1.25rem;
-    margin-top: 2.5rem;
+    flex-wrap: wrap;
+    gap: 1.25rem 2rem;
   }
 
   .primary-link {
@@ -70,8 +73,8 @@
     min-height: 3.5rem;
     align-items: center;
     justify-content: center;
-    gap: 1.5rem;
-    padding: 0 1.5rem;
+    gap: 2rem;
+    padding-inline: 1.5rem;
     background: var(--signal);
     color: var(--signal-ink);
     font-weight: 600;
@@ -82,98 +85,51 @@
     background: var(--signal-hover);
   }
 
-  .hero-motif {
+  .command-line {
     display: flex;
-    min-height: 22rem;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 2rem;
-    padding: clamp(1.5rem, 4vw, 2.5rem);
-    background: var(--signal);
-    color: var(--signal-ink);
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 1rem 3rem;
+    padding-block: 1.5rem;
+    border-block: 1px solid var(--rule);
   }
 
-  .hero-motif p {
-    max-width: 13rem;
-    font-size: 1.25rem;
-    font-weight: 650;
-    letter-spacing: -0.035em;
-    line-height: 1.1;
-  }
-
-  .hero-motif strong {
-    display: block;
-    font-size: clamp(6.5rem, 17vw, 10rem);
-    font-weight: 650;
-    letter-spacing: -0.11em;
-    line-height: 0.72;
-    white-space: nowrap;
-  }
-
-  .hero-motif strong span {
-    font-weight: 400;
-  }
-
-  .hero-motif code {
-    padding-top: 1.25rem;
-    border-top: 1px solid rgb(9 9 9 / 0.35);
+  .command-label,
+  .platforms {
+    color: var(--ink-muted);
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.75rem;
+  }
+
+  .command-line code {
+    font-family: var(--font-mono);
+    font-size: clamp(1rem, 2vw, 1.4rem);
     overflow-wrap: anywhere;
   }
 
-  @media (min-width: 48rem) {
-    .hero {
-      grid-template-columns: minmax(0, 1fr) minmax(19rem, 25rem);
-      gap: 0;
-    }
+  .command-line code span {
+    color: var(--signal);
+  }
 
-    .hero-copy {
-      padding-right: clamp(3rem, 7vw, 7rem);
+  @media (min-width: 60rem) {
+    .hero-introduction {
+      grid-template-columns: 1.15fr 1fr;
+      align-items: center;
+    }
+    .hero-actions {
+      justify-content: flex-end;
+    }
+    .platforms {
+      margin-left: auto;
     }
   }
 
-  @media (max-width: 47.99rem) {
-    .hero {
-      width: 100%;
-      min-height: calc(100dvh - 4rem);
-      padding-top: 2.5rem;
+  @media (max-width: 35rem) {
+    .command-label {
+      flex-basis: 100%;
     }
-
-    .hero-copy {
-      width: min(100% - 2rem, var(--content-width));
-      margin-inline: auto;
-      padding-bottom: 2.5rem;
-    }
-
-    h1 {
-      font-size: clamp(3rem, 14vw, 4.5rem);
-      line-height: 0.88;
-    }
-
-    .hero-copy > p {
-      margin-top: 1.5rem;
-      font-size: 1rem;
-      line-height: 1.55;
-    }
-
-    .hero-actions {
-      gap: 0.75rem 1rem;
-      margin-top: 1.75rem;
-    }
-
-    .hero-motif {
-      min-height: 11rem;
-      gap: 1rem;
-      padding: 1.25rem;
-    }
-
-    .hero-motif p {
+    .platforms {
       display: none;
-    }
-
-    .hero-motif strong {
-      font-size: clamp(5rem, 25vw, 7rem);
     }
   }
 </style>

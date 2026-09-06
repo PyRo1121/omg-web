@@ -93,9 +93,16 @@ test.describe('Svelte public surfaces', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(
-      page.getByRole('heading', { name: 'Stop managing package managers.' })
+      page.getByRole('heading', { name: /Your machine\.\s*One command\./, level: 1 })
     ).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'One interface. Three jobs.' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /One interface\.\s*Three jobs\./ })
+    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fast, with receipts.' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Inspect the benchmark record' })).toHaveAttribute(
+      'href',
+      'https://github.com/PyRo1121/omg/tree/fe72b92b6e61c13a19f00627d22f3d1bc5713347/benchmarks/records/20260903_015949-5c43ddcc'
+    );
     await expect(
       page.getByRole('heading', { name: 'Install once. Start simplifying.' })
     ).toBeVisible();
