@@ -38,7 +38,7 @@
         codeRepository: 'https://github.com/PyRo1121/omg',
         license: 'https://opensource.org/licenses/MIT',
         publisher: { '@id': `${SITE_ORIGIN}/#org` },
-        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        isAccessibleForFree: true,
       },
     ],
   });
@@ -57,7 +57,7 @@
   <meta property="og:title" content="OMG: Stop Managing Package Managers" />
   <meta
     property="og:description"
-    content="System packages, language runtimes, and project toolchains through one fast Rust CLI."
+    content="Free and open source. System packages, language runtimes, and project toolchains through one Rust CLI."
   />
   <meta property="og:url" content={canonicalUrl} />
   <meta property="og:image" content={socialImage} />
@@ -75,7 +75,7 @@
   <meta name="twitter:title" content="OMG: Stop Managing Package Managers" />
   <meta
     name="twitter:description"
-    content="Packages, runtimes, and project toolchains through one Rust CLI."
+    content="Free and open source. Packages, runtimes, and project toolchains through one Rust CLI."
   />
   <meta name="twitter:image" content={socialImage} />
   <meta name="twitter:image:alt" content="OMG package manager workflow" />
