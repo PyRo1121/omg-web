@@ -81,6 +81,11 @@ test.describe('Svelte public surfaces', () => {
       .locator('script[type="application/ld+json"]')
       .evaluate(node => node.textContent ?? '');
     expect(structuredDataText).toContain(`${SITE_ORIGIN}/install.sh`);
+    expect(structuredDataText).toContain('"isAccessibleForFree":true');
+    expect(structuredDataText).not.toContain('"offers"');
+    await expect(
+      page.getByText('Free and open source. Built in Rust. No account required.', { exact: true })
+    ).toBeVisible();
     expect(() => JSON.parse(structuredDataText)).not.toThrow();
 
     const socialImage = await page.request.get('/og/omg-og.png');

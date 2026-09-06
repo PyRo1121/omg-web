@@ -1,7 +1,7 @@
 <script lang="ts"></script>
 
 <section class="hero home-shell" aria-labelledby="hero-title">
-  <p class="hero-eyebrow">Open source. Built in Rust. Made for your terminal.</p>
+  <p class="hero-eyebrow">Free and open source. Built in Rust. No account required.</p>
   <h1 id="hero-title">Your machine.<br /><span>One command.</span></h1>
   <div class="hero-introduction">
     <p>
