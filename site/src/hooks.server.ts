@@ -1,6 +1,6 @@
 import { building } from '$app/env';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
-import type { Handle } from '@sveltejs/kit';
+import type { Handle } from '@sveltejs/kit/hooks';
 import { createShadowAuth, enforceAuthMutationRateLimit } from './lib/server/auth.server';
 import { withDocsRouteCache, withSiteHeaders } from './lib/server/public-files';
 

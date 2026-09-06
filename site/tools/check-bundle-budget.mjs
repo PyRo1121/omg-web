@@ -8,7 +8,7 @@ const clientDirectory = fileURLToPath(new URL('../.svelte-kit/output/client/', i
 const immutableDirectory = resolve(clientDirectory, '_app/immutable');
 const manifestPath = resolve(clientDirectory, '.vite/manifest.json');
 const generatedNodesDirectory = fileURLToPath(
-  new URL('../.svelte-kit/generated/client-optimized/nodes/', import.meta.url)
+  new URL('../.svelte-kit/generated/build/client-optimized/nodes/', import.meta.url)
 );
 const MAX_JAVASCRIPT_CHUNK_BYTES = 500_000;
 const MAX_JAVASCRIPT_CHUNK_GZIP_BYTES = 130_000;
@@ -88,8 +88,8 @@ async function generatedNodeSource(routeSource, description) {
   for (const name of await readdir(generatedNodesDirectory)) {
     if (!/^\d+\.js$/u.test(name)) continue;
     const contents = await readFile(resolve(generatedNodesDirectory, name), 'utf8');
-    if (contents.includes(`from "../../../../${routeSource}"`)) {
-      matches.push(`.svelte-kit/generated/client-optimized/nodes/${name}`);
+    if (contents.includes(`from "../../../../../${routeSource}"`)) {
+      matches.push(`.svelte-kit/generated/build/client-optimized/nodes/${name}`);
     }
   }
   if (matches.length !== 1) {
@@ -171,7 +171,7 @@ const rootPageSource = await generatedNodeSource('src/routes/+page.svelte', 'roo
 const landingEntryKeys = [
   manifestKeyForSource(
     manifest,
-    '.svelte-kit/generated/client-optimized/app.js',
+    '.svelte-kit/generated/build/client-optimized/app.js',
     'Svelte application'
   ),
   manifestKeyForSource(
