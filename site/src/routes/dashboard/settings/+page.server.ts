@@ -1,7 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import { loadAccountDashboardContext } from '../../../lib/server/account-dashboard.server';
-import { openBillingPortalAction } from '../../../lib/server/billing-action.server';
-import type { Actions, PageServerLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async event => {
   if (event.platform === undefined) {
@@ -14,7 +13,3 @@ export const load: PageServerLoad = async event => {
   }
   return { dashboard: context.dashboard };
 };
-
-export const actions = {
-  openBillingPortal: openBillingPortalAction,
-} satisfies Actions;

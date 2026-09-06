@@ -62,6 +62,17 @@ test.describe('Svelte public surfaces', () => {
     });
   }
 
+  test('does not expose homepage checkout or promotional offer actions', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    for (const action of ['startCheckout', 'claimOffer']) {
+      const response = await page.request.post(`/?/${action}`, {
+        headers: { Origin: new URL(page.url()).origin },
+        form: { offer: 'pro', email: 'nobody@example.invalid' },
+      });
+      expect(response.status()).toBe(405);
+    }
+  });
+
   test('publishes canonical crawl and sharing metadata', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
