@@ -16,13 +16,16 @@ export const installationTopic: DocsTopic = {
         {
           kind: 'paragraphs',
           paragraphs: [
-            'The universal installer detects your operating system and package backend, downloads the matching release binaries, and installs them to ~/.local/bin. Inspect the script before piping it to your shell.',
+            'The universal installer detects your operating system and package backend, downloads the matching release binaries, and installs them to ~/.local/bin. Download the script, review it, then run it.',
           ],
         },
         {
           kind: 'commands',
           title: 'Linux and macOS, including WSL',
-          commands: [`curl -fsSL ${SITE_ORIGIN}/install.sh | bash`],
+          commands: [
+            `curl -fsSL ${SITE_ORIGIN}/install.sh -o omg-install.sh`,
+            'less omg-install.sh && bash omg-install.sh',
+          ],
         },
         {
           kind: 'note',
@@ -40,10 +43,7 @@ export const installationTopic: DocsTopic = {
           title: 'Supported platforms and install methods',
           columns: ['Platform', 'Install method'],
           rows: [
-            [
-              'Arch Linux',
-              'Run yay -S omg-bin for the prebuilt binary, or yay -S omg to build from source',
-            ],
+            ['Arch Linux', 'Universal installer or a matching GitHub release archive'],
             [
               'Debian and Ubuntu',
               'Universal installer, or download a release tarball and copy the binary to /usr/local/bin',
@@ -56,15 +56,7 @@ export const installationTopic: DocsTopic = {
         {
           kind: 'paragraphs',
           paragraphs: [
-            'Release binaries support x86_64 Linux and Apple Silicon macOS. Intel macOS and native Windows are unsupported. Source builds require Rust 1.93.1 and the platform toolchain. Arch builds also link libarchive and OpenSSL. Debian builds need libapt-pkg-dev, Clang, and CMake.',
-          ],
-        },
-        {
-          kind: 'commands',
-          title: 'Build and install from source',
-          commands: [
-            'cargo install omg --git https://github.com/PyRo1121/omg --locked',
-            'omg --version',
+            'Release binaries support x86_64 Linux and Apple Silicon macOS. Intel macOS and native Windows are unsupported. The supported installation channels are the universal installer and GitHub release downloads.',
           ],
         },
       ],
@@ -134,16 +126,12 @@ export const installationTopic: DocsTopic = {
         {
           kind: 'commands',
           title: 'Update OMG itself',
-          commands: [
-            'omg self-update',
-            'yay -Syu omg-bin',
-            'cargo install omg --git https://github.com/PyRo1121/omg --locked --force',
-          ],
+          commands: ['omg self-update'],
         },
         {
           kind: 'paragraphs',
           paragraphs: [
-            'omg self-update replaces the binary atomically and verifies the download before installing it. AUR installs update through the AUR helper, and Cargo installs update by rerunning cargo install with --force.',
+            'omg self-update replaces the binary atomically and verifies the download before installing it. You can also obtain the current release through the universal installer or GitHub releases.',
           ],
         },
         {

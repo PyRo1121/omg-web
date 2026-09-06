@@ -4,7 +4,7 @@
 
   const canonicalUrl = `${SITE_ORIGIN}/docs/`;
   const socialImage = `${SITE_ORIGIN}/og/omg-og.png`;
-  const installCommand = `curl -fsSL ${SITE_ORIGIN}/install.sh | bash`;
+  const installCommand = `curl -fsSL ${SITE_ORIGIN}/install.sh -o omg-install.sh\nless omg-install.sh && bash omg-install.sh`;
   const breadcrumbData = serializeJsonLd({
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -116,14 +116,14 @@
       <section id="install" class="docs-section">
         <h2>Install OMG</h2>
         <p class="section-copy">
-          The universal installer detects Linux or macOS and downloads the matching release. Inspect
-          the script before piping it to your shell.
+          The universal installer detects Linux or macOS and downloads the matching release.
+          Download the script, review it, then run it.
         </p>
         <pre class="install-command"><code><span>$ </span>{installCommand}</code></pre>
         <p class="install-note">
-          Arch users can run <code>yay -S omg-bin</code>. Building from source requires Rust 1.93.1
-          and uses
-          <code>cargo install omg --git https://github.com/PyRo1121/omg --locked</code>.
+          Prefer a direct download? <a href="https://github.com/PyRo1121/omg/releases"
+            >Download release binaries on GitHub</a
+          >.
         </p>
       </section>
 
@@ -332,7 +332,7 @@
     font-size: 0.875rem;
   }
 
-  .install-note code {
+  .install-note a {
     color: var(--ink);
     overflow-wrap: anywhere;
   }
