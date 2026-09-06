@@ -93,6 +93,7 @@ test.describe('Svelte public surfaces', () => {
     await page.goto('/docs/', { waitUntil: 'domcontentloaded' });
     await page.getByRole('link', { name: 'Read release notes and updates.' }).click();
     await expect(page).toHaveURL(/\/updates\/$/);
+    await page.waitForLoadState('load');
     await expect(page.getByRole('heading', { name: 'What changed.' })).toBeVisible();
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       'href',
