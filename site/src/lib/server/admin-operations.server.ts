@@ -1,4 +1,5 @@
 import { Effect } from 'effect';
+import { isAdminAuditFilterAction } from '../../../../shared/admin-overview';
 import * as Schema from 'effect/Schema';
 import { BoundedBodyTooLarge, BoundedBodyUnavailable, readBoundedBody } from '../bounded-body';
 import {
@@ -21,7 +22,6 @@ const Count = Schema.Number.check(Schema.makeFilter(value => Number.isFinite(val
 const Text = Schema.String.check(Schema.isMaxLength(256));
 const NonEmptyText = Text.check(Schema.isMinLength(1));
 const OptionalText = Schema.NullOr(Text);
-const AUDIT_ACTION_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*){1,4}$/u;
 const FIREHOSE_SINCE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/u;
 const PAGE_SIZE = 25;
 
@@ -64,7 +64,7 @@ export function parseAdminAuditQuery(url: URL): AdminAuditQuery | null {
   if (!Number.isInteger(page) || page < 1 || page > 10_000 || String(page) !== rawPage) return null;
   const rawAction = url.searchParams.get('action');
   const action = rawAction === null || rawAction === '' ? null : rawAction;
-  if (action !== null && (action.length > 128 || !AUDIT_ACTION_PATTERN.test(action))) return null;
+  if (action !== null && !isAdminAuditFilterAction(action)) return null;
   return { action, page };
 }
 

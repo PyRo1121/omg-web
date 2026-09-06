@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { parseAdminAuditQuery } from '../../../lib/server/admin-operations.server';
 import { adminAuditActionHref, adminAuditNavigation } from './admin-audit-view';
 
 describe('admin audit navigation', () => {
@@ -8,12 +9,24 @@ describe('admin audit navigation', () => {
     );
   });
 
-  it('does not turn action text into additional query parameters', () => {
-    const url = new URL(adminAuditActionHref('auth.login&page=99'), 'https://getomg.xyz');
-    expect(url.pathname).toBe('/admin/audit/');
-    expect(url.searchParams.get('page')).toBe('1');
-    expect(url.searchParams.get('action')).toBe('auth.login&page=99');
-  });
+  it.each(['data_export_request', 'data_deletion_request', 'auth.login&page=99', ''])(
+    'does not offer a rejected filter for %s',
+    action => {
+      expect(adminAuditActionHref(action)).toBeNull();
+    }
+  );
+
+  it.each(['billing.checkout_created', 'site.session_created', 'admin.export_users'])(
+    'generates a destination accepted by the server for %s',
+    action => {
+      const href = adminAuditActionHref(action);
+      if (href === null) throw new Error('Expected a supported action link');
+      expect(parseAdminAuditQuery(new URL(href, 'https://getomg.xyz'))).toEqual({
+        action,
+        page: 1,
+      });
+    }
+  );
 
   it('bounds pages and preserves only the validated action filter', () => {
     expect(adminAuditNavigation(2, 4, 'auth.login')).toEqual({

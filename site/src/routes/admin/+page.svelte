@@ -200,17 +200,22 @@
           <span>04 / Audit</span>
           <h2 id="recent-activity-title">Latest events</h2>
         </div>
-        <small>Select an action to investigate</small>
+        <small>Select a linked action to investigate</small>
       </header>
       {#if data.overview.activity.length === 0}
         <div class="empty-state"><strong>No operator activity available.</strong></div>
       {:else}
         <ol class="event-list">
           {#each data.overview.activity as item, index (`${item.createdAt}:${item.action}:${index}`)}
+            {@const auditHref = adminAuditActionHref(item.action)}
             <li>
               <span class="event-index">{String(index + 1).padStart(2, '0')}</span>
               <div>
-                <a href={adminAuditActionHref(item.action)}>{formatActivityAction(item.action)}</a>
+                {#if auditHref !== null}
+                  <a href={auditHref}>{formatActivityAction(item.action)}</a>
+                {:else}
+                  <strong>{formatActivityAction(item.action)}</strong>
+                {/if}
                 <small>
                   {item.resourceType === null
                     ? 'Platform event'
@@ -696,6 +701,7 @@
   }
 
   .event-list li div a,
+  .event-list li div strong,
   .event-list li div small {
     display: block;
     overflow-wrap: anywhere;

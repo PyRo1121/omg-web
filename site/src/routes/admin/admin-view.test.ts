@@ -55,6 +55,16 @@ describe('admin overview decisions', () => {
                 resourceType: 'subscription',
                 createdAt: '2026-09-04T12:00:00Z',
               },
+              {
+                action: 'data_export_request',
+                resourceType: null,
+                createdAt: '2026-09-04T11:00:00Z',
+              },
+              {
+                action: 'data_deletion_request',
+                resourceType: null,
+                createdAt: '2026-09-04T10:00:00Z',
+              },
             ],
           }),
         },
@@ -62,6 +72,10 @@ describe('admin overview decisions', () => {
     });
     expect(result.body).toContain('/admin/audit/?page=1&amp;action=billing.checkout_created');
     expect(result.body).toContain('Billing checkout created</a>');
+    expect(result.body).toContain('Data export request</strong>');
+    expect(result.body).toContain('Data deletion request</strong>');
+    expect(result.body).not.toContain('action=data_export_request');
+    expect(result.body).not.toContain('action=data_deletion_request');
   });
 
   it('keeps healthy state separate from actionable exceptions', () => {
