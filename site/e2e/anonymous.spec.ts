@@ -12,7 +12,11 @@ const TimingBatchSchema = Schema.Struct({
   events: Schema.Array(
     Schema.Struct({
       event_type: Schema.String,
-      properties: Schema.Struct({ ttfb: Schema.optional(Schema.Number) }),
+      properties: Schema.Struct({
+        ttfb: Schema.optional(Schema.Number),
+        path: Schema.String,
+        pv_id: Schema.String,
+      }),
     })
   ),
 });
@@ -221,6 +225,49 @@ test.describe('Svelte public surfaces', () => {
       expect(analyticsRequests).toBe(0);
     });
   }
+
+  test('keeps document vitals on the initial page across client navigation', async ({ page }) => {
+    const reports: Array<ReturnType<typeof decodeTimingBatch>['events'][number]> = [];
+    await page.route('**/api/analytics/site/', async route => {
+      reports.push(...decodeTimingBatch(route.request().postData() ?? '').events);
+      await route.fulfill({ status: 204 });
+    });
+    await page.goto('/', { waitUntil: 'networkidle' });
+    const originalDocument = await page.evaluate(() => performance.timeOrigin);
+    await page
+      .getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('link', { name: 'Docs', exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/docs\/$/);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(originalDocument);
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+    await expect
+      .poll(() => reports.filter(event => event.event_type === 'web_vitals').length)
+      .toBe(1);
+    const initialView = reports.find(
+      event => event.event_type === 'pageview' && event.properties.path === '/'
+    );
+    const vitals = reports.find(event => event.event_type === 'web_vitals');
+    expect(initialView).toBeDefined();
+    expect(vitals?.properties.path).toBe('/');
+    expect(vitals?.properties.pv_id).toBe(initialView?.properties.pv_id);
+    expect(vitals?.properties.ttfb).toBeGreaterThanOrEqual(0);
+
+    await page
+      .getByRole('navigation', { name: 'Footer navigation' })
+      .getByRole('link', { name: 'Privacy', exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/privacy\/$/);
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+    await expect
+      .poll(() =>
+        reports.some(
+          event => event.event_type === 'pageview' && event.properties.path === '/privacy/'
+        )
+      )
+      .toBe(true);
+    expect(reports.filter(event => event.event_type === 'web_vitals')).toHaveLength(1);
+  });
 
   test('reports TTFB from the native browser navigation entry', async ({ page }) => {
     const metrics: Array<number | undefined> = [];
