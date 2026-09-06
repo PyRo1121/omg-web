@@ -49,6 +49,12 @@ export const LicensingRoutes = {
     authentication: 'session',
     transport: 'direct',
   },
+  dashboardLink: {
+    method: 'POST',
+    path: '/api/dashboard/link',
+    authentication: 'session',
+    transport: 'direct',
+  },
   reportUsage: {
     method: 'POST',
     path: '/api/report-usage',
