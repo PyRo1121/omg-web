@@ -21,6 +21,11 @@ type EventType =
   'pageview' | 'scroll_depth' | 'time_on_page' | 'cta_click' | 'web_vitals' | 'engagement';
 type CtaType = 'download' | 'signup' | 'pricing' | 'docs' | 'github' | 'install';
 
+interface AnalyticsPageContext {
+  readonly path: string;
+  readonly pv_id: string;
+}
+
 interface PageContext {
   page_path: string;
   page_url: string;
@@ -106,6 +111,7 @@ function generatePageViewId(): string {
 }
 
 let currentPageViewId = '';
+let documentVitalsContext: AnalyticsPageContext | null = null;
 
 /**
  * Get basic page context without any tracking identifiers
@@ -179,7 +185,12 @@ function getUtmParams(): UtmParams {
 /**
  * Queue an analytics event
  */
-function queueEvent(type: EventType, name: string, properties: AnalyticsProperties = {}): void {
+function queueEvent(
+  type: EventType,
+  name: string,
+  properties: AnalyticsProperties = {},
+  context: AnalyticsPageContext = { path: getPageContext().page_path, pv_id: currentPageViewId }
+): void {
   if (browserPrivacySignalEnabled(globalThis.navigator)) {
     return;
   }
@@ -190,8 +201,8 @@ function queueEvent(type: EventType, name: string, properties: AnalyticsProperti
     timestamp: Date.now(),
     properties: {
       ...properties,
-      path: getPageContext().page_path,
-      pv_id: currentPageViewId,
+      path: context.path,
+      pv_id: context.pv_id,
     },
   };
   eventQueue.push(event);
@@ -281,11 +292,10 @@ function trackPageView(): void {
   }
 
   currentPageViewId = generatePageViewId();
+  documentVitalsContext ??= { path: getPageContext().page_path, pv_id: currentPageViewId };
   pageLoadTime = Date.now();
   maxScrollDepth = 0;
-  vitalsReported = false;
   timeOnPageEmitted = false;
-  clsValue = 0;
 
   const viewport = {
     width: window.innerWidth,
@@ -374,7 +384,7 @@ function getMetricRating(
 }
 
 function reportWebVitals(metrics: WebVitalsMetrics): void {
-  if (vitalsReported) {
+  if (vitalsReported || documentVitalsContext === null) {
     return;
   }
   vitalsReported = true;
@@ -403,7 +413,7 @@ function reportWebVitals(metrics: WebVitalsMetrics): void {
     vitalsWithRating['fcp_rating'] = getMetricRating(metrics.fcp, 1800, 3000);
   }
 
-  queueEvent('web_vitals', 'core_web_vitals', vitalsWithRating);
+  queueEvent('web_vitals', 'core_web_vitals', vitalsWithRating, documentVitalsContext);
 }
 
 /**

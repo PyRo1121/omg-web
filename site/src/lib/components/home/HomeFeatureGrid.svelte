@@ -1,189 +1,143 @@
 <script lang="ts">
   const workflows = [
     {
-      title: 'Install an app',
-      before: 'Instead of learning apt, pacman, or brew',
+      number: '01',
+      title: 'Packages, without the context switch.',
+      detail:
+        'Find and install software through your system package manager using the same command shape.',
       command: 'omg install ripgrep',
-      result: 'Installed with your system’s own package manager',
+      href: '/docs/cli/',
+      link: 'Package commands',
     },
     {
-      title: 'Install Node.js, Python, or Rust',
-      before: 'Instead of configuring nvm, pyenv, or rustup',
+      number: '02',
+      title: 'The right runtime for the project.',
+      detail:
+        'Choose a Node.js, Python, or Rust version without juggling a different interface for each language.',
       command: 'omg use node 22',
-      result: 'Node 22 installed and ready to use',
+      href: '/docs/runtimes/',
+      link: 'Runtime guide',
     },
     {
-      title: 'Set up a new machine',
-      before: 'Instead of replaying setup notes from memory',
+      number: '03',
+      title: 'An environment you can take with you.',
+      detail:
+        'Capture a working setup and use a shared environment to bring another machine into sync.',
       command: 'omg env sync <share-url>',
-      result: 'Every package and language reinstalled for you',
+      href: '/docs/cli/',
+      link: 'Environment commands',
     },
-  ] as const;
-
-  const commands = [
-    'omg search ripgrep',
-    'omg install ripgrep',
-    'omg update',
-    'omg use node 22',
-    'omg use python 3.12',
-    'omg use rust stable',
-    'omg env capture',
-    'omg env check',
-    'omg env sync <share-url>',
   ] as const;
 </script>
 
 <section id="workflow" class="workflow home-shell home-section" aria-labelledby="workflow-title">
   <header class="workflow-header">
-    <h2 id="workflow-title" class="home-section-title">One interface. Three jobs.</h2>
-    <div>
-      <p>
-        OMG uses the package managers you already trust under the hood. You just learn one command
-        instead of seven.
-      </p>
-      <a class="text-link signal-link" href="/docs/"> Read the full documentation </a>
-    </div>
+    <p class="section-label">The everyday workflow</p>
+    <h2 id="workflow-title">One interface.<br />Three jobs.</h2>
+    <a class="text-link" href="/docs/"
+      >Read the full documentation <span aria-hidden="true">↗</span></a
+    >
   </header>
-
   <ol class="workflow-list">
-    {#each workflows as workflow (workflow.title)}
+    {#each workflows as workflow (workflow.number)}
       <li>
-        <h3>{workflow.title}</h3>
-        <p>{workflow.before}</p>
-        <div class="command-result">
-          <code>{workflow.command}</code>
-          <p>{workflow.result}</p>
+        <span class="workflow-number" aria-hidden="true">{workflow.number}</span>
+        <div class="workflow-copy">
+          <h3>{workflow.title}</h3>
+          <p>{workflow.detail}</p>
+          <a href={workflow.href}>{workflow.link} <span aria-hidden="true">↗</span></a>
         </div>
+        <code>{workflow.command}</code>
       </li>
     {/each}
   </ol>
-
-  <div class="command-surface">
-    <div>
-      <h3>That is the whole interface.</h3>
-      <p>Search, install, pin, update, capture, restore — the same shape every time.</p>
-      <a class="text-link signal-link" href="/docs/"> Full command reference </a>
-    </div>
-    <ul aria-label="OMG command examples">
-      {#each commands as command (command)}
-        <li><code>{command}</code></li>
-      {/each}
-    </ul>
-  </div>
 </section>
 
 <style>
-  .workflow-header,
-  .command-surface {
+  .workflow-header {
     display: grid;
-    gap: clamp(3rem, 6vw, 6rem);
+    gap: 1.5rem;
+    margin-bottom: clamp(2.5rem, 5vw, 4rem);
   }
-
-  .workflow-header > div {
-    max-width: 36rem;
+  .section-label,
+  .workflow-number {
+    margin: 0;
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
   }
-
-  .workflow-header p,
-  .command-surface > div > p {
+  h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 5.7vw, 5.5rem);
+    font-weight: 550;
+    letter-spacing: -0.06em;
+    line-height: 1;
+  }
+  .workflow-header > a {
+    justify-self: start;
+  }
+  .workflow-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .workflow-list > li {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 1.5rem 1rem;
+    padding-block: clamp(2rem, 4vw, 3.5rem);
+    border-top: 1px solid var(--rule);
+  }
+  .workflow-number {
+    padding-top: 0.4rem;
+  }
+  h3 {
+    max-width: 26ch;
+    margin: 0;
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    font-weight: 550;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+  }
+  .workflow-copy p {
+    max-width: 44ch;
+    margin-block: 1rem;
     color: var(--ink-muted);
     line-height: 1.7;
   }
-
-  .workflow-header p {
-    font-size: 1.1rem;
-  }
-
-  .signal-link {
-    justify-content: flex-start;
-    margin-top: 1.25rem;
-    color: var(--signal);
-  }
-
-  .workflow-list {
-    margin: clamp(4rem, 8vw, 7rem) 0 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .workflow-list > li {
-    display: grid;
-    gap: 1.5rem;
-    padding-block: 2.5rem;
-    border-top: 1px solid var(--rule);
-  }
-
-  .workflow-list h3,
-  .command-surface h3 {
-    font-size: clamp(1.55rem, 3vw, 2.1rem);
-    font-weight: 550;
-    letter-spacing: -0.045em;
-    line-height: 1.05;
-  }
-
-  .workflow-list > li > p,
-  .command-result p {
-    color: var(--ink-muted);
-    font-size: 0.875rem;
-    line-height: 1.65;
-  }
-
-  .command-result code {
-    display: block;
-    padding: 1rem 1.1rem;
-    background: var(--paper-raised);
+  .workflow-copy a {
     color: var(--ink);
+    text-underline-offset: 0.3em;
+    text-decoration-color: var(--signal);
+    font-size: 0.875rem;
+  }
+  .workflow-list code {
+    grid-column: 2;
+    align-self: center;
+    color: var(--signal);
     font-family: var(--font-mono);
-    font-size: 0.86rem;
+    font-size: clamp(0.8rem, 1.5vw, 1.1rem);
     overflow-wrap: anywhere;
   }
-
-  .command-result p {
-    margin-top: 1rem;
-  }
-
-  .command-surface {
-    margin-top: 3.5rem;
-    padding-top: 3.5rem;
-    border-top: 1px solid var(--rule);
-  }
-
-  .command-surface > div > p {
-    max-width: 27rem;
-    margin-top: 1.1rem;
-  }
-
-  .command-surface ul {
-    display: grid;
-    gap: 0.8rem 2.5rem;
-    margin: 0;
-    padding: 0;
-    color: var(--ink-muted);
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    list-style: none;
-  }
-
-  @media (min-width: 48rem) {
-    .workflow-header,
-    .command-surface {
-      grid-template-columns: 0.8fr 1.2fr;
+  @media (min-width: 60rem) {
+    .workflow-header {
+      grid-template-columns: 1fr 1fr;
+      align-items: end;
     }
-
-    .workflow-header > div {
+    .section-label {
+      grid-column: 1 / -1;
+    }
+    .workflow-header > a {
       justify-self: end;
     }
-
     .workflow-list > li {
-      grid-template-columns: 0.8fr 0.75fr 1.25fr;
-      gap: clamp(2rem, 5vw, 5rem);
+      grid-template-columns: 3rem minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 2rem;
     }
-
-    .workflow-list > li > p {
-      max-width: 15rem;
-    }
-
-    .command-surface ul {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    .workflow-list code {
+      grid-column: 3;
+      justify-self: end;
     }
   }
 </style>

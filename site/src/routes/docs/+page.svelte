@@ -95,6 +95,7 @@
     </div>
     <p class="hero-copy">
       Start with four commands. Open a handbook topic when your workflow needs more control.
+      <a href="/updates/">Read release notes and updates.</a>
     </p>
   </header>
 

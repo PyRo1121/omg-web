@@ -19,7 +19,6 @@ interface LayoutShiftCandidate {
 
 interface NavigationTimingCandidate {
   readonly startTime?: number;
-  readonly requestStart?: number;
   readonly responseStart?: number;
 }
 
@@ -31,7 +30,7 @@ const InteractionTimingSchema = Schema.Struct({
 });
 const LayoutShiftSchema = Schema.Struct({ value: FiniteNumber, hadRecentInput: Schema.Boolean });
 const NavigationTimingSchema = Schema.Struct({
-  requestStart: FiniteNumber,
+  startTime: FiniteNumber,
   responseStart: FiniteNumber,
 });
 
@@ -64,8 +63,11 @@ export function navigationTtfbMs(
 ): number | undefined {
   const firstEntry = entries[0];
   if (firstEntry === undefined) return undefined;
-  const decoded = Schema.decodeUnknownExit(NavigationTimingSchema)(firstEntry);
+  const decoded = Schema.decodeUnknownExit(NavigationTimingSchema)({
+    startTime: firstEntry.startTime,
+    responseStart: firstEntry.responseStart,
+  });
   return Exit.isSuccess(decoded)
-    ? Math.max(0, decoded.value.responseStart - decoded.value.requestStart)
+    ? Math.max(0, decoded.value.responseStart - decoded.value.startTime)
     : undefined;
 }

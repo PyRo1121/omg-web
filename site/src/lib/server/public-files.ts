@@ -5,7 +5,7 @@ import { DOCS_TOPICS, docsTopicHref } from '../docs/topics';
 const SHADOW_ROBOTS_POLICY = 'noindex, nofollow';
 const DOCS_CACHE_POLICY = 'public, max-age=0, must-revalidate';
 
-const STATIC_PAGE_PATHS = ['/', '/docs/', '/privacy/', '/terms/'] as const;
+const STATIC_PAGE_PATHS = ['/', '/docs/', '/updates/', '/privacy/', '/terms/'] as const;
 const DOCS_TOPIC_PATHS = DOCS_TOPICS.map(topic => docsTopicHref(topic.slug));
 
 type SitemapPath = (typeof STATIC_PAGE_PATHS)[number] | ReturnType<typeof docsTopicHref>;
