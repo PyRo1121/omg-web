@@ -8,6 +8,19 @@ const BreadcrumbListSchema = Schema.Struct({
   itemListElement: Schema.Array(Schema.Struct({ name: Schema.String, position: Schema.Number })),
 });
 const decodeBreadcrumbList = Schema.decodeUnknownSync(Schema.fromJsonString(BreadcrumbListSchema));
+const TimingBatchSchema = Schema.Struct({
+  events: Schema.Array(
+    Schema.Struct({
+      event_type: Schema.String,
+      properties: Schema.Struct({
+        ttfb: Schema.optional(Schema.Number),
+        path: Schema.String,
+        pv_id: Schema.String,
+      }),
+    })
+  ),
+});
+const decodeTimingBatch = Schema.decodeUnknownSync(Schema.fromJsonString(TimingBatchSchema));
 const externalBaseUrl = process.env['E2E_BASE_URL']?.trim();
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
@@ -261,6 +274,70 @@ test.describe('Svelte public surfaces', () => {
       expect(analyticsRequests).toBe(0);
     });
   }
+
+  test('keeps document vitals on the initial page across client navigation', async ({ page }) => {
+    const reports: Array<ReturnType<typeof decodeTimingBatch>['events'][number]> = [];
+    await page.route('**/api/analytics/site/', async route => {
+      reports.push(...decodeTimingBatch(route.request().postData() ?? '').events);
+      await route.fulfill({ status: 204 });
+    });
+    await page.goto('/', { waitUntil: 'networkidle' });
+    const originalDocument = await page.evaluate(() => performance.timeOrigin);
+    await page
+      .getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('link', { name: 'Docs', exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/docs\/$/);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(originalDocument);
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+    await expect
+      .poll(() => reports.filter(event => event.event_type === 'web_vitals').length)
+      .toBe(1);
+    const initialView = reports.find(
+      event => event.event_type === 'pageview' && event.properties.path === '/'
+    );
+    const vitals = reports.find(event => event.event_type === 'web_vitals');
+    expect(initialView).toBeDefined();
+    expect(vitals?.properties.path).toBe('/');
+    expect(vitals?.properties.pv_id).toBe(initialView?.properties.pv_id);
+    expect(vitals?.properties.ttfb).toBeGreaterThanOrEqual(0);
+
+    await page
+      .getByRole('navigation', { name: 'Footer navigation' })
+      .getByRole('link', { name: 'Privacy', exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/privacy\/$/);
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+    await expect
+      .poll(() =>
+        reports.some(
+          event => event.event_type === 'pageview' && event.properties.path === '/privacy/'
+        )
+      )
+      .toBe(true);
+    expect(reports.filter(event => event.event_type === 'web_vitals')).toHaveLength(1);
+  });
+
+  test('reports TTFB from the native browser navigation entry', async ({ page }) => {
+    const metrics: Array<number | undefined> = [];
+    await page.route('**/api/analytics/site/', async route => {
+      const batch = decodeTimingBatch(route.request().postData() ?? '');
+      for (const event of batch.events) {
+        if (event.event_type === 'web_vitals') metrics.push(event.properties.ttfb);
+      }
+      await route.fulfill({ status: 204 });
+    });
+    await page.goto('/', { waitUntil: 'networkidle' });
+    const expectedTtfb = await page.evaluate(() => {
+      const entry = performance.getEntriesByType('navigation')[0];
+      if (!(entry instanceof PerformanceNavigationTiming))
+        throw new Error('Missing navigation timing');
+      return entry.responseStart - entry.startTime;
+    });
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+    await expect.poll(() => metrics.length).toBe(1);
+    expect(metrics[0]).toBe(expectedTtfb);
+  });
 
   test('recovers from a missing page through clear same-site links', async ({ page }) => {
     const response = await page.goto('/this-page-does-not-exist', {
