@@ -201,6 +201,7 @@ export type LicensingServiceOperation =
   | 'account-analytics'
   | 'account-achievements'
   | 'account-machines'
+  | 'billing-portal'
   | 'organization-invitation-email'
   | 'organization-usage'
   | 'organization-audit';
