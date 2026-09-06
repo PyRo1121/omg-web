@@ -22,7 +22,7 @@ const dashboard = {
 };
 
 describe('account settings page', () => {
-  it('renders browser-safe identity, session, and billing controls', () => {
+  it('renders identity and session controls without billing actions', () => {
     const result = render(SettingsPage, {
       props: { data: { dashboard }, form: null, params: {} },
     });
@@ -30,26 +30,13 @@ describe('account settings page', () => {
     expect(result.body).toContain('Account settings');
     expect(result.body).toContain('GitHub');
     expect(result.body).toContain('Current session');
-    expect(result.body).toContain('method="POST"');
-    expect(result.body).toContain('action="?/openBillingPortal"');
-    expect(result.body).toContain('type="submit"');
+    expect(result.body).not.toContain('openBillingPortal');
+    expect(result.body).not.toContain('Billing');
+    expect(result.body).not.toContain('Stripe');
     expect(result.body).toContain('type="button"');
     expect(result.body).toContain('Sign out');
     expect(result.body).not.toContain('session-current');
     expect(result.body).not.toContain('github-ada');
     expect(result.body).not.toContain('user-1');
-  });
-
-  it('renders a classified portal failure', () => {
-    const result = render(SettingsPage, {
-      props: {
-        data: { dashboard },
-        form: { kind: 'portal-error', message: 'No billing account is linked to this account.' },
-        params: {},
-      },
-    });
-
-    expect(result.body).toContain('role="alert"');
-    expect(result.body).toContain('No billing account is linked to this account.');
   });
 });

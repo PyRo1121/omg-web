@@ -4,7 +4,7 @@
   import type { PageProps } from './$types';
   import { formatTimestamp, providerLabel, verificationLabel } from '../dashboard-view';
 
-  let { data, form }: PageProps = $props();
+  let { data }: PageProps = $props();
   const signOutView = new SignOutView();
 </script>
 
@@ -83,19 +83,6 @@
           {/each}
         </ul>
       {/if}
-    </section>
-
-    <section class="settings-section" aria-labelledby="billing-title">
-      <h2 id="billing-title">Billing</h2>
-      <p class="settings-state">
-        Manage payment methods, invoices, and subscriptions securely with Stripe.
-      </p>
-      {#if form?.kind === 'portal-error'}
-        <p class="settings-error" role="alert">{form.message}</p>
-      {/if}
-      <form method="POST" action="?/openBillingPortal">
-        <button type="submit" class="secondary-action">Open billing settings</button>
-      </form>
     </section>
 
     <section class="settings-section" aria-labelledby="signout-title">
@@ -178,10 +165,6 @@
     gap: 1rem 2rem;
     margin: 1.25rem 0 0;
   }
-  .settings-section form {
-    margin-top: 1.25rem;
-  }
-  .secondary-action,
   .primary-action {
     min-height: 2.75rem;
     padding: 0.75rem 1rem;
@@ -189,13 +172,6 @@
     font-size: 0.78rem;
     font-weight: 600;
     cursor: pointer;
-  }
-  .secondary-action {
-    border: 1px solid var(--rule-strong);
-    background: transparent;
-    color: var(--ink);
-  }
-  .primary-action {
     margin-top: 1.25rem;
     border: 1px solid var(--signal);
     background: var(--signal);
