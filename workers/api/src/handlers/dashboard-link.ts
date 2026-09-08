@@ -68,7 +68,7 @@ interface LicenseRowInput {
  * customer, and concurrent first-time requests converge because the insert is
  * ignored when the customer or key already exists, followed by a re-read.
  */
-export function createDashboardLinkCredential(
+function createDashboardLinkCredential(
   db: LinkDatabase,
   customerId: string
 ): Effect.Effect<DashboardLinkResponse, DashboardLinkUnavailable> {
