@@ -29,7 +29,6 @@ Be respectful and constructive. Harassment and discrimination are not tolerated.
 - `site/` — the SvelteKit web application
 - `workers/api/` — independent licensing and telemetry Worker
 - `shared/` — shared contracts and policy
-- `workers/` — other independently configured Workers
 - `tools/` — development tooling
 
 Run the root `npm run check` before proposing a release. A successful build does not authorize deployment, migrations, hostname changes, or session cleanup. See [production operations](docs/operations/svelte-production-cutover.md).
