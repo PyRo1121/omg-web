@@ -1,4 +1,9 @@
-# Protected-surface parity tickets
+# Protected-surface parity archive
+
+This document records the completed migration work. It is not a current task queue.
+The maintained website is SvelteKit in `site/`; the Solid/Vinxi runtime was removed in PR #81.
+Use the [production cutover runbook](../operations/svelte-production-cutover.md) for deployment ownership and verification.
+Self-service website billing was retired in PR #90. Billing references below describe historical migration coverage, not a paid OMG offering.
 
 **Spec:** `docs/specs/protected-surface-parity.md`
 **ADR:** `docs/adr/0001-server-first-protected-workspaces.md`
@@ -20,13 +25,7 @@ Authenticated shadow characterization confirmed the expected classified `404` st
 
 **Verification:**
 
-```bash
-npm --prefix site-svelte run check
-cd site-svelte && npm exec -- vitest run <billing portal focused tests>
-npm run lint
-npm --prefix site-svelte run build
-cd site-svelte && npm run plan -- --stage shadow
-```
+The original Billing Portal verification commands are retired with that website capability. Current verification commands are in the production cutover runbook.
 
 ## 2. Account workspace parity
 
@@ -39,7 +38,7 @@ Progress: analytics, bounded CSV/JSON downloads, achievements, machines, and set
 - [x] Add pure derivation, service, route, render, keyboard, and compact-viewport coverage.
 - [x] Record exact superseded Solid account paths and helpers.
 
-Superseded after the production observation gate, subject to a final caller check:
+Removed during the completed cutover. These paths are historical references:
 
 - `site/src/routes/dashboard.tsx`
 - `site/src/pages/DashboardPage.tsx`
@@ -52,7 +51,7 @@ Superseded after the production observation gate, subject to a final caller chec
 - `site/src/lib/contracts/telemetry-dashboard.test.ts`
 - Account-dashboard scenarios in `site/e2e/staging-auth.spec.ts`
 
-The shared licensing BFF and Worker `/api/dashboard` route are not on this list: Svelte still consumes the Worker route privately, and the BFF cannot be removed until every remaining Solid caller is gone.
+The shared licensing BFF and Worker `/api/dashboard` route remain because SvelteKit consumes them privately. They are not Solid compatibility code.
 
 **Blocked by:** none.
 
@@ -70,7 +69,7 @@ Progress: authenticated desktop and compact checks cover browser-safe health, no
 - [x] Keep customer, Stripe, database, license, note, tag, and machine identifiers out of page data/DOM.
 - [x] Add focused boundary, service, Worker integration, and render tests.
 
-Superseded after the production observation gate, subject to the final caller check:
+Removed during the completed cutover. These paths are historical references:
 
 - `site/src/components/dashboard/admin/CustomerDetailDrawer.tsx`
 - `site/src/components/dashboard/admin/NotesSection.tsx`
