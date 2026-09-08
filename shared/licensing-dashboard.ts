@@ -13,7 +13,7 @@ const LicensingDashboardMachineSchema = Schema.Struct({
   is_active: Schema.Number,
 });
 
-export const LicensingGlobalStatsSchema = Schema.Struct({
+const LicensingGlobalStatsSchema = Schema.Struct({
   top_package: Schema.NullOr(Schema.String),
   top_runtime: Schema.NullOr(Schema.String),
   percentile: Schema.NullOr(Schema.Number),

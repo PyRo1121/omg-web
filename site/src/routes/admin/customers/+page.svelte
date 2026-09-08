@@ -1,0 +1,1076 @@
+<script lang="ts">
+  import type { PageProps } from './$types';
+  import {
+    formatCount,
+    formatDuration,
+    formatProductLabel,
+    formatTimestamp,
+  } from '../../dashboard/dashboard-view';
+
+  let { data, form }: PageProps = $props();
+  let selectedCustomer = $derived(form?.detail);
+  let selectedSupport = $derived(form?.support);
+</script>
+
+<svelte:head>
+  <title>Customers - OMG Admin</title>
+  <meta name="description" content="Private OMG customer support and license operations." />
+  <meta name="robots" content="noindex, nofollow" />
+</svelte:head>
+
+<main id="main-content" class="customer-workspace">
+  <header class="page-header">
+    <div>
+      <p class="page-kicker">Customers / support operations</p>
+      <h1>Customer intelligence</h1>
+      <p>Investigate account health and usage, then apply narrowly scoped license changes.</p>
+    </div>
+    <dl>
+      <div>
+        <dt>Customers</dt>
+        <dd>{formatCount(data.directory.pagination.total)}</dd>
+      </div>
+      <div>
+        <dt>Page</dt>
+        <dd>{data.directory.pagination.page} / {data.directory.pagination.pages}</dd>
+      </div>
+    </dl>
+  </header>
+
+  <section class="directory-panel" aria-labelledby="directory-title">
+    <header class="directory-tools">
+      <div>
+        <span>01 / Directory</span>
+        <h2 id="directory-title">Customer roster</h2>
+      </div>
+      <form method="GET" action="/admin/customers/" role="search">
+        <label for="customer-search">Search email or company</label>
+        <div>
+          <input
+            id="customer-search"
+            name="q"
+            type="search"
+            value={data.search}
+            maxlength="100"
+            autocomplete="off"
+            placeholder="customer@example.com"
+          />
+          <button type="submit">Search</button>
+          {#if data.search.length > 0}<a href="/admin/customers/">Clear</a>{/if}
+        </div>
+      </form>
+    </header>
+
+    {#if data.directory.customers.length === 0}
+      <div class="empty-state">
+        <strong>No matching customers.</strong>
+        <p>Change the search term or clear the current filter.</p>
+      </div>
+    {:else}
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Customer</th>
+              <th scope="col">Lifecycle</th>
+              <th scope="col">License</th>
+              <th scope="col">Engagement</th>
+              <th scope="col">30d activity</th>
+              <th scope="col"><span class="visually-hidden">Inspect</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each data.directory.customers as customer (customer.email)}
+              <tr>
+                <td>
+                  <strong>{customer.email}</strong>
+                  <small>{customer.company ?? 'No company recorded'}</small>
+                </td>
+                <td>
+                  <span class="status-label" data-stage={customer.lifecycleStage}>
+                    {formatProductLabel(customer.lifecycleStage)}
+                  </span>
+                  <small>
+                    {customer.lastActiveDate === null
+                      ? 'No activity recorded'
+                      : `Last active ${formatTimestamp(customer.lastActiveDate)}`}
+                  </small>
+                </td>
+                <td>
+                  <strong>{formatProductLabel(customer.tier)}</strong>
+                  <small>{formatProductLabel(customer.status)}</small>
+                </td>
+                <td>
+                  <strong>{formatCount(customer.engagementScore)} / 100</strong>
+                  <small>{formatCount(customer.activeMachines)} active machines</small>
+                </td>
+                <td>
+                  <strong>{formatCount(customer.totalCommands)} commands</strong>
+                  <small>{formatCount(customer.activeDays30d)} active days</small>
+                </td>
+                <td>
+                  <form method="POST" action="?/inspect">
+                    <input type="hidden" name="email" value={customer.email} />
+                    <button class="inspect-button" type="submit">Inspect →</button>
+                  </form>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+
+    {#if data.directory.pagination.pages > 1}
+      <nav class="pagination" aria-label="Customer directory pages">
+        {#if data.directory.pagination.page > 1}
+          <a
+            href={`?page=${data.directory.pagination.page - 1}${data.search ? `&q=${encodeURIComponent(data.search)}` : ''}`}
+            >← Previous</a
+          >
+        {:else}<span></span>{/if}
+        <span>Page {data.directory.pagination.page} of {data.directory.pagination.pages}</span>
+        {#if data.directory.pagination.page < data.directory.pagination.pages}
+          <a
+            href={`?page=${data.directory.pagination.page + 1}${data.search ? `&q=${encodeURIComponent(data.search)}` : ''}`}
+            >Next →</a
+          >
+        {:else}<span></span>{/if}
+      </nav>
+    {/if}
+  </section>
+
+  {#if form?.kind === 'error'}
+    <p class="action-message error-message" role="alert">{form.message}</p>
+  {:else if form?.kind === 'updated'}
+    <p class="action-message success-message" role="status">{form.message}</p>
+  {/if}
+
+  {#if selectedCustomer}
+    <section class="support-panel" aria-labelledby="support-title">
+      <header class="support-header">
+        <div>
+          <span>02 / Customer support</span>
+          <h2 id="support-title">{selectedCustomer.email}</h2>
+          <p>{selectedCustomer.company ?? 'No company recorded'}</p>
+        </div>
+        <dl>
+          <div>
+            <dt>Created</dt>
+            <dd>
+              {selectedCustomer.createdAt === null
+                ? 'Unavailable'
+                : formatTimestamp(selectedCustomer.createdAt)}
+            </dd>
+          </div>
+          <div>
+            <dt>Telemetry</dt>
+            <dd>{selectedCustomer.telemetryOptOut ? 'Opted out' : 'Enabled'}</dd>
+          </div>
+        </dl>
+      </header>
+
+      {#if selectedSupport}
+        <div class="support-intelligence">
+          <section aria-labelledby="health-title">
+            <header class="subpanel-header">
+              <h3 id="health-title">Customer health</h3>
+              <span>Computed signals</span>
+            </header>
+            {#if selectedSupport.health.kind === 'available'}
+              <div class="health-summary">
+                <div class="health-primary">
+                  <span>Overall</span>
+                  <strong>{formatCount(selectedSupport.health.value.overallScore)}</strong>
+                  <small>{formatProductLabel(selectedSupport.health.value.lifecycleStage)}</small>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Engagement</dt>
+                    <dd>{formatCount(selectedSupport.health.value.engagementScore)}</dd>
+                  </div>
+                  <div>
+                    <dt>Activation</dt>
+                    <dd>{formatCount(selectedSupport.health.value.activationScore)}</dd>
+                  </div>
+                  <div>
+                    <dt>Growth</dt>
+                    <dd>{formatCount(selectedSupport.health.value.growthScore)}</dd>
+                  </div>
+                  <div>
+                    <dt>Risk</dt>
+                    <dd>{formatCount(selectedSupport.health.value.riskScore)}</dd>
+                  </div>
+                </dl>
+              </div>
+              <p class="unavailable-detail">
+                Historical health snapshots are unavailable because the retained store keeps only
+                the current score.
+              </p>
+            {:else if selectedSupport.health.kind === 'empty'}
+              <div class="empty-state"><strong>No health snapshot has been computed.</strong></div>
+            {:else}
+              <div class="empty-state">
+                <strong>Health signals are temporarily unavailable.</strong>
+              </div>
+            {/if}
+          </section>
+
+          <section aria-labelledby="tags-title">
+            <header class="subpanel-header">
+              <h3 id="tags-title">Account tags</h3>
+              <span>Support context</span>
+            </header>
+            {#if selectedSupport.assignedTags.kind === 'unavailable'}
+              <div class="empty-state"><strong>Tags are temporarily unavailable.</strong></div>
+            {:else if selectedSupport.assignedTags.values.length === 0}
+              <div class="empty-state"><strong>No tags assigned.</strong></div>
+            {:else}
+              <ul class="tag-list">
+                {#each selectedSupport.assignedTags.values as tag (tag.name)}
+                  <li>
+                    <span style={`--tag-color: ${tag.color}`}></span>
+                    <div>
+                      <strong>{tag.name}</strong>
+                      <small>{tag.description ?? 'No description'}</small>
+                    </div>
+                    <form method="POST" action="?/changeTag">
+                      <input type="hidden" name="email" value={selectedCustomer.email} />
+                      <input type="hidden" name="tagName" value={tag.name} />
+                      <input type="hidden" name="intent" value="remove" />
+                      <button class="quiet-action" type="submit">Remove</button>
+                    </form>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+            {#if selectedSupport.tagCatalog.kind === 'available'}
+              <div class="support-forms">
+                <form class="inline-support-form" method="POST" action="?/changeTag">
+                  <input type="hidden" name="email" value={selectedCustomer.email} />
+                  <input type="hidden" name="intent" value="assign" />
+                  <label>
+                    Assign catalog tag
+                    <select name="tagName" required>
+                      <option value="">Choose a tag</option>
+                      {#each selectedSupport.tagCatalog.values as tag (tag.name)}
+                        <option value={tag.name}>{tag.name} ({formatCount(tag.usageCount)})</option>
+                      {/each}
+                    </select>
+                  </label>
+                  <button type="submit">Assign tag</button>
+                </form>
+                <form
+                  class="inline-support-form create-tag-form"
+                  method="POST"
+                  action="?/createTag"
+                >
+                  <input type="hidden" name="email" value={selectedCustomer.email} />
+                  <label>
+                    New catalog tag
+                    <input name="name" maxlength="64" required />
+                  </label>
+                  <label>
+                    Color
+                    <input name="color" type="color" value="#6366f1" required />
+                  </label>
+                  <label>
+                    Description
+                    <input name="description" maxlength="256" />
+                  </label>
+                  <button type="submit">Create tag</button>
+                </form>
+              </div>
+            {/if}
+          </section>
+
+          <section aria-labelledby="notes-title">
+            <header class="subpanel-header">
+              <h3 id="notes-title">Support notes</h3>
+              <span>Audited history</span>
+            </header>
+            <form class="note-form" method="POST" action="?/createNote">
+              <input type="hidden" name="email" value={selectedCustomer.email} />
+              <label>
+                Note type
+                <select name="noteType">
+                  <option value="general">General</option>
+                  <option value="call">Call</option>
+                  <option value="email">Email</option>
+                  <option value="meeting">Meeting</option>
+                  <option value="support">Support</option>
+                  <option value="sales">Sales</option>
+                  <option value="success">Success</option>
+                </select>
+              </label>
+              <label>
+                Support note
+                <textarea name="content" maxlength="4000" rows="4" required></textarea>
+              </label>
+              <button type="submit">Add audited note</button>
+            </form>
+            {#if selectedSupport.notes.kind === 'unavailable'}
+              <div class="empty-state"><strong>Notes are temporarily unavailable.</strong></div>
+            {:else if selectedSupport.notes.values.length === 0}
+              <div class="empty-state"><strong>No support notes recorded.</strong></div>
+            {:else}
+              <ol class="note-list">
+                {#each selectedSupport.notes.values as note, index (`${note.createdAt}:${index}`)}
+                  <li class={note.pinned ? 'pinned-note' : undefined}>
+                    <div>
+                      <span>{formatProductLabel(note.noteType)}</span>
+                      {#if note.pinned}<strong>Pinned</strong>{/if}
+                    </div>
+                    <p>{note.content}</p>
+                    <small>
+                      {note.authorEmail ?? 'Unknown operator'} / {formatTimestamp(note.createdAt)}
+                    </small>
+                    <form class="note-delete-form" method="POST" action="?/deleteNote">
+                      <input type="hidden" name="email" value={selectedCustomer.email} />
+                      <input type="hidden" name="content" value={note.content} />
+                      <input type="hidden" name="createdAt" value={note.createdAt} />
+                      <label>
+                        <input type="checkbox" name="confirmation" value="delete-note" required />
+                        Confirm deletion
+                      </label>
+                      <button class="quiet-action" type="submit">Delete note</button>
+                    </form>
+                  </li>
+                {/each}
+              </ol>
+            {/if}
+          </section>
+        </div>
+      {/if}
+
+      <div class="support-grid">
+        <section aria-labelledby="license-controls-title">
+          <header class="subpanel-header">
+            <h3 id="license-controls-title">License controls</h3>
+            <span>Audited mutation</span>
+          </header>
+          <dl class="license-facts">
+            <div>
+              <dt>Seats</dt>
+              <dd>{selectedCustomer.maxSeats ?? 'Unavailable'}</dd>
+            </div>
+            <div>
+              <dt>Machines</dt>
+              <dd>{selectedCustomer.maxMachines ?? 'Unavailable'}</dd>
+            </div>
+            <div>
+              <dt>Expires</dt>
+              <dd>
+                {selectedCustomer.expiresAt === null
+                  ? 'No expiry'
+                  : formatTimestamp(selectedCustomer.expiresAt)}
+              </dd>
+            </div>
+          </dl>
+          <form class="license-form" method="POST" action="?/updateLicense">
+            <input type="hidden" name="email" value={selectedCustomer.email} />
+            <label>
+              Tier
+              <select name="tier" value={selectedCustomer.tier}>
+                <option value="free">Free</option>
+                <option value="pro">Pro</option>
+                <option value="team">Team</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </label>
+            <label>
+              Status
+              <select name="status" value={selectedCustomer.status}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </label>
+            <label class="confirmation">
+              <input type="checkbox" name="confirmation" value="confirmed" />
+              I understand this changes customer access.
+            </label>
+            <button type="submit">Apply license change</button>
+          </form>
+          {#if selectedCustomer.billingLinked}
+            <form class="billing-form" method="POST" action="?/openBilling">
+              <input type="hidden" name="email" value={selectedCustomer.email} />
+              <label class="confirmation">
+                <input type="checkbox" name="confirmation" value="open-billing" required />
+                I understand this opens delegated billing settings for this customer.
+              </label>
+              <button type="submit">Open customer Billing Portal</button>
+            </form>
+          {:else}
+            <div class="empty-state">
+              <strong>No billing account is linked to this customer.</strong>
+            </div>
+          {/if}
+        </section>
+
+        <section aria-labelledby="machines-title">
+          <details>
+            <summary class="disclosure-summary">
+              <h3 id="machines-title">
+                Machine fleet <small>{formatCount(selectedCustomer.machines.length)} recorded</small
+                >
+              </h3>
+            </summary>
+            {#if selectedCustomer.machines.length === 0}
+              <div class="empty-state"><strong>No machines recorded.</strong></div>
+            {:else}
+              <ul class="machine-list">
+                {#each selectedCustomer.machines as machine, index (`${machine.hostname}:${machine.firstSeenAt}:${index}`)}
+                  <li>
+                    <span class={`machine-state${machine.active ? ' active-machine' : ''}`}></span>
+                    <div>
+                      <strong>{machine.hostname ?? 'Unnamed machine'}</strong>
+                      <small>
+                        {machine.operatingSystem ?? 'Unknown OS'} / {machine.architecture ??
+                          'Unknown architecture'} / OMG {machine.omgVersion ?? 'unknown'}
+                      </small>
+                    </div>
+                    <time datetime={machine.lastSeenAt ?? undefined}>
+                      {machine.lastSeenAt === null
+                        ? 'Never seen'
+                        : formatTimestamp(machine.lastSeenAt)}
+                    </time>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </details>
+        </section>
+      </div>
+
+      <section class="usage-panel" aria-labelledby="customer-usage-title">
+        <details>
+          <summary class="disclosure-summary">
+            <h3 id="customer-usage-title">
+              Daily usage <small>Recorded days: {formatCount(selectedCustomer.usage.length)}</small>
+            </h3>
+          </summary>
+          {#if selectedCustomer.usage.length === 0}
+            <div class="empty-state"><strong>No usage recorded.</strong></div>
+          {:else}
+            <div class="table-scroll">
+              <table>
+                <thead
+                  ><tr
+                    ><th>Date</th><th>Commands</th><th>Installed</th><th>Searched</th><th
+                      >Runtimes</th
+                    ><th>SBOMs</th><th>Vulnerabilities</th><th>Time saved</th></tr
+                  ></thead
+                >
+                <tbody>
+                  {#each selectedCustomer.usage as day (day.date)}
+                    <tr>
+                      <td><time datetime={day.date}>{day.date}</time></td>
+                      <td>{formatCount(day.commands)}</td>
+                      <td>{formatCount(day.packagesInstalled)}</td>
+                      <td>{formatCount(day.packagesSearched)}</td>
+                      <td>{formatCount(day.runtimesSwitched)}</td>
+                      <td>{formatCount(day.sbomsGenerated)}</td>
+                      <td>{formatCount(day.vulnerabilitiesFound)}</td>
+                      <td>{formatDuration(day.timeSavedMs)}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        </details>
+      </section>
+    </section>
+  {/if}
+</main>
+
+<style>
+  .disclosure-summary {
+    padding: 1.1rem 1.25rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  .disclosure-summary::marker {
+    color: var(--signal);
+  }
+
+  .disclosure-summary:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: -4px;
+  }
+
+  .disclosure-summary h3 {
+    display: inline;
+    font-family: var(--font-display);
+    font-size: 1rem;
+  }
+
+  .disclosure-summary small {
+    margin-left: 0.75rem;
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+
+  .customer-workspace {
+    width: min(calc(100% - clamp(2rem, 4vw, 5rem)), 112rem);
+    margin-inline: auto;
+    padding-block: clamp(2rem, 4vw, 4rem) 6rem;
+  }
+  .page-header {
+    display: grid;
+    gap: 2rem;
+    align-items: end;
+  }
+  .page-header h1 {
+    margin: 0.6rem 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 5vw, 5rem);
+    letter-spacing: -0.07em;
+    line-height: 0.9;
+  }
+  .page-header p:not(.page-kicker) {
+    max-width: 45rem;
+    margin: 0.9rem 0 0;
+    color: var(--ink-muted);
+  }
+  .page-header dl {
+    display: flex;
+    gap: 2.5rem;
+    margin: 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule-strong);
+  }
+  .page-header dt,
+  .page-header dd {
+    margin: 0;
+    font-family: var(--font-mono);
+  }
+  .page-header dt {
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+  }
+  .page-header dd {
+    margin-top: 0.25rem;
+    font-size: 1rem;
+  }
+  .directory-panel,
+  .support-panel {
+    margin-top: 2rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper-raised);
+  }
+  .directory-tools,
+  .support-header,
+  .subpanel-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: end;
+    justify-content: space-between;
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .directory-tools span,
+  .support-header span,
+  .subpanel-header span {
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+  }
+  .directory-tools h2,
+  .support-header h2,
+  .subpanel-header h3 {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-display);
+    letter-spacing: -0.04em;
+  }
+  .directory-tools h2,
+  .support-header h2 {
+    font-size: 1.5rem;
+  }
+  .subpanel-header h3 {
+    font-size: 1rem;
+  }
+  .directory-tools form label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--ink-muted);
+    font-size: 0.7rem;
+  }
+  .directory-tools form div {
+    display: flex;
+  }
+  input,
+  select,
+  textarea,
+  button {
+    border-radius: 0;
+    font: inherit;
+  }
+  textarea {
+    resize: vertical;
+  }
+  .directory-tools input {
+    width: min(20rem, 48vw);
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .directory-tools button,
+  .directory-tools a,
+  .inspect-button,
+  .license-form button,
+  .support-forms button,
+  .note-form button,
+  .billing-form button,
+  .quiet-action {
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--signal);
+    color: var(--signal-ink);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .directory-tools a {
+    background: transparent;
+    color: var(--ink-muted);
+  }
+  .table-scroll {
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+  }
+  th {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--rule-strong);
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.95rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.78rem;
+    vertical-align: middle;
+  }
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  tbody tr:hover {
+    background: rgb(255 255 255 / 0.025);
+  }
+  td strong,
+  td small {
+    display: block;
+  }
+  td small {
+    margin-top: 0.25rem;
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+  .status-label {
+    display: inline-block;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid var(--rule-strong);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+  }
+  .status-label[data-stage='at_risk'],
+  .status-label[data-stage='churned'] {
+    border-color: var(--signal);
+    color: var(--signal);
+  }
+  .inspect-button {
+    white-space: nowrap;
+  }
+  .pagination {
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--rule-strong);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+  }
+  .pagination a {
+    color: var(--ink);
+  }
+  .action-message {
+    margin: 1rem 0 0;
+    padding: 1rem;
+    border: 1px solid var(--rule-strong);
+    font-size: 0.8rem;
+  }
+  .error-message {
+    border-color: var(--danger);
+  }
+  .success-message {
+    border-color: var(--ink);
+  }
+  .support-header p {
+    margin: 0.25rem 0 0;
+    color: var(--ink-muted);
+    font-size: 0.75rem;
+  }
+  .support-header dl {
+    display: flex;
+    gap: 2rem;
+    margin: 0;
+  }
+  .support-header dt,
+  .support-header dd {
+    margin: 0;
+    font-size: 0.7rem;
+  }
+  .support-header dt {
+    color: var(--ink-muted);
+  }
+  .support-intelligence {
+    display: grid;
+    border-top: 1px solid var(--rule-strong);
+  }
+  .support-intelligence > section {
+    min-width: 0;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .health-summary {
+    display: grid;
+    grid-template-columns: minmax(8rem, 0.7fr) minmax(0, 1.3fr);
+  }
+  .health-primary {
+    display: grid;
+    align-content: center;
+    padding: 1.25rem;
+    border-right: 1px solid var(--rule);
+  }
+  .health-primary span,
+  .health-primary small,
+  .health-summary dt {
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+  }
+  .health-primary strong {
+    margin-block: 0.2rem;
+    font-family: var(--font-mono);
+    font-size: 2.5rem;
+    letter-spacing: -0.06em;
+  }
+  .unavailable-detail {
+    margin: 0;
+    padding: 0.8rem 1.25rem;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+  }
+  .health-summary dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+  }
+  .health-summary dl div {
+    padding: 0.9rem 1rem;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .health-summary dl div:nth-child(2n) {
+    border-right: 0;
+  }
+  .health-summary dl div:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+  .health-summary dt,
+  .health-summary dd {
+    margin: 0;
+  }
+  .health-summary dd {
+    margin-top: 0.2rem;
+    font-family: var(--font-mono);
+  }
+  .tag-list,
+  .note-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .tag-list li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .tag-list li:last-child,
+  .note-list li:last-child {
+    border-bottom: 0;
+  }
+  .tag-list li > span {
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-top: 0.2rem;
+    background: var(--tag-color);
+  }
+  .tag-list strong,
+  .tag-list small {
+    display: block;
+  }
+  .tag-list small {
+    margin-top: 0.2rem;
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+  }
+  .note-list li {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .note-list li.pinned-note {
+    box-shadow: inset 0.2rem 0 var(--signal);
+  }
+  .note-list li > div {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  .note-list li > div span,
+  .note-list li > div strong,
+  .note-list li > small {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+  }
+  .note-list li > div span,
+  .note-list li > small {
+    color: var(--ink-muted);
+  }
+  .note-list li > div strong {
+    color: var(--signal);
+    text-transform: uppercase;
+  }
+  .note-list p {
+    margin: 0.55rem 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  .support-forms,
+  .note-form,
+  .billing-form {
+    display: grid;
+    gap: 0.8rem;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--rule);
+  }
+  .inline-support-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.6rem;
+    align-items: end;
+  }
+  .support-forms label,
+  .note-form label,
+  .billing-form label,
+  .note-delete-form label {
+    min-width: 0;
+    display: grid;
+    gap: 0.35rem;
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+  }
+  .support-forms input:not([type='color']),
+  .support-forms select,
+  .note-form select,
+  .note-form textarea {
+    min-width: 0;
+    padding: 0.65rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .support-forms input[type='color'] {
+    width: 3rem;
+    height: 2.25rem;
+    padding: 0.1rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper);
+  }
+  .note-delete-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+  }
+  .note-delete-form label,
+  .billing-form .confirmation {
+    display: flex;
+    align-items: center;
+  }
+  .quiet-action {
+    padding: 0.45rem 0.6rem;
+    background: transparent;
+    color: var(--ink-muted);
+  }
+  .billing-form {
+    margin-top: 0;
+  }
+  .support-grid {
+    display: grid;
+  }
+  .support-grid > section {
+    min-width: 0;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .license-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .license-facts div {
+    padding: 1rem;
+    border-right: 1px solid var(--rule);
+  }
+  .license-facts div:last-child {
+    border-right: 0;
+  }
+  .license-facts dt,
+  .license-facts dd {
+    margin: 0;
+    font-size: 0.72rem;
+  }
+  .license-facts dt {
+    color: var(--ink-muted);
+  }
+  .license-facts dd {
+    margin-top: 0.25rem;
+    font-family: var(--font-mono);
+  }
+  .license-form {
+    display: grid;
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+  .license-form label {
+    display: grid;
+    gap: 0.4rem;
+    color: var(--ink-muted);
+    font-size: 0.72rem;
+  }
+  .license-form select {
+    padding: 0.7rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .license-form .confirmation {
+    display: flex;
+    align-items: center;
+    color: var(--ink);
+  }
+  .license-form .confirmation input {
+    accent-color: var(--signal);
+  }
+  .license-form button {
+    width: fit-content;
+  }
+  .machine-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .machine-list li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .machine-list li:last-child {
+    border-bottom: 0;
+  }
+  .machine-state {
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-top: 0.25rem;
+    background: var(--ink-faint);
+  }
+  .machine-state.active-machine {
+    background: var(--signal);
+  }
+  .machine-list strong,
+  .machine-list small {
+    display: block;
+  }
+  .machine-list small,
+  .machine-list time {
+    margin-top: 0.2rem;
+    color: var(--ink-muted);
+    font-size: 0.68rem;
+  }
+  .machine-list time {
+    grid-column: 2;
+    font-family: var(--font-mono);
+  }
+  .usage-panel {
+    border-top: 0;
+  }
+  .empty-state {
+    padding: 1.5rem 1.25rem;
+  }
+  .empty-state p {
+    margin: 0.35rem 0 0;
+    color: var(--ink-muted);
+    font-size: 0.75rem;
+  }
+  @media (max-width: 47.99rem) {
+    .inline-support-form,
+    .create-tag-form {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (min-width: 48rem) {
+    .page-header {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .machine-list li {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: baseline;
+    }
+    .machine-list time {
+      grid-column: auto;
+    }
+  }
+  @media (min-width: 78rem) {
+    .support-intelligence {
+      grid-template-columns: minmax(22rem, 1fr) minmax(15rem, 0.7fr) minmax(22rem, 1.3fr);
+    }
+    .support-intelligence > section {
+      border-right: 1px solid var(--rule-strong);
+    }
+    .support-intelligence > section:last-child {
+      border-right: 0;
+    }
+    .support-grid {
+      grid-template-columns: minmax(24rem, 0.7fr) minmax(0, 1.3fr);
+    }
+    .support-grid > section:first-child {
+      border-right: 1px solid var(--rule-strong);
+    }
+  }
+</style>

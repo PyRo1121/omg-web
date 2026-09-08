@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
+import { SITE_ORIGIN } from '../../../shared/public-site';
 import type { Env } from '../src/api';
 import { handleOrganizationInvitationEmail } from '../src/handlers/organization-invitation-email';
 
@@ -9,7 +10,7 @@ type OrganizationInvitationEmailSender = NonNullable<
 type OrganizationInvitationEmailMessage = Parameters<OrganizationInvitationEmailSender>[0];
 
 const SVELTE_BFF_SECRET = 'test-svelte-bff-secret';
-const INVITATION_URL = `https://omg.latham.cloud/dashboard/organization/invitations/accept/?token=v1.${'a'.repeat(16)}.${'b'.repeat(48)}`;
+const INVITATION_URL = `${SITE_ORIGIN}/dashboard/organization/invitations/accept/?token=v1.${'a'.repeat(16)}.${'b'.repeat(48)}`;
 
 function emailEnv(rateLimitSuccess = true): Env {
   return {
@@ -73,7 +74,7 @@ describe('organization invitation email capability', () => {
     expect(firstMessage.subject).not.toContain('Acme Engineering');
     expect(firstMessage.html).toContain('Acme Engineering');
     expect(firstMessage.html).toContain(
-      'href="https://omg.latham.cloud/dashboard/organization/invitations/accept/?token='
+      `href="${SITE_ORIGIN}/dashboard/organization/invitations/accept/?token=`
     );
     expect(firstMessage.text).toContain(INVITATION_URL);
 

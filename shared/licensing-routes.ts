@@ -1,9 +1,3 @@
-/** Production origin of the licensing and analytics Worker. */
-export const LICENSING_API_ORIGIN = 'https://omg-api.latham.cloud';
-
-/** Version of the licensing HTTP route contract shared by the site BFF and Worker. */
-export const LICENSING_HTTP_API_VERSION = 1;
-
 interface LicensingRouteDefinition {
   readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   readonly path: `/${string}`;
@@ -455,34 +449,6 @@ export const LicensingRoutes = {
   },
 } as const satisfies Readonly<Record<string, LicensingRouteDefinition>>;
 
-type CliServiceRouteDefinition = Pick<
-  LicensingRouteDefinition,
-  'authentication' | 'method' | 'path'
->;
-
-function cliServiceRoute(route: LicensingRouteDefinition): CliServiceRouteDefinition {
-  return {
-    method: route.method,
-    path: route.path,
-    authentication: route.authentication,
-  };
-}
-
-/** Machine-readable CLI subset shared with the versioned Rust service contract. */
-export const CLI_SERVICE_API_CONTRACT = {
-  schemaVersion: LICENSING_HTTP_API_VERSION,
-  origin: LICENSING_API_ORIGIN,
-  cliEndpoints: {
-    validateLicense: cliServiceRoute(LicensingRoutes.validateLicensePost),
-    reportUsage: cliServiceRoute(LicensingRoutes.reportUsage),
-    installPing: cliServiceRoute(LicensingRoutes.installPing),
-    cliBatch: cliServiceRoute(LicensingRoutes.cliBatch),
-    teamMembers: cliServiceRoute(LicensingRoutes.cliTeamMembers),
-    teamPolicies: cliServiceRoute(LicensingRoutes.cliPolicies),
-    teamAuditLog: cliServiceRoute(LicensingRoutes.cliAuditLog),
-  },
-} as const;
-
 const routeEntries = Object.values(LicensingRoutes);
 
 /** Remove a non-root trailing slash before route resolution. */
@@ -497,9 +463,4 @@ export function resolveLicensingRoute(
 ): (typeof LicensingRoutes)[keyof typeof LicensingRoutes] | undefined {
   const normalizedPath = normalizeLicensingPath(path);
   return routeEntries.find(route => route.method === method && route.path === normalizedPath);
-}
-
-/** Whether a route is permitted through the authenticated same-origin site BFF. */
-export function isSiteBffRoute(method: string, path: string): boolean {
-  return resolveLicensingRoute(method, path)?.transport === 'site-bff';
 }

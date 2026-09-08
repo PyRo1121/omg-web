@@ -16,7 +16,6 @@ export default defineConfig({
     '.windsurf/**',
     'tools/oxlint/**',
     '**/dist/**',
-    '**/.vinxi/**',
     '**/.output/**',
     '**/coverage/**',
   ],

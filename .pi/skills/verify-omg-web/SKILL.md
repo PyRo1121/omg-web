@@ -5,7 +5,7 @@ description: Drive and verify the omg-web SvelteKit web UI with its Playwright h
 
 # Verify omg-web
 
-The primary surface is `site-svelte/`, the SvelteKit migration target. Playwright is the canonical user-level harness. `workers/api/` is the private licensing API and `site/` is the temporary Solid production authority; verify those with their focused tests and Wrangler gates when a change touches them.
+The website lives in `site/`. Playwright is the canonical user-level check. `workers/api/` is the independently deployed licensing and billing API. Verify API changes with focused tests and Wrangler gates.
 
 Read `features/README.md`, then the relevant feature file before driving. Local Vite has no Cloudflare bindings: public behavior works locally, while authentication deliberately fails closed. Bound and authenticated checks require a deployed Svelte URL and controlled credentials.
 
@@ -20,7 +20,7 @@ if ss -ltn '( sport = :4173 )' | grep -q LISTEN; then
   echo 'port 4173 is already occupied; do not double-drive it' >&2
   exit 1
 fi
-cd site-svelte
+cd site
 setsid npm run dev:e2e >"$OMG_VERIFY_ROOT/vite.log" 2>&1 &
 echo "$!" >"$OMG_VERIFY_ROOT/vite.pid"
 for _ in $(seq 1 60); do
@@ -47,7 +47,7 @@ curl --fail --silent --show-error http://127.0.0.1:4173/health \
   | tee "$OMG_VERIFY_ROOT/evidence/doctor-health.json"
 ```
 
-The response must be `{"runtime":"sveltekit-alchemy","status":"ok"}` and the process-group listing must show the `site-svelte` Vite command. If either check fails, run Cleanup and relaunch. Do not reuse an unowned process on port `4173`.
+The response must be `{"runtime":"sveltekit-alchemy","status":"ok"}` and the process-group listing must show the `site` Vite command. If either check fails, run Cleanup and relaunch. Do not reuse an unowned process on port `4173`.
 
 For a deployed runtime, Doctor is:
 
@@ -57,7 +57,7 @@ curl --fail --silent --show-error "$E2E_BASE_URL/health"
 
 ## Drive
 
-Run from `site-svelte/`. A manually launched local instance is reused by Playwright:
+Run from `site/`. A manually launched local instance is reused by Playwright:
 
 ```bash
 npm run test:e2e -- e2e/anonymous.spec.ts
@@ -104,7 +104,7 @@ A valid proof:
 - exercises the real route and user control, not an internal setter or test-only endpoint;
 - records both the action and resulting state;
 - verifies relevant side effects such as the fixed CSV filename or post-logout redirect;
-- retains Playwright traces/screenshots/videos from `site-svelte/test-results/` when a failure needs diagnosis;
+- retains Playwright traces/screenshots/videos from `site/test-results/` when a failure needs diagnosis;
 - uses mocks only at an already isolated production boundary;
 - does not claim bound authentication from local Vite, where bindings are intentionally absent.
 
@@ -131,4 +131,4 @@ Confirm `curl http://127.0.0.1:4173/health` no longer connects and the evidence 
 
 ## Helpers
 
-No custom helper is required. The maintained helpers are the repository's `site-svelte/playwright.config.ts`, `site-svelte/e2e/helpers.ts`, and package scripts shown above.
+No custom helper is required. The maintained helpers are the repository's `site/playwright.config.ts`, `site/e2e/helpers.ts`, and package scripts shown above.

@@ -12,8 +12,14 @@ const checks = [
     arguments: ['deployments', 'list', '--name', 'omg-saas', '--json'],
   },
   {
-    label: 'Worker omg-site',
-    arguments: ['deployments', 'list', '--name', 'omg-site', '--json'],
+    label: 'Worker omgsveltesite-website-prod-dlaqgfttmir2ky5x',
+    arguments: [
+      'deployments',
+      'list',
+      '--name',
+      'omgsveltesite-website-prod-dlaqgfttmir2ky5x',
+      '--json',
+    ],
   },
   {
     label: `D1 omg-platform (${PLATFORM_D1_ID})`,
