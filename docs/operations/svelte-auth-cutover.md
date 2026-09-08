@@ -1,6 +1,6 @@
 # Website authentication operations
 
-- **Status:** SvelteKit is the only maintained website runtime. `getomg.xyz` is not live yet.
+- **Status:** SvelteKit is the only maintained website runtime. The [production launch record](./svelte-production-cutover.md) records deployment on `getomg.xyz`; consult it for outstanding API and legacy-host work.
 - **Authority:** `site/src/lib/server/auth.server.ts`
 - **Persistence:** `omg-platform` D1 Better Auth tables
 
@@ -42,13 +42,13 @@ Do not copy the shadow secret into production. Do not log, print, export, or per
 
 ## Rotate the secret after launch
 
-Secret rotation is a separate maintenance change after the hostname and Worker inventory are stable.
+Secret rotation is a separate maintenance change after the hostname and Worker inventory are stable. Obtain explicit approval for the logout scope and timing. Session-row counts are not counts of active users, and routing rollback cannot restore deleted sessions. Do not restore the entire shared D1 database merely to recover sessions: that could overwrite unrelated business writes.
 
 1. Verify the current Alchemy plan is a no-op.
 2. Prepare the replacement secret through the approved secret provider without exposing it to shell history or logs.
 3. Deploy during a declared logout window.
 4. Verify anonymous lookup, invalid login, GitHub callback configuration, user login, administrator login, sign-out, and protected redirects.
-5. Roll back the Worker version if any gate fails.
+5. Restore the verified prior Worker/secret configuration if a gate fails, then recheck authentication. Do not assume a code rollback alone restores secret state or deleted sessions.
 6. Prune superseded sessions only after the new version has passed its observation window.
 
 The exact Better Auth and SvelteKit versions remain pinned in `site/package.json`. Do not use `--legacy-peer-deps`; the package-scoped override is the reviewed compatibility mechanism.
