@@ -33,6 +33,7 @@ import {
   handleInstallPing,
   handleAnalytics,
 } from './handlers/license';
+import { handleDashboardLink } from './handlers/dashboard-link';
 import {
   handleAdminDashboard,
   handleAdminCRMUsers,
@@ -294,6 +295,8 @@ export default Sentry.withSentry(
             return handleValidateLicense(request, env);
           case '/api/get-license':
             return handleGetLicense(request, env);
+          case '/api/dashboard/link':
+            return handleDashboardLink(request, env);
           case '/api/report-usage':
             return handleReportUsage(request, env);
           case '/api/install-ping':
