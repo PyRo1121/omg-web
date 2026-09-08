@@ -1,5 +1,7 @@
 # OMG Web audit remediation status
 
+This ledger preserves recorded finding dispositions and their original evidence. It is not a fresh penetration test or production-release approval. Proof-script integrity is checked separately; historical runtime observations do not verify a later release. Use [production operations](./svelte-production-cutover.md) for launch evidence and outstanding authenticated verification.
+
 This ledger tracks the 15 web and cross-repository reports in
 `/home/pyro1121/Documents/.pi/omg-audit-2026-08-27/reports/`. Report severities
 reflect the source tree at audit time; current status is based on the remediated

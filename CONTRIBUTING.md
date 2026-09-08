@@ -22,13 +22,17 @@ Be respectful and constructive. Harassment and discrimination are not tolerated.
 ## Toolchain notes
 
 - **npm version:** the repo pins `packageManager: "npm@12.0.2"` in every manifest. Local runs should use that version (`corepack enable npm`); CI enables it explicitly.
-- **`allowScripts` fields are inert under plain npm.** Native npm has no lifecycle-script allowlisting; the blocks in each `package.json` record _intent_ (which transitive packages may run postinstall scripts) and are consumed by no current tooling. Do not rely on them as a supply-chain control — treat unexpected new install scripts in `npm ci` output as a review blocker until a package manager with script gating is adopted.
+- **Lifecycle scripts:** npm 12 implements `allowScripts`; keep the reviewed, version-qualified entries in each manifest. Unexpected install scripts are a review blocker. Do not disable this gate to install a dependency. Diagnose user-level configuration conflicts without printing credentials or rewriting another user's npm configuration.
 
 ## Project layout
 
 - `site/` — the SvelteKit web application
-- `workers/` — Cloudflare Workers
+- `workers/api/` — independent licensing and telemetry Worker
+- `shared/` — shared contracts and policy
+- `workers/` — other independently configured Workers
 - `tools/` — development tooling
+
+Run the root `npm run check` before proposing a release. A successful build does not authorize deployment, migrations, hostname changes, or session cleanup. See [production operations](docs/operations/svelte-production-cutover.md).
 
 ## Security
 
