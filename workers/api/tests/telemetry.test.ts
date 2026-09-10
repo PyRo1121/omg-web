@@ -8,6 +8,30 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import * as Schema from 'effect/Schema';
 import worker from '../src/worker';
+import {
+  BatchTelemetryRequestSchema,
+  SingleTelemetryRequestSchema,
+  type TelemetryEvent,
+} from '../src/contracts/cli-telemetry';
+
+type TelemetryEnvelope = Schema.Schema.Type<typeof SingleTelemetryRequestSchema>;
+type TelemetryBatchPayload = Schema.Schema.Type<typeof BatchTelemetryRequestSchema>;
+
+/** Build a chunked-style request so the stream byte cap (not Content-Length) is exercised. */
+function chunkedJsonRequest(
+  url: string,
+  payload: TelemetryEnvelope | TelemetryBatchPayload
+): Request {
+  const request = new Request(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  // Simulate a chunked client: no declared length, so the stream
+  // byte cap (not the Content-Length pre-check) must enforce the limit.
+  request.headers.delete('Content-Length');
+  return request;
+}
 
 const ErrorPayloadSchema = Schema.Struct({ error: Schema.String });
 const EventSuccessPayloadSchema = Schema.Struct({
@@ -21,6 +45,13 @@ const BatchPayloadSchema = Schema.Struct({
 const ALLOW_ALL_RATE_LIMITER: NonNullable<(typeof env)['API_RATE_LIMITER']> = {
   limit: async () => ({ success: true }),
 };
+const StoredPackagesRowSchema = Schema.Struct({ packages: Schema.String });
+const StoredMetadataRowSchema = Schema.Struct({ metadata: Schema.String });
+const StoredPackagesSchema = Schema.Array(Schema.String);
+const StoredMetadataSchema = Schema.Record({
+  key: Schema.String,
+  value: Schema.String,
+});
 
 async function decodeResponse<S extends Schema.Schema.AnyNoContext>(
   response: Response,
@@ -600,6 +631,151 @@ describe('Telemetry API', () => {
         .bind(TEST_LICENSE_ID)
         .first();
       expect(count?.count).toBe(100);
+    });
+  });
+
+  describe('Ingest size caps (W08)', () => {
+    function validEnvelope(event: TelemetryEvent): TelemetryEnvelope {
+      return {
+        event,
+        timestamp: new Date().toISOString(),
+        machine_id: TEST_MACHINE_ID,
+        version: '0.1.0',
+        platform: 'linux',
+        license_key: TEST_LICENSE_KEY,
+      };
+    }
+
+    it('rejects an over-cap single event with no Content-Length', async () => {
+      const request = chunkedJsonRequest(
+        'http://localhost/api/cli/event',
+        validEnvelope({
+          type: 'command',
+          command: 'search',
+          packages: [`pkg-${'x'.repeat(150 * 1024)}`],
+          success: true,
+        })
+      );
+
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(request, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(400);
+    });
+
+    it('truncates oversized packages elements before persistence', async () => {
+      const request = new Request('http://localhost/api/cli/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          validEnvelope({
+            type: 'command',
+            command: 'install',
+            packages: [`pkg-${'y'.repeat(1500)}`],
+            success: true,
+          })
+        ),
+      });
+
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(request, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      const stored = Schema.decodeUnknownSync(StoredPackagesRowSchema)(
+        await env.DB.prepare('SELECT packages FROM command_event WHERE license_id = ?')
+          .bind(TEST_LICENSE_ID)
+          .first()
+      );
+      const elements = Schema.decodeUnknownSync(StoredPackagesSchema)(JSON.parse(stored.packages));
+      expect(elements).toHaveLength(1);
+      expect(elements[0]?.length).toBeLessThanOrEqual(1000);
+    });
+
+    it('caps metadata keys and value lengths before persistence', async () => {
+      // String-only fixture: the persisted record decodes as string values,
+      // so no narrowing is needed to assert the key/value length clamps.
+      const metadata = Object.fromEntries(
+        Array.from({ length: 40 }, (_, i) => [
+          `key-${i}-${'k'.repeat(100)}`,
+          `value-${'v'.repeat(600)}`,
+        ])
+      );
+      const request = new Request('http://localhost/api/cli/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          validEnvelope({ type: 'feature', feature: 'x', enabled: true, metadata })
+        ),
+      });
+
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(request, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      const stored = Schema.decodeUnknownSync(StoredMetadataRowSchema)(
+        await env.DB.prepare('SELECT metadata FROM feature_usage WHERE license_id = ?')
+          .bind(TEST_LICENSE_ID)
+          .first()
+      );
+      const persisted = Schema.decodeUnknownSync(StoredMetadataSchema)(JSON.parse(stored.metadata));
+      expect(Object.keys(persisted).length).toBeLessThanOrEqual(32);
+      for (const [key, value] of Object.entries(persisted)) {
+        expect(key.length).toBeLessThanOrEqual(64);
+        expect(value.length).toBeLessThanOrEqual(512);
+      }
+    });
+
+    it('holds the 1 MB batch boundary with no Content-Length', async () => {
+      // The batch cap equals the worker-wide 1 MB default by design; this
+      // test pins the boundary so a future default change cannot silently
+      // widen batch ingest. ~600 KB must succeed ...
+      const okPackages = [`pkg-${'z'.repeat(10 * 1024)}`];
+      const okEvents = Array.from({ length: 58 }, () =>
+        validEnvelope({
+          type: 'command',
+          command: 'info',
+          packages: okPackages,
+          success: true,
+        })
+      );
+      const okCtx = createExecutionContext();
+      const okResponse = await worker.fetch(
+        chunkedJsonRequest('http://localhost/api/cli/batch', {
+          events: okEvents,
+          batch_timestamp: new Date().toISOString(),
+          machine_id: TEST_MACHINE_ID,
+        }),
+        env,
+        okCtx
+      );
+      await waitOnExecutionContext(okCtx);
+      expect(okResponse.status).toBe(200);
+
+      // ... while ~1.2 MB without a declared length must fail on the stream cap.
+      const bigPackages = [`pkg-${'z'.repeat(12 * 1024)}`];
+      const bigEvents = Array.from({ length: 100 }, () =>
+        validEnvelope({
+          type: 'command',
+          command: 'info',
+          packages: bigPackages,
+          success: true,
+        })
+      );
+      const bigCtx = createExecutionContext();
+      const bigResponse = await worker.fetch(
+        chunkedJsonRequest('http://localhost/api/cli/batch', {
+          events: bigEvents,
+          batch_timestamp: new Date().toISOString(),
+          machine_id: TEST_MACHINE_ID,
+        }),
+        env,
+        bigCtx
+      );
+      await waitOnExecutionContext(bigCtx);
+      expect(bigResponse.status).toBe(400);
     });
   });
 });

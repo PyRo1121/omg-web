@@ -78,7 +78,9 @@ export async function handleTrackEvent(request: Request, env: Env): Promise<Resp
       return limited;
     }
 
-    const decodedBody = await Effect.runPromiseExit(decodeJsonBody(request, TrackingBatchSchema));
+    const decodedBody = await Effect.runPromiseExit(
+      decodeJsonBody(request, TrackingBatchSchema, MAX_TRACK_PAYLOAD_BYTES)
+    );
     if (Exit.isFailure(decodedBody)) {
       return errorResponse('Invalid payload', 400);
     }

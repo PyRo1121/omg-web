@@ -26,14 +26,19 @@ import { enforceIpRateLimit } from './auth';
 import {
   decodeExtraRow,
   decodeExtraRowArray,
+  PrivacyAnalyticsEventRowSchema,
   PrivacyCommandRowSchema,
+  PrivacyCustomerNoteRowSchema,
   PrivacyFeatureRowSchema,
+  PrivacyInstallStatRowSchema,
   PrivacyLicenseRowSchema,
   PrivacyMachineRowSchema,
   PrivacyPerformanceRowSchema,
   PrivacyProfileRowSchema,
   PrivacySessionRowSchema,
   PrivacyStatusRowSchema,
+  PrivacyUsageDailyRowSchema,
+  PrivacyUsageRowSchema,
   isInvalidExtraRow,
   readOptionalExtraRow,
 } from '../contracts/d1-extras';
@@ -411,13 +416,87 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
       );
       if (featureUsage instanceof Response) return featureUsage;
 
+      const usage = await loadPrivacyRows(
+        env.DB,
+        `SELECT feature, count, machine_id, timestamp
+         FROM usage
+         WHERE license_key IN (SELECT license_key FROM licenses WHERE customer_id = ?)
+         ORDER BY timestamp DESC
+         LIMIT 1000`,
+        customerId,
+        PrivacyUsageRowSchema,
+        'Privacy usage export row has an invalid shape',
+        'Failed to export usage'
+      );
+      if (usage instanceof Response) return usage;
+
+      const usageDaily = await loadPrivacyRows(
+        env.DB,
+        `SELECT date, commands_run, packages_installed, packages_searched,
+                runtimes_switched, time_saved_ms
+         FROM usage_daily
+         WHERE license_id IN (SELECT id FROM licenses WHERE customer_id = ?)
+         ORDER BY date DESC
+         LIMIT 366`,
+        customerId,
+        PrivacyUsageDailyRowSchema,
+        'Privacy usage aggregate export row has an invalid shape',
+        'Failed to export usage aggregates'
+      );
+      if (usageDaily instanceof Response) return usageDaily;
+
+      const analyticsEvents = await loadPrivacyRows(
+        env.DB,
+        `SELECT event_type, event_name, properties, timestamp, session_id
+         FROM analytics_events
+         WHERE license_key IN (SELECT license_key FROM licenses WHERE customer_id = ?)
+         ORDER BY timestamp DESC
+         LIMIT 200`,
+        customerId,
+        PrivacyAnalyticsEventRowSchema,
+        'Privacy analytics export row has an invalid shape',
+        'Failed to export analytics events'
+      );
+      if (analyticsEvents instanceof Response) return analyticsEvents;
+
+      const installStats = await loadPrivacyRows(
+        env.DB,
+        `SELECT version, platform, backend, created_at
+         FROM install_stats
+         WHERE install_id IN (
+           SELECT m.machine_id
+           FROM machines m
+           JOIN licenses l ON l.id = m.license_id
+           WHERE l.customer_id = ?
+         )`,
+        customerId,
+        PrivacyInstallStatRowSchema,
+        'Privacy install export row has an invalid shape',
+        'Failed to export install stats'
+      );
+      if (installStats instanceof Response) return installStats;
+
+      const customerNotes = await loadPrivacyRows(
+        env.DB,
+        `SELECT note_type, content, is_pinned, created_at, updated_at
+         FROM customer_notes
+         WHERE customer_id = ?
+         ORDER BY created_at DESC
+         LIMIT 500`,
+        customerId,
+        PrivacyCustomerNoteRowSchema,
+        'Privacy note export row has an invalid shape',
+        'Failed to export support notes'
+      );
+      if (customerNotes instanceof Response) return customerNotes;
+
       await Effect.runPromise(
         logAudit(env.DB, customerId, 'data_export_request', 'customer', customerId, request)
       );
 
       const exportData = {
         export_date: exportDate,
-        export_format_version: '2.0',
+        export_format_version: '3.0',
         profile: {
           email: customer.email,
           company: customer.company,
@@ -430,6 +509,19 @@ export async function handleExportMyData(request: Request, env: Env): Promise<Re
         sessions,
         performance_summary: performanceSummary,
         feature_usage: featureUsage,
+        usage,
+        usage_daily: usageDaily,
+        analytics_events: analyticsEvents,
+        install_stats: installStats,
+        customer_notes: customerNotes,
+        excluded: {
+          auth_codes: 'Live one-time secrets: destroyed on delete, never exported.',
+          session_tokens:
+            'Worker session token hashes are credential material: revoked on delete, never exported.',
+          note_authors: 'Support-note author identities belong to staff, not the subject.',
+          retained:
+            'Anonymized license records, payment history, and 30-day security audit logs are retained per the deletion notice.',
+        },
       };
       return new Response(JSON.stringify(exportData, null, 2), {
         status: 200,
