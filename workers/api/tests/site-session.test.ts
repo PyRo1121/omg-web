@@ -188,6 +188,41 @@ describe('POST /api/internal/site-session', () => {
     expect(customer.admin).toBe(0);
   });
 
+  it('revokes worker sessions when Better Auth reports a role change', async () => {
+    await env.DB.prepare(
+      `INSERT INTO customers (id, email, company, tier, admin) VALUES (?, ?, ?, 'free', 1)`
+    )
+      .bind('demote-cust', NON_ADMIN_EMAIL, 'Demoted Admin')
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO sessions (id, customer_id, token, expires_at) VALUES (?, ?, ?, ?)`
+    )
+      .bind(
+        'demote-session',
+        'demote-cust',
+        'stale-token',
+        new Date(Date.now() + 3600_000).toISOString()
+      )
+      .run();
+
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      createSessionRequest(TEST_SECRET, JSON.stringify({ email: NON_ADMIN_EMAIL, role: 'user' })),
+      env,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(200);
+
+    // Only the freshly minted login session survives the demotion.
+    const remaining = await env.DB.prepare(
+      'SELECT COUNT(*) as count FROM sessions WHERE customer_id = ?'
+    )
+      .bind('demote-cust')
+      .first();
+    expect(remaining?.count).toBe(1);
+  });
+
   it('provisions a new user without granting admin access', async () => {
     const ctx = createExecutionContext();
     const response = await worker.fetch(
