@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/cloudflare';
 import { forbiddenUnlessAdminSession } from './admin-auth';
 import {
   type Env,
+  apiSecurityHeaders,
   corsHeaders,
   jsonResponse,
   errorResponse,
@@ -240,6 +241,21 @@ async function adminGated(
   return denial ?? handler(request, env);
 }
 
+/** Decorate every outgoing response, including legacy cache entries and preflight. */
+function withApiSecurityHeaders(
+  handler: (request: Request, env: Env, ctx: ExecutionContext) => Promise<Response>
+) {
+  return async (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
+    const response = await handler(request, env, ctx);
+    // Cached responses can have immutable headers; retain the streaming body and metadata.
+    const secured = new Response(response.body, response);
+    for (const [name, value] of Object.entries(apiSecurityHeaders)) {
+      secured.headers.set(name, value);
+    }
+    return secured;
+  };
+}
+
 export default Sentry.withSentry(
   (env: Env) => ({
     dsn: env.SENTRY_DSN,
@@ -247,7 +263,7 @@ export default Sentry.withSentry(
     environment: 'production',
   }),
   {
-    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    fetch: withApiSecurityHeaders(async (request, env, ctx) => {
       if (request.method === 'OPTIONS') {
         return new Response(null, {
           headers: {
@@ -431,7 +447,7 @@ export default Sentry.withSentry(
         Sentry.captureException(error);
         return errorResponse('Internal server error', 500);
       }
-    },
+    }),
 
     async scheduled(
       controller: ScheduledController,
