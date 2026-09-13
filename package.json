@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "check": "npm run check:anti-slop && npm run check:audit-evidence && npm run check:migrations && npm run check:lockfiles && npm run check:source-policy && npm run check:unused-exports && npm run typecheck && npm run lint && npm run format:check && npm run audit && npm run check:deploy && npm test",
+    "check": "npm run check:installer && npm run check:anti-slop && npm run check:audit-evidence && npm run check:migrations && npm run check:lockfiles && npm run check:source-policy && npm run check:unused-exports && npm run typecheck && npm run lint && npm run format:check && npm run audit && npm run check:deploy && npm test",
     "audit": "node tools/check-npm-audits.ts",
     "check:anti-slop": "node tools/oxlint/sync-anti-slop.mjs --check",
     "check:audit-evidence": "node tools/check-audit-evidence.mjs",
@@ -31,7 +31,8 @@
     "typecheck": "npm run typecheck:tools && npm run typecheck:site && npm run typecheck:workers",
     "typecheck:site": "npm run check --prefix site",
     "typecheck:tools": "tsc --project tsconfig.json --noEmit && tsc --project tools/oxlint/anti-slop/tsconfig.json --noEmit",
-    "typecheck:workers": "npm run typecheck --prefix workers/api"
+    "typecheck:workers": "npm run typecheck --prefix workers/api",
+    "check:installer": "node tools/check-installer-sync.mjs && bash tools/installer-security.sh"
   },
   "devDependencies": {
     "@oxlint/plugins": "1.80.0",

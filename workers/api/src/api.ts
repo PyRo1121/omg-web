@@ -300,7 +300,7 @@ export async function validateSession(
     FROM sessions s
     JOIN customers c ON s.customer_id = c.id
     WHERE (s.token_hash = ? OR (s.token_hash IS NULL AND s.token = ?))
-      AND s.expires_at > datetime('now')
+      AND julianday(s.expires_at) > julianday('now')
   `
     )
     .bind(tokenHash, token)

@@ -51,9 +51,10 @@ jobs:
           node-version: 24.20.0
           cache: npm
           cache-dependency-path: site/package-lock.json
-      - run: npm ci --audit=false
-        working-directory: site
+      # Select the pinned npm before install so its lifecycle-script policy applies.
       - run: corepack enable npm && npm --version
+        working-directory: site
+      - run: npm ci --audit=false
         working-directory: site
       - run: npx --no-install playwright install --with-deps chromium
         working-directory: site

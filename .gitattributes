@@ -4,3 +4,8 @@ workers/api/worker-configuration.d.ts whitespace=-blank-at-eol
 # Release installers are byte-for-byte mirrors; preserve their intentional banner spacing.
 site/static/install.ps1 whitespace=-blank-at-eol
 site/static/install.sh whitespace=-blank-at-eol
+
+# Preserve canonical bytes for installer parity and immutable migration hashes.
+*.sh text eol=lf
+*.sql text eol=lf
+*.sha256 text eol=lf

@@ -78,6 +78,7 @@ import {
   handleDocsAnalytics,
   handleDocsAnalyticsDashboard,
   cleanupAnalyticsRetention,
+  refreshDocsAnalyticsAggregates,
 } from './handlers/docs-analytics';
 import { handleGitHubProxy } from './handlers/github-proxy';
 import { handleGetDashboard } from './handlers/account-dashboard';
@@ -264,7 +265,7 @@ export default Sentry.withSentry(
         if (route === undefined) {
           return errorResponse('Not found', 404);
         }
-        if (route.path.startsWith('/api/admin/')) {
+        if (route.authentication === 'admin-session' || route.path.startsWith('/api/admin/')) {
           const limited = await enforceRateLimit(
             env.ADMIN_RATE_LIMITER,
             `admin:${rateLimitClientIp(request)}`
@@ -433,10 +434,21 @@ export default Sentry.withSentry(
     },
 
     async scheduled(
-      _controller: ScheduledController,
+      controller: ScheduledController,
       env: Env,
       ctx: ExecutionContext
     ): Promise<void> {
+      ctx.waitUntil(
+        refreshDocsAnalyticsAggregates(env.DB, controller.scheduledTime).catch(error => {
+          reportError('docs_analytics.aggregate_failed', error);
+          Sentry.captureException(error);
+        })
+      );
+      // Retention remains daily; the separate aggregate cron only refreshes
+      // bounded reporting dates and cannot be amplified by public requests.
+      if (controller.cron !== '0 2 * * *') {
+        return;
+      }
       ctx.waitUntil(
         cleanupAnalyticsRetention(env.DB).catch(error => {
           // Structured log first: SENTRY_DSN is optional, and without it every

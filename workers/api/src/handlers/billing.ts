@@ -574,7 +574,7 @@ export async function handleCreateCheckout(
       `SELECT stripe_promotion_code_id
        FROM marketing_offer_leads
        WHERE email = ? AND promotion_code = ? AND status = 'ready'
-         AND datetime(expires_at) > CURRENT_TIMESTAMP`
+         AND julianday(expires_at) > julianday('now')`
     )
       .bind(email, promotionCode)
       .first();
