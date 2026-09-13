@@ -12,7 +12,7 @@ import {
 
 describe('public file endpoints', () => {
   it.each([
-    ['install.sh', '7abae9abfd3eb15fd3dd4233670dee9bad7f2e56ef65823b35482a2c3e3b1b81'],
+    ['install.sh', '575ae7b4b4ae1d42b70d09febfcdc25aa8e5a02312c8cc27d533a159c1f8d7cc'],
     ['install.ps1', 'f80cdf38824bd5505b6f341366adc836cb6680361242a8483a5616a2c2e1f24a'],
     [
       '.well-known/omg-license-ed25519-v1.pem',

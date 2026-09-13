@@ -9,3 +9,5 @@ site/static/install.sh whitespace=-blank-at-eol
 *.sh text eol=lf
 *.sql text eol=lf
 *.sha256 text eol=lf
+site/static/install.ps1 text eol=lf
+site/static/.well-known/omg-license-ed25519-v1.pem text eol=lf
