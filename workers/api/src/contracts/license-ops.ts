@@ -65,8 +65,8 @@ const AnalyticsPropertyValue = Schema.Union(
 );
 
 /** A single CLI analytics event. */
-// Length caps bound the upsert-key cardinality of analytics_daily /
-// analytics_errors: without them every request mints new aggregate rows.
+// Length caps bound each analytics key's storage size. Ingestion rate limits,
+// batch limits, license checks, and retention separately constrain row growth.
 const CappedKey = (max: number) => Schema.String.pipe(Schema.minLength(1), Schema.maxLength(max));
 
 const AnalyticsEventSchema = Schema.Struct({
