@@ -153,7 +153,8 @@ export function loadAdminFirehose(
 /** Poll the private firehose after Svelte has independently re-authorized the operator. */
 export function loadInternalAdminFirehose(
   env: LicensingSummaryEnvironment,
-  since: string | null
+  since: string | null,
+  trustedClientIp?: string | null
 ): Effect.Effect<AdminFirehose, LicensingSummaryError> {
   const parameters = new URLSearchParams({ limit: '50' });
   if (since !== null) parameters.set('since', since);
@@ -162,7 +163,8 @@ export function loadInternalAdminFirehose(
     `/api/internal/admin/firehose?${parameters.toString()}`,
     'admin-firehose',
     RESPONSE_LIMIT,
-    FirehoseSchema
+    FirehoseSchema,
+    trustedClientIp
   ).pipe(Effect.map(projectFirehose));
 }
 

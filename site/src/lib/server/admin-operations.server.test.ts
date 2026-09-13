@@ -21,6 +21,7 @@ const identity = {
 class OperationsServiceStub {
   readonly paths: Array<string> = [];
   readonly internalSecrets: Array<string | null> = [];
+  readonly clientAddresses: Array<string | null> = [];
 
   constructor(
     private readonly exportResponse: () => Response = () =>
@@ -33,6 +34,7 @@ class OperationsServiceStub {
     const url = new URL(request.url);
     this.paths.push(`${url.pathname}${url.search}`);
     this.internalSecrets.push(request.headers.get('X-Admin-Secret'));
+    this.clientAddresses.push(request.headers.get('CF-Connecting-IP'));
     if (url.pathname === '/api/internal/site-session') {
       return siteSessionResponse({ token: 'server-token', customerId: 'operator-id' });
     }
@@ -147,7 +149,28 @@ describe('admin operations service', () => {
     expect(value.events).toHaveLength(1);
     expect(service.paths).toEqual(['/api/internal/admin/firehose?limit=50']);
     expect(service.internalSecrets).toEqual(['private-secret']);
+    expect(service.clientAddresses).toEqual([null]);
   });
+
+  it('forwards the platform client address on the fresh internal polling request', async () => {
+    const service = new OperationsServiceStub();
+    const value = await Effect.runPromise(
+      loadInternalAdminFirehose(environment(service), null, '192.0.2.25')
+    );
+    expect(value.events).toHaveLength(1);
+    expect(service.paths).toEqual(['/api/internal/admin/firehose?limit=50']);
+    expect(service.internalSecrets).toEqual(['private-secret']);
+    expect(service.clientAddresses).toEqual(['192.0.2.25']);
+  });
+
+  it.each([null, ''])(
+    'omits missing platform address %s instead of serializing it',
+    async address => {
+      const service = new OperationsServiceStub();
+      await Effect.runPromise(loadInternalAdminFirehose(environment(service), null, address));
+      expect(service.clientAddresses).toEqual([null]);
+    }
+  );
 
   it('rejects malformed UTF-8 in a private CSV export', async () => {
     const service = new OperationsServiceStub(() => {

@@ -166,7 +166,7 @@ export async function handleGetSessions(request: Request, env: Env): Promise<Res
         `
       SELECT id, ip_address, user_agent, created_at, expires_at
       FROM sessions
-      WHERE customer_id = ? AND expires_at > datetime('now')
+      WHERE customer_id = ? AND julianday(expires_at) > julianday('now')
       ORDER BY created_at DESC
       LIMIT ?
     `

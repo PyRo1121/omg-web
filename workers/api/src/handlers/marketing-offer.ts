@@ -254,7 +254,7 @@ function claimOffer(
            WHERE id = ? AND (
              status = 'failed' OR
              (status = 'creating' AND updated_at < datetime('now', '-5 minutes')) OR
-             (status = 'ready' AND datetime(expires_at) <= CURRENT_TIMESTAMP)
+             (status = 'ready' AND julianday(expires_at) <= julianday('now'))
            )
            RETURNING id`
         )

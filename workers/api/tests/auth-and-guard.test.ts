@@ -380,7 +380,7 @@ describe('POST /api/auth/verify-code', () => {
     expect(stored.token_hash).toMatch(/^sha256:v1:[0-9a-f]{64}$/);
   });
 
-  it('accepts a valid code even when its failed-guess bucket is exhausted', async () => {
+  it('rejects a valid code before claiming it when the account bucket is exhausted', async () => {
     const deliveredCode = await sendCodeWithTestMailer();
     env.AUTH_RATE_LIMITER = {
       limit: async ({ key }: RateLimitOptions) => ({
@@ -396,8 +396,84 @@ describe('POST /api/auth/verify-code', () => {
     );
     await waitOnExecutionContext(ctx);
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(429);
+    expect((await readLatestStoredCode()).used).toBe(0);
   });
+
+  it.each([
+    ['past ISO', -60_000, true, false],
+    ['past day', -86_400_000, true, false],
+    ['now ISO', 0, true, false],
+    ['past SQLite', -60_000, false, false],
+    ['future ISO', 60_000, true, true],
+    ['future SQLite', 60_000, false, true],
+  ] as const)('enforces OTP expiry for %s', async (_label, offset, iso, accepted) => {
+    const code = await sendCodeWithTestMailer();
+    const timestamp = new Date(Date.now() + offset).toISOString();
+    const expires = iso ? timestamp : timestamp.replace('T', ' ').replace('Z', '');
+    await env.DB.prepare('UPDATE auth_codes SET expires_at = ? WHERE email = ?')
+      .bind(expires, TEST_EMAIL)
+      .run();
+    const context = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/auth/verify-code', JSON.stringify({ email: TEST_EMAIL, code })),
+      env,
+      context
+    );
+    await waitOnExecutionContext(context);
+    expect(response.status).toBe(accepted ? 200 : 401);
+  });
+
+  it('rejects malformed OTP expiry without consuming the code', async () => {
+    const code = await sendCodeWithTestMailer();
+    await env.DB.prepare("UPDATE auth_codes SET expires_at = 'not-a-date' WHERE email = ?")
+      .bind(TEST_EMAIL)
+      .run();
+    const context = createExecutionContext();
+    const response = await worker.fetch(
+      postJson('/api/auth/verify-code', JSON.stringify({ email: TEST_EMAIL, code })),
+      env,
+      context
+    );
+    await waitOnExecutionContext(context);
+    expect(response.status).toBe(401);
+    expect((await readLatestStoredCode()).used).toBe(0);
+  });
+
+  it.each(['expired ISO', 'now ISO', 'malformed', 'future ISO', 'future SQLite'])(
+    'enforces session expiry for %s',
+    async variant => {
+      const id = crypto.randomUUID();
+      await env.DB.prepare("INSERT INTO customers (id, email, tier) VALUES (?, ?, 'free')")
+        .bind(id, TEST_EMAIL)
+        .run();
+      const expires =
+        variant === 'malformed'
+          ? 'bad-date'
+          : new Date(
+              Date.now() +
+                (variant.startsWith('future') ? 60_000 : variant.startsWith('now') ? 0 : -60_000)
+            ).toISOString();
+      await env.DB.prepare(
+        'INSERT INTO sessions (id, customer_id, token, expires_at) VALUES (?, ?, ?, ?)'
+      )
+        .bind(
+          id,
+          id,
+          id,
+          variant.endsWith('SQLite') ? expires.replace('T', ' ').replace('Z', '') : expires
+        )
+        .run();
+      const context = createExecutionContext();
+      const response = await worker.fetch(
+        postJson('/api/auth/verify-session', JSON.stringify({ token: id })),
+        env,
+        context
+      );
+      await waitOnExecutionContext(context);
+      expect(await response.json()).toMatchObject({ valid: variant.startsWith('future') });
+    }
+  );
 
   it('atomically caps successful login sessions at five', async () => {
     const customerId = 'session-cap-customer';
@@ -457,6 +533,40 @@ describe('POST /api/auth/verify-code', () => {
 });
 
 describe('admin analytics endpoints require an admin session', () => {
+  it.each(['/api/docs/analytics/dashboard', '/api/site/analytics/overview'])(
+    'limits %s before any session database query',
+    async path => {
+      const prior = env.ADMIN_RATE_LIMITER;
+      const prepare = env.DB.prepare;
+      let queries = 0;
+      env.DB.prepare = function (sql: string) {
+        queries += 1;
+        return prepare.call(env.DB, sql);
+      };
+      try {
+        for (const limiter of [
+          undefined,
+          { limit: async () => ({ success: false }) },
+          {
+            limit: async () => {
+              throw new Error('unavailable');
+            },
+          },
+        ]) {
+          env.ADMIN_RATE_LIMITER = limiter;
+          const context = createExecutionContext();
+          const response = await worker.fetch(getPath(path, 'untrusted-token'), env, context);
+          await waitOnExecutionContext(context);
+          expect([429, 503]).toContain(response.status);
+        }
+        expect(queries).toBe(0);
+      } finally {
+        env.ADMIN_RATE_LIMITER = prior;
+        env.DB.prepare = prepare;
+      }
+    }
+  );
+
   it('returns 401 for GET /api/docs/analytics/dashboard without a token', async () => {
     const ctx = createExecutionContext();
     const response = await worker.fetch(getPath('/api/docs/analytics/dashboard'), env, ctx);

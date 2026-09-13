@@ -510,7 +510,8 @@ export function loadInternalWorkerPayload<S extends Schema.Top>(
   path: `/${string}`,
   operation: LicensingServiceOperation,
   limit: number,
-  schema: S
+  schema: S,
+  trustedClientIp?: string | null
 ): Effect.Effect<S['Type'], LicensingSummaryError, S['DecodingServices']> {
   return Effect.gen(function* () {
     const secret = yield* parseLicensingInput(
@@ -518,14 +519,19 @@ export function loadInternalWorkerPayload<S extends Schema.Top>(
       env.SVELTE_BFF_SECRET,
       'Licensing BFF secret is invalid'
     );
+    const headers = new Headers({
+      'X-Admin-Secret': secret,
+      'X-Internal-Call': 'service-binding',
+    });
+    // Only the caller's platform-derived address is forwarded, not incoming headers.
+    if (trustedClientIp !== undefined && trustedClientIp !== null && trustedClientIp.length > 0) {
+      headers.set('CF-Connecting-IP', trustedClientIp);
+    }
     const response = yield* serviceFetch(
       env.LICENSING_API,
       new Request(`${INTERNAL_ORIGIN}${path}`, {
         method: 'GET',
-        headers: {
-          'X-Admin-Secret': secret,
-          'X-Internal-Call': 'service-binding',
-        },
+        headers,
       })
     );
     if (!response.ok) {

@@ -259,7 +259,9 @@ export function sendVerificationCode(
     const batchResults = yield* Effect.tryPromise({
       try: () =>
         env.DB.batch([
-          env.DB.prepare(`DELETE FROM auth_codes WHERE expires_at <= datetime('now')`),
+          env.DB.prepare(
+            `DELETE FROM auth_codes WHERE (julianday(expires_at) <= julianday('now') OR julianday(expires_at) IS NULL)`
+          ),
           env.DB.prepare(`UPDATE auth_codes SET used = 1 WHERE email = ? AND used = 0`).bind(
             body.email
           ),
@@ -371,6 +373,20 @@ function verifyCode(
 ): Effect.Effect<VerifyCodeResponse, VerifyCodeError> {
   return Effect.gen(function* () {
     const body = yield* decodeJsonBody(request, VerifyCodeRequestSchema);
+    // Every account attempt is limited before credential comparison, including
+    // successful guesses. An exhausted account bucket delays legitimate login
+    // too; do not let a distributed attacker bypass it with a correct guess.
+    if (env.AUTH_RATE_LIMITER === undefined) {
+      return yield* Effect.fail(new AuthRateLimiterUnavailable());
+    }
+    const emailKey = yield* hashEmailForLimiting(body.email);
+    const emailAllowed = yield* checkRateLimitBucket(
+      env.AUTH_RATE_LIMITER,
+      `verify_code_email:${emailKey}`
+    );
+    if (!emailAllowed) {
+      return yield* Effect.fail(new AuthRateLimitedError());
+    }
     const digest = yield* digestOtpCode(body.email, body.code, env.JWT_SECRET);
     yield* Effect.tryPromise({
       try: () =>
@@ -380,7 +396,7 @@ function verifyCode(
            WHERE id = (
              SELECT id FROM auth_codes
              WHERE email = ? AND code = ? AND used = 0
-               AND expires_at > datetime('now')
+               AND julianday(expires_at) > julianday('now')
              ORDER BY created_at DESC LIMIT 1
            ) AND used = 0
            RETURNING id`
@@ -395,33 +411,9 @@ function verifyCode(
             Effect.mapError(cause => new AuthStoreUnavailable('claimCode', cause))
           );
         }
-        // A correct code must remain usable even if an attacker has exhausted
-        // the victim's per-email failure bucket. Only failed guesses consume
-        // that bucket; the adapter's per-IP limiter still runs before this
-        // database lookup, while the hashed email bucket bounds distributed
-        // invalid guesses without storing an address.
-        return Effect.gen(function* () {
-          if (env.AUTH_RATE_LIMITER === undefined) {
-            return yield* Effect.fail(new AuthRateLimiterUnavailable());
-          }
-          const emailKey = yield* hashEmailForLimiting(body.email);
-          const emailAllowed = yield* checkRateLimitBucket(
-            env.AUTH_RATE_LIMITER,
-            `verify_code_email:${emailKey}`
-          );
-          if (!emailAllowed) {
-            return yield* Effect.fail(new AuthRateLimitedError());
-          }
-          return yield* logAudit(
-            env.DB,
-            null,
-            'auth.code_verify_failed',
-            'auth_code',
-            null,
-            request,
-            { email: body.email.slice(0, AUDIT_EMAIL_MAX_LENGTH) }
-          ).pipe(Effect.zipRight(Effect.fail(new InvalidOtpError())));
-        });
+        return logAudit(env.DB, null, 'auth.code_verify_failed', 'auth_code', null, request, {
+          email: body.email.slice(0, AUDIT_EMAIL_MAX_LENGTH),
+        }).pipe(Effect.zipRight(Effect.fail(new InvalidOtpError())));
       })
     );
     yield* Effect.tryPromise({

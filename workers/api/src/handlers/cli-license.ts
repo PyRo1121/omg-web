@@ -56,7 +56,7 @@ async function loadCliLicense(
        FROM licenses
        WHERE license_key = ?
          AND status = 'active'
-         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`
+         AND (expires_at IS NULL OR julianday(expires_at) > julianday('now'))`
     )
       .bind(credential)
       .first();
