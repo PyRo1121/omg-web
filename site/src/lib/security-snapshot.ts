@@ -10,7 +10,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'The Linux installer privilege restriction is applied through a safe process-launch path, removing the custom unsafe pre-execution block.',
       date: '2026-09-13T19:02:06-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -20,7 +20,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Managed installers receive closed standard input and Linux no_new_privs, limiting privilege gains through executable setuid, setgid and file capabilities.',
       date: '2026-09-13T18:40:06-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -30,7 +30,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Security receipts include streaming SHA-256 hashes of published executable and script targets, using paths relative to the installation.',
       date: '2026-09-13T18:35:49-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -40,7 +40,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'The previous managed-tool directory is retained through activation. Failed command linking triggers restoration and cleanup of broken links from the failed version.',
       date: '2026-09-13T18:34:49-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -50,7 +50,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Tool binary entries are resolved and checked against their installation directory before activation and again when shared command links are created.',
       date: '2026-09-13T18:27:29-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -60,7 +60,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Each managed installation stores a security receipt describing its source policy, active exceptions and effective verification and build settings.',
       date: '2026-09-13T18:25:57-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -70,7 +70,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Secured manager commands run outside the project tree. Cargo configuration is isolated and pip configuration files are disabled to limit inherited source settings.',
       date: '2026-09-13T18:25:00-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -80,7 +80,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'The resolved manager executable is retained for user-managed runtimes, while project-local manager selection is rejected by the secured command builder.',
       date: '2026-09-13T18:24:07-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -90,7 +90,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Manager-specific package-name rules reject local paths, Git shorthands and alternate-source specifications for registry-backed tool installs.',
       date: '2026-09-13T18:22:37-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -100,7 +100,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Go tool installs disable CGO and automatic toolchain downloads by default. Each capability has its own package-specific exception.',
       date: '2026-09-13T18:21:30-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -110,7 +110,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'npm first installs with lifecycle scripts disabled, then runs signature checks. An explicitly approved script rebuild happens after verification.',
       date: '2026-09-13T18:20:54-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -120,7 +120,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Every matching package-specific security override is printed before installation, so exceptions remain visible when installing or updating tools.',
       date: '2026-09-13T18:20:24-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -130,7 +130,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Installer child processes use a restricted executable search path instead of inheriting every directory from the calling shell.',
       date: '2026-09-13T18:19:54-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -140,7 +140,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Managed npm, Cargo, pip and Go installs use a separate home and configuration. Defaults disable npm lifecycle scripts, require Python wheels and use Cargo lockfiles, with explicit compatibility exceptions.',
       date: '2026-09-13T18:18:34-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Tool installs',
     },
     {
@@ -150,7 +150,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Selected high-risk AUR packages require a second build whose output matches before installation. The policy covers sensitive integration content and privileged package features.',
       date: '2026-09-13T17:55:02-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Packages & runtimes',
     },
     {
@@ -160,7 +160,7 @@ export const SECURITY_SNAPSHOT: SecurityFeed = {
       detail:
         'Package-manager hardening strengthens trusted executable selection, privilege boundaries and AUR artifact handling, alongside runtime verification improvements.',
       date: '2026-09-13T17:33:08-05:00',
-      branch: 'development',
+      branch: 'main',
       category: 'Packages & runtimes',
     },
   ],

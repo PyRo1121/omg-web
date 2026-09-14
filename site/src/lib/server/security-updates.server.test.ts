@@ -21,7 +21,7 @@ describe('public security feed', () => {
     expect(isSecurityUpdate('feat: add another theme')).toBe(false);
   });
 
-  it('deduplicates branch commits, preserves main status and caches refreshes', async () => {
+  it('keeps repositories distinct, preserves main status and caches refreshes', async () => {
     const { securityFeed } = await import('./security-updates.server');
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => Response.json([commit]));
     const feed = await securityFeed(fetcher);
@@ -31,7 +31,8 @@ describe('public security feed', () => {
     expect(entries.every(update => update.branch === 'main')).toBe(true);
     expect(entries[0]?.detail).toBe('Reject unexpected sources.');
     await securityFeed(fetcher);
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls.every(([url]) => String(url).includes('sha=main'))).toBe(true);
   });
 
   it('keeps saved entries when GitHub is rate limited', async () => {
@@ -42,6 +43,7 @@ describe('public security feed', () => {
     const feed = await securityFeed(fetcher);
     expect(feed.stale).toBe(true);
     expect(feed.updates.length).toBeGreaterThan(0);
+    expect(feed.updates.every(update => update.branch === 'main')).toBe(true);
   });
 
   it('rejects malformed API dates without breaking the public page', async () => {

@@ -17,10 +17,11 @@ const CommitSchema = Schema.Struct({
   }),
 });
 const decodeCommits = Schema.decodeUnknownSync(Schema.Array(CommitSchema));
+// PR #399 is merged. Follow main rather than treating its retained branch as
+// evidence of an open review. New security commits on main appear automatically.
 const SOURCES = [
   { repository: 'omg', ref: 'main', branch: 'main' },
   { repository: 'omg-web', ref: 'main', branch: 'main' },
-  { repository: 'omg', ref: 'codex/blue-team-pipeline-20260913', branch: 'development' },
 ] as const;
 let cached: SecurityFeed = SECURITY_SNAPSHOT;
 let expiresAt = 0;
@@ -40,7 +41,6 @@ async function refresh(fetcher: typeof fetch): Promise<SecurityFeed> {
           signal: AbortSignal.timeout(8000),
         }
       );
-      if (response.status === 404 && source.branch === 'development') return [];
       if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
       return decodeCommits(await response.json())
         .filter(commit => isSecurityUpdate(commit.commit.message.split('\n')[0] ?? ''))

@@ -149,8 +149,7 @@
     >; check release notes for your installed version. They apply to OMG-managed operations,
     including
     <code>omg tool install</code>. Selecting Node with OMG does not change direct npm commands.
-    <a
-      href="https://github.com/PyRo1121/omg/blob/codex/blue-team-pipeline-20260913/docs/omarchy.md#compare-the-actual-defaults"
+    <a href="https://github.com/PyRo1121/omg/blob/main/docs/omarchy.md#compare-the-actual-defaults"
       >Compare the defaults and evidence</a
     >.
   </p>
@@ -198,10 +197,10 @@
       {visible.length} updates <span>· Review and merge status are labeled individually.</span>
     </p>
     <p class="feed-note">
-      Rows marked In review are implemented fixes in the open hardening
-      <a href="https://github.com/PyRo1121/omg/pull/399">PR #399</a>, awaiting review and merge. On
-      main means merged; Released means included in a tagged build you can install. Merging alone
-      does not put a fix in the latest release.
+      The hardening in <a href="https://github.com/PyRo1121/omg/pull/399">PR #399</a> is merged.
+      This feed follows main in both repositories. On main means merged; it does not imply the fix
+      is in your installed release. Check the <a href="/updates/">release notes</a> for the tagged build
+      you use.
     </p>
     <div class="timeline">
       {#each visible as update (update.repository + update.sha)}
