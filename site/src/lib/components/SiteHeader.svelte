@@ -13,6 +13,7 @@
         <li><a href="/#workflow">Workflow</a></li>
         <li><a href="/#benchmarks">Speed</a></li>
         <li><a href="/docs/">Docs</a></li>
+        <li><a href="/security/">Security</a></li>
         <li>
           <a href="https://github.com/PyRo1121/omg/" target="_blank" rel="noopener noreferrer">
             GitHub
