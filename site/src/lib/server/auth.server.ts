@@ -86,6 +86,12 @@ async function lookupAuthSession({
   headers,
   requestUrl,
 }: AuthSessionLookupInput): Promise<AuthProviderSession | null> {
+  // Requests without any credentials cannot have a session. Avoid initializing
+  // the database-backed provider for anonymous page navigation; all requests
+  // carrying cookie or authorization headers still use provider validation.
+  if (!headers.has('cookie') && !headers.has('authorization')) {
+    return null;
+  }
   const auth = createShadowAuth(env, requestUrl);
   return auth.api.getSession({ headers });
 }

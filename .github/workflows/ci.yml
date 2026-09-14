@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.20.0
+          node-version: 24.21.0
           cache: npm
           cache-dependency-path: |
             package-lock.json
@@ -48,7 +48,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.20.0
+          node-version: 24.21.0
           cache: npm
           cache-dependency-path: site/package-lock.json
       # Select the pinned npm before install so its lifecycle-script policy applies.

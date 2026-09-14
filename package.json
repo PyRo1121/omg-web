@@ -35,9 +35,9 @@
     "check:installer": "node tools/check-installer-sync.mjs && bash tools/installer-security.sh"
   },
   "devDependencies": {
-    "@oxlint/plugins": "1.80.0",
-    "@types/node": "24.13.3",
-    "oxlint": "1.80.0",
+    "@oxlint/plugins": "1.82.0",
+    "@types/node": "24.13.4",
+    "oxlint": "1.82.0",
     "prettier": "3.9.6",
     "prettier-plugin-svelte": "4.1.1",
     "prettier-plugin-tailwindcss": "0.8.1",
@@ -50,6 +50,6 @@
     "workerd@1.20260911.1": true
   },
   "dependencies": {
-    "effect": "3.22.1"
+    "effect": "3.22.2"
   }
 }
