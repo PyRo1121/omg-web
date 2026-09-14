@@ -89,7 +89,8 @@
       <p class="eyebrow"><span class="signal-dot" aria-hidden="true"></span> OMG / security</p>
       <h1>Security,<br /><span>in the open.</span></h1>
       <p class="intro">
-        Stronger defaults. Visible progress. Every change linked to the code behind it.
+        Safer installation defaults, with fewer security settings to assemble yourself. Follow the
+        protections and the code behind them.
       </p>
       <a class="hero-link" href="#updates">Explore the updates <span aria-hidden="true">↓</span></a>
     </div>
@@ -120,26 +121,39 @@
       <span class="index">01 / BEFORE INSTALL</span>
       <h2>Check what comes in.</h2>
       <p>
-        Source restrictions, integrity checks and explicit build policies help keep installation
-        decisions deliberate.
+        Managed npm tool installs check signatures before activation. Python tool installs require
+        wheels by default, keeping source-build execution an explicit exception.
       </p>
     </article>
     <article>
       <span class="index">02 / DURING INSTALL</span>
       <h2>Limit what runs.</h2>
       <p>
-        Environment isolation and privilege controls reduce what installer processes inherit and can
-        change.
+        Managed installers use controlled configuration and Linux privilege restrictions. AUR builds
+        use a separate Bubblewrap policy with a private home and no build network by default.
       </p>
     </article>
     <article>
       <span class="index">03 / AFTER INSTALL</span>
       <h2>Keep the evidence.</h2>
       <p>
-        Receipts, executable hashes and public commits make the work easier to inspect and follow.
+        Managed-tool receipts record policy and executable hashes. Staged replacements and
+        activation rollback help preserve a working tool when an update fails.
       </p>
     </article>
   </section>
+
+  <p class="feed-note">
+    These protections are implemented in <a href="https://github.com/PyRo1121/omg/pull/399"
+      >PR #399</a
+    >; check release notes for your installed version. They apply to OMG-managed operations,
+    including
+    <code>omg tool install</code>. Selecting Node with OMG does not change direct npm commands.
+    <a
+      href="https://github.com/PyRo1121/omg/blob/codex/blue-team-pipeline-20260913/docs/omarchy.md#compare-the-actual-defaults"
+      >Compare the defaults and evidence</a
+    >.
+  </p>
 
   <section id="updates" class="updates" aria-labelledby="updates-heading">
     <div class="section-heading">
@@ -181,7 +195,13 @@
       >
     </div>
     <p class="result-count" aria-live="polite">
-      {visible.length} updates <span>· Main and development commits are labeled individually.</span>
+      {visible.length} updates <span>· Review and merge status are labeled individually.</span>
+    </p>
+    <p class="feed-note">
+      Rows marked In review are implemented fixes in the open hardening
+      <a href="https://github.com/PyRo1121/omg/pull/399">PR #399</a>, awaiting review and merge. On
+      main means merged; Released means included in a tagged build you can install. Merging alone
+      does not put a fix in the latest release.
     </p>
     <div class="timeline">
       {#each visible as update (update.repository + update.sha)}
@@ -196,7 +216,7 @@
               <h3>{update.title}</h3>
             </div>
             <span class="branch" class:development={update.branch === 'development'}
-              >{update.branch === 'main' ? 'On main' : 'In development'}</span
+              >{update.branch === 'main' ? 'On main' : 'In review'}</span
             ><span class="expand" aria-hidden="true">+</span></summary
           >
           <div class="entry-body">

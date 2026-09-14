@@ -14,8 +14,10 @@ displayed as escaped plain text, with a direct link to the full commit.
 The feed follows `main` in `PyRo1121/omg` and `PyRo1121/omg-web`, plus the active
 OMG release branch `codex/blue-team-pipeline-20260913`. Future development branches
 can be added to `SOURCES` in `site/src/lib/server/security-updates.server.ts`.
-No site rebuild is needed for matching commits on these branches. Development
-entries remain distinct from commits on main; neither is labeled as released.
+No site rebuild is needed for matching commits on these branches. Entries from the open hardening PR #399 are labeled In review: implemented fixes
+awaiting review and merge. On main means merged, not necessarily released.
+Reserve Released for verified inclusion in an installable tagged build; the current
+commit feed does not infer release inclusion.
 
 ## Refresh and availability
 
