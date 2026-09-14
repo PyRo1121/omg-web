@@ -1,0 +1,66 @@
+// Updates the existing production Worker. Secrets and remote variables are preserved.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "omgsveltesite-website-prod-dlaqgfttmir2ky5x",
+  "account_id": "f1e95b3e1b502cf366dfc81a863695fa",
+  "main": ".svelte-kit/cloudflare/_worker.js",
+  "compatibility_date": "2026-03-17",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": false,
+  "preview_urls": false,
+  "keep_vars": true,
+  "assets": {
+    "directory": ".svelte-kit/cloudflare",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "not_found_handling": "404-page"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_id": "fee8ddab-fb4a-4be4-b8d2-8abb7c2db188",
+      "database_name": "omg-platform"
+    }
+  ],
+  "services": [
+    {
+      "binding": "LICENSING_API",
+      "service": "omg-saas"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "2001",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    },
+    {
+      "name": "ADMIN_LIVE_RATE_LIMITER",
+      "namespace_id": "2002",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true,
+      "persist": true,
+      "head_sampling_rate": 0.01
+    }
+  }
+}

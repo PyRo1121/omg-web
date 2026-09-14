@@ -1,9 +1,11 @@
+import { makeCloudflareAdapter } from '@alchemy.run/frontend-frameworks/sveltekit/cloudflare';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [
     sveltekit({
+      adapter: makeCloudflareAdapter({ fallback: 'plaintext', notFoundHandling: '404-page' }),
       csp: {
         mode: 'auto',
         directives: {
