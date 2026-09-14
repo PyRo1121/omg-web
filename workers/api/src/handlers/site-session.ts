@@ -28,6 +28,7 @@ class CustomerStoreUnavailable extends Error {
       | 'insertCustomer'
       | 'insertLicense'
       | 'syncRole'
+      | 'revokeSessionsOnRoleChange'
       | 'deriveSessionToken'
       | 'insertSession',
     override readonly cause?: unknown
@@ -130,6 +131,12 @@ function mintSiteSession(
       const customerId = customer.id;
       yield* storeOperation('syncRole', () =>
         env.DB.prepare(`UPDATE customers SET admin = ? WHERE id = ?`).bind(admin, customerId).run()
+      );
+      // A privilege change revokes outstanding sessions: the stored Bearer [REDACTED]
+      // would otherwise survive demotion until expiry. The fresh session
+      // minted below keeps the current login working.
+      yield* storeOperation('revokeSessionsOnRoleChange', () =>
+        env.DB.prepare('DELETE FROM sessions WHERE customer_id = ?').bind(customerId).run()
       );
       customer = { ...customer, admin };
     }

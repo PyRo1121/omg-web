@@ -68,7 +68,7 @@ export async function handleDocsAnalytics(
     }
 
     const decodedBody = await Effect.runPromiseExit(
-      decodeJsonBody(request, DocsAnalyticsBatchSchema)
+      decodeJsonBody(request, DocsAnalyticsBatchSchema, MAX_DOCS_PAYLOAD_BYTES)
     );
     if (Exit.isFailure(decodedBody)) {
       return errorResponse('Invalid payload: events array required', 400);

@@ -2,6 +2,7 @@
 import { reportError } from '../observability';
 import { type Env, jsonResponse, errorResponse, enforceRateLimit, rateLimitClientIp } from '../api';
 import { Effect, Exit } from 'effect';
+import * as Schema from 'effect/Schema';
 import { decodeJsonBody } from '../body';
 import {
   BatchTelemetryRequestSchema,
@@ -16,6 +17,11 @@ const MAX_BATCH_SIZE = 500;
 const MAX_STRING_LENGTH = 1000;
 const MAX_ERROR_LENGTH = 5000;
 const MAX_ARRAY_LENGTH = 100;
+const MAX_PACKAGE_LENGTH = 1000;
+const MAX_METADATA_ENTRIES = 32;
+const MAX_METADATA_KEY_LENGTH = 64;
+const MAX_METADATA_VALUE_LENGTH = 512;
+const MAX_METADATA_BYTES = 4096;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 /**
@@ -51,6 +57,27 @@ function truncateString(
   return stringValue.length > maxLength ? stringValue.slice(0, maxLength) : stringValue;
 }
 
+/** Bound free-form feature metadata the way analytics properties are bounded. */
+function sanitizeMetadata(metadata: TelemetryEvent['metadata']): TelemetryEvent['metadata'] {
+  if (metadata === undefined) return undefined;
+  const bounded: Record<string, string | number | boolean | null> = {};
+  for (const [key, value] of Object.entries(metadata).slice(0, MAX_METADATA_ENTRIES)) {
+    const boundedKey = key.slice(0, MAX_METADATA_KEY_LENGTH);
+    // Narrow through the contract decoder (not a runtime type test) so only
+    // over-long strings are truncated while other atoms pass through intact.
+    const decoded = Schema.decodeUnknownEither(Schema.String)(value);
+    bounded[boundedKey] =
+      decoded._tag === 'Right' && decoded.right.length > MAX_METADATA_VALUE_LENGTH
+        ? decoded.right.slice(0, MAX_METADATA_VALUE_LENGTH)
+        : value;
+    if (new TextEncoder().encode(JSON.stringify(bounded)).byteLength > MAX_METADATA_BYTES) {
+      delete bounded[boundedKey];
+      break;
+    }
+  }
+  return bounded;
+}
+
 /** Sanitize every bounded event field once before statement construction. */
 function sanitizeEvent(event: TelemetryEvent): TelemetryEvent {
   return {
@@ -58,7 +85,10 @@ function sanitizeEvent(event: TelemetryEvent): TelemetryEvent {
     command: truncateString(event.command, MAX_STRING_LENGTH),
     subcommand: truncateString(event.subcommand, MAX_STRING_LENGTH),
     error: truncateString(event.error, MAX_ERROR_LENGTH),
-    packages: event.packages?.slice(0, MAX_ARRAY_LENGTH) ?? [],
+    packages:
+      event.packages
+        ?.slice(0, MAX_ARRAY_LENGTH)
+        .map(pkg => truncateString(pkg, MAX_PACKAGE_LENGTH) ?? '') ?? [],
     session_id: truncateString(event.session_id, MAX_STRING_LENGTH),
     metric_type: truncateString(event.metric_type, MAX_STRING_LENGTH),
     context: truncateString(event.context, MAX_STRING_LENGTH),
@@ -66,6 +96,7 @@ function sanitizeEvent(event: TelemetryEvent): TelemetryEvent {
     event_type: truncateString(event.event_type, MAX_STRING_LENGTH),
     start_time: truncateString(event.start_time, MAX_STRING_LENGTH),
     end_time: truncateString(event.end_time, MAX_STRING_LENGTH),
+    metadata: sanitizeMetadata(event.metadata),
   };
 }
 
@@ -226,7 +257,7 @@ export async function handleCliEvent(request: Request, env: Env): Promise<Respon
     }
 
     const decoded = await Effect.runPromiseExit(
-      decodeJsonBody(request, SingleTelemetryRequestSchema)
+      decodeJsonBody(request, SingleTelemetryRequestSchema, MAX_EVENT_PAYLOAD_BYTES)
     );
     if (Exit.isFailure(decoded)) {
       return errorResponse('Invalid JSON body', 400);
@@ -276,7 +307,7 @@ export async function handleCliBatch(request: Request, env: Env): Promise<Respon
     }
 
     const decoded = await Effect.runPromiseExit(
-      decodeJsonBody(request, BatchTelemetryRequestSchema)
+      decodeJsonBody(request, BatchTelemetryRequestSchema, MAX_BATCH_PAYLOAD_BYTES)
     );
     if (Exit.isFailure(decoded)) {
       return errorResponse('Invalid JSON body', 400);
