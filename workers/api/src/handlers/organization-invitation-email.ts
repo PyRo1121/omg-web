@@ -1,6 +1,7 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
 import type { OrganizationInvitationEmailResponse } from '../../../../shared/organization-invitation-email';
+import { SITE_HOSTNAME } from '../../../../shared/public-site';
 import { EMAIL_PATTERN } from '../../../../shared/email';
 import { AdminUnauthorizedError, requireInternalSecret } from '../admin-secret';
 import { decodeJsonBody, InvalidJsonBodyError } from '../body';
@@ -104,7 +105,7 @@ function invitationUrl(value: string): Effect.Effect<URL, InvitationEmailPayload
     parsed === null ||
     parsed.protocol !== 'https:' ||
     parsed.port !== '' ||
-    (parsed.hostname !== 'omg.latham.cloud' && !parsed.hostname.endsWith('.latham.workers.dev'))
+    (parsed.hostname !== SITE_HOSTNAME && !parsed.hostname.endsWith('.latham.workers.dev'))
   ) {
     return Effect.fail(new InvitationEmailPayloadInvalid());
   }

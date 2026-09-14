@@ -1,6 +1,8 @@
 # Team and Enterprise organization workspace
 
-**Status:** approved
+**Status:** approved historical design; not a current commercial offering or production-verification receipt.
+
+The tier language below records the original entitlement model. Public pricing/subscription UI was subsequently removed; this spec does not authorize restoring it or grant paid capabilities. Retained authorization rules must be checked against current code and tests. Deployment, authenticated characterization, and invitation delivery remain separate gates in [production cutover](../operations/svelte-production-cutover.md).
 **Date:** 2026-08-28
 **Decision:** Better Auth organizations with Owner / Admin / Member roles
 

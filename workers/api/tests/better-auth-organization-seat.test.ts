@@ -2,10 +2,7 @@ import '../src/cloudflare-test.d.ts';
 import { env } from 'cloudflare:test';
 import * as Schema from 'effect/Schema';
 import { describe, expect, it } from 'vitest';
-import {
-  createShadowAuth,
-  type AuthEnvironment,
-} from '../../../site-svelte/src/lib/server/auth.server';
+import { createShadowAuth, type AuthEnvironment } from '../../../site/src/lib/server/auth.server';
 
 const AUTH_SECRET = 'organization-seat-integration-secret-with-32-characters';
 const MemberCountRowSchema = Schema.Struct({ count: Schema.Number });

@@ -1,45 +1,59 @@
 import { spawnSync } from 'node:child_process';
 import { readFile, readdir } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { CLI_SERVICE_API_CONTRACT } from '../shared/licensing-routes.ts';
+import { LicensingRoutes } from '../shared/licensing-routes.ts';
 
 const workspaceRoot = new URL('../', import.meta.url);
-const sourceRoots = [
-  'site/src',
-  'shared',
-  'site-svelte/e2e',
-  'site-svelte/src',
-  'workers/api/src',
+const requireFromSite = createRequire(new URL('../site/package.json', import.meta.url));
+const ts = requireFromSite('typescript');
+
+const runtimeSourceDirectories = ['shared', 'site/src', 'workers/api/src'];
+const consumerSourceDirectories = [
+  ...runtimeSourceDirectories,
+  'site/e2e',
+  'site/tests',
   'workers/api/tests',
 ];
-const sourceExtensions = new Set(['.js', '.jsx', '.mjs', '.svelte', '.ts', '.tsx']);
-const solidOwnedDirectoryReference = /\bsite\/(?:public|src|tools)(?:\/|\b)/u;
-const solidOwnedRootFileReference =
-  /\bsite\/(?:package(?:-lock)?\.json|worker-configuration\.d\.ts|wrangler\.toml)\b/u;
-const obsoleteWorkerEntries = new Set(['releases', 'router']);
-const solidDeletionDirectories = ['site/src', 'site/public', 'site/tools'];
-const solidDeletionRootFiles = [
-  'site/.prettierignore',
-  'site/.prettierrc',
-  'site/app.config.ts',
+const frameworkEntryPoints = new Set(['site/src/hooks.server.ts', 'workers/api/src/worker.ts']);
+const sourceExtensions = ['.js', '.mjs', '.svelte', '.ts'];
+const sourceExtensionSet = new Set(sourceExtensions);
+const requiredSiteFiles = [
+  'site/alchemy.environment.mjs',
+  'site/alchemy.run.ts',
   'site/package-lock.json',
   'site/package.json',
+  'site/src/hooks.server.ts',
+  'site/vite.config.ts',
+];
+const removedRuntimeFiles = [
+  'site/app.config.ts',
   'site/postcss.config.js',
-  'site/tsconfig.json',
   'site/vitest.config.ts',
   'site/worker-configuration.d.ts',
   'site/wrangler.toml',
 ];
-const transientSolidBuildEntries = new Set([
-  '.vinxi',
-  '.wrangler',
-  'dist',
-  'node_modules',
-  'test-results',
-]);
-const productionWranglerConfigs = ['site/wrangler.toml', 'workers/api/wrangler.toml'];
+const repositoryConfigFiles = [
+  '.gitattributes',
+  '.github/CODEOWNERS',
+  '.github/workflows/ci.yml',
+  '.gitignore',
+  'CONTRIBUTING.md',
+  'README.md',
+  'package.json',
+  'tools/check-lockfile-integrity.mjs',
+  'tools/check-unused-exports.mjs',
+];
+const privacyRouteFiles = ['site/src/routes/privacy/+page.svelte'];
+const canonicalSiteHostname = 'getomg.xyz';
+const retiredSiteOrigin = 'https://omg.latham.cloud';
+const canonicalPublicArtifacts = ['site/static/install.ps1', 'site/static/og/omg-og.svg'];
+const forbiddenFrameworkImport = /^(?:@solidjs\/|solid-js(?:\/|$)|vinxi(?:\/|$))/u;
+const forbiddenRepositoryMarker = /site-svelte|\.vinxi|solid-js|@solidjs\/|\bvinxi\b/iu;
+const obsoleteWorkerEntries = new Set(['releases', 'router']);
+const productionWranglerConfigs = ['workers/api/wrangler.toml'];
 const secretVariableName = /(?:API_KEY|PASSWORD|PRIVATE_KEY|SECRET|TOKEN)$/u;
 const forbiddenPolicies = [
   { marker: '@effect/schema', reason: 'use Schema from the main effect package' },
@@ -51,105 +65,130 @@ const forbiddenPolicies = [
   { marker: '@ts-expect-error', reason: 'model and fix the type error' },
   { marker: 'biome-ignore', reason: 'fix the lint violation instead of suppressing it' },
 ];
+const externalBoundarySignal =
+  /\bfetch\(|\.formData\(|(?<!Response)\.json\(|JSON\.parse\(|\.first\(|\.all\(/u;
+const effectImport = /from\s+['"]effect(?:\/[^'"]+)?['"]/u;
+const privatePrivacyTerms = [
+  'customer_id',
+  'email_on_file',
+  'license_id',
+  'license_key',
+  'machine_id',
+  'stripe_customer_id',
+  'user_email',
+];
+const runtimeSourceMap = new Map();
+const violations = [];
 
-function extension(path) {
-  const separator = path.lastIndexOf('.');
-  return separator < 0 ? '' : path.slice(separator);
-}
-
-async function directoryFiles(relativeDirectory, include) {
-  const entries = await readdir(new URL(`${relativeDirectory}/`, workspaceRoot), {
-    withFileTypes: true,
-  });
+async function allFiles(directory) {
+  const entries = await readdir(new URL(`${directory}/`, workspaceRoot), { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
-    const relativePath = `${relativeDirectory}/${entry.name}`;
+    const path = `${directory}/${entry.name}`;
     if (entry.isDirectory()) {
-      files.push(...(await directoryFiles(relativePath, include)));
-    } else if (entry.isFile() && include(entry.name)) {
-      files.push(relativePath);
+      files.push(...(await allFiles(path)));
+    } else if (entry.isFile()) {
+      files.push(path);
     }
   }
   return files;
 }
 
-const sourceFiles = relativeDirectory =>
-  directoryFiles(relativeDirectory, name => sourceExtensions.has(extension(name)));
-const allFiles = relativeDirectory => directoryFiles(relativeDirectory, () => true);
+async function readable(path) {
+  try {
+    await readFile(new URL(path, workspaceRoot));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-const runtimeSourceDirectories = ['shared', 'site/src', 'site-svelte/src', 'workers/api/src'];
-const runtimeEntryPoints = new Set([
-  'site/src/app.tsx',
-  'site/src/entry-client.tsx',
-  'site/src/entry-server.tsx',
-  'site/src/middleware.ts',
-  'site-svelte/src/hooks.server.ts',
-  'workers/api/src/worker.ts',
-]);
-const runtimeExtensions = [...sourceExtensions];
+function report(path, message) {
+  violations.push({ path, message });
+}
 
-function resolveRuntimeImport(importer, specifier, files) {
+function scriptSource(path, source) {
+  if (!path.endsWith('.svelte')) return source;
+  return [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gu)]
+    .map(match => match[1] ?? '')
+    .join('\n');
+}
+
+function scriptKind(path) {
+  if (path.endsWith('.js') || path.endsWith('.mjs')) return ts.ScriptKind.JS;
+  return ts.ScriptKind.TS;
+}
+
+function resolveImport(importer, specifier) {
   let unresolved;
-  if (specifier.startsWith('~/')) {
-    unresolved = `site/src/${specifier.slice(2)}`;
-  } else if (specifier.startsWith('$lib/')) {
-    unresolved = `site-svelte/src/lib/${specifier.slice(5)}`;
-  } else if (specifier.startsWith('.')) {
-    unresolved = posix.normalize(posix.join(posix.dirname(importer), specifier));
+  const bareSpecifier = specifier.replace(/\?.*$/u, '');
+  if (bareSpecifier.startsWith('$lib/')) {
+    unresolved = `site/src/lib/${bareSpecifier.slice(5)}`;
+  } else if (bareSpecifier.startsWith('.')) {
+    unresolved = posix.normalize(posix.join(posix.dirname(importer), bareSpecifier));
   } else {
     return null;
   }
 
-  const base = unresolved.replace(/\.(?:js|jsx|mjs)$/u, '');
+  const base = unresolved.replace(/\.(?:js|mjs)$/u, '');
   const candidates = [
     unresolved,
     base,
-    ...runtimeExtensions.map(suffix => `${base}${suffix}`),
-    ...runtimeExtensions.map(suffix => `${base}/index${suffix}`),
+    ...sourceExtensions.map(suffix => `${base}${suffix}`),
+    ...sourceExtensions.map(suffix => `${base}/index${suffix}`),
   ];
-  return candidates.find(candidate => files.has(candidate)) ?? null;
+  return candidates.find(candidate => knownRepositoryFiles.has(candidate)) ?? null;
 }
 
-async function unreachableRuntimeFiles() {
-  const files = new Set((await Promise.all(runtimeSourceDirectories.map(sourceFiles))).flat());
-  const runtimeFiles = [...files].filter(
-    path => !path.endsWith('.d.ts') && !/\.(?:test|spec)\.[^.]+$/u.test(path)
-  );
-  const entryPoints = runtimeFiles.filter(
-    path =>
-      runtimeEntryPoints.has(path) ||
-      path.startsWith('site/src/routes/') ||
-      path.startsWith('site-svelte/src/routes/')
-  );
-  const dependencies = new Map();
-
-  for (const path of runtimeFiles) {
-    const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
-    const imports = new Set();
-    const importPattern = /(?:from\s+|import\s*(?:\(\s*)?)['"]([^'"]+)['"]/gu;
-    for (const match of contents.matchAll(importPattern)) {
-      const specifier = match[1];
-      if (specifier === undefined) continue;
-      const resolved = resolveRuntimeImport(path, specifier, files);
-      if (resolved !== null) imports.add(resolved);
-    }
-    dependencies.set(path, imports);
-  }
-
-  const reachable = new Set();
-  const pending = [...entryPoints];
-  while (pending.length > 0) {
-    const path = pending.pop();
-    if (path === undefined || reachable.has(path)) continue;
-    reachable.add(path);
-    pending.push(...(dependencies.get(path) ?? []));
-  }
-
-  return runtimeFiles.filter(path => !reachable.has(path)).toSorted();
+function isRuntimeEntry(path) {
+  return frameworkEntryPoints.has(path) || path.startsWith('site/src/routes/');
 }
 
-let violations = 0;
-const alchemyEnvironmentPath = 'site-svelte/alchemy.environment.mjs';
+function cliServiceRoute(route) {
+  return {
+    method: route.method,
+    path: route.path,
+    authentication: route.authentication,
+  };
+}
+
+const rootEntries = await readdir(workspaceRoot, { withFileTypes: true });
+if (rootEntries.some(entry => entry.name === 'site-svelte')) {
+  report('site-svelte', 'the retired migration root must not exist');
+}
+
+for (const path of requiredSiteFiles) {
+  if (!(await readable(path))) report(path, 'required SvelteKit application file is missing');
+}
+for (const path of removedRuntimeFiles) {
+  if (await readable(path)) report(path, 'retired Solid or Vinxi runtime file must not exist');
+}
+
+const siteSourceFiles = await allFiles('site/src');
+for (const path of siteSourceFiles) {
+  if (/\.(?:jsx|tsx)$/u.test(path)) {
+    report(path, 'JSX and TSX are not part of the SvelteKit application surface');
+  }
+}
+
+const sitePackageSource = await readFile(new URL('site/package.json', workspaceRoot), 'utf8');
+const sitePackage = JSON.parse(sitePackageSource);
+const siteDependencies = {
+  ...sitePackage.dependencies,
+  ...sitePackage.devDependencies,
+  ...sitePackage.optionalDependencies,
+  ...sitePackage.peerDependencies,
+};
+for (const dependency of Object.keys(siteDependencies)) {
+  if (forbiddenFrameworkImport.test(dependency)) {
+    report('site/package.json', `retired framework dependency remains: ${dependency}`);
+  }
+}
+if (sitePackage.name !== 'omg-site') {
+  report('site/package.json', 'the sole website package must be named omg-site');
+}
+
+const alchemyEnvironmentPath = 'site/alchemy.environment.mjs';
 const invalidStageResult = spawnSync(
   process.execPath,
   [fileURLToPath(new URL(alchemyEnvironmentPath, workspaceRoot)), 'plan', '--stage', 'production'],
@@ -159,10 +198,10 @@ if (
   invalidStageResult.status !== 1 ||
   invalidStageResult.stderr.trim() !== '[alchemy-env] --stage must be exactly shadow or prod'
 ) {
-  process.stderr.write(
-    `[source-policy] ${alchemyEnvironmentPath}: deployment stages must fail closed to exact shadow and prod names\n`
+  report(
+    alchemyEnvironmentPath,
+    'deployment stages must fail closed to exact shadow and prod names'
   );
-  violations += 1;
 }
 const unapprovedDeployResult = spawnSync(
   process.execPath,
@@ -173,38 +212,46 @@ if (
   unapprovedDeployResult.status !== 1 ||
   unapprovedDeployResult.stderr.trim() !== '[alchemy-env] non-interactive deploy requires --yes'
 ) {
-  process.stderr.write(
-    `[source-policy] ${alchemyEnvironmentPath}: non-interactive deployments must require explicit approval\n`
-  );
-  violations += 1;
+  report(alchemyEnvironmentPath, 'non-interactive deployments must require explicit approval');
 }
 
 const serviceContractPath = 'contracts/service-api-v1.json';
 const serviceContract = JSON.parse(
   await readFile(new URL(serviceContractPath, workspaceRoot), 'utf8')
 );
-if (!isDeepStrictEqual(serviceContract, CLI_SERVICE_API_CONTRACT)) {
-  process.stderr.write(
-    `[source-policy] ${serviceContractPath}: generated CLI service contract differs from the Worker route registry\n`
+const expectedServiceContract = {
+  schemaVersion: 1,
+  origin: 'https://omg-api.latham.cloud',
+  cliEndpoints: {
+    validateLicense: cliServiceRoute(LicensingRoutes.validateLicensePost),
+    reportUsage: cliServiceRoute(LicensingRoutes.reportUsage),
+    installPing: cliServiceRoute(LicensingRoutes.installPing),
+    cliBatch: cliServiceRoute(LicensingRoutes.cliBatch),
+    teamMembers: cliServiceRoute(LicensingRoutes.cliTeamMembers),
+    teamPolicies: cliServiceRoute(LicensingRoutes.cliPolicies),
+    teamAuditLog: cliServiceRoute(LicensingRoutes.cliAuditLog),
+  },
+};
+if (!isDeepStrictEqual(serviceContract, expectedServiceContract)) {
+  report(
+    serviceContractPath,
+    'generated CLI service contract differs from the Worker route registry'
   );
-  violations += 1;
 }
 
 const antiSlopSyncPath = 'tools/oxlint/sync-anti-slop.mjs';
 const antiSlopSync = await readFile(new URL(antiSlopSyncPath, workspaceRoot), 'utf8');
 if (antiSlopSync.includes('tmpdir')) {
-  process.stderr.write(
-    `[source-policy] ${antiSlopSyncPath}: network clones belong under ~/.cache/build-targets, not RAM-backed temporary storage\n`
+  report(
+    antiSlopSyncPath,
+    'network clones belong under ~/.cache/build-targets, not RAM-backed temporary storage'
   );
-  violations += 1;
 }
 
 for (const entry of await readdir(new URL('workers/', workspaceRoot), { withFileTypes: true })) {
-  if (!obsoleteWorkerEntries.has(entry.name)) continue;
-  process.stderr.write(
-    `[source-policy] workers/${entry.name}: obsolete undeployed Worker must not be reintroduced\n`
-  );
-  violations += 1;
+  if (obsoleteWorkerEntries.has(entry.name)) {
+    report(`workers/${entry.name}`, 'obsolete undeployed Worker must not be reintroduced');
+  }
 }
 
 for (const configPath of productionWranglerConfigs) {
@@ -216,94 +263,216 @@ for (const configPath of productionWranglerConfigs) {
       inPlaintextVariables = section[1] === 'vars' || section[1]?.endsWith('.vars') === true;
       continue;
     }
-    if (!inPlaintextVariables) {
-      continue;
-    }
+    if (!inPlaintextVariables) continue;
     const assignment = /^\s*([A-Z][A-Z0-9_]*)\s*=/u.exec(line);
     if (assignment?.[1] !== undefined && secretVariableName.test(assignment[1])) {
-      process.stderr.write(
-        `[source-policy] ${configPath}: ${assignment[1]} must use a secret binding, not plaintext [vars]\n`
-      );
-      violations += 1;
+      report(configPath, `${assignment[1]} must use a secret binding, not plaintext [vars]`);
     }
   }
 }
 
-const solidManifestPath = 'docs/operations/svelte-production-cutover.md';
-const solidManifest = await readFile(new URL(solidManifestPath, workspaceRoot), 'utf8');
-const manifestStart = '<!-- solid-deletion-manifest:start -->';
-const manifestEnd = '<!-- solid-deletion-manifest:end -->';
-const manifestBody = solidManifest.split(manifestStart)[1]?.split(manifestEnd)[0];
-const manifestEntries =
-  manifestBody?.match(/^site\/[^\n]+$/gm)?.toSorted((left, right) => left.localeCompare(right)) ??
-  [];
-const solidFiles = [
-  ...(await Promise.all(solidDeletionDirectories.map(directory => allFiles(directory)))).flat(),
-  ...solidDeletionRootFiles,
-].toSorted((left, right) => left.localeCompare(right));
-if (!isDeepStrictEqual(manifestEntries, solidFiles)) {
-  process.stderr.write(
-    `[source-policy] ${solidManifestPath}: Solid deletion manifest must list every owned site file exactly once\n`
-  );
-  violations += 1;
+for (const path of repositoryConfigFiles) {
+  const source = await readFile(new URL(path, workspaceRoot), 'utf8');
+  const marker = forbiddenRepositoryMarker.exec(source);
+  if (marker !== null) {
+    report(path, `retired website marker remains: ${marker[0]}`);
+  }
 }
 
-for (const path of await unreachableRuntimeFiles()) {
-  process.stderr.write(
-    `[source-policy] ${path}: production module is unreachable from every application, route, or Worker entry point\n`
-  );
-  violations += 1;
-}
-
-const solidDeletionDirectoryNames = new Set(
-  solidDeletionDirectories.map(path => posix.basename(path))
-);
-const solidDeletionRootNames = new Set(solidDeletionRootFiles.map(path => posix.basename(path)));
-for (const entry of await readdir(new URL('site/', workspaceRoot), { withFileTypes: true })) {
-  if (transientSolidBuildEntries.has(entry.name)) continue;
-  if (solidDeletionDirectoryNames.has(entry.name) && entry.isDirectory()) continue;
-  if (solidDeletionRootNames.has(entry.name) && entry.isFile()) continue;
-  process.stderr.write(
-    `[source-policy] site/${entry.name}: unclassified Solid application entry is outside the deletion manifest\n`
-  );
-  violations += 1;
-}
-
-const solidPublicRuntimeFiles = new Set(['site/public/_headers', 'site/public/_redirects']);
-const solidPublicFiles = (await allFiles('site/public')).filter(
-  path => !solidPublicRuntimeFiles.has(path)
-);
-const svelteStaticFiles = await allFiles('site-svelte/static');
-const relativeSolidPublicFiles = solidPublicFiles
-  .map(path => path.slice('site/public/'.length))
-  .toSorted();
-const relativeSvelteStaticFiles = svelteStaticFiles
-  .map(path => path.slice('site-svelte/static/'.length))
-  .toSorted();
-if (!isDeepStrictEqual(relativeSolidPublicFiles, relativeSvelteStaticFiles)) {
-  process.stderr.write(
-    '[source-policy] site/public and site-svelte/static must contain the same retained public artifacts apart from Solid-only routing files\n'
-  );
-  violations += 1;
-} else {
-  for (const relativePath of relativeSolidPublicFiles) {
-    const solidBytes = await readFile(new URL(`site/public/${relativePath}`, workspaceRoot));
-    const svelteBytes = await readFile(
-      new URL(`site-svelte/static/${relativePath}`, workspaceRoot)
-    );
-    if (!solidBytes.equals(svelteBytes)) {
-      process.stderr.write(
-        `[source-policy] site-svelte/static/${relativePath}: retained public artifact differs from the current production copy\n`
-      );
-      violations += 1;
+for (const directory of runtimeSourceDirectories) {
+  for (const path of await allFiles(directory)) {
+    if (sourceExtensionSet.has(posix.extname(path)) && !path.endsWith('.d.ts')) {
+      runtimeSourceMap.set(path, await readFile(new URL(path, workspaceRoot), 'utf8'));
     }
   }
 }
 
-const privacyPagePaths = [
-  'site/src/routes/privacy.tsx',
-  'site-svelte/src/routes/privacy/+page.svelte',
-];
+const publicSiteSource = runtimeSourceMap.get('shared/public-site.ts');
+if (
+  publicSiteSource === undefined ||
+  !publicSiteSource.includes(`SITE_HOSTNAME = '${canonicalSiteHostname}'`)
+) {
+  report('shared/public-site.ts', `SITE_HOSTNAME must be ${canonicalSiteHostname}`);
+}
+
+for (const [path, source] of runtimeSourceMap) {
+  if (/\.(?:test|spec)\.[^.]+$/u.test(path) || path === 'shared/public-site.ts') continue;
+  if (source.includes(canonicalSiteHostname)) {
+    report(path, 'production modules must import the shared canonical site contract');
+  }
+  if (source.includes(retiredSiteOrigin)) {
+    report(path, `retired site origin remains: ${retiredSiteOrigin}`);
+  }
+}
+
+for (const path of canonicalPublicArtifacts) {
+  const source = await readFile(new URL(path, workspaceRoot), 'utf8');
+  if (!source.includes(canonicalSiteHostname)) {
+    report(path, `public artifact must name ${canonicalSiteHostname}`);
+  }
+  if (source.includes('omg.latham.cloud')) {
+    report(path, 'public artifact names the retired site hostname');
+  }
+}
+
+const alchemyDeploymentSource = await readFile(
+  new URL('site/alchemy.run.ts', workspaceRoot),
+  'utf8'
+);
+for (const [name, value] of [
+  ['SITE_HOSTNAME', canonicalSiteHostname],
+  ['WWW_SITE_HOSTNAME', `www.${canonicalSiteHostname}`],
+]) {
+  if (!alchemyDeploymentSource.includes(`const ${name} = '${value}'`)) {
+    report('site/alchemy.run.ts', `${name} must be ${value}`);
+  }
+}
+if (!alchemyDeploymentSource.includes('name: SITE_HOSTNAME')) {
+  report(
+    'site/alchemy.run.ts',
+    'production Website must use SITE_HOSTNAME as its canonical domain'
+  );
+}
+if (!alchemyDeploymentSource.includes('redirects: [WWW_SITE_HOSTNAME]')) {
+  report('site/alchemy.run.ts', 'production Website must redirect WWW_SITE_HOSTNAME');
+}
+
+const knownRepositoryFiles = new Set([
+  ...(await allFiles('shared')),
+  ...(await allFiles('site/src')),
+  ...(await allFiles('site/e2e')),
+  ...(await allFiles('site/tests')),
+  'site/alchemy.run.ts',
+  ...(await allFiles('workers/api/migrations')),
+  ...(await allFiles('workers/api/src')),
+  ...(await allFiles('workers/api/tests')),
+]);
+const consumerFiles = new Map(runtimeSourceMap);
+const runtimeDependencies = new Map([...runtimeSourceMap.keys()].map(path => [path, new Set()]));
+for (const directory of consumerSourceDirectories.filter(
+  candidateDirectory => !runtimeSourceDirectories.includes(candidateDirectory)
+)) {
+  for (const path of await allFiles(directory)) {
+    if (sourceExtensionSet.has(posix.extname(path)) && !path.endsWith('.d.ts')) {
+      consumerFiles.set(path, await readFile(new URL(path, workspaceRoot), 'utf8'));
+    }
+  }
+}
+
+for (const [path, source] of consumerFiles) {
+  const sourceFile = ts.createSourceFile(
+    path,
+    scriptSource(path, source),
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKind(path)
+  );
+
+  function visit(node) {
+    let specifier;
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      specifier = node.moduleSpecifier.text;
+    } else if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments.length === 1 &&
+      node.arguments[0] &&
+      ts.isStringLiteral(node.arguments[0])
+    ) {
+      specifier = node.arguments[0].text;
+    }
+
+    if (specifier !== undefined) {
+      if (forbiddenFrameworkImport.test(specifier)) {
+        report(path, `retired framework import remains: ${specifier}`);
+      }
+      if (specifier.startsWith('.') || specifier.startsWith('$lib/')) {
+        const resolved = resolveImport(path, specifier);
+        if (resolved === null && specifier !== './$types') {
+          report(path, `local import does not resolve to a checked source file: ${specifier}`);
+        } else if (
+          resolved !== null &&
+          runtimeSourceMap.has(path) &&
+          runtimeSourceMap.has(resolved)
+        ) {
+          runtimeDependencies.get(path)?.add(resolved);
+        }
+        if (
+          resolved !== null &&
+          path.startsWith('site/src/') &&
+          resolved.startsWith('workers/api/src/')
+        ) {
+          report(path, `website source imports the Worker implementation: ${resolved}`);
+        } else if (
+          runtimeSourceMap.has(path) &&
+          resolved !== null &&
+          !path.startsWith('site/') &&
+          resolved.startsWith('site/src/')
+        ) {
+          report(path, `shared or Worker source imports the website implementation: ${resolved}`);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+
+  if (source.includes('localStorage.getItem') && source.includes('JSON.parse(')) {
+    report(path, 'localStorage values must be length-bounded before parsing');
+  }
+  for (const policy of forbiddenPolicies) {
+    if (source.includes(policy.marker)) {
+      report(path, `${policy.reason} (${policy.marker})`);
+    }
+  }
+  if (forbiddenRepositoryMarker.test(source) && !path.endsWith('check-source-policy.mjs')) {
+    report(path, 'retired website implementation marker remains');
+  }
+}
+
+const reachableRuntimeFiles = new Set();
+const pendingRuntimeFiles = [...runtimeSourceMap.keys()].filter(isRuntimeEntry);
+while (pendingRuntimeFiles.length > 0) {
+  const path = pendingRuntimeFiles.pop();
+  if (path === undefined || reachableRuntimeFiles.has(path)) continue;
+  reachableRuntimeFiles.add(path);
+  pendingRuntimeFiles.push(...(runtimeDependencies.get(path) ?? []));
+}
+for (const path of runtimeSourceMap.keys()) {
+  if (!/\.(?:test|spec)\.[^.]+$/u.test(path) && !reachableRuntimeFiles.has(path)) {
+    report(path, 'production module is unreachable from every route or Worker entry point');
+  }
+}
+
+const licensingRoutesSource = await readFile(
+  new URL('shared/licensing-routes.ts', workspaceRoot),
+  'utf8'
+);
+const workerSource = await readFile(new URL('workers/api/src/worker.ts', workspaceRoot), 'utf8');
+const declaredRoutes = [
+  ...licensingRoutesSource.matchAll(
+    /method:\s*'(GET|POST|PUT|PATCH|DELETE)'[\s\S]{0,220}?path:\s*'([^']+)'/gu
+  ),
+].map(match => ({ method: match[1] ?? '', path: match[2] ?? '' }));
+const workerRoutePaths = new Set(
+  [...workerSource.matchAll(/case\s+'([^']+)'\s*:/gu)].map(match => match[1] ?? '')
+);
+
+if (declaredRoutes.length === 0) {
+  report('shared/licensing-routes.ts', 'the private Worker route contract has no routes');
+}
+for (const route of declaredRoutes) {
+  const runtimePath = route.path.replace(/\/:[^/]+/gu, '');
+  if (!workerRoutePaths.has(runtimePath)) {
+    report('workers/api/src/worker.ts', `route contract path has no Worker case: ${route.path}`);
+  }
+}
+
 const requiredPrivacyMarkers = [
   'Version 2.1 / Last updated September 1, 2026',
   'Website analytics:',
@@ -313,70 +482,67 @@ const requiredPrivacyMarkers = [
   'Access and portability:',
 ];
 const obsoletePrivacyClaims = ['from the dashboard', 'dashboard settings', 'POST /api/privacy/'];
-for (const path of privacyPagePaths) {
-  const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
-  const normalizedContents = contents.replace(/\s+/gu, ' ');
+for (const path of privacyRouteFiles) {
+  const source = await readFile(new URL(path, workspaceRoot), 'utf8');
+  const normalizedSource = source.replace(/\s+/gu, ' ');
   for (const marker of requiredPrivacyMarkers) {
-    if (!normalizedContents.includes(marker)) {
-      process.stderr.write(`[source-policy] ${path}: privacy policy is missing ${marker}\n`);
-      violations += 1;
+    if (!normalizedSource.includes(marker)) {
+      report(path, `privacy policy is missing ${marker}`);
     }
   }
   for (const claim of obsoletePrivacyClaims) {
-    if (normalizedContents.includes(claim)) {
-      process.stderr.write(
-        `[source-policy] ${path}: privacy policy retains false ${claim} claim\n`
-      );
-      violations += 1;
+    if (normalizedSource.includes(claim)) {
+      report(path, `privacy policy retains false ${claim} claim`);
+    }
+  }
+  for (const term of privatePrivacyTerms) {
+    if (source.toLowerCase().includes(term)) {
+      report(path, `privacy route must not project private field name: ${term}`);
     }
   }
 }
 
-for (const root of sourceRoots) {
-  for (const path of await sourceFiles(root)) {
-    const contents = await readFile(new URL(path, workspaceRoot), 'utf8');
-    if (root !== 'site/src') {
-      if (
-        solidOwnedDirectoryReference.test(contents) ||
-        solidOwnedRootFileReference.test(contents)
-      ) {
-        process.stderr.write(
-          `[source-policy] ${path}: retained source references a Solid-owned application path\n`
-        );
-        violations += 1;
-      }
-      const importPattern = /(?:from\s+|import\s*(?:\(\s*)?)['"]([^'"]+)['"]/gu;
-      for (const match of contents.matchAll(importPattern)) {
-        const specifier = match[1];
-        if (specifier?.startsWith('.') !== true) continue;
-        const resolved = posix.normalize(posix.join(posix.dirname(path), specifier));
-        if (resolved === 'site' || resolved.startsWith('site/')) {
-          process.stderr.write(
-            `[source-policy] ${path}: retained production source still imports the Solid application tree (${specifier})\n`
-          );
-          violations += 1;
-        }
-      }
-    }
-    if (contents.includes('localStorage.getItem') && contents.includes('JSON.parse(')) {
-      process.stderr.write(
-        `[source-policy] ${path}: localStorage values must be length-bounded before parsing through the shared browser-storage boundary\n`
-      );
-      violations += 1;
-    }
-    for (const policy of forbiddenPolicies) {
-      if (contents.includes(policy.marker)) {
-        process.stderr.write(`[source-policy] ${path}: ${policy.reason} (${policy.marker})\n`);
-        violations += 1;
-      }
-    }
+const publicFilesSource = await readFile(
+  new URL('site/src/lib/server/public-files.ts', workspaceRoot),
+  'utf8'
+);
+for (const disallowed of ['/api/', '/dashboard/', '/admin/']) {
+  if (!publicFilesSource.includes(`Disallow: ${disallowed}`)) {
+    report('site/src/lib/server/public-files.ts', `missing private-route exclusion: ${disallowed}`);
   }
 }
 
-if (violations > 0) {
+for (const [path, source] of runtimeSourceMap) {
+  const isWebsiteProductionModule =
+    path.startsWith('site/src/') && !/\.(?:test|spec)\.[^.]+$/u.test(path);
+  if (isWebsiteProductionModule && externalBoundarySignal.test(source)) {
+    if (path.endsWith('.svelte')) {
+      report(path, 'Svelte components must delegate external boundaries to typed modules');
+    } else if (!effectImport.test(source)) {
+      report(path, 'website external boundaries must model expected failures with Effect');
+    }
+  }
+  if (source.includes('Record<string, unknown>')) {
+    report(path, 'open unknown dictionaries must be replaced with a named boundary schema');
+  }
+  if (!isRuntimeEntry(path) && source.includes('export default')) {
+    report(path, 'default exports are reserved for framework runtime entries');
+  }
+}
+
+for (const violation of violations.toSorted((left, right) =>
+  left.path === right.path
+    ? left.message.localeCompare(right.message)
+    : left.path.localeCompare(right.path)
+)) {
+  process.stderr.write(`[source-policy] ${violation.path}: ${violation.message}\n`);
+}
+
+if (violations.length > 0) {
+  process.stderr.write(`[source-policy] ${violations.length} violation(s) found\n`);
   process.exitCode = 1;
 } else {
   process.stdout.write(
-    `[source-policy] verified ${sourceRoots.length} source roots and ${productionWranglerConfigs.length} production configs\n`
+    `[source-policy] verified ${runtimeSourceMap.size} modules and a single SvelteKit website root\n`
   );
 }

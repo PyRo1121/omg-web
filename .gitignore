@@ -2,14 +2,6 @@
 node_modules/
 
 # Build output
-site/dist/
-site/.vinxi/
-site/.output/
-site/.wrangler/
-site/playwright-report/
-site/test-results/
-site/blob-report/
-site/EVIDENCE.txt
 *.tmp.mjs
 
 # Environment

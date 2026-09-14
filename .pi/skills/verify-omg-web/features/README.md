@@ -1,6 +1,6 @@
 # omg-web verification feature map
 
-Use the feature file matching the changed user surface. The map covers the retained SvelteKit application; the Solid application remains production authority only until cutover.
+Use the feature file that matches the changed user experience. The map covers the SvelteKit website in `site/`.
 
 | Feature                                                    | Entry points                                       | Harness                                           |
 | ---------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------- |

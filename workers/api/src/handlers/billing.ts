@@ -4,6 +4,7 @@ import { STRIPE_EVENT_RETENTION_DAYS } from '../retention';
 import { Effect, Exit } from 'effect';
 import * as Schema from 'effect/Schema';
 import { decodeBoundedJsonResponse, decodeJsonBody, readBoundedBodyText } from '../body';
+import { SITE_ORIGIN } from '../../../../shared/public-site';
 import { EmailAddress } from '../../../../shared/site-session';
 import {
   authenticateSession,
@@ -573,7 +574,7 @@ export async function handleCreateCheckout(
       `SELECT stripe_promotion_code_id
        FROM marketing_offer_leads
        WHERE email = ? AND promotion_code = ? AND status = 'ready'
-         AND datetime(expires_at) > CURRENT_TIMESTAMP`
+         AND julianday(expires_at) > julianday('now')`
     )
       .bind(email, promotionCode)
       .first();
@@ -601,8 +602,8 @@ export async function handleCreateCheckout(
     // The landing page hosts the post-checkout modal; the template lets it
     // correlate the redirect with a real Checkout Session instead of trusting
     // a forgeable ?success=true flag.
-    success_url: 'https://omg.latham.cloud/?success=true&session_id={CHECKOUT_SESSION_ID}',
-    cancel_url: 'https://omg.latham.cloud/#pricing',
+    success_url: `${SITE_ORIGIN}/?success=true&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${SITE_ORIGIN}/#pricing`,
   });
   if (stripePromotionCodeId !== null) {
     params.set('discounts[0][promotion_code]', stripePromotionCodeId);
@@ -782,7 +783,7 @@ export async function handleBillingPortal(request: Request, env: Env): Promise<R
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         customer: stripeCustomerId,
-        return_url: 'https://omg.latham.cloud/dashboard?portal=closed',
+        return_url: `${SITE_ORIGIN}/dashboard?portal=closed`,
       }),
     }
   );

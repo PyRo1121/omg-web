@@ -1,16 +1,18 @@
-# omg-web Threat Model
+# omg-web threat model
 
 **Date:** 2026-08-23 · **Head reviewed:** `6eb3c8e` (+ working tree) · **Method:** 7 parallel read-only audits (auth/sessions, API-keys/licenses, Stripe billing, request surface, frontend, data layer, supply chain), orchestrator-verified top findings. Per-agent reports: `~/.cache/build-targets/omg-web-security-review/findings/`.
 
-> **Historical snapshot:** This document records the posture at the reviewed commit; it is not the current production-state declaration. The remediation through `c1c18bc` disabled public password signup, required verified BFF identities, made seat allocation atomic, removed HS256 license minting, made validation POST-only, scoped usage dimensions per tenant, and hardened Stripe projection ordering/claims. Keep the original findings below as audit evidence; use the operations runbooks and current tests for live status.
+> **Historical snapshot:** This document records the posture at the reviewed commit. It is not a current production declaration. The remediation through `c1c18bc` disabled public password signup, required verified BFF identities, made seat allocation atomic, removed HS256 license minting, made validation POST-only, scoped usage dimensions per tenant, and hardened Stripe projection ordering and claims. Keep the findings below as audit evidence. Use the operations runbooks and current tests for live status.
+
+The maintained website is now SvelteKit under `site/`. `https://getomg.xyz` is its planned canonical origin. The old `omg-site` deployment remains only as the temporary `omg.latham.cloud` rollback Worker.
 
 ## Executive summary
 
-omg-web is a Cloudflare Workers SaaS platform that issues paid license/API keys, processes Stripe payments, and serves a SolidStart marketing/dashboard site sharing one D1 database. The strongest risk theme is **identity binding by bare email across three independent identity systems** (Better Auth site accounts, Worker OTP sessions, Stripe customers): an unverified email/password signup can be bound to an existing paid customer row and yield full paid-key theft (TM-001). Second, the **revenue enforcement path has direct bypasses**: `machine_id` is optional, so one paid key validates unlimited machines (TM-002), and offline license tokens fall back to HS256, which is incompatible with secure client-side verification (TM-004). Third, the **software distribution channel ships unverified executables** via `curl | bash` while the pricing page advertises nonexistent SLSA provenance (TM-003). A cluster of medium findings covers payment-state races, tier-vs-status authorization drift, OTP abuse, metric poisoning, plaintext credential storage, and a single shared admin secret that confers self-service role elevation. Existing controls are genuinely good in places (timing-safe secret compare, HMAC'd OTPs, parameterized SQL everywhere, fixed CORS allowlist, signed webhooks with replay protection) — the gaps are almost all authorization-decision and lifecycle problems, not injection-class bugs.
+At the reviewed commit, omg-web was a Cloudflare Workers SaaS platform that issued paid license and API keys, processed Stripe payments, and served a SolidStart website from the shared D1 database. The strongest risk theme is **identity binding by bare email across three independent identity systems** (Better Auth site accounts, Worker OTP sessions, Stripe customers): an unverified email/password signup can be bound to an existing paid customer row and yield full paid-key theft (TM-001). Second, the **revenue enforcement path has direct bypasses**: `machine_id` is optional, so one paid key validates unlimited machines (TM-002), and offline license tokens fall back to HS256, which is incompatible with secure client-side verification (TM-004). Third, the **software distribution channel ships unverified executables** via `curl | bash` while the pricing page advertises nonexistent SLSA provenance (TM-003). A cluster of medium findings covers payment-state races, tier-vs-status authorization drift, OTP abuse, metric poisoning, plaintext credential storage, and a single shared admin secret that confers self-service role elevation. Existing controls are genuinely good in places (timing-safe secret compare, HMAC'd OTPs, parameterized SQL everywhere, fixed CORS allowlist, signed webhooks with replay protection) — the gaps are almost all authorization-decision and lifecycle problems, not injection-class bugs.
 
 ## Scope and assumptions
 
-**In scope:** `workers/api/**` (licensing/billing/auth Workers), `site/src/**`, `shared/**`, `workers/router/**`, `workers/releases/**`, `tools/**`, `.github/workflows/ci.yml`, all wrangler configs, migrations, `site/public/install.*`.
+**In scope at the reviewed commit:** `workers/api/**`, `site/src/**`, `shared/**`, `workers/router/**`, `workers/releases/**`, `tools/**`, `.github/workflows/ci.yml`, Wrangler configuration, migrations, and `site/public/install.*`.
 
 **Out of scope:** the out-of-repo Rust CLI (`PyRo1121/omg`) — its verifier behavior decides TM-004/TM-011; Stripe Dashboard configuration; production D1 contents; Cloudflare zone/WAF settings not represented in wrangler configs.
 
@@ -26,9 +28,9 @@ omg-web is a Cloudflare Workers SaaS platform that issues paid license/API keys,
 
 ## System model
 
-### Primary components
+### Primary components at the reviewed commit
 
-- **omg-site** (`site/`): SolidStart SSR site on `omg.latham.cloud` — Better Auth (cookie sessions, email+password + OAuth-ready), dashboard UI, licensing BFF (`site/src/lib/licensing-bff.ts`) that mints Worker sessions server-side via service binding.
+- **omg-site** was the SolidStart website on `omg.latham.cloud`. The current repository no longer contains that runtime.
 - **omg-saas** (`workers/api/`): licensing Worker on public `omg-api.latham.cloud` — OTP auth, license validation/JWT minting, telemetry ingest, Stripe webhooks, admin CRM/analytics, privacy endpoints. Shares D1 `omg-platform` with omg-site.
 - **D1 `omg-platform`**: single shared database — auth tables (Better Auth), customers/licenses/machines/sessions, Stripe inbox, raw telemetry, audit log.
 - **Stripe**: checkout/portal + signed webhook ingestion with durable event dedup.
@@ -48,7 +50,7 @@ omg-web is a Cloudflare Workers SaaS platform that issues paid license/API keys,
 
 ```mermaid
 flowchart TD
-    U["User browser"] --> SITE["omg-site SolidStart"]
+    U["User browser"] --> SITE["retired omg-site SolidStart"]
     U --> API["omg-saas Worker"]
     CLI["CLI clients"] --> API
     GH["Stripe webhooks"] --> API

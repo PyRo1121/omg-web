@@ -2,7 +2,7 @@
 import { reportError } from '../observability';
 import { Effect, Exit } from 'effect';
 
-import { type Env, jsonResponse, errorResponse } from '../api';
+import { type Env, jsonResponse, errorResponse, enforceRateLimit, rateLimitClientIp } from '../api';
 import { forbiddenUnlessAdminSession } from '../admin-auth';
 import { requireInternalSecret } from '../admin-secret';
 import {
@@ -32,6 +32,13 @@ export async function handleInternalFirehose(request: Request, env: Env): Promis
   if (request.headers.get('X-Internal-Call') !== 'service-binding') {
     return errorResponse('Not found', 404);
   }
+  // The public domain also reaches this adapter. Throttle by edge client address,
+  // never by the guessed secret; Svelte forwards its trusted client address.
+  const limited = await enforceRateLimit(
+    env.API_RATE_LIMITER,
+    `internal_firehose:${rateLimitClientIp(request)}`
+  );
+  if (limited !== null) return limited;
   const secret = await Effect.runPromiseExit(
     requireInternalSecret(request.headers.get('X-Admin-Secret'), [env.SVELTE_BFF_SECRET])
   );

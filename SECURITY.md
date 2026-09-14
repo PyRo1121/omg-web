@@ -4,8 +4,7 @@
 
 Please **do not** open a public issue for security vulnerabilities.
 
-Report privately to the maintainers by opening a [private vulnerability report]
-(https://github.com/PyRo1121/omg-web/security/advisories/new) or emailing the
+Report privately to the maintainers by opening a [private vulnerability report](https://github.com/PyRo1121/omg-web/security/advisories/new) or emailing the
 repository owner directly.
 
 Please include:

@@ -1,11 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-const LOCKFILES = [
-  'package-lock.json',
-  'site/package-lock.json',
-  'site-svelte/package-lock.json',
-  'workers/api/package-lock.json',
-];
+const LOCKFILES = ['package-lock.json', 'site/package-lock.json', 'workers/api/package-lock.json'];
 
 const failures = [];
 for (const path of LOCKFILES) {

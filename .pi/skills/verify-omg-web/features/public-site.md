@@ -14,7 +14,7 @@ Open `/`. Scroll from “Stop managing package managers.” to “The core stays
 
 ## Driving it with Playwright
 
-From `site-svelte/` with the local instance healthy:
+From `site/` with the local instance healthy:
 
 ```bash
 npm run test:e2e -- e2e/anonymous.spec.ts \

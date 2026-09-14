@@ -1,3 +1,6 @@
+export const SITE_HOSTNAME = 'getomg.xyz';
+export const SITE_ORIGIN = `https://${SITE_HOSTNAME}`;
+
 type JsonLdValue =
   | string
   | number

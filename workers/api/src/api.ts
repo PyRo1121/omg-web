@@ -4,6 +4,7 @@
 import * as Sentry from '@sentry/cloudflare';
 import { Cause, Effect, Exit, Option } from 'effect';
 import * as Schema from 'effect/Schema';
+import { SITE_ORIGIN } from '../../../shared/public-site';
 import {
   ExtraRowParseError,
   readOptionalExtraRow,
@@ -196,9 +197,18 @@ export const TIER_FEATURES = {
 // Fixed-origin CORS headers. Same-origin requests are the primary consumer,
 // so credentials are not granted cross-origin.
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://omg.latham.cloud',
+  'Access-Control-Allow-Origin': SITE_ORIGIN,
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+/** API response protection, independent of each route's content and cache policy. */
+export const apiSecurityHeaders = {
+  'Cross-Origin-Resource-Policy': 'same-site',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
 };
 
 export function jsonResponse<TResponse>(data: TResponse, status = 200): Response {
@@ -206,11 +216,7 @@ export function jsonResponse<TResponse>(data: TResponse, status = 200): Response
     'Content-Type': 'application/json',
     ...corsHeaders,
     'CDN-Cache-Control': 'no-store',
-    'Cross-Origin-Resource-Policy': 'same-site',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
+    ...apiSecurityHeaders,
     // Every handler routed through here returns authenticated or
     // personalized data. Without an explicit Cache-Control, a 200 would be
     // heuristically cacheable by downstream shared caches (CDN-Cache-Control
@@ -299,7 +305,7 @@ export async function validateSession(
     FROM sessions s
     JOIN customers c ON s.customer_id = c.id
     WHERE (s.token_hash = ? OR (s.token_hash IS NULL AND s.token = ?))
-      AND s.expires_at > datetime('now')
+      AND julianday(s.expires_at) > julianday('now')
   `
     )
     .bind(tokenHash, token)

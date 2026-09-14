@@ -1,9 +1,10 @@
 import '../src/cloudflare-test.d.ts';
 import { describe, it, expect } from 'vitest';
+import { SITE_ORIGIN } from '../../../shared/public-site';
 import { fetchWorker } from './test-utils';
 
 const STATS_URL = 'https://omg-api.latham.cloud/api/github-stats';
-const ALLOWED_ORIGIN = 'https://omg.latham.cloud';
+const ALLOWED_ORIGIN = SITE_ORIGIN;
 const COMMIT_ACTIVITY_BODY = JSON.stringify([
   { days: [1, 2, 0, 0, 0, 0, 0], total: 3, week: 1755990000 },
 ]);

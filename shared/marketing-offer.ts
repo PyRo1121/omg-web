@@ -10,10 +10,9 @@ export const MarketingOfferRequestSchema = Schema.Struct({
 export const MarketingPromotionCodeSchema = Schema.String.pipe(
   Schema.pattern(/^OMG20-[A-Z0-9]{8}$/u)
 );
-export type MarketingPromotionCode = Schema.Schema.Type<typeof MarketingPromotionCodeSchema>;
 
 /** Customer-facing promotion code. Stripe object identifiers stay server-side. */
-export const MarketingOfferResponseSchema = Schema.Struct({
+const MarketingOfferResponseSchema = Schema.Struct({
   code: MarketingPromotionCodeSchema,
   percentOff: Schema.Literal(20),
   durationMonths: Schema.Literal(3),

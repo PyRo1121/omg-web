@@ -14,7 +14,7 @@ Open `/docs/`, `/privacy/`, and `/terms/` from the public site. Crawlers reach `
 
 ## Driving it with Playwright
 
-From `site-svelte/`:
+From `site/`:
 
 ```bash
 npm run test:e2e -- e2e/anonymous.spec.ts \

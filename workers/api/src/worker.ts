@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/cloudflare';
 import { forbiddenUnlessAdminSession } from './admin-auth';
 import {
   type Env,
+  apiSecurityHeaders,
   corsHeaders,
   jsonResponse,
   errorResponse,
@@ -33,6 +34,7 @@ import {
   handleInstallPing,
   handleAnalytics,
 } from './handlers/license';
+import { handleDashboardLink } from './handlers/dashboard-link';
 import {
   handleAdminDashboard,
   handleAdminCRMUsers,
@@ -77,6 +79,7 @@ import {
   handleDocsAnalytics,
   handleDocsAnalyticsDashboard,
   cleanupAnalyticsRetention,
+  refreshDocsAnalyticsAggregates,
 } from './handlers/docs-analytics';
 import { handleGitHubProxy } from './handlers/github-proxy';
 import { handleGetDashboard } from './handlers/account-dashboard';
@@ -238,6 +241,21 @@ async function adminGated(
   return denial ?? handler(request, env);
 }
 
+/** Decorate every outgoing response, including legacy cache entries and preflight. */
+function withApiSecurityHeaders(
+  handler: (request: Request, env: Env, ctx: ExecutionContext) => Promise<Response>
+) {
+  return async (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
+    const response = await handler(request, env, ctx);
+    // Cached responses can have immutable headers; retain the streaming body and metadata.
+    const secured = new Response(response.body, response);
+    for (const [name, value] of Object.entries(apiSecurityHeaders)) {
+      secured.headers.set(name, value);
+    }
+    return secured;
+  };
+}
+
 export default Sentry.withSentry(
   (env: Env) => ({
     dsn: env.SENTRY_DSN,
@@ -245,7 +263,7 @@ export default Sentry.withSentry(
     environment: 'production',
   }),
   {
-    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    fetch: withApiSecurityHeaders(async (request, env, ctx) => {
       if (request.method === 'OPTIONS') {
         return new Response(null, {
           headers: {
@@ -263,7 +281,7 @@ export default Sentry.withSentry(
         if (route === undefined) {
           return errorResponse('Not found', 404);
         }
-        if (route.path.startsWith('/api/admin/')) {
+        if (route.authentication === 'admin-session' || route.path.startsWith('/api/admin/')) {
           const limited = await enforceRateLimit(
             env.ADMIN_RATE_LIMITER,
             `admin:${rateLimitClientIp(request)}`
@@ -294,6 +312,8 @@ export default Sentry.withSentry(
             return handleValidateLicense(request, env);
           case '/api/get-license':
             return handleGetLicense(request, env);
+          case '/api/dashboard/link':
+            return handleDashboardLink(request, env);
           case '/api/report-usage':
             return handleReportUsage(request, env);
           case '/api/install-ping':
@@ -427,13 +447,24 @@ export default Sentry.withSentry(
         Sentry.captureException(error);
         return errorResponse('Internal server error', 500);
       }
-    },
+    }),
 
     async scheduled(
-      _controller: ScheduledController,
+      controller: ScheduledController,
       env: Env,
       ctx: ExecutionContext
     ): Promise<void> {
+      ctx.waitUntil(
+        refreshDocsAnalyticsAggregates(env.DB, controller.scheduledTime).catch(error => {
+          reportError('docs_analytics.aggregate_failed', error);
+          Sentry.captureException(error);
+        })
+      );
+      // Retention remains daily; the separate aggregate cron only refreshes
+      // bounded reporting dates and cannot be amplified by public requests.
+      if (controller.cron !== '0 2 * * *') {
+        return;
+      }
       ctx.waitUntil(
         cleanupAnalyticsRetention(env.DB).catch(error => {
           // Structured log first: SENTRY_DSN is optional, and without it every

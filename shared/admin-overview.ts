@@ -1,3 +1,10 @@
+const AUDIT_ACTION_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*){1,4}$/u;
+
+/** Whether an overview action is accepted by the existing audit filter endpoint. */
+export function isAdminAuditFilterAction(action: string): boolean {
+  return action.length <= 128 && AUDIT_ACTION_PATTERN.test(action);
+}
+
 /** One exact count in an operator-overview breakdown. */
 export interface AdminBreakdownItem {
   readonly label: string;

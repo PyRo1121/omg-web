@@ -44,13 +44,13 @@ const REALTIME_STALE_MS = 60 * 60 * 1000;
  *
  * @param request - Incoming request carrying a docs analytics batch.
  * @param env - Worker bindings including D1 and the rate limiter.
- * @param ctx - Execution context used to defer aggregate refreshes.
+ * @param _ctx - Request context; aggregation runs only from the scheduled handler.
  * @returns The processed count, or an error response.
  */
 export async function handleDocsAnalytics(
   request: Request,
   env: Env,
-  ctx: ExecutionContext
+  _ctx: ExecutionContext
 ): Promise<Response> {
   try {
     // Request rate is bounded by the API_RATE_LIMITER binding configuration.
@@ -140,12 +140,38 @@ export async function handleDocsAnalytics(
       await env.DB.batch(statements);
     }
 
-    const today = new Date().toISOString().slice(0, 10);
-    ctx.waitUntil(
-      (async () => {
-        try {
-          for (const query of [
-            `INSERT INTO docs_analytics_pageviews_daily (date, path, views, unique_sessions, avg_time_on_page_ms)
+    return jsonResponse({
+      success: true,
+      processed,
+      message: `Successfully processed ${processed} analytics events`,
+    });
+  } catch (error: unknown) {
+    reportError('Docs analytics error:', error);
+    return errorResponse('Failed to process analytics events', 500);
+  }
+}
+
+/**
+ * Refresh the current and previous UTC reporting day from the scheduled job.
+ * Ingestion uses server timestamps, so delayed client batches enter today;
+ * yesterday is rebuilt too for writes crossing midnight. Replacing each day's
+ * rows atomically also keeps nullable aggregate keys idempotent.
+ *
+ * @param db - Analytics database.
+ * @param now - Scheduled execution time in milliseconds.
+ */
+export async function refreshDocsAnalyticsAggregates(db: D1Database, now: number): Promise<void> {
+  for (const offset of [0, 86_400_000]) {
+    const day = new Date(now - offset).toISOString().slice(0, 10);
+    const statements = [
+      'docs_analytics_pageviews_daily',
+      'docs_analytics_referrers_daily',
+      'docs_analytics_utm_daily',
+      'docs_analytics_interactions_daily',
+      'docs_analytics_geo_daily',
+    ].map(table => db.prepare(`DELETE FROM ${table} WHERE date = ?`).bind(day));
+    for (const query of [
+      `INSERT INTO docs_analytics_pageviews_daily (date, path, views, unique_sessions, avg_time_on_page_ms)
              SELECT
                DATE(timestamp) as date,
                JSON_EXTRACT(properties, '$.url') as path,
@@ -159,7 +185,7 @@ export async function handleDocsAnalytics(
                views = excluded.views,
                unique_sessions = excluded.unique_sessions,
                avg_time_on_page_ms = excluded.avg_time_on_page_ms`,
-            `INSERT INTO docs_analytics_referrers_daily (date, referrer, sessions, pageviews)
+      `INSERT INTO docs_analytics_referrers_daily (date, referrer, sessions, pageviews)
              SELECT
                DATE(timestamp) as date,
                COALESCE(JSON_EXTRACT(properties, '$.referrer'), 'direct') as referrer,
@@ -171,7 +197,7 @@ export async function handleDocsAnalytics(
              ON CONFLICT(date, referrer) DO UPDATE SET
                sessions = excluded.sessions,
                pageviews = excluded.pageviews`,
-            `INSERT INTO docs_analytics_utm_daily (date, utm_source, utm_medium, utm_campaign, sessions, pageviews)
+      `INSERT INTO docs_analytics_utm_daily (date, utm_source, utm_medium, utm_campaign, sessions, pageviews)
              SELECT
                DATE(timestamp) as date,
                JSON_EXTRACT(properties, '$.utm.source') as utm_source,
@@ -187,7 +213,7 @@ export async function handleDocsAnalytics(
              ON CONFLICT(date, utm_source, utm_medium, utm_campaign) DO UPDATE SET
                sessions = excluded.sessions,
                pageviews = excluded.pageviews`,
-            `INSERT INTO docs_analytics_interactions_daily (date, interaction_type, target, count)
+      `INSERT INTO docs_analytics_interactions_daily (date, interaction_type, target, count)
              SELECT
                DATE(timestamp) as date,
                event_name as interaction_type,
@@ -198,7 +224,7 @@ export async function handleDocsAnalytics(
              GROUP BY date, interaction_type, target
              ON CONFLICT(date, interaction_type, target) DO UPDATE SET
                count = excluded.count`,
-            `INSERT INTO docs_analytics_geo_daily (date, country_code, sessions, pageviews)
+      `INSERT INTO docs_analytics_geo_daily (date, country_code, sessions, pageviews)
              SELECT
                DATE(timestamp) as date,
                JSON_EXTRACT(properties, '$.country') as country_code,
@@ -210,24 +236,11 @@ export async function handleDocsAnalytics(
              ON CONFLICT(date, country_code) DO UPDATE SET
                sessions = excluded.sessions,
                pageviews = excluded.pageviews`,
-          ]) {
-            await env.DB.prepare(query).bind(today).run();
-          }
-          reportInfo(`Successfully aggregated docs analytics for ${today}`);
-        } catch (error: unknown) {
-          reportError(`Failed to aggregate docs analytics for ${today}:`, error);
-        }
-      })()
-    );
-
-    return jsonResponse({
-      success: true,
-      processed,
-      message: `Successfully processed ${processed} analytics events`,
-    });
-  } catch (error: unknown) {
-    reportError('Docs analytics error:', error);
-    return errorResponse('Failed to process analytics events', 500);
+    ]) {
+      statements.push(db.prepare(query).bind(day));
+    }
+    await db.batch(statements);
+    reportInfo(`Successfully aggregated docs analytics for ${day}`);
   }
 }
 
