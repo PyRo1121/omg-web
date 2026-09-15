@@ -159,4 +159,3 @@ Track non-branded organic clicks, indexed intended pages, impressions by topic, 
 Build authority through original demonstrations, reproducible results, helpful contributions, and maintained documentation that others have reason to reference. Avoid mass-produced keyword pages, purchased ranking links, fake reviews, and inauthentic mentions; these conflict with [Google's spam policies](https://developers.google.com/search/docs/essentials/spam-policies).
 
 **Recommended next implementation scope:** finish the public-domain migration, establish search measurement, improve mobile navigation and homepage clarity, then publish the first verified runtime/workflow pages. The optional agent-documentation work follows those essentials.
-
