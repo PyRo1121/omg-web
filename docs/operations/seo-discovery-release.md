@@ -120,10 +120,63 @@ Duplicate public metadata and stale constants were removed. Existing escaped doc
 blocks render both handbook and new content. Source reachability/unused-export
 checks now recognize SvelteKit 3's `src/params.ts` entry. Git LF checkout policy and
 portable clipboard tests prevent Windows-only formatting and newline failures.
+The npm audit runner now invokes npm's supplied CLI path through Node rather than
+trying to execute a Windows `.cmd` file as a native binary. A deterministic browser
+test catches a menu opened before hydration; the native details state is preserved.
 
 ## Release status
 
-Legacy redirects are deployed and verified. Website implementation passed local
-site tests, public browser checks, type checks, and production packaging before
-integration with newer mainline changes. Final integration/deployment results are
-recorded below when complete; no search-account or indexing success is implied.
+Both the legacy redirects and the website are deployed and verified. No
+search-account, indexing, ranking, or traffic improvement is implied by deployment.
+
+- Integrated current `origin/main` at `1007065` before deploying, preserving the
+  newer security status, anonymous-auth guard, and dependency fixes.
+- Website source commit: `50725b2` on `codex/seo-discovery-cleanup`. Source is
+  committed locally; this branch has not been pushed or merged into remote main.
+- Production Worker: `omgsveltesite-website-prod-dlaqgfttmir2ky5x`.
+- Final deployed version: `33860af4-3f4e-4768-ae29-d87c00926bd8`.
+- Pre-release version: `b7ce3b15-40c7-4dfd-8aed-4c338fe5f32b`. Rollback restores
+  old website content, not Cloudflare redirect rules or database state.
+- `DEPLOYMENT_STAGE=prod`, the existing D1/service/rate-limit bindings and secrets
+  were preserved. No API Worker, database migration, subscription, or DNS change.
+- Live browser discovery suite: 4/4 passed. Local public suite: 20 passed, with
+  3 deployment-only authentication tests intentionally skipped in the local run.
+- Live sitemap: 24 HTML URLs, all 200, each with one H1, a matching canonical,
+  and no response-level noindex. New guide metadata, client navigation, mobile
+  keyboard/no-JavaScript behavior, missing-route 404s and text endpoints passed.
+- `/health`, `/login/`, `/install.sh` return 200; anonymous `/dashboard/` and
+  `/admin/` return 302 to `/login/`. No account login or payment was performed.
+- 331 site tests and 312 API tests passed. Type checks, lint, formatting,
+  source-policy, unused-export, migration-integrity, lockfile-integrity and all
+  three npm vulnerability audits passed. No new runtime dependencies.
+- Production build and Wrangler dry-run passed. Landing JavaScript closure:
+  71,225 gzip bytes; 170,730 gzip bytes across all 66 chunks, within existing budgets.
+
+### Edge-delivery findings fixed during verification
+
+The first deployment exposed a cached old sitemap. Purged only
+`https://getomg.xyz/sitemap.xml` in zone `fb74005c3f17bc04cff822a8117643ea`, then
+verified the ordinary, query-free URL lists all 24 pages. Repeat this targeted
+purge after future sitemap changes; deploying a Worker does not invalidate every
+independently cached response.
+
+The adapter discarded custom headers for prerendered text endpoints. Markdown and
+`llms.txt` now run through their response handlers, retaining explicit MIME types,
+noindex and `search=yes, ai-train=no`. Public guide HTML remains prerendered.
+Markdown links may normalize their trailing slash through the endpoint router;
+the final response and policy are covered by live tests.
+
+### Remaining repository-wide check limitations
+
+The umbrella `npm run check` is **not green on this Windows host**. Its installer
+suite initially resolves the WSL launcher without an installed distribution; the
+explicit Git Bash run also does not complete its platform-specific cases. The
+vendored anti-slop manifest check rejects a CRLF line, and the historical audit
+evidence checker reports path/hash differences on Windows. No evidence file or
+stored security hash was altered to suppress these failures. Validate those gates
+on the existing Linux CI runner before merging. These limitations are separate
+from the successful website/API tests and live SEO checks above.
+
+Existing adapter-deprecation and Better Auth ignored-side-effect-import warnings
+remain visible. Resolving them requires upstream compatibility work, not deleting
+security imports or changing dependencies solely to silence a warning.
