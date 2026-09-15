@@ -39,6 +39,12 @@ const PrivacyExportResponseSchema = Schema.Struct({
   sessions: Schema.optional(Schema.Array(Schema.Unknown)),
   performance_summary: Schema.optional(Schema.Array(Schema.Unknown)),
   feature_usage: Schema.optional(Schema.Array(Schema.Unknown)),
+  usage: Schema.optional(Schema.Array(Schema.Unknown)),
+  usage_daily: Schema.optional(Schema.Array(Schema.Unknown)),
+  analytics_events: Schema.optional(Schema.Array(Schema.Unknown)),
+  install_stats: Schema.optional(Schema.Array(Schema.Unknown)),
+  customer_notes: Schema.optional(Schema.Array(Schema.Unknown)),
+  excluded: Schema.optional(Schema.Unknown),
 });
 const PrivacyDeletionResponseSchema = Schema.Struct({
   success: Schema.Boolean,
@@ -342,13 +348,19 @@ describe('Privacy API', () => {
 
       // Verify export structure
       expect(body).toHaveProperty('export_date');
-      expect(body).toHaveProperty('export_format_version', '2.0');
+      expect(body).toHaveProperty('export_format_version', '3.0');
       expect(body).toHaveProperty('profile');
       expect(body).toHaveProperty('licenses');
       expect(body).toHaveProperty('command_history');
       expect(body).toHaveProperty('sessions');
       expect(body).toHaveProperty('performance_summary');
       expect(body).toHaveProperty('feature_usage');
+      expect(body).toHaveProperty('usage');
+      expect(body).toHaveProperty('usage_daily');
+      expect(body).toHaveProperty('analytics_events');
+      expect(body).toHaveProperty('install_stats');
+      expect(body).toHaveProperty('customer_notes');
+      expect(body).toHaveProperty('excluded');
 
       // Verify profile data
       expect(body.profile.email).toBe(TEST_EMAIL);
@@ -358,6 +370,49 @@ describe('Privacy API', () => {
       // Verify telemetry data
       expect(body.command_history).toHaveLength(1);
       expect(body.sessions).toHaveLength(1);
+    });
+
+    it('exports the usage, analytics, install, and note categories erased on delete', async () => {
+      await env.DB.prepare(
+        `INSERT INTO install_stats (id, install_id, version, platform, backend)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+        .bind('privacy-install-stat', TEST_MACHINE_ID, '0.1.0', 'linux', 'apt')
+        .run();
+      await env.DB.prepare(
+        `INSERT INTO customer_notes (id, customer_id, author_id, note_type, content)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+        .bind('privacy-note', TEST_CUSTOMER_ID, TEST_CUSTOMER_ID, 'general', 'parity note')
+        .run();
+      try {
+        const request = new Request('http://localhost/api/privacy/export', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${TEST_SESSION_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+
+        const ctx = createExecutionContext();
+        const response = await worker.fetch(request, env, ctx);
+        await waitOnExecutionContext(ctx);
+
+        expect(response.status).toBe(200);
+        const body = await decodeResponse(response, PrivacyExportResponseSchema);
+        expect(body.usage?.length).toBeGreaterThan(0);
+        expect(body.usage_daily?.length).toBeGreaterThan(0);
+        expect(body.analytics_events?.length).toBeGreaterThan(0);
+        expect(body.install_stats ?? []).toHaveLength(1);
+        expect(body.customer_notes ?? []).toHaveLength(1);
+        expect(body).toHaveProperty('excluded');
+      } finally {
+        await env.DB.prepare('DELETE FROM install_stats WHERE id = ?')
+          .bind('privacy-install-stat')
+          .run();
+        await env.DB.prepare('DELETE FROM customer_notes WHERE id = ?').bind('privacy-note').run();
+      }
     });
 
     it('derives export ownership from the session instead of caller selectors', async () => {

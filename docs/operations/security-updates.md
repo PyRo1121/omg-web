@@ -11,11 +11,13 @@ The feed also recognizes hardening, privilege, checksum, provenance and
 attestation titles. Ordinary merge commits are excluded. Commit bodies are
 displayed as escaped plain text, with a direct link to the full commit.
 
-The feed follows `main` in `PyRo1121/omg` and `PyRo1121/omg-web`, plus the active
-OMG release branch `codex/blue-team-pipeline-20260913`. Future development branches
-can be added to `SOURCES` in `site/src/lib/server/security-updates.server.ts`.
-No site rebuild is needed for matching commits on these branches. Entries from the open hardening PR #399 are labeled In review: implemented fixes
-awaiting review and merge. On main means merged, not necessarily released.
+The feed follows `main` in `PyRo1121/omg` and `PyRo1121/omg-web`.
+Hardening PR #399 merged on September 14, 2026; its retained branch is no longer
+polled or presented as an open review. All 16 committed fallback entries were
+verified as ancestors of OMG main before their status changed to On main.
+No site rebuild is needed for matching commits on main. On main means merged,
+not necessarily released. Adding a future review feed requires verifying the PR
+lifecycle rather than inferring review status from a branch name.
 Reserve Released for verified inclusion in an installable tagged build; the current
 commit feed does not infer release inclusion.
 

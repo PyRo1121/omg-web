@@ -21,6 +21,12 @@
       "matchUpdateTypes": ["minor", "patch", "pin", "digest", "lockFileMaintenance"],
       "groupName": "non-major dependencies",
       "automerge": false
+    },
+    {
+      "description": "Review prerelease SvelteKit and its Alchemy adapter together without blocking unrelated security updates",
+      "matchPackageNames": ["@sveltejs/kit", "@alchemy.run/frontend-frameworks", "alchemy"],
+      "groupName": "SvelteKit adapter compatibility",
+      "automerge": false
     }
   ]
 }

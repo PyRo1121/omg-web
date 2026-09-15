@@ -109,6 +109,50 @@ export const PrivacyFeatureRowSchema = Schema.Struct({
   last_used: OptNullStr,
 });
 
+/** Privacy export per-feature usage row. */
+export const PrivacyUsageRowSchema = Schema.Struct({
+  feature: Schema.String,
+  count: D1Number,
+  machine_id: OptNullStr,
+  timestamp: Schema.String,
+});
+
+/** Privacy export usage-day aggregate row. */
+export const PrivacyUsageDailyRowSchema = Schema.Struct({
+  date: Schema.String,
+  commands_run: D1Number,
+  packages_installed: D1Number,
+  packages_searched: D1Number,
+  runtimes_switched: D1Number,
+  time_saved_ms: D1Number,
+});
+
+/** Privacy export analytics event row. */
+export const PrivacyAnalyticsEventRowSchema = Schema.Struct({
+  event_type: Schema.String,
+  event_name: Schema.String,
+  properties: OptNullStr,
+  timestamp: Schema.String,
+  session_id: Schema.String,
+});
+
+/** Privacy export install-stat row. */
+export const PrivacyInstallStatRowSchema = Schema.Struct({
+  version: OptNullStr,
+  platform: OptNullStr,
+  backend: OptNullStr,
+  created_at: OptNullStr,
+});
+
+/** Privacy export support-note row (author identity excluded). */
+export const PrivacyCustomerNoteRowSchema = Schema.Struct({
+  note_type: Schema.String,
+  content: Schema.String,
+  is_pinned: D1Number,
+  created_at: OptNullStr,
+  updated_at: OptNullStr,
+});
+
 /** Dashboard audit log list row. */
 export const DashboardAuditLogRowSchema = Schema.Struct({
   id: Schema.String,
