@@ -1,12 +1,11 @@
 import { error } from '@sveltejs/kit';
-import { LEARNING_PAGES } from '../../../../lib/learn/catalog';
 import { loadLearningPage } from '../../../../lib/learn/content.server';
 import { learningMarkdown } from '../../../../lib/learn/markdown';
-import type { EntryGenerator, RequestHandler } from './$types';
+import type { RequestHandler } from './$types';
 
-export const prerender = true;
-export const entries: EntryGenerator = () =>
-  LEARNING_PAGES.map(({ category, slug }) => ({ category, slug }));
+// The adapter discards custom headers on prerendered text endpoints. Keep the
+// handler so production preserves Markdown MIME type and noindex policy.
+export const prerender = false;
 
 export const GET: RequestHandler = async ({ params }) => {
   const page = await loadLearningPage(params.category, params.slug);

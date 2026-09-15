@@ -93,6 +93,12 @@ test('public sitemap, raw HTML and Markdown agree on published guides', async ({
   expect(markdown.headers()['content-type']).toContain('text/markdown');
   expect(await markdown.text()).toContain('omg use node lts');
   expect(markdown.headers()['x-robots-tag']).toContain('noindex');
+  expect(markdown.headers()['content-signal']).toContain('ai-train=no');
+  const llms = await request.get('/llms.txt');
+  expect(llms.status()).toBe(200);
+  expect(llms.headers()['content-type']).toContain('text/plain');
+  expect(llms.headers()['x-robots-tag']).toContain('noindex');
+  expect(await llms.text()).toContain('/markdown/runtimes/node/');
   const missing = await request.get('/runtimes/not-a-runtime/');
   expect(missing.status()).toBe(404);
   expect((await request.get('/guides/node/')).status()).toBe(404);

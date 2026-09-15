@@ -3,7 +3,8 @@ import { DOCS_TOPICS, docsTopicHref } from '../../lib/docs/topics';
 import { LEARNING_PAGES, learningHref } from '../../lib/learn/catalog';
 import type { RequestHandler } from './$types';
 
-export const prerender = true;
+// Preserve the endpoint's response headers through the production adapter.
+export const prerender = false;
 
 export const GET: RequestHandler = () =>
   new Response(
