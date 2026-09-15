@@ -39,23 +39,57 @@ Do not replace or delete other rules added later. Keep domain registration and T
 active. Do not forward old API callbacks or installer requests as part of an SEO change.
 The configuration uses documented [Cloudflare Single Redirects](https://developers.cloudflare.com/rules/url-forwarding/single-redirects/settings/).
 
-## Search-account actions still needed
+## Search-account follow-up — September 14, 2026
 
-Account ownership and actual reports have not been verified. No Search Console or
-Bing settings were changed by this release.
+The initial deployment did not change search accounts. A subsequent signed-in
+browser check confirmed access to the existing `getomg.xyz` Google domain property.
+Its performance, indexing-summary, experience and enhancement reports are still
+processing; no traffic baseline is available yet.
 
-1. Confirm access to both old-host and new-domain properties in
-   [Google Search Console](https://search.google.com/search-console/). Follow the
+- Submitted `https://getomg.xyz/sitemap.xml` to Google. The submission was accepted,
+  but the report then showed **Couldn't fetch / Sitemap could not be read**, with
+  no detailed HTTP error. This is unresolved, not a successful sitemap crawl.
+- Google's homepage inspection says **URL is on Google**, with a successful
+  smartphone crawl on September 14 at 12:48:33 PM, crawling/indexing allowed,
+  and the inspected URL selected as canonical. A homepage recrawl request was
+  accepted into Google's priority queue. This is not proof the new copy is indexed.
+- Inspection of the new Node guide returned **Something went wrong**, advising
+  retry later. No indexing request for that guide was confirmed.
+- Google's manual-actions report says **No issues detected**. Direct retrieval
+  of the exact sitemap returned 200 XML with all 24 entries; robots.txt allows
+  its crawl. Cloudflare's bot-fight setting is off, and no custom firewall ruleset
+  appeared in the zone list. These checks do not establish why Google's fetch
+  failed. No security protection was disabled to work around the report.
+- Added and verified `https://getomg.xyz/` in the existing Bing Webmaster account
+  using DNS, without granting Google-account import permissions. Submitted the
+  same sitemap; Bing lists it as **Processing**, not yet crawled/indexed.
+
+Bing verification uses a DNS-only, non-flattened CNAME in the `getomg.xyz` zone:
+record ID `d05eaf11d354daf46d95f32b6e51aac6`, created `2026-09-15T02:15:52Z`.
+Only the verification hostname was added; apex routing, email and other records
+were untouched. Both Cloudflare and Google public DNS resolvers returned the
+expected `verify.bing.com` target before Bing verification succeeded. Keep this
+record to retain ownership verification. Configuration follows
+[Cloudflare's CNAME verification guidance](https://developers.cloudflare.com/dns/manage-dns-records/troubleshooting/cname-domain-verification/).
+
+### Remaining search-account checks
+
+1. Confirm the specific old-host property in
+   [Google Search Console](https://search.google.com/search-console/). The new-domain
+   property is accessible. Follow the
    [ownership verification instructions](https://support.google.com/webmasters/answer/9008080)
    using the exact record/value supplied to the owner; do not invent a DNS token.
-2. Submit `https://getomg.xyz/sitemap.xml`. Inspect the homepage, Node guide, and
-   npm/pnpm guide for crawl access, rendered text, selected canonical, and indexing
-   status. Inspect actual reports instead of inferring coverage from `site:` queries.
+2. Resolve Google's fetch warning for the already submitted sitemap using its
+   [sitemap error guidance](https://support.google.com/webmasters/answer/7451001?hl=en).
+   Retry Node and npm/pnpm guide inspection when the inspection service is available.
+   Check crawl access, rendered text, selected canonical and indexing status. The
+   homepage request is already queued; do not repeatedly submit it.
 3. Review eligibility and complete Google's
    [Change of Address workflow](https://support.google.com/webmasters/answer/9370220)
    for the moved public site. Keep redirects active during migration and recrawling.
-4. Verify/import the new site in [Bing Webmaster Tools](https://www.bing.com/webmasters/),
-   submit the sitemap, and inspect crawl/indexing reports.
+4. Check the submitted sitemap and crawl/indexing reports in
+   [Bing Webmaster Tools](https://www.bing.com/webmasters/). Ownership is now verified;
+   processing and discovery are not yet confirmed.
 5. Review Google's [Search generative AI control](https://support.google.com/webmasters/answer/16908024)
    in the actual property. Preserve the existing separation between search access
    and training restrictions; do not enable training as a side effect of an SEO setting.
@@ -126,8 +160,8 @@ test catches a menu opened before hydration; the native details state is preserv
 
 ## Release status
 
-Both the legacy redirects and the website are deployed and verified. No
-search-account, indexing, ranking, or traffic improvement is implied by deployment.
+Both the legacy redirects and the website are deployed and verified. Search-account
+follow-up is recorded above; deployment does not imply ranking or traffic improvement.
 
 - Integrated current `origin/main` at `1007065` before deploying, preserving the
   newer security status, anonymous-auth guard, and dependency fixes.
@@ -138,7 +172,8 @@ search-account, indexing, ranking, or traffic improvement is implied by deployme
 - Pre-release version: `b7ce3b15-40c7-4dfd-8aed-4c338fe5f32b`. Rollback restores
   old website content, not Cloudflare redirect rules or database state.
 - `DEPLOYMENT_STAGE=prod`, the existing D1/service/rate-limit bindings and secrets
-  were preserved. No API Worker, database migration, subscription, or DNS change.
+  were preserved. The deployment made no API Worker, database migration, subscription,
+  or DNS change. The later Bing verification-only DNS addition is recorded above.
 - Live browser discovery suite: 4/4 passed. Local public suite: 20 passed, with
   3 deployment-only authentication tests intentionally skipped in the local run.
 - Live sitemap: 24 HTML URLs, all 200, each with one H1, a matching canonical,
@@ -180,3 +215,13 @@ from the successful website/API tests and live SEO checks above.
 Existing adapter-deprecation and Better Auth ignored-side-effect-import warnings
 remain visible. Resolving them requires upstream compatibility work, not deleting
 security imports or changing dependencies solely to silence a warning.
+
+### Follow-up repository verification
+
+Fresh `npm test` on the continuation passed all 643 tests (331 site, 312 API).
+`git fetch origin` found no new main commits to integrate; this branch contains
+`origin/main` at `1007065`. That main commit's existing
+[Linux CI run](https://github.com/PyRo1121/omg-web/actions/runs/34906294691)
+passed, but it does **not** validate this SEO branch. This branch is still local;
+publishing it for a PR or a manually dispatched branch run is the next integration
+decision. No remote merge or CI-success claim for this branch has been made.
