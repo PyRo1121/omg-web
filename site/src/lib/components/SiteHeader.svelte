@@ -92,7 +92,7 @@
   .primary-links {
     display: flex;
     height: 100%;
-    align-items: stretch;
+    align-items: center;
     gap: clamp(1rem, 2.5vw, 2rem);
     margin: 0;
     padding: 0;
