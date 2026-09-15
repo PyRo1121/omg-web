@@ -1,0 +1,376 @@
+{
+  "date": "2026-09-14",
+  "method": "15 Exa searches across four workstreams; five results per search. 75 result entries, 74 exact unique URLs before consolidating mirrors and rejecting secondary commentary. Source inclusion does not imply endorsement or independent confirmation of vendor claims.",
+  "sources": [
+    {
+      "id": "technical-migration",
+      "url": "https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes",
+      "title": "Site Moves and Migrations | Google Search Central"
+    },
+    {
+      "id": "technical-migration",
+      "url": "https://support.google.com/webmasters/answer/9370220",
+      "title": "Change of Address tool - Search Console Help"
+    },
+    {
+      "id": "technical-migration",
+      "url": "https://developers.google.cn/search/docs/crawling-indexing/301-redirects",
+      "title": "Redirects and Google Search | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "technical-migration",
+      "url": "https://developers.google.cn/search/docs/crawling-indexing/consolidate-duplicate-urls",
+      "title": "How to Specify a Canonical with rel=\"canonical\" and Other Methods | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "technical-migration",
+      "url": "https://developers.google.cn/search/docs/crawling-indexing/site-move-with-url-changes",
+      "title": "Site Moves and Migrations | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "technical-javascript",
+      "url": "https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics",
+      "title": "Understand JavaScript SEO Basics | Google Search Central"
+    },
+    {
+      "id": "technical-javascript",
+      "url": "https://developers.google.cn/search/docs/crawling-indexing/javascript/fix-search-javascript",
+      "title": "Fix Search-Related JavaScript Problems | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "technical-javascript",
+      "url": "https://developers.google.com/search/docs/crawling-indexing/links-crawlable",
+      "title": "SEO Link Best Practices for Google | Documentation"
+    },
+    {
+      "id": "technical-javascript",
+      "url": "https://developers.google.cn/search/docs/appearance/structured-data/generate-structured-data-with-javascript",
+      "title": "Generate Structured Data with JavaScript | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "technical-javascript",
+      "url": "https://developers.google.cn/search/docs/crawling-indexing/javascript/javascript-seo-basics",
+      "title": "Understand JavaScript SEO Basics | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "technical-measurement",
+      "url": "https://support.google.com/webmasters/answer/7576553",
+      "title": "Performance report (Search results): Overview and basic setup - Search Console Help"
+    },
+    {
+      "id": "technical-measurement",
+      "url": "https://support.google.com/webmasters/answer/17011364?hl=en",
+      "title": "Performance report (Search results): About the data - Search Console Help"
+    },
+    {
+      "id": "technical-measurement",
+      "url": "https://support.google.com/webmasters/answer/17011259?hl=en",
+      "title": "Performance report (Search results): Dimensions and data groupings - Search Console Help"
+    },
+    {
+      "id": "technical-measurement",
+      "url": "https://support.google.com/webmasters/answer/9205520",
+      "title": "Core Web Vitals report - Search Console Help"
+    },
+    {
+      "id": "technical-measurement",
+      "url": "https://support.google.com/webmasters/answer/9133276",
+      "title": "Reports at a glance - Search Console Help"
+    },
+    {
+      "id": "technical-quality",
+      "url": "https://developers.google.com/search/docs/essentials/spam-policies",
+      "title": "Spam Policies for Google Web Search | Documentation"
+    },
+    {
+      "id": "technical-quality",
+      "url": "https://developers.google.cn/search/docs/fundamentals/creating-helpful-content",
+      "title": "Creating Helpful, Reliable, People-First Content | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "technical-quality",
+      "url": "https://developers.google.cn/search/docs/essentials/spam-policies",
+      "title": "Spam Policies for Google Web Search | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "technical-quality",
+      "url": "https://developers.google.cn/search/blog/2024/03/core-update-spam-policies",
+      "title": "What web creators should know about our March 2024 core update and new spam policies  |  Google Search Central Blog  |  Google for Developers"
+    },
+    {
+      "id": "technical-quality",
+      "url": "https://developers.google.cn/search/docs/essentials",
+      "title": "Google Search Essentials (formerly Webmaster Guidelines) | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "ai-google",
+      "url": "https://developers.google.cn/search/docs/appearance/ai-features",
+      "title": "AI Features and Your Website | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "ai-google",
+      "url": "https://developers.google.com/search/docs/fundamentals/ai-optimization-guide",
+      "title": "Google's Guide to Optimizing for Generative AI Features on ..."
+    },
+    {
+      "id": "ai-google",
+      "url": "https://developers.google.cn/search/docs/fundamentals/ai-optimization-guide",
+      "title": "Google's Guide to Optimizing for Generative AI Features on Google Search | Google Search Central  |  Documentation  |  Google for Developers"
+    },
+    {
+      "id": "ai-google",
+      "url": "https://support.google.com/webmasters/answer/16908024",
+      "title": "Search generative AI control - Search Console Help"
+    },
+    {
+      "id": "ai-google",
+      "url": "https://blog.google/products-and-platforms/products/search/new-controls-website-owners/",
+      "title": "New opportunities, control and insights for website owners"
+    },
+    {
+      "id": "ai-crawlers",
+      "url": "https://developers.openai.com/api/docs/bots",
+      "title": "Overview of OpenAI Crawlers"
+    },
+    {
+      "id": "ai-crawlers",
+      "url": "https://help.openai.com/en/articles/12627856-publishers-and",
+      "title": "Publishers and Developers - FAQ | OpenAI Help Center"
+    },
+    {
+      "id": "ai-crawlers",
+      "url": "https://help.openai.com/en/articles/20001243-advertiser-guidance-for-allowing-openai-web-crawlers",
+      "title": "Advertiser Guidance for Allowing OpenAI Web Crawlers | OpenAI Help Center"
+    },
+    {
+      "id": "ai-crawlers",
+      "url": "https://www.capconvert.com/learn/blog/gptbot-vs-oai-searchbot-why-blocking-one-does-not-block-the-other",
+      "title": "GPTBot vs OAI-SearchBot: Block One, Keep The Other | Capconvert"
+    },
+    {
+      "id": "ai-crawlers",
+      "url": "https://deepsmith.ai/blog/how-chatgpt-fetches-renders-your-pages",
+      "title": "GPTBot vs OAI-SearchBot vs ChatGPT-User: A Field Guide | DeepSmith"
+    },
+    {
+      "id": "ai-bing",
+      "url": "https://www.bing.com/webmasters/help/ai-performance-9f8e7d6c",
+      "title": "AI Performance - Bing Webmaster Tools"
+    },
+    {
+      "id": "ai-bing",
+      "url": "https://blogs.bing.com/webmaster/February-2026/Introducing-AI-Performance-in-Bing-Webmaster-Tools-Public-Preview",
+      "title": "Introducing AI Performance in Bing Webmaster Tools ..."
+    },
+    {
+      "id": "ai-freshness",
+      "url": "https://blogs.bing.com/webmaster/July-2025/Keeping-Content-Discoverable-with-Sitemaps-in-AI-Powered-Search",
+      "title": "Keeping Content Discoverable with Sitemaps in AI Powered Search..."
+    },
+    {
+      "id": "ai-bing",
+      "url": "https://johnelincoln.com/ai-performance-reporting-bing/",
+      "title": "How to See AI Performance Reporting in Bing Webmaster Tools"
+    },
+    {
+      "id": "ai-bing",
+      "url": "https://ppc.land/bing-gives-publishers-first-look-at-how-ai-systems-cite-their-content/",
+      "title": "Bing gives publishers first look at how AI systems cite their content"
+    },
+    {
+      "id": "ai-freshness",
+      "url": "https://www.bing.com/webmasters/help/url-submission-62f2860b",
+      "title": "URL Submission - Bing Webmaster Tools"
+    },
+    {
+      "id": "ai-freshness",
+      "url": "https://blogs.bing.com/webmaster/September-2024/IndexNow-When-and-How-Websites-Should-Notify-Search-Engines",
+      "title": "IndexNow: When and How Websites Should Notify Search Engines..."
+    },
+    {
+      "id": "ai-freshness",
+      "url": "https://www.indexnow.org/documentation.html",
+      "title": "Documentation | IndexNow.org"
+    },
+    {
+      "id": "ai-freshness",
+      "url": "https://blogs.bing.com/webmaster/february-2023/The-Importance-of-Setting-the-lastmod-Tag-in-Your-Sitemap",
+      "title": "The Importance of Setting the \"lastmod\" Tag in Your Sitemap | Bing..."
+    },
+    {
+      "id": "competitors-mise",
+      "url": "https://mise.en.dev/dev-tools/comparison-to-asdf.html",
+      "title": "Comparison to asdf | mise-en-place"
+    },
+    {
+      "id": "competitors-mise",
+      "url": "https://mise.en.dev/dev-tools/",
+      "title": "Dev Tools | mise-en-place"
+    },
+    {
+      "id": "competitors-mise",
+      "url": "https://mise.en.dev/lang/node",
+      "title": "Node | mise-en-place"
+    },
+    {
+      "id": "competitors-mise",
+      "url": "https://mise.jdx.dev/lang/node.html",
+      "title": "Node.js - mise-en-place"
+    },
+    {
+      "id": "competitors-mise",
+      "url": "https://github.com/jdx/mise/blob/v2025.12.10/README.md",
+      "title": "README.md at v2025.12.10 · jdx/mise"
+    },
+    {
+      "id": "competitors-node",
+      "url": "https://docs.volta.sh/guide/understanding",
+      "title": "Understanding Volta | Volta"
+    },
+    {
+      "id": "competitors-node",
+      "url": "https://docs.volta.sh/guide/index",
+      "title": "Introduction | Volta"
+    },
+    {
+      "id": "competitors-node",
+      "url": "https://docs.volta.sh/advanced/pnpm",
+      "title": "pnpm Support | Volta"
+    },
+    {
+      "id": "competitors-node",
+      "url": "https://docs.volta.sh/advanced/packages",
+      "title": "Package Binaries | Volta"
+    },
+    {
+      "id": "competitors-node",
+      "url": "https://www.voltajs.com/reference/pin.html",
+      "title": "volta pin - Project Tool Version Pinning Command | Volta"
+    },
+    {
+      "id": "competitors-packages",
+      "url": "https://bun.com/package-manager",
+      "title": "bun install — a superfast npm-compatible package manager"
+    },
+    {
+      "id": "competitors-packages",
+      "url": "https://bun.com/docs/pm/cli/install",
+      "title": "bun install | Bun Docs"
+    },
+    {
+      "id": "competitors-packages",
+      "url": "https://bun.sh/docs/guides/install/from-npm-install-to-bun-install",
+      "title": "N/A"
+    },
+    {
+      "id": "competitors-packages",
+      "url": "https://bun.sh/docs/pm/cli/install",
+      "title": "N/A"
+    },
+    {
+      "id": "competitors-packages",
+      "url": "https://bun.com/docs/pm/cli/install.md",
+      "title": "N/A"
+    },
+    {
+      "id": "competitors-pnpm",
+      "url": "https://pnpm.io/cli/runtime",
+      "title": "pnpm runtime <cmd> | pnpm"
+    },
+    {
+      "id": "competitors-pnpm",
+      "url": "https://pnpm.io/package_json",
+      "title": "package.json | pnpm"
+    },
+    {
+      "id": "competitors-pnpm",
+      "url": "https://pnpm.io/installation",
+      "title": "Installation | pnpm"
+    },
+    {
+      "id": "competitors-pnpm",
+      "url": "https://pnpm.io/10.x/package_json",
+      "title": "package.json | pnpm"
+    },
+    {
+      "id": "competitors-pnpm",
+      "url": "https://pnpm.io/settings/cli",
+      "title": "CLI & Node.js Settings | pnpm"
+    },
+    {
+      "id": "performance-vitals",
+      "url": "https://web.dev/articles/lab-and-field-data-differences",
+      "title": "Why lab and field data can be different (and what to do about it)  |  Articles  |  web.dev"
+    },
+    {
+      "id": "performance-vitals",
+      "url": "https://web.dev/articles/defining-core-web-vitals-thresholds",
+      "title": "How the Core Web Vitals metrics thresholds were defined  |  Articles  |  web.dev"
+    },
+    {
+      "id": "performance-vitals",
+      "url": "https://web.dev/articles/vitals",
+      "title": "Web Vitals  |  Articles  |  web.dev"
+    },
+    {
+      "id": "performance-vitals",
+      "url": "https://web.dev/articles/vitals-field-measurement-best-practices",
+      "title": "Best practices for measuring Web Vitals in the field  |  Articles  |  web.dev"
+    },
+    {
+      "id": "performance-vitals",
+      "url": "https://developer.chrome.com/docs/crux/guides/pagespeed-insights",
+      "title": "How to view Chrome UX Report data on PageSpeed Insights  |  Chrome for Developers"
+    },
+    {
+      "id": "performance-cloudflare",
+      "url": "https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/",
+      "title": "Billing and Limitations · Cloudflare Workers docs"
+    },
+    {
+      "id": "performance-cloudflare",
+      "url": "https://developers.cloudflare.com/workers/static-assets/routing/worker-script/",
+      "title": "Worker script"
+    },
+    {
+      "id": "performance-cloudflare",
+      "url": "https://developers.cloudflare.com/workers/static-assets/",
+      "title": "Static Assets · Cloudflare Workers docs"
+    },
+    {
+      "id": "performance-cloudflare",
+      "url": "https://developers.cloudflare.com/workers/static-assets/binding/",
+      "title": "Configuration and Bindings · Cloudflare Workers docs"
+    },
+    {
+      "id": "performance-cloudflare",
+      "url": "https://developers.cloudflare.com/workers/static-assets/routing/static-site-generation/",
+      "title": "Static Site Generation (SSG) and custom 404 pages · Cloudflare Workers docs"
+    },
+    {
+      "id": "performance-agent",
+      "url": "https://developers.cloudflare.com/fundamentals/reference/markdown-for-agents/",
+      "title": "Markdown for Agents · Cloudflare Fundamentals docs"
+    },
+    {
+      "id": "performance-agent",
+      "url": "https://developers.cloudflare.com/changelog/post/2026-02-12-markdown-for-agents/",
+      "title": "Introducing Markdown for Agents · Changelog"
+    },
+    {
+      "id": "performance-agent",
+      "url": "https://blog.cloudflare.com/markdown-for-agents/",
+      "title": "Introducing Markdown for Agents"
+    },
+    {
+      "id": "performance-agent",
+      "url": "https://developers.cloudflare.com/docs-for-agents/",
+      "title": "Docs for agents · Docs for agents docs"
+    },
+    {
+      "id": "performance-agent",
+      "url": "https://github.com/cloudflare/cloudflare-docs/blob/production/src/content/partials/fundamentals/markdown-for-agents.mdx",
+      "title": "src/content/partials/fundamentals/markdown-for-agents.mdx"
+    }
+  ]
+}

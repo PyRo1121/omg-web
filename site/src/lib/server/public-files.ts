@@ -1,6 +1,7 @@
 import { SITE_ORIGIN } from '../../../../shared/public-site';
 import { applySecurityHeaders } from '../../../../shared/security-headers';
 import { DOCS_TOPICS, docsTopicHref } from '../docs/topics';
+import { LEARNING_PAGES, learningHref } from '../learn/catalog';
 
 const SHADOW_ROBOTS_POLICY = 'noindex, nofollow';
 const DOCS_CACHE_POLICY = 'public, max-age=0, must-revalidate';
@@ -12,10 +13,11 @@ const STATIC_PAGE_PATHS = [
   '/security/',
   '/privacy/',
   '/terms/',
+  '/runtimes/',
+  '/guides/',
+  '/compare/',
 ] as const;
 const DOCS_TOPIC_PATHS = DOCS_TOPICS.map(topic => docsTopicHref(topic.slug));
-
-type SitemapPath = (typeof STATIC_PAGE_PATHS)[number] | ReturnType<typeof docsTopicHref>;
 
 function escapeXml(value: string): string {
   return value
@@ -26,9 +28,9 @@ function escapeXml(value: string): string {
     .replaceAll("'", '&apos;');
 }
 
-function sitemapEntry(path: SitemapPath): string {
+function sitemapEntry(path: string, modified?: string): string {
   return `  <url>
-    <loc>${escapeXml(`${SITE_ORIGIN}${path}`)}</loc>
+    <loc>${escapeXml(`${SITE_ORIGIN}${path}`)}</loc>${modified ? `\n    <lastmod>${escapeXml(modified)}</lastmod>` : ''}
   </url>`;
 }
 
@@ -101,7 +103,10 @@ Sitemap: ${SITE_ORIGIN}/sitemap.xml
 }
 
 export function sitemapResponse(): Response {
-  const entries = [...STATIC_PAGE_PATHS, ...DOCS_TOPIC_PATHS].map(sitemapEntry).join('\n');
+  const entries = [
+    ...[...STATIC_PAGE_PATHS, ...DOCS_TOPIC_PATHS].map(path => sitemapEntry(path)),
+    ...LEARNING_PAGES.map(page => sitemapEntry(learningHref(page), page.modified)),
+  ].join('\n');
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entries}

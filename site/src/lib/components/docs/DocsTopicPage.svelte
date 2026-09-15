@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SeoHead from '../SeoHead.svelte';
   import { serializeJsonLd } from '../../../../../shared/public-site';
   import { SITE_ORIGIN } from '../../../../../shared/public-site';
   import type { DocsTopic } from '../../docs/topic';
@@ -6,10 +7,6 @@
   import DocsBlocks from './DocsBlocks.svelte';
 
   let { topic }: { topic: DocsTopic } = $props();
-
-  const socialImage = `${SITE_ORIGIN}/og/omg-og.png`;
-  const socialImageAlt =
-    'The OMG landing page headline beside a large orange 7→1 graphic representing seven package tools replaced by one command.';
 
   const canonical = $derived(`${SITE_ORIGIN}/docs/${topic.slug}/`);
   const pageTitle = $derived(`${topic.title} - OMG Package Manager`);
@@ -29,30 +26,13 @@
   );
 </script>
 
-<svelte:head>
-  <title>{pageTitle}</title>
-  <meta name="description" content={topic.summary} />
-  <meta name="robots" content="index, follow, max-image-preview:large" />
-  <link rel="canonical" href={canonical} />
-
-  <meta property="og:type" content="article" />
-  <meta property="og:title" content={pageTitle} />
-  <meta property="og:description" content={topic.summary} />
-  <meta property="og:url" content={canonical} />
-  <meta property="og:image" content={socialImage} />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:type" content="image/png" />
-  <meta property="og:image:alt" content={socialImageAlt} />
-  <meta property="og:site_name" content="OMG Package Manager" />
-  <meta property="og:locale" content="en_US" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content={pageTitle} />
-  <meta name="twitter:description" content={topic.summary} />
-  <meta name="twitter:image" content={socialImage} />
-  <meta name="twitter:image:alt" content={socialImageAlt} />
-  <svelte:element this={"script"} type="application/ld+json">{breadcrumbData}</svelte:element>
-</svelte:head>
+<SeoHead
+  title={pageTitle}
+  description={topic.summary}
+  path={`/docs/${topic.slug}/`}
+  type="article"
+  structuredData={breadcrumbData}
+/>
 
 <main id="main-content" class="docs-topic">
   <div class="topic-layout">

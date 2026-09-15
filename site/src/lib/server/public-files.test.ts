@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { DOCS_TOPICS } from '../docs/topics';
+import { LEARNING_PAGES } from '../learn/catalog';
 import {
   healthResponse,
   robotsResponse,
@@ -60,7 +61,7 @@ Sitemap: https://getomg.xyz/sitemap.xml
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('application/xml; charset=utf-8');
     expect(response.headers.get('x-robots-tag')).toBe('noindex');
-    expect(body.match(/<url>/g)).toHaveLength(6 + DOCS_TOPICS.length);
+    expect(body.match(/<url>/g)).toHaveLength(9 + DOCS_TOPICS.length + LEARNING_PAGES.length);
     expect(body).toContain('<loc>https://getomg.xyz/security/</loc>');
     expect(body).toContain('<loc>https://getomg.xyz/</loc>');
     expect(body).toContain('<loc>https://getomg.xyz/docs/</loc>');
@@ -69,7 +70,7 @@ Sitemap: https://getomg.xyz/sitemap.xml
     for (const topic of DOCS_TOPICS) {
       expect(body).toContain(`<loc>https://getomg.xyz/docs/${topic.slug}/</loc>`);
     }
-    expect(body).not.toContain('<lastmod>');
+    expect(body.match(/<lastmod>/g)).toHaveLength(LEARNING_PAGES.length);
     expect(body).not.toContain('<changefreq>');
     expect(body).not.toContain('<priority>');
   });

@@ -105,7 +105,11 @@ function exportedNames(sourceFile) {
 }
 
 function isRuntimeEntry(path) {
-  return frameworkEntries.has(path) || path.startsWith('site/src/routes/');
+  return (
+    frameworkEntries.has(path) ||
+    path.startsWith('site/src/routes/') ||
+    path === 'site/src/params.ts'
+  );
 }
 
 const files = new Set([

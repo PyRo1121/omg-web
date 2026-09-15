@@ -1,7 +1,7 @@
 <script lang="ts">
+  import SeoHead from '../../lib/components/SeoHead.svelte';
   import { onMount } from 'svelte';
   import { invalidate } from '$app/navigation';
-  import { SITE_ORIGIN } from '../../../../shared/public-site';
   import { SECURITY_CATEGORIES, commitHref } from '../../lib/security-updates';
   import type { PageData } from './$types';
 
@@ -9,7 +9,6 @@
   let category = $state('All updates');
   let repository = $state('all');
   let refreshFailed = $state(false);
-  const canonicalUrl = `${SITE_ORIGIN}/security/`;
   let visible = $derived(
     data.feed.updates.filter(
       update =>
@@ -67,21 +66,11 @@
   });
 </script>
 
-<svelte:head>
-  <title>Security, in the open — OMG</title>
-  <meta
-    name="description"
-    content="Follow OMG security improvements as they land. Live commit history, installation protections and verifiable changes across OMG and OMG-Web."
-  />
-  <link rel="canonical" href={canonicalUrl} />
-  <meta property="og:title" content="Security, in the open — OMG" />
-  <meta
-    property="og:description"
-    content="Every improvement has a history. Follow the changes. Read the commits."
-  />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content={canonicalUrl} />
-</svelte:head>
+<SeoHead
+  title="Security, in the open — OMG"
+  description="Follow OMG security improvements as they land. Live commit history, installation protections and verifiable changes across OMG and OMG-Web."
+  path="/security/"
+/>
 
 <main id="main-content" class="security-shell">
   <header class="hero">

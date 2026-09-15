@@ -59,11 +59,11 @@ export const runtimesTopic: DocsTopic = {
           title: 'Version file priority per runtime',
           columns: ['Runtime', 'Detection order'],
           rows: [
-            ['Node.js', '.node-version, .nvmrc, package.json, then .tool-versions'],
+            ['Node.js', '.node-version, .nvmrc, .tool-versions, then package.json'],
             ['Python', '.python-version, pyproject.toml, then .tool-versions'],
             ['Go', '.go-version, go.mod, then .tool-versions'],
             ['Rust', 'rust-toolchain, rust-toolchain.toml, then .tool-versions'],
-            ['Bun', '.bun-version, package.json, then .tool-versions'],
+            ['Bun', '.bun-version, .tool-versions, then package.json'],
             ['Deno', '.deno-version, .dvmrc, then .tool-versions'],
           ],
         },
@@ -92,7 +92,13 @@ export const runtimesTopic: DocsTopic = {
         {
           kind: 'commands',
           title: 'Python with a virtual environment',
-          commands: ['omg use python 3.12', 'python -m venv .venv', 'source .venv/bin/activate'],
+          commands: ['omg use python 3.12', 'omg list python', 'omg which python'],
+        },
+        {
+          kind: 'paragraphs',
+          paragraphs: [
+            'Record the required installed Python version in .python-version before relying on the shell hook. At a new prompt, verify python3 --version and which -a python3. Then create a fresh environment with python3 -m venv .venv. Invoke .venv/bin/python and .venv/bin/python -m pip explicitly: the reviewed Bash and Zsh hooks reset PATH at each prompt and can undo virtual-environment activation.',
+          ],
         },
         {
           kind: 'commands',

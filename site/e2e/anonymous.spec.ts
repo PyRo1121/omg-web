@@ -36,7 +36,9 @@ test.describe('Svelte public surfaces', () => {
     await linuxCopy.focus();
     await linuxCopy.press('Enter');
     await expect(page.getByRole('status')).toHaveText('Install command copied.');
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    // Windows clipboard APIs normalize line endings to CRLF.
+    const copiedCommand = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copiedCommand.replaceAll('\r\n', '\n')).toBe(
       `curl -fsSL ${SITE_ORIGIN}/install.sh -o omg-install.sh\nless omg-install.sh && bash omg-install.sh`
     );
     await expect(page.getByRole('link', { name: 'Download from GitHub' })).toHaveAttribute(
@@ -98,8 +100,8 @@ test.describe('Svelte public surfaces', () => {
       'href',
       `${SITE_ORIGIN}/updates/`
     );
-    await expect(page.locator('details').first()).toHaveAttribute('open', '');
-    const olderRelease = page.locator('details').nth(1);
+    await expect(page.locator('.updates-shell details').first()).toHaveAttribute('open', '');
+    const olderRelease = page.locator('.updates-shell details').nth(1);
     const notesLink = olderRelease.getByRole('link', { name: 'Full v0.1.217 release notes' });
     await expect(notesLink).not.toBeVisible();
     await olderRelease.locator('summary').focus();
@@ -119,7 +121,7 @@ test.describe('Svelte public surfaces', () => {
   test('publishes canonical crawl and sharing metadata', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    await expect(page).toHaveTitle('OMG: One CLI for Packages, Runtimes, and Project Toolchains');
+    await expect(page).toHaveTitle('OMG — Package & Runtime Manager for Linux and macOS');
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${SITE_ORIGIN}/`);
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
       'content',
@@ -127,7 +129,7 @@ test.describe('Svelte public surfaces', () => {
     );
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
       'content',
-      `${SITE_ORIGIN}/og/omg-og.png`
+      `${SITE_ORIGIN}/og/omg-discovery-2026.png`
     );
     await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute('content', 'en_US');
 
@@ -142,7 +144,7 @@ test.describe('Svelte public surfaces', () => {
     ).toBeVisible();
     expect(() => JSON.parse(structuredDataText)).not.toThrow();
 
-    const socialImage = await page.request.get('/og/omg-og.png');
+    const socialImage = await page.request.get('/og/omg-discovery-2026.png');
     expect(socialImage.ok()).toBe(true);
     expect(socialImage.headers()['content-type']).toBe('image/png');
   });
@@ -152,7 +154,7 @@ test.describe('Svelte public surfaces', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(
-      page.getByRole('heading', { name: /Your machine\.\s*One command\./, level: 1 })
+      page.getByRole('heading', { name: /Packages & runtimes\.\s*One command\./, level: 1 })
     ).toBeVisible();
     await expect(
       page.getByRole('heading', { name: /One interface\.\s*Three jobs\./ })
@@ -215,7 +217,7 @@ test.describe('Svelte public surfaces', () => {
     for (const topicSlug of ['installation', 'cli', 'architecture']) {
       expect(sitemapText).toContain(`<loc>${SITE_ORIGIN}/docs/${topicSlug}/</loc>`);
     }
-    expect(sitemapText).not.toContain('<lastmod>');
+    expect(sitemapText).toContain('<lastmod>2026-09-14</lastmod>');
     expect(sitemapText).not.toContain('<changefreq>');
     expect(sitemapText).not.toContain('<priority>');
     expect(sitemapText).not.toContain(`${SITE_ORIGIN}/dashboard`);
