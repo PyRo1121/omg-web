@@ -59,7 +59,11 @@ const TRANSIENT_AUDIT_FAILURE =
   /(?:429 Too Many Requests|503 Service Unavailable|EAI_AGAIN|ECONNRESET|ETIMEDOUT|audit endpoint returned an error|network timeout)/iu;
 const VULNERABILITY_AUDIT_FAILURE =
   /(?:# npm audit report|found \d+ vulnerabilit|\d+ (?:low|moderate|high|critical) severity vulnerabilit)/iu;
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+// npm run supplies its CLI path. Launch it through Node so Windows does not
+// attempt to execute npm.cmd as a native binary (spawnSync returns EINVAL).
+const npmExecPath = process.env['npm_execpath'];
+const npmCommand = npmExecPath === undefined ? 'npm' : process.execPath;
+const npmAuditArgs = npmExecPath === undefined ? ['audit'] : [npmExecPath, 'audit'];
 const auditTargets: ReadonlyArray<AuditTarget> = [
   { label: 'root', directory: fileURLToPath(new URL('../', import.meta.url)) },
   { label: 'site', directory: fileURLToPath(new URL('../site/', import.meta.url)) },
@@ -86,7 +90,7 @@ function writeProcessOutput(stdout: string, stderr: string): void {
 function runAuditAttempt(target: AuditTarget): Effect.Effect<void, AuditFailed> {
   return Effect.try({
     try: () =>
-      spawnSync(npmCommand, ['audit'], {
+      spawnSync(npmCommand, npmAuditArgs, {
         cwd: target.directory,
         encoding: 'utf8',
         env: {

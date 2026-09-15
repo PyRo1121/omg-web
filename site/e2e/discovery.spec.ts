@@ -1,5 +1,23 @@
 import { expect, test } from '@playwright/test';
 
+test('preserves a mobile menu opened before hydration', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  const scripts = Promise.withResolvers<void>();
+  await page.route('**/*', async route => {
+    if (route.request().resourceType() === 'script') await scripts.promise;
+    await route.continue();
+  });
+  await page.goto('/', { waitUntil: 'commit' });
+  const menu = page.locator('.mobile-menu');
+  await menu.locator('summary').click();
+  await expect(menu).toHaveAttribute('open', '');
+  scripts.resolve();
+  await page.waitForLoadState('networkidle');
+  await expect(menu).toHaveAttribute('open', '');
+  await menu.getByRole('link', { name: 'Runtimes', exact: true }).click();
+  await expect(page).toHaveURL(/\/runtimes\/$/);
+});
+
 test('mobile navigation reaches a runtime guide and updates canonical metadata', async ({
   page,
 }, testInfo) => {

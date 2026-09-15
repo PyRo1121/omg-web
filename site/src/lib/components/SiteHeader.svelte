@@ -1,7 +1,11 @@
 <script lang="ts">
   import BrandMark from './BrandMark.svelte';
 
-  let menuOpen = $state(false);
+  function closeMenu(event: MouseEvent): void {
+    if (event.currentTarget instanceof HTMLAnchorElement) {
+      event.currentTarget.closest('details')?.removeAttribute('open');
+    }
+  }
   const links = [
     { href: '/runtimes/', label: 'Runtimes' },
     { href: '/guides/', label: 'Guides' },
@@ -29,14 +33,14 @@
       </ul>
     </div>
 
-    <details class="mobile-menu" bind:open={menuOpen}>
+    <details class="mobile-menu">
       <summary>Menu</summary>
       <ul>
         {#each links as link (link.href)}
-          <li><a href={link.href} onclick={() => (menuOpen = false)}>{link.label}</a></li>
+          <li><a href={link.href} onclick={closeMenu}>{link.label}</a></li>
         {/each}
-        <li><a href="/compare/" onclick={() => (menuOpen = false)}>Comparisons</a></li>
-        <li><a href="/dashboard/" onclick={() => (menuOpen = false)}>Account</a></li>
+        <li><a href="/compare/" onclick={closeMenu}>Comparisons</a></li>
+        <li><a href="/dashboard/" onclick={closeMenu}>Account</a></li>
         <li><a href="https://github.com/PyRo1121/omg/">GitHub</a></li>
       </ul>
     </details>
