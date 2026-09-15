@@ -1,5 +1,26 @@
 import { expect, test } from '@playwright/test';
 
+test('desktop header links align vertically with the brand and account actions', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1118, height: 960 });
+  await page.goto('/');
+  const centerY = async (selector: string) => {
+    const box = await page.locator(selector).first().boundingBox();
+    expect(box, `${selector} should be visible`).not.toBeNull();
+    return box!.y + box!.height / 2;
+  };
+  const brandCenter = await centerY('.brand');
+  const accountCenter = await centerY('.account-link');
+  for (const link of await page.locator('.primary-links a').all()) {
+    const box = await link.boundingBox();
+    expect(box).not.toBeNull();
+    const linkCenter = box!.y + box!.height / 2;
+    expect(Math.abs(linkCenter - brandCenter)).toBeLessThanOrEqual(2);
+    expect(Math.abs(linkCenter - accountCenter)).toBeLessThanOrEqual(2);
+  }
+});
+
 test('preserves a mobile menu opened before hydration', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   const scripts = Promise.withResolvers<void>();
