@@ -1,25 +1,13 @@
 <script lang="ts">
-  import { SITE_ORIGIN } from '../../../../shared/public-site';
+  import SeoHead from '../../lib/components/SeoHead.svelte';
   import { RELEASE_NOTES, releaseDate } from '../../lib/release-notes';
-  const canonicalUrl = `${SITE_ORIGIN}/updates/`;
 </script>
 
-<svelte:head>
-  <title>Release notes and updates - OMG</title>
-  <meta
-    name="description"
-    content="Reviewed highlights from published OMG releases. See what changed, when it shipped, and where to read the complete notes."
-  />
-  <meta name="robots" content="index, follow" />
-  <link rel="canonical" href={canonicalUrl} />
-  <meta property="og:title" content="Release notes and updates - OMG" />
-  <meta
-    property="og:description"
-    content="Published releases, real dates, and selected changes to the free OMG developer tools."
-  />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content={canonicalUrl} />
-</svelte:head>
+<SeoHead
+  title="Release notes and updates - OMG"
+  description="Reviewed highlights from published OMG releases. See what changed, when it shipped, and where to read the complete notes."
+  path="/updates/"
+/>
 
 <main id="main-content" class="updates-shell">
   <header>

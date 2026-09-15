@@ -1,5 +1,17 @@
 <script lang="ts">
   import BrandMark from './BrandMark.svelte';
+
+  function closeMenu(event: MouseEvent): void {
+    if (event.currentTarget instanceof HTMLAnchorElement) {
+      event.currentTarget.closest('details')?.removeAttribute('open');
+    }
+  }
+  const links = [
+    { href: '/runtimes/', label: 'Runtimes' },
+    { href: '/guides/', label: 'Guides' },
+    { href: '/docs/', label: 'Docs' },
+    { href: '/security/', label: 'Security' },
+  ];
 </script>
 
 <header class="site-header">
@@ -10,10 +22,9 @@
 
     <div class="primary-nav">
       <ul class="primary-links">
-        <li><a href="/#workflow">Workflow</a></li>
-        <li><a href="/#benchmarks">Speed</a></li>
-        <li><a href="/docs/">Docs</a></li>
-        <li><a href="/security/">Security</a></li>
+        {#each links as link (link.href)}
+          <li><a href={link.href}>{link.label}</a></li>
+        {/each}
         <li>
           <a href="https://github.com/PyRo1121/omg/" target="_blank" rel="noopener noreferrer">
             GitHub
@@ -21,6 +32,18 @@
         </li>
       </ul>
     </div>
+
+    <details class="mobile-menu">
+      <summary>Menu</summary>
+      <ul>
+        {#each links as link (link.href)}
+          <li><a href={link.href} onclick={closeMenu}>{link.label}</a></li>
+        {/each}
+        <li><a href="/compare/" onclick={closeMenu}>Comparisons</a></li>
+        <li><a href="/dashboard/" onclick={closeMenu}>Account</a></li>
+        <li><a href="https://github.com/PyRo1121/omg/">GitHub</a></li>
+      </ul>
+    </details>
 
     <div class="account-actions">
       <a class="account-link" href="/dashboard/">Account</a>
@@ -115,9 +138,37 @@
     background: var(--signal-hover);
   }
 
+  .mobile-menu {
+    display: none;
+    align-self: center;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  .mobile-menu summary {
+    padding: 1rem 0.75rem;
+    cursor: pointer;
+  }
+
+  .mobile-menu ul {
+    position: absolute;
+    inset: 100% 0 auto;
+    margin: 0;
+    padding: 1rem;
+    list-style: none;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+  }
+
+  .mobile-menu a {
+    display: block;
+    padding: 0.875rem;
+    color: var(--ink);
+  }
+
   @media (max-width: 47.99rem) {
     .header-shell {
-      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-columns: auto minmax(0, 1fr) auto;
       min-height: 4rem;
       padding-inline: 0;
     }
@@ -132,7 +183,7 @@
     }
 
     .account-link {
-      padding-inline: 0.75rem;
+      display: none;
     }
 
     .primary-action {
@@ -142,6 +193,11 @@
 
     .primary-nav {
       display: none;
+    }
+
+    .mobile-menu {
+      display: block;
+      justify-self: end;
     }
   }
 </style>

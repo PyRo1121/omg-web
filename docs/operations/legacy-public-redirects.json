@@ -1,0 +1,64 @@
+{
+  "name": "OMG public-site migration",
+  "description": "Move only the four legacy indexed public pages; preserve application and installer routes.",
+  "kind": "zone",
+  "phase": "http_request_dynamic_redirect",
+  "rules": [
+    {
+      "ref": "omg_public_home",
+      "description": "OMG homepage moved to getomg.xyz",
+      "expression": "(http.host eq \"omg.latham.cloud\" and http.request.method in {\"GET\" \"HEAD\"} and http.request.uri.path eq \"/\")",
+      "action": "redirect",
+      "action_parameters": {
+        "from_value": {
+          "target_url": { "value": "https://getomg.xyz/" },
+          "status_code": 301,
+          "preserve_query_string": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "ref": "omg_public_docs",
+      "description": "OMG documentation index moved to getomg.xyz",
+      "expression": "(http.host eq \"omg.latham.cloud\" and http.request.method in {\"GET\" \"HEAD\"} and http.request.uri.path in {\"/docs\" \"/docs/\"})",
+      "action": "redirect",
+      "action_parameters": {
+        "from_value": {
+          "target_url": { "value": "https://getomg.xyz/docs/" },
+          "status_code": 301,
+          "preserve_query_string": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "ref": "omg_public_privacy",
+      "description": "OMG privacy page moved to getomg.xyz",
+      "expression": "(http.host eq \"omg.latham.cloud\" and http.request.method in {\"GET\" \"HEAD\"} and http.request.uri.path in {\"/privacy\" \"/privacy/\"})",
+      "action": "redirect",
+      "action_parameters": {
+        "from_value": {
+          "target_url": { "value": "https://getomg.xyz/privacy/" },
+          "status_code": 301,
+          "preserve_query_string": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "ref": "omg_public_terms",
+      "description": "OMG terms page moved to getomg.xyz",
+      "expression": "(http.host eq \"omg.latham.cloud\" and http.request.method in {\"GET\" \"HEAD\"} and http.request.uri.path in {\"/terms\" \"/terms/\"})",
+      "action": "redirect",
+      "action_parameters": {
+        "from_value": {
+          "target_url": { "value": "https://getomg.xyz/terms/" },
+          "status_code": 301,
+          "preserve_query_string": true
+        }
+      },
+      "enabled": true
+    }
+  ]
+}

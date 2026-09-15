@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SeoHead from '../lib/components/SeoHead.svelte';
   import { serializeJsonLd, SITE_ORIGIN } from '../../../shared/public-site';
   import HomeBenchmarks from '../lib/components/home/HomeBenchmarks.svelte';
   import HomeFeatureGrid from '../lib/components/home/HomeFeatureGrid.svelte';
@@ -6,7 +7,6 @@
   import HomeInstallation from '../lib/components/home/HomeInstallation.svelte';
 
   const canonicalUrl = `${SITE_ORIGIN}/`;
-  const socialImage = `${SITE_ORIGIN}/og/omg-og.png`;
   const structuredData = serializeJsonLd({
     '@context': 'https://schema.org',
     '@graph': [
@@ -44,43 +44,12 @@
   });
 </script>
 
-<svelte:head>
-  <title>OMG: One CLI for Packages, Runtimes, and Project Toolchains</title>
-  <meta
-    name="description"
-    content="OMG is a free, open-source CLI that installs apps and manages Node.js, Python, Go, and Rust versions on Linux and macOS with one command instead of apt, brew, nvm, pyenv, and rustup."
-  />
-  <meta name="robots" content="index, follow, max-image-preview:large" />
-  <link rel="canonical" href={canonicalUrl} />
-
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="OMG: Stop Managing Package Managers" />
-  <meta
-    property="og:description"
-    content="Free and open source. System packages, language runtimes, and project toolchains through one Rust CLI."
-  />
-  <meta property="og:url" content={canonicalUrl} />
-  <meta property="og:image" content={socialImage} />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:type" content="image/png" />
-  <meta
-    property="og:image:alt"
-    content="The OMG landing page headline beside a large orange 7→1 graphic representing seven package tools replaced by one command."
-  />
-  <meta property="og:site_name" content="OMG Package Manager" />
-  <meta property="og:locale" content="en_US" />
-
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="OMG: Stop Managing Package Managers" />
-  <meta
-    name="twitter:description"
-    content="Free and open source. Packages, runtimes, and project toolchains through one Rust CLI."
-  />
-  <meta name="twitter:image" content={socialImage} />
-  <meta name="twitter:image:alt" content="OMG package manager workflow" />
-  <svelte:element this={"script"} type="application/ld+json">{structuredData}</svelte:element>
-</svelte:head>
+<SeoHead
+  title="OMG — Package & Runtime Manager for Linux and macOS"
+  description="Manage system packages and Node.js, Bun, Python, Go, and Rust versions with one free CLI. Keep project runtimes consistent on Linux, macOS, and WSL."
+  path="/"
+  {structuredData}
+/>
 
 <main id="main-content" class="home">
   <HomeHero />

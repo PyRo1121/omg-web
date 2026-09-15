@@ -1,9 +1,9 @@
 <script lang="ts">
+  import SeoHead from '../../lib/components/SeoHead.svelte';
   import { serializeJsonLd, SITE_ORIGIN } from '../../../../shared/public-site';
   import { DOCS_TOPICS, docsTopicHref } from '../../lib/docs/topics';
 
   const canonicalUrl = `${SITE_ORIGIN}/docs/`;
-  const socialImage = `${SITE_ORIGIN}/og/omg-og.png`;
   const installCommand = `curl -fsSL ${SITE_ORIGIN}/install.sh -o omg-install.sh\nless omg-install.sh && bash omg-install.sh`;
   const breadcrumbData = serializeJsonLd({
     '@context': 'https://schema.org',
@@ -47,45 +47,12 @@
   ] as const;
 </script>
 
-<svelte:head>
-  <title>OMG Documentation - Install, Commands, and Platforms</title>
-  <meta
-    name="description"
-    content="Install OMG, learn its package and runtime commands, capture reproducible environments, and browse the curated handbook."
-  />
-  <meta name="robots" content="index, follow, max-image-preview:large" />
-  <link rel="canonical" href={canonicalUrl} />
-
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="OMG Documentation - Install, Commands, and Platforms" />
-  <meta
-    property="og:description"
-    content="Install OMG, learn its package and runtime commands, capture reproducible environments, and browse the curated handbook."
-  />
-  <meta property="og:url" content={canonicalUrl} />
-  <meta property="og:image" content={socialImage} />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:type" content="image/png" />
-  <meta
-    property="og:image:alt"
-    content="The OMG landing page headline beside a large orange 7→1 graphic representing seven package tools replaced by one command."
-  />
-  <meta property="og:site_name" content="OMG Package Manager" />
-  <meta property="og:locale" content="en_US" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="OMG Documentation - Install, Commands, and Platforms" />
-  <meta
-    name="twitter:description"
-    content="Install OMG, learn its package and runtime commands, capture reproducible environments, and browse the curated handbook."
-  />
-  <meta name="twitter:image" content={socialImage} />
-  <meta
-    name="twitter:image:alt"
-    content="The OMG landing page headline beside a large orange 7→1 graphic representing seven package tools replaced by one command."
-  />
-  <svelte:element this={"script"} type="application/ld+json">{breadcrumbData}</svelte:element>
-</svelte:head>
+<SeoHead
+  title="OMG Documentation - Install, Commands, and Platforms"
+  description="Install OMG, learn its package and runtime commands, capture reproducible environments, and browse the curated handbook."
+  path="/docs/"
+  structuredData={breadcrumbData}
+/>
 
 <main id="main-content" class="docs-shell">
   <header class="docs-hero">
@@ -94,7 +61,11 @@
       <h1>Learn the parts you need.</h1>
     </div>
     <p class="hero-copy">
-      Start with four commands. Open a handbook topic when your workflow needs more control.
+      Start with four commands. Open a handbook topic when your workflow needs more control. Browse <a
+        href="/runtimes/">runtime setup guides</a
+      >
+      or learn to
+      <a href="/guides/node-npm-pnpm/">use Node.js, npm, and pnpm together</a>.
       <a href="/updates/">Read release notes and updates.</a>
     </p>
   </header>

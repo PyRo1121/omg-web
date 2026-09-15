@@ -1,12 +1,12 @@
-<script lang="ts"></script>
-
 <section class="hero home-shell" aria-labelledby="hero-title">
   <p class="hero-eyebrow">Free and open source. Built in Rust. No account required.</p>
-  <h1 id="hero-title">Your machine.<br /><span>One command.</span></h1>
+  <h1 id="hero-title">Packages &amp; runtimes.<br /><span>One command.</span></h1>
   <div class="hero-introduction">
     <p>
-      Install packages. Choose your runtimes. Share your environment. OMG brings the everyday work
-      of a development machine into one CLI.
+      Manage system packages and <a href="/runtimes/node/">Node.js</a>,
+      <a href="/runtimes/bun/">Bun</a>, and <a href="/runtimes/python/">Python</a> versions with one
+      free CLI for Linux, macOS, and WSL. Keep your
+      <a href="/guides/node-npm-pnpm/">npm and pnpm workflows</a> and share a consistent environment.
     </p>
     <nav class="hero-actions" aria-label="Homepage introduction">
       <a class="primary-link" href="#install">Install OMG <span aria-hidden="true">↓</span></a>
@@ -36,7 +36,7 @@
   h1 {
     margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(3.2rem, 10.7vw, 10rem);
+    font-size: clamp(2.5rem, 7.8vw, 7rem);
     font-weight: 650;
     letter-spacing: -0.075em;
     line-height: 0.95;
@@ -127,9 +127,6 @@
   @media (max-width: 35rem) {
     .command-label {
       flex-basis: 100%;
-    }
-    .platforms {
-      display: none;
     }
   }
 </style>

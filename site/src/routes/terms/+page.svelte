@@ -1,43 +1,13 @@
 <!-- Terms of service for the OMG Package Manager site, CLI, and licensing API. -->
 <script lang="ts">
-  import { SITE_ORIGIN } from '../../../../shared/public-site';
-
-  const canonicalUrl = `${SITE_ORIGIN}/terms/`;
-  const socialImage = `${SITE_ORIGIN}/og/omg-og.png`;
+  import SeoHead from '../../lib/components/SeoHead.svelte';
 </script>
 
-<svelte:head>
-  <title>Terms of Service - OMG Package Manager</title>
-  <meta
-    name="description"
-    content="Terms of Service for the OMG Package Manager website, CLI, and hosted services."
-  />
-  <meta name="robots" content="index, follow" />
-  <link rel="canonical" href={canonicalUrl} />
-
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Terms of Service - OMG Package Manager" />
-  <meta
-    property="og:description"
-    content="Terms for the OMG Package Manager website, CLI, accounts, and hosted services."
-  />
-  <meta property="og:url" content={canonicalUrl} />
-  <meta property="og:image" content={socialImage} />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:type" content="image/png" />
-  <meta property="og:image:alt" content="OMG Package Manager product overview." />
-  <meta property="og:site_name" content="OMG Package Manager" />
-  <meta property="og:locale" content="en_US" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Terms of Service - OMG Package Manager" />
-  <meta
-    name="twitter:description"
-    content="Terms for the OMG Package Manager website, CLI, accounts, and hosted services."
-  />
-  <meta name="twitter:image" content={socialImage} />
-  <meta name="twitter:image:alt" content="OMG Package Manager product overview." />
-</svelte:head>
+<SeoHead
+  title="Terms of Service - OMG Package Manager"
+  description="Terms of Service for the OMG Package Manager website, CLI, and hosted services."
+  path="/terms/"
+/>
 
 <main id="main-content" class="legal-shell">
   <p class="page-kicker">Service agreement</p>

@@ -163,7 +163,7 @@ describe('docs handbook content', () => {
 
     expect(runtimeGuide).toContain('Deno');
     expect(runtimeGuide).toContain('omg use deno latest');
-    expect(runtimeGuide).toContain('.node-version, .nvmrc, package.json, then .tool-versions');
+    expect(runtimeGuide).toContain('.node-version, .nvmrc, .tool-versions, then package.json');
     expect(runtimeGuide).toContain('.python-version, pyproject.toml, then .tool-versions');
     expect(runtimeGuide).not.toContain('bunx');
   });

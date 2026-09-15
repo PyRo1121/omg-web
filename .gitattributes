@@ -11,3 +11,5 @@ site/static/install.sh whitespace=-blank-at-eol
 *.sha256 text eol=lf
 site/static/install.ps1 text eol=lf
 site/static/.well-known/omg-license-ed25519-v1.pem text eol=lf
+# Match Prettier's LF policy on Windows as well as CI. Binary assets are auto-detected.
+* text=auto eol=lf

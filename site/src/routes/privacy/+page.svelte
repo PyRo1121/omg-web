@@ -4,44 +4,14 @@
   step with that contract when retention periods or rights change.
 -->
 <script lang="ts">
-  import { SITE_ORIGIN } from '../../../../shared/public-site';
-
-  const canonicalUrl = `${SITE_ORIGIN}/privacy/`;
-  const socialImage = `${SITE_ORIGIN}/og/omg-og.png`;
+  import SeoHead from '../../lib/components/SeoHead.svelte';
 </script>
 
-<svelte:head>
-  <title>Privacy Policy - OMG Package Manager</title>
-  <meta
-    name="description"
-    content="How OMG Package Manager collects, uses, and protects your data: telemetry opt-out, data export, deletion, and retention periods."
-  />
-  <meta name="robots" content="index, follow" />
-  <link rel="canonical" href={canonicalUrl} />
-
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Privacy Policy - OMG Package Manager" />
-  <meta
-    property="og:description"
-    content="How OMG Package Manager collects, uses, and protects account, license, billing, and telemetry data."
-  />
-  <meta property="og:url" content={canonicalUrl} />
-  <meta property="og:image" content={socialImage} />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:type" content="image/png" />
-  <meta property="og:image:alt" content="OMG Package Manager product overview." />
-  <meta property="og:site_name" content="OMG Package Manager" />
-  <meta property="og:locale" content="en_US" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Privacy Policy - OMG Package Manager" />
-  <meta
-    name="twitter:description"
-    content="How OMG Package Manager collects, uses, and protects account, license, billing, and telemetry data."
-  />
-  <meta name="twitter:image" content={socialImage} />
-  <meta name="twitter:image:alt" content="OMG Package Manager product overview." />
-</svelte:head>
+<SeoHead
+  title="Privacy Policy - OMG Package Manager"
+  description="How OMG Package Manager collects, uses, and protects your data: telemetry opt-out, data export, deletion, and retention periods."
+  path="/privacy/"
+/>
 
 <main id="main-content" class="legal-shell">
   <p class="page-kicker">Privacy and data rights</p>

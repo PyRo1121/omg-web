@@ -22,6 +22,9 @@
 
     <nav aria-label="Footer navigation">
       <ul class="footer-links">
+        <li><a href="/runtimes/">Runtimes</a></li>
+        <li><a href="/guides/">Guides</a></li>
+        <li><a href="/compare/">Comparisons</a></li>
         <li><a href="/docs/">Docs</a></li>
         <li><a href="/updates/">Updates</a></li>
         <li><a href="/security/">Security</a></li>

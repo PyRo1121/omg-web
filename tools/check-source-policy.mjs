@@ -17,7 +17,11 @@ const consumerSourceDirectories = [
   'site/tests',
   'workers/api/tests',
 ];
-const frameworkEntryPoints = new Set(['site/src/hooks.server.ts', 'workers/api/src/worker.ts']);
+const frameworkEntryPoints = new Set([
+  'site/src/hooks.server.ts',
+  'site/src/params.ts',
+  'workers/api/src/worker.ts',
+]);
 const sourceExtensions = ['.js', '.mjs', '.svelte', '.ts'];
 const sourceExtensionSet = new Set(sourceExtensions);
 const requiredSiteFiles = [
